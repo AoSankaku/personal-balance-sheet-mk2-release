@@ -31,7 +31,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Account, DepreciationSchedule } from "@balance-sheet/shared";
 import { api } from "../api/client";
-import { useLang } from "../i18n";
+import { toIntlLocale, useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { formatJPY } from "../lib/numberFormat";
 import {
@@ -297,9 +297,9 @@ export default function ExportPage() {
   const netIncome = totalIncome - totalExpense;
 
   const generatedAt = useMemo(
-    () => new Date().toLocaleString("ja-JP"),
+    () => new Date().toLocaleString(toIntlLocale(locale)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [fromStr, toStr],
+    [fromStr, toStr, locale],
   );
 
   function handleExportJSON() {
@@ -389,7 +389,7 @@ export default function ExportPage() {
         .join("\n");
 
     const exportedAt = new Date().toISOString();
-    const now = new Date().toLocaleString(locale === "ja" ? "ja-JP" : "en-US");
+    const now = new Date().toLocaleString(toIntlLocale(locale));
 
     const assetsList = bsAssets.map((a) => ({
       id: a.id,
@@ -500,7 +500,7 @@ export default function ExportPage() {
 
   function buildPrintHTML(): string {
     const f = (n: number) =>
-      new Intl.NumberFormat("ja-JP", {
+      new Intl.NumberFormat(toIntlLocale(locale), {
         style: "currency",
         currency: "JPY",
         maximumFractionDigits: 0,
@@ -580,7 +580,7 @@ export default function ExportPage() {
 </head>
 <body>
 <h1>財務諸表 / Financial Report</h1>
-<div class="meta">生成: ${new Date().toLocaleString("ja-JP")} ／ 期間: ${fromStr || "—"} 〜 ${toStr || "—"}</div>
+<div class="meta">生成: ${new Date().toLocaleString(toIntlLocale(locale))} ／ 期間: ${fromStr || "—"} 〜 ${toStr || "—"}</div>
 
 <h2>貸借対照表（${toStr || "—"} 時点）</h2>
 <div class="summary">

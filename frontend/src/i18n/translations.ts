@@ -1,4 +1,4 @@
-export type Locale = "en" | "ja";
+export type Locale = "en" | "ja" | "fr" | "es" | "zh-CN" | "zh-TW";
 
 export const translations = {
   // App

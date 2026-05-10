@@ -1,5 +1,7 @@
+import { toIntlLocale } from "../i18n";
+
 export function formatJPY(amount: number, locale: string): string {
-  return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
+  return new Intl.NumberFormat(toIntlLocale(locale), {
     style: "currency",
     currency: "JPY",
     maximumFractionDigits: 0,
@@ -39,7 +41,7 @@ export function formatCurrency(
   currency: string,
   displaySymbol?: string,
 ): string {
-  const intlLocale = locale === "ja" ? "ja-JP" : "en-US";
+  const intlLocale = toIntlLocale(locale);
   const cryptoDecimals = CRYPTO_DECIMALS[currency];
   if (cryptoDecimals !== undefined) {
     return (

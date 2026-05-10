@@ -20,7 +20,7 @@ import { IconArrowLeft, IconPigMoney } from "@tabler/icons-react";
 import { useState, useEffect, useMemo } from "react";
 import dayjs from "dayjs";
 import { Link } from "react-router-dom";
-import { useLang } from "../i18n";
+import { toIntlLocale, useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { api } from "../api/client";
 import type {
@@ -467,7 +467,7 @@ export default function SvPage() {
                 withDots={false}
                 connectNulls={false}
                 valueFormatter={(v) =>
-                  new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
+                  new Intl.NumberFormat(toIntlLocale(locale), {
                     style: "currency",
                     currency: "JPY",
                     maximumFractionDigits: 0,

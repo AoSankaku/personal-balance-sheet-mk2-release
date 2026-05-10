@@ -12,7 +12,7 @@ import {
 import { useMediaQuery } from "@mantine/hooks";
 import { IconPencil, IconTrash } from "@tabler/icons-react";
 import type { Account, JournalEntry } from "@balance-sheet/shared";
-import { useLang } from "../i18n";
+import { toIntlLocale, useLang } from "../i18n";
 import { formatCurrency } from "../lib/numberFormat";
 
 interface Props {
@@ -52,7 +52,7 @@ export function JournalTable({
   function formatTimestamp(ts: string) {
     const d = new Date(ts.replace(" ", "T"));
     if (isNaN(d.getTime())) return ts;
-    return new Intl.DateTimeFormat(locale === "ja" ? "ja-JP" : "en-US", {
+    return new Intl.DateTimeFormat(toIntlLocale(locale), {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",

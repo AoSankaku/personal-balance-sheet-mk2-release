@@ -3,6 +3,7 @@ import type {
   JournalEntry,
   UpsertLongTermLoanPlanRowInput,
 } from "@balance-sheet/shared";
+import { toIntlLocale, type Locale } from "../i18n";
 
 /** Add N months to a YYYY-MM string */
 export function addMonths(yearMonth: string, n: number): string {
@@ -133,11 +134,11 @@ export function generatePlanRows(opts: {
 }
 
 /** Format a YYYY-MM string as a locale-friendly month label */
-export function formatYearMonth(yearMonth: string, locale: string): string {
+export function formatYearMonth(yearMonth: string, locale: Locale): string {
   const [y, m] = yearMonth.split("-").map(Number);
   try {
     return new Date(y, m - 1, 1).toLocaleDateString(
-      locale === "ja" ? "ja-JP" : "en-US",
+      toIntlLocale(locale),
       { year: "numeric", month: "short" },
     );
   } catch {

@@ -52,8 +52,10 @@ type GuideSection = GuideFrontmatter & {
   content: string;
 };
 
+type GuideLocale = Extract<Locale, "ja" | "en">;
+
 type LocalizedGuideSection = GuideFrontmatter & {
-  content: Record<Locale, string>;
+  content: Record<GuideLocale, string>;
 };
 
 function parseGuide(raw: string): GuideSection {
@@ -243,7 +245,7 @@ export default function GuidesPage() {
           />
           <Box ref={contentRef} className={classes.markdown}>
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {activeSection.content[locale]}
+              {activeSection.content[locale === "ja" ? "ja" : "en"]}
             </ReactMarkdown>
             <NavButtons
               activeIndex={activeIndex}
@@ -275,7 +277,7 @@ export default function GuidesPage() {
           <Box style={{ flex: 1, minWidth: 0 }}>
             <div ref={contentRef} className={classes.markdown}>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {activeSection.content[locale]}
+                {activeSection.content[locale === "ja" ? "ja" : "en"]}
               </ReactMarkdown>
               <NavButtons
                 activeIndex={activeIndex}

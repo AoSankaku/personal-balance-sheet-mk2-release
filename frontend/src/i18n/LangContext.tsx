@@ -8,7 +8,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { translations, type Locale, type TranslationKey } from "./translations";
+import { toHtmlLang } from "./localeUtils";
+import { tForLocale } from "./translate";
+import type { Locale, TranslationKey } from "./translations";
 
 interface LangContextValue {
   locale: Locale;
@@ -20,7 +22,15 @@ const LangContext = createContext<LangContextValue | null>(null);
 
 function getInitialLocale(): Locale {
   const stored = localStorage.getItem("locale");
-  if (stored === "en" || stored === "ja") return stored;
+  if (
+    stored === "en" ||
+    stored === "ja" ||
+    stored === "fr" ||
+    stored === "es" ||
+    stored === "zh-CN" ||
+    stored === "zh-TW"
+  )
+    return stored;
   return "ja"; // Japanese is the primary language
 }
 
@@ -40,7 +50,7 @@ export function LangProvider({ children }: { children: ReactNode }) {
   // This means useCallbacks that depend on `t` won't recreate (no re-fetch on language swap).
   // Components still re-render for language changes because `locale` in the context value changes.
   const t = useCallback(
-    (key: TranslationKey): string => translations[key][localeRef.current],
+    (key: TranslationKey): string => tForLocale(key, localeRef.current),
     [],
   );
 
@@ -51,7 +61,7 @@ export function LangProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    document.documentElement.lang = locale === "ja" ? "ja-JP" : "en-US";
+    document.documentElement.lang = toHtmlLang(locale);
   }, [locale]);
 
   return <LangContext.Provider value={value}>{children}</LangContext.Provider>;

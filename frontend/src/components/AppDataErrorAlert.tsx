@@ -2,22 +2,23 @@ import { Alert, Button, Group, Stack, Text } from "@mantine/core";
 import { IconRefresh } from "@tabler/icons-react";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
-import { translations, type Locale, type TranslationKey } from "../i18n/translations";
+import { tForLocale, type Locale, type TranslationKey } from "../i18n";
 
 interface AppDataErrorAlertProps {
   error: string;
 }
 
 function multilingual(key: TranslationKey, locale: Locale) {
-  const secondaryLocale = locale === "ja" ? "en" : "ja";
-  const primary = translations[key][locale];
-  const secondary = translations[key][secondaryLocale];
+  const secondaryLocale: Locale =
+    locale === "ja" ? "en" : locale === "en" ? "ja" : "en";
+  const primary = tForLocale(key, locale);
+  const secondary = tForLocale(key, secondaryLocale);
   return primary === secondary ? primary : `${primary} / ${secondary}`;
 }
 
 function formatErrorMessage(error: string, locale: Locale) {
   const normalized = error.trim().toLowerCase();
-  const internalServerError = translations.internalServerError.en.toLowerCase();
+  const internalServerError = tForLocale("internalServerError", "en").toLowerCase();
   if (normalized === internalServerError) {
     return multilingual("internalServerError", locale);
   }

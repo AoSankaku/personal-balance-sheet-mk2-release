@@ -38,7 +38,7 @@ import { useDisclosure } from "@mantine/hooks";
 import { useMemo, useState } from "react";
 import { isLongTermLoanCategory } from "@balance-sheet/shared";
 import { api } from "../api/client";
-import { useLang } from "../i18n";
+import { useLang, type Locale } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { categoryIndex } from "../lib/accountUtils";
 import { AccountTable } from "../components/AccountTable";
@@ -47,11 +47,26 @@ import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import type { Account, CreateAccountInput } from "@balance-sheet/shared";
 import type { CreditCardSettingsInput } from "../components/AddAccountModal";
 import { showFeedback } from "../lib/feedback";
-import US from "country-flag-icons/react/1x1/US";
-import JP from "country-flag-icons/react/1x1/JP";
+import * as Flags from "country-flag-icons/react/1x1";
 
-function Flag({ locale }: { locale: "en" | "ja" }) {
-  const Svg = locale === "en" ? US : JP;
+const localeToCountry: Record<Locale, string> = {
+  en: "US",
+  ja: "JP",
+  fr: "FR",
+  es: "ES",
+  "zh-CN": "CN",
+  "zh-TW": "TW",
+};
+
+function Flag({ locale }: { locale: Locale }) {
+  const code = localeToCountry[locale];
+  const Svg = (
+    Flags as unknown as Record<
+      string,
+      (props: { style?: unknown }) => JSX.Element
+    >
+  )[code];
+  if (!Svg) return null;
   return <Svg style={{ width: 18, height: 18, display: "block" }} />;
 }
 
@@ -329,17 +344,21 @@ export default function SettingsPage() {
             size="xs"
             w={140}
             value={locale}
-            onChange={(v) => v && setLocale(v as "en" | "ja")}
+            onChange={(v) => v && setLocale(v as Locale)}
             data={[
-              { value: "en", label: "English" },
               { value: "ja", label: "日本語" },
+              { value: "en", label: "English" },
+              { value: "fr", label: "Français" },
+              { value: "es", label: "Español" },
+              { value: "zh-CN", label: "简体中文" },
+              { value: "zh-TW", label: "繁體中文" },
             ]}
             allowDeselect={false}
             checkIconPosition="right"
             leftSection={<Flag locale={locale} />}
             renderOption={({ option }) => (
               <Group gap="xs" wrap="nowrap">
-                <Flag locale={option.value as "en" | "ja"} />
+                <Flag locale={option.value as Locale} />
                 <span>{option.label}</span>
               </Group>
             )}

@@ -21,7 +21,7 @@ import {
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
-import { useLang } from "../i18n";
+import { toIntlLocale, useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { CryptoWatchModal } from "../components/CryptoWatchModal";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
@@ -202,7 +202,7 @@ export default function CryptoPage() {
                 <Text size="sm" fw={500}>
                   {value != null
                     ? new Intl.NumberFormat(
-                        locale === "ja" ? "ja-JP" : "en-US",
+                        toIntlLocale(locale),
                         {
                           style: "currency",
                           currency: "JPY",
