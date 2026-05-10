@@ -1,11 +1,25 @@
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import path from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
+
+function i18nYamlHmrPlugin(): Plugin {
+  return {
+    name: 'i18n-yaml-hmr',
+    handleHotUpdate({ file, server }) {
+      const normalized = file.replaceAll('\\', '/');
+      if (normalized.includes('/src/i18n/locales/') && normalized.match(/\.ya?ml$/)) {
+        server.ws.send({ type: 'full-reload' });
+        return [];
+      }
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
     react(),
+    i18nYamlHmrPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {

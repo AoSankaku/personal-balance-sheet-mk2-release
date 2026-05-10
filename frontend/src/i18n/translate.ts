@@ -1,8 +1,5 @@
-import { extraTranslations } from "./extraTranslations";
-import { financialHealthTranslations } from "./financialHealthTranslations";
-import { overviewTranslations } from "./overviewTranslations";
-import { settingsTranslations } from "./settingsTranslations";
 import { translations, type Locale, type TranslationKey } from "./translations";
+import { yamlTranslations } from "./yamlTranslations";
 
 type BaseLocale = Extract<Locale, "en" | "ja">;
 
@@ -16,10 +13,7 @@ export function tForLocale(key: TranslationKey, locale: Locale): string {
   if (isBaseLocale(locale)) return base[locale];
 
   return (
-    extraTranslations[locale]?.[key] ??
-    financialHealthTranslations[locale]?.[key] ??
-    overviewTranslations[locale]?.[key] ??
-    settingsTranslations[locale]?.[key] ??
+    yamlTranslations[locale]?.[key] ??
     base.en
   );
 }

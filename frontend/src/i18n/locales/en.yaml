@@ -1,0 +1,1003 @@
+appTitle: Personal Balance Sheet
+toggleColorScheme: Toggle color scheme
+assets: Assets
+liabilities: Liabilities
+netWorth: Net Worth
+income: Income
+expenses: Expenses
+netIncome: Net Income
+assetBreakdown: Asset Breakdown
+noAssetBalancesYet: No asset balances yet.
+addAccountBtn: + Add Account
+addTransactionBtn: + Add Transaction
+balanceSheetTitle: Balance Sheet
+plTitle: P&L
+settingsSectionGeneral: General
+settingsSectionAccounts: Accounts
+sectionAssets: Assets
+sectionDepreciableAssets: Fixed Assets (Depreciable)
+sectionLiabilities: Liabilities
+sectionEquity: Equity
+sectionIncome: Income
+sectionExpenses: Expenses
+failedToLoadData: Failed to load data
+errorTitle: Error
+reload: Reload
+internalServerError: Internal Server Error
+accountAdded: Account added
+accountDeleted: Account deleted
+transactionAdded: Transaction added
+transactionDeleted: Transaction deleted
+statusLabel: Status
+statusDismiss: OK
+total: "Total:"
+thAccount: Account
+thCategory: Category
+thCurrency: Currency
+thBalance: Balance
+noAccountsYet: No accounts yet.
+deleteAccount: Delete account
+catCash: Cash / Bank
+catInvestment: Investment
+catProperty: Property
+catLoan: Long-term Borrowing
+catCreditCard: Credit Card
+catShortTermLoan: Short-term Loan
+catOpeningBalance: Opening Balance
+catSalary: Salary
+catBusiness: Business
+catInvestmentIncome: Investment Income
+catFood: Food & Dining
+catRent: Rent / Housing
+catTransport: Transport
+catUtilities: Utilities
+catEntertainment: Entertainment
+catOther: Other
+catCrypto: Crypto
+catLending: Short-term Lending
+catShortTermLending: Short-term Lending
+catLongTermLending: Long-term Lending
+catLongTermLoan: Long-term Borrowing
+catBusinessAdvance: Business Advance
+catDailyGoods: Daily Goods
+catSocial: Social Expenses
+catInvestmentLoss: Investment Loss
+addAccountTitle: Add Account
+editAccountTitle: Edit Account
+editAccount: Edit
+accountUpdated: Account updated
+accountNameLabel: Account Name
+accountNamePlaceholder: e.g. SBI Savings
+typeLabel: Type
+categoryLabel: Category
+currencyLabel: Currency
+cancel: Cancel
+confirm: Confirm
+nameIsRequired: Name is required
+nameConflictAccount: This name is already used by an account
+nameConflictBudgetCategory: This name is already used by a budget category
+typeAsset: Asset
+typeLiability: Liability
+typeEquity: Equity
+typeIncome: Income
+typeExpense: Expense
+addTransactionTitle: Add Transaction
+tabSimple: Simple
+tabMultiLine: Multi-line
+dateLabel: Date
+descriptionLabel: Description
+descSimplePlaceholder: e.g. Grocery shopping
+descMultiPlaceholder: e.g. Payroll
+debitAccountLabel: Debit account (increase)
+creditAccountLabel: Credit account (decrease)
+selectAccount: Select account
+amountLabel: Amount
+multiAccountColHeader: Account
+debitColHeader: Debit
+creditColHeader: Credit
+addRow: Add row
+totalDebit: "Total debit:"
+totalCredit: "Total credit:"
+unbalanced: ⚠ Unbalanced
+add: Add
+descriptionIsRequired: Description is required
+selectDebitAccount: Select debit account
+selectCreditAccount: Select credit account
+amountMustBePositive: Amount must be positive
+recentJournalEntries: Recent Journal Entries
+rowsPerPage: Rows per page
+pageSummary: "{from}-{to} of {total}"
+thDate: Date
+thDescription: Description
+thDebit: Debit
+thCredit: Credit
+thSource: Source
+thCreatedAt: Input At
+showInputTimestamp: Show timestamp
+journalSourceManual: Manual
+journalSourceCsvImport: CSV Import
+noTransactionsYet: No transactions yet.
+deleteEntry: Delete entry
+recentTransactions: Recent Transactions
+showMore: Show more
+showAllTransactions: Show all
+budgetImpact: Budget
+expenseChartTitle: Monthly Expenses
+noExpenseDataYet: No expense data yet.
+bsTrendTitle: Balance Sheet Trend
+bsChartTotalAssets: Total Assets
+bsChartTotalLiabilities: Total Liabilities
+bsChartSelectLabel: Select series
+bsChartStacked: Stacked
+bsChartTotals: Totals
+netWorthOverTime: Net Worth Over Time
+chartAssets: Assets
+chartLiabilities: Liabilities
+chartNetWorth: Net Worth
+chartViewAll: All
+chartViewAssetsLiabilities: Assets & Liabilities
+chartViewNetWorth: Net Worth
+granularityYear: Year
+granularityMonth: Month
+granularityDay: Day
+includeFutureData: Include future data
+reset: Reset
+resetConfirm: Reset the form? Your draft will be cleared.
+cryptoPortfolio: Crypto Portfolio
+addWallet: + Add Wallet
+walletAddress: Wallet Address
+detectedChain: Detected Chain
+estMarketValue: Est. Market Value
+coinPrice: Coin Price
+quantity: Quantity
+fetchBalance: Fetch Balance
+invalidAddress: Invalid address
+noWalletsYet: No wallets yet.
+deleteWallet: Delete wallet
+walletLinked: Wallet linked
+thChain: Chain
+thAddress: Address
+thQuantity: Quantity
+thEstValue: Est. Value
+linkAccount: Link Account
+refresh: Refresh
+cryptoPrices: Crypto Prices (JPY)
+thTicker: Ticker
+thPrice: Price (JPY)
+pricesNotLoaded: Prices not yet loaded.
+navOverview: Overview
+navInput: Input
+navAssets: Assets
+navLedger: Ledger
+navCrypto: Crypto
+navReports: Reports
+navSettings: Settings
+transactionTypeExpense: Expense
+transactionTypeIncome: Income
+transactionTypeTransfer: Transfer
+transactionTypeInitial: Initial Input
+initialAssetAccountLabel: Account
+openingBalanceAccountName: Opening Balance
+paidFromLabel: Paid from
+depositedToLabel: Deposited to
+fromAccountLabel: From account
+toAccountLabel: To account
+incomeTypeLabel: Income type
+transferBudgetSourceLabel: Budget source
+transferBudgetDestinationLabel: Budget destination
+transferBudgetNoMovementPlaceholder: No budget movement
+transferBudgetDisappearPlaceholder: Disappear
+budgetAdjustNoteLabel: Comment
+budgetAdjustNotePlaceholder: Optional note for this budget adjustment
+budgetHistoryNoteCol: Comment
+filterThisMonth: This Month
+filterLastMonth: Last Month
+filterAll: All
+filterPanel: Filter
+filterActiveCount: "{n} active"
+filterDescriptionLabel: Description
+filterDescriptionPlaceholder: Search description…
+filterSourceLabel: Source
+filterSourceAll: All sources
+filterAmountLabel: Amount Range
+filterAmountMin: Min
+filterAmountMax: Max
+filterAccountLabel: Account
+filterAccountPlaceholder: All accounts
+filterCreatedRangeLabel: Input Timestamp Range
+filterClearAll: Clear
+outsideDateRangeMsg: "{n} entries outside selected date range"
+clearDateFilter: "[Clear date filter]"
+availableBalance: Available Balance
+carryover: Carryover
+budgetResetBadge: Reset
+used: used
+budget: budget
+noBudgetCategories: No budget categories yet. Go to Settings to add one.
+inputPageTitle: Add Transaction
+transactionSaved: Transaction saved
+viewSimple: Simple
+viewDoubleEntry: Double-entry
+budgetTitle: Budget
+addBudgetCategory: + Add Budget Category
+budgetCategoryName: Category Name
+budgetRollover: Carry over unused budget to next month
+budgetLinkedAccounts: Linked Expense Accounts
+budgetFixedAmount: Fixed Amount (¥)
+budgetIncomeRatio: Income Ratio (%)
+budgetAdhocAmount: One-time Addition (¥)
+editBudgetCategory: Edit
+archiveBudgetCategory: Archive
+restoreBudgetCategory: Restore
+showArchivedBudgetCategories: Show archived
+archivedBudgetCategoryBadge: Archived
+deleteBudgetCategory: Delete
+saveBudgetCategory: Save
+budgetDistributionLabel: Budget Distribution
+budgetDistributionHint: Set what % of this expense counts toward each budget category.
+budgetDistributionTotal: Total
+defaultPaymentSource: Default payment source
+defaultPaymentSourceHint: Pre-fill the 'Paid from' field when entering expenses.
+preferredPaymentMethod: Preferred payment method
+preferredPaymentMethodHint: This account is pre-selected and shown first in 'Paid from'.
+preferredPaymentMethodNone: No preference
+preferredFilterTitle: Preferred budget distribution filters
+preferredFilterHint: These budget distribution filters appear first (★ group) in the income entry dropdown.
+preferredFilterNone: No filter
+budgetAllocationDisplay: Budget distribution
+budgetDistOtherCategories: Other categories
+tabBudgetAdjust: Budget Adj.
+budgetCategoryLabel: Budget Category
+budgetAdjustAmountLabel: Adjustment amount (+ add / − reduce)
+budgetAdjusted: Budget adjusted
+budgetResetToZeroButton: Budget reset (balance 0)
+archiveBudgetCategoryAfterReset: Archive this budget category after reset
+expenseSubAccountLabel: Expense account
+asOfDate: As of
+transactionTypeLoan: Loan/Repay
+loanIncrease: Borrow (Liability ↑)
+loanDecrease: Repay (Liability ↓)
+loanLend: Lend (Asset ↑)
+loanCollect: Collect (Asset ↓)
+liabilityAccountLabel: Liability account
+lendingAccountLabel: Lending account
+loanCounterIncrease: Deposit destination
+loanCounterIncreaseExpense: Expense covered by loan
+loanCounterIncreaseLiability: Liability settled
+loanCounterDecrease: Payment account
+loanCounterDecreaseLiability: Liability used
+loanCounterDecreaseIncome: Forgiven (income)
+loanCounterLend: Lending source
+loanCounterLendLiability: Liability used
+loanCounterCollect: Receiving account
+loanCounterExpenseCovered: Expense covered by them
+selectSettlementEntries: Select entries to settle
+settlementSelectedTotal: Selected total
+noUnsettledEntries: No unsettled entries
+loanDifferenceIncome: Gain (income account)
+loanDifferenceLoss: Loss (expense account)
+loanDifferenceAccountLabel: Difference account
+completedAccountsSection: Completed accounts
+tabInitialBalance: Initial Balance
+initialBalanceHint: Record opening balances for accounts when starting out.
+collapse: Collapse ▲
+autoGeneratedDescription: "Description (auto-generated):"
+copyFromExistingLabel: Copy from existing filter
+copyFromExistingPlaceholder: Select a filter to copy (optional)
+noRemainderWarningTitle: No Ratio Distribution step
+noRemainderWarning: If 'Ratio Distribution' is not placed last, unallocated cash will remain after entering income. This can be manually allocated to budget categories later, but since used filters cannot be edited, you will need to create a new filter if changes are needed.
+noRemainderWarningConfirm: Save anyway
+budgetAdjustDateLabel: Date
+budgetHistoryTitle: Budget Adjustment History
+noBudgetHistory: No budget adjustments yet.
+budgetHistoryAmountCol: Amount
+budgetDistributionPreview: Distribution preview
+budgetFilterDefaultLabel: Filter pipeline
+filterStepFixed: Fixed
+filterStepCapped: Capped
+filterStepRemainder: Remainder
+filterStepRemaining: remaining
+budgetDistributionPreviewUnallocated: Unallocated
+multiLineBudgetRatios: Budget allocation
+multiLineBudgetAllocHint: ＋ adds to budget  ／  − reduces budget
+dateRangePlaceholder: Select range
+rolloverMonthsLabel: Rollover Period
+rolloverMonthsUnit: months
+rolloverMonthsDesc: Max months to carry over unused budget (1–24)
+budgetSettingsTitle: Budget Settings
+budgetSettingsSaved: Budget settings saved
+budgetHistoryJournalTab: Recent Transactions
+budgetHistoryBudgetTab: Budget History
+tabBalanceSheet: B/S
+tabBalanceSheetDesc: Assets, liabilities & equity
+tabPL: P&L
+tabPLDesc: Income & expense overview
+navCryptoDesc: Wallet balances & portfolio
+filterThisYear: This Year
+navFS: Financials
+plPerYear: Per Year
+plPerMonth: Per Month
+plPerDay: Per Day
+plTotal: Period Total
+plGoToCurrent: Current
+granularityQuarter: Quarter
+granularityHalf: Half
+budgetHistorySourceIncome: Income
+budgetHistorySourceTransfer: Transfer
+budgetHistorySourceManual: Manual
+budgetHistorySourceReset: Reset
+budgetHistorySourceSimple: Simple Input
+budgetHistorySourceMultiline: Multi-line
+accountName: Account
+budgetTargetAccountsLabel: Target Accounts
+budgetTargetAccountsDesc: Used for placement guidance only. Linked budgets and accounts are grouped and compared by total balance.
+budgetTargetManyToManyError: This would create a many-to-many placement. Use either one budget with multiple accounts, or multiple budgets with one account.
+budgetPlacementTitle: Budget Placement
+budgetPlacementExpected: Target
+budgetPlacementActual: Actual
+budgetPlacementDifference: Difference
+budgetPlacementUnplaced: Unplaced
+budgetPlacementEmpty: No target accounts are configured.
+budgetPlacementHintsTitle: Hints
+budgetHistoryTypeCol: Type
+budgetHistoryModeEntries: Entries
+budgetHistoryModeCategories: By Budget
+budgetHistoryCategorySummaryCount: "{count} budget categories"
+budgetHistoryEntryCount: "{count} entries"
+budgetHistoryLatestInput: Latest input
+budgetHistoryAdjustedTotal: Budget Amount
+budgetHistoryPeriodRunningTotal: Range Total
+budgetHistoryInputTimestamp: Input Time
+deleteAdjustmentLog: Delete Adjustment
+deleteAdjustmentLogConfirm: Delete this adjustment?
+deleteIncomeChunk: Delete Income Allocation
+deleteIncomeChunkConfirm: This will remove the budget allocations for all {count} categories (¥{total} total) linked to this income entry. The income transaction itself will not be deleted.
+incomeAllocationDeleted: Income allocation removed
+adjustmentLogDeleted: Adjustment deleted
+adjustmentLogUpdated: Adjustment updated
+editLabel: Edit
+editTransactionTitle: Edit Transaction
+save: Save
+refreshPrices: Refresh prices
+paydayLabel: Payday (day of month)
+paydayHint: A notification will appear if no income is recorded by this day each month.
+noNotifications: No notifications
+notificationPaydayUnrecorded: Payday not yet recorded
+notifications: Notifications
+settingsSectionNotifications: Notifications
+notifPaydayToggle: Payday reminder
+notifPaydayToggleHint: Show a bell alert when payday income hasn't been recorded yet.
+notifCreditCardToggle: Credit card import reminder
+notifCreditCardToggleHint: Show a banner on the overview page when a credit card statement is ready to import.
+notifCreditCardWithdrawalRiskToggle: Credit card withdrawal balance alert
+notifCreditCardWithdrawalRiskToggleHint: Show a bell alert from 14 days before withdrawal when linked bank balance may go negative after credit card payments.
+notifBudgetNegativeToggle: Budget over-allocation alert
+notifBudgetNegativeToggleHint: Show a bell alert when total budget allocations exceed your actual assets, making your budget unreliable.
+notificationBudgetNegative: Your budget allocations exceed your total assets. This may be caused by a duplicate or forgotten entry — your budget figures are no longer reliable until this is corrected.
+notifLoanOverdueToggle: Overdue short-term loan/debt alert
+notifLoanOverdueToggleHint: Show a bell alert when no repayment/collection has occurred for the specified number of days.
+notifLoanOverdueDaysLabel: Threshold (days)
+notifAccountNegativeToggle: Negative account balance alert
+notifAccountNegativeToggleHint: Show a bell alert when an account balance goes negative (excludes unknown funds).
+notificationLoanOverdueSection: Overdue loans / debts
+notificationLoanOverdueDays: "{days} days ago"
+notificationAccountNegativeSection: Negative account balances
+notificationCreditCardWithdrawalRiskSection: Credit card withdrawals may overdraw
+notificationCreditCardWithdrawalRiskDetail: "{date} from {account}: {amount}"
+accountInUse: Account in use
+accountInUseMsg: This account is used in journal entries or has a linked wallet. Select a replacement account of the same type.
+replaceWith: Replace with
+replaceAndDelete: Replace & Delete
+creditCardDatesLabel: Statement Settings
+closingDayLabel: Closing day
+closingDayEndOfMonth: End of month
+confirmationDayLabel: Confirmation day
+withdrawalDayLabel: Withdrawal day
+withdrawalAccountLabel: Withdrawal account
+withdrawalAccountHint: Used for withdrawal balance alerts.
+withdrawalAccountPlaceholder: Select account
+billingOffsetMonthsLabel: Billing month offset
+billingOffsetMonthsHint: Extra months after the usual next-month withdrawal. 0 means the normal next-month withdrawal.
+creditCardStatementOffsetLabel: Transaction billing offset
+creditCardStatementOffsetHint: Extra months after the normal cycle for this transaction. 0 means the usual next-month withdrawal.
+creditCardStatementOffsetShort: Offset
+importPageTitle: Import CSV
+importUploadLabel: Upload CSV file
+importDetectedFormat: Detected format
+importSelectFormat: Select format manually
+importFormatSmbcDraft: SMBC (Draft)
+importFormatSmbcConfirmed: SMBC (Confirmed)
+importFormatRakutenDraft: Rakuten (Draft)
+importFormatRakutenConfirmed: Rakuten (Confirmed)
+importFormatUnknown: Unknown format
+importFormatSmbcBank: SMBC Bank (Income/Expense Statement)
+importFormatSbiBank: SBI Bank (Income/Expense Statement)
+importSelectCard: Credit card account
+importSelectBankAccount: Bank account
+importExpenseAccount: Expense account
+importIncomeAccount: Income account
+importDirectionWithdrawal: Withdrawal
+importDirectionDeposit: Deposit
+importNoBankAccounts: No asset accounts found. Create one in Settings first.
+importRowTypeExpense: Expense
+importRowTypeLiability: Debt payment
+importRowTypeTransfer: Transfer
+importLiabilityAccount: Liability account
+importDuplicateWarning: Possible duplicate
+importApplyToAll: Apply to all matching
+importConfirmButton: Import
+importSuccess: Import complete
+importDuplicateModalTitle: Duplicate Transactions
+importSkip: Skip
+importImportAnyway: Import anyway
+creditCardImportReminder: Credit card statement import due
+importTransactionCount: transactions found
+importStoreCol: Store / Description
+importDateCol: Date
+importAmountCol: Amount
+importPaymentMonthCol: Billing month
+importNoCardAccounts: No credit card accounts found. Create one in Settings first.
+importReviewTitle: Review Transactions
+importDuplicateTitle: Duplicate?
+filterEditTitle: Edit Filter
+filterCreateTitle: Create New Filter
+filterReadOnlyAlert: This filter cannot be edited because it has been used
+filterNameLabel: Filter Name
+filterStepsTitle: Steps
+filterStepLabel: Step
+stepTypeFixed: Fixed Amount
+stepTypeCapped: Capped Distribution
+stepTypeRemainder: Ratio Distribution
+filterSelectCategoryPlaceholder: Select category
+filterCappedTotalLabel: Cap total
+filterRemainderTotalLabel: Total
+filterAddCategory: Add Category
+filterAddStep: Add Step
+filterNameRequired: Name is required
+filterStepsRequired: Add at least one step
+filterRemainderMustBeLast: Ratio Distribution step must be placed last
+filterRemainderOnlyOne: Only one Ratio Distribution step is allowed
+filterRemainderTotalMustBe100: Ratio total must be 100%
+filterSelectCategory: Please select a budget category
+filterCopySuffix: " (Copy)"
+close: Close
+saveFailed: Failed to save
+entrySaved: Entry saved
+unknownCategoryPrefix: "Category #"
+applyBudgetFilterLabel: Distribute budget as regular income
+budgetFilterTitle: Budget Distribution Filter
+filterSelectPlaceholder: Select a filter
+filterReapplyTitle: Re-applied this month
+filterReapplyMessage: The same filter has already been applied this month. Totals have been merged and recalculated.
+languageLabel: Language / 言語
+manageBudget: Manage →
+budgetFilterManagement: budget filter management
+budgetSetupDesc: Set up budget categories and distribution filters.
+filterCopied: Filter copied
+copyFailed: Failed to copy
+updateFailed: Failed to update
+deleteFilter: Delete Filter
+filterDeleteConfirm: Are you sure you want to delete this filter?
+deleted: Deleted
+deleteFailed: Failed to delete
+backToSettings: ← Settings
+createFilterBtn: + Create New Filter
+noFilters: No filters found. Click "+ Create New Filter" to add one.
+thName: Name
+thStatus: Status
+thActions: Actions
+badgeUsed: Used
+badgeUnused: Unused
+badgeActive: Active
+badgeInactive: Inactive
+copyAndEdit: Copy & Edit
+activateFilter: Activate
+deactivateFilter: Deactivate
+ok: OK
+overBudgetWarningTitle: Budget Allocation Exceeds 100%
+overBudgetWarningMsg: Total budget distribution exceeds 100%. Please adjust the percentages before saving.
+underBudgetWarningTitle: Budget Allocation Below 100%
+underBudgetWarningMsg: Total budget distribution is below 100%. The remaining amount will not be tracked in any budget category. Continue anyway?
+simpleConvertWarningTitle: Cannot Convert to Simple Entry
+simpleConvertTypeMismatchMsg: This entry uses account types that cannot be represented in simple entry mode.
+simpleConvertMultilineSourceMsg: This entry was originally created as a multi-line entry and cannot be converted to simple entry mode.
+assignableMoneyLabel: Assignable (Cash & Bank)
+assignableMoneyTodayLabel: As of today
+assignableMoneyTotalLabel: Incl. future
+assignableMoneyAssetsLabel: assets
+assignableMoneyCommittedLabel: committed
+budgetGroupLabel: Budget Group
+budgetGroupDaily: Daily Expenses
+budgetGroupSavings: Savings
+infiniteRolloverLabel: Infinite rollover
+rolloverMonthsColumn: Rollover
+budgetIncludingSavings: Budget incl. Savings
+goalBalanceLabel: Goal Balance
+goalBalanceDesc: Optional savings or spending target for this category
+budgetBalanceCapLabel: Balance Cap
+budgetBalanceCapDesc: When the balance exceeds this amount, the excess moves to the selected budget.
+budgetOverflowTargetLabel: Excess Budget Target
+budgetOverflowTargetPlaceholder: Keep excess here
+goal: Goal
+goalReachIn: At this rate, goal in ~{months} months
+goalReachBy: by {date}
+goalAlreadyReached: Goal reached!
+optional: Optional
+dangerZoneTitle: Danger Zone
+dangerZoneDesc: These actions are permanent and cannot be undone. Proceed with caution.
+dangerAdminApiNoticeTitle: Admin API protection
+dangerAdminApiNoticeBody: These actions call /api/admin endpoints. This app does not include built-in authentication, so protect the site with Cloudflare Zero Trust, a VPN, Tailscale, or an authenticated reverse proxy. If these operations are not needed, set DISABLE_ADMIN_API=true in the Worker environment.
+dangerEraseMonthLedger: Erase this month's ledger & budget input
+dangerEraseMonthLedgerDesc: Deletes all journal entries and budget data (allocations, adjustments) for the current month.
+dangerEraseYearLedger: Erase this year's ledger & budget input
+dangerEraseYearLedgerDesc: Deletes all journal entries and budget data for the current year.
+dangerEraseAllLedger: Erase all ledger & budget input
+dangerEraseAllLedgerDesc: Deletes all journal entries, budget allocations and adjustment logs across all time.
+dangerEraseAllAccounts: Erase all accounts
+dangerEraseAllAccountsDesc: Deletes all accounts and their journal entries (this will also clear the ledger).
+dangerEraseAllBudgetCategories: Erase all budget categories
+dangerEraseAllBudgetCategoriesDesc: Deletes all budget categories, their allocations and adjustment logs.
+dangerEraseAllData: Erase all data
+dangerEraseAllDataDesc: "Deletes everything: ledger, accounts, budget categories, filters, and credentials. The app will be reset to a blank state."
+dangerConfirm1Title: Are you sure?
+dangerConfirm1Body: "This will permanently delete the following data:"
+dangerConfirm2Title: Final confirmation
+dangerConfirm2Body: This action is IRREVERSIBLE. There is no undo. All deleted data will be lost forever.
+dangerProceedBtn: Proceed →
+dangerConfirmFinalBtn: Yes, delete permanently
+dangerSuccessMsg: Data erased successfully
+dangerErrorMsg: Failed to erase data
+tabCsvImport: CSV Import
+tabBulkExpense: Bulk Expense
+bulkExpensePaymentAccount: Payment account (CR)
+bulkExpenseAddExpenseRow: + Expense row
+bulkExpenseCopyLastDate: Copy date from last row
+bulkExpenseAddDiscountRow: + Discount/GC row
+bulkExpenseOrderDate: Order date
+bulkExpenseItemName: Item name
+bulkExpenseQty: Qty
+bulkExpensePrice: Price (¥)
+bulkExpenseExpenseAccount: Expense account
+bulkExpenseDiscountDate: Use date
+bulkExpenseDiscountType: Type (GC/points/etc.)
+bulkExpenseDiscountAmount: Amount (¥)
+bulkExpenseIncomeAccount: Income account
+bulkExpenseBudgetCategory: Budget category (opt.)
+bulkExpenseCalcTotal: Calculated total
+bulkExpenseAmazonBilling: Amazon billing amount
+bulkExpenseBillingLabel: Label (optional)
+bulkExpenseAddBillingRow: + Add row
+bulkExpenseBillingTotal: Billing total
+bulkExpenseDiff: Difference
+bulkExpensePostAll: Post all to ledger
+bulkExpenseNoPaymentAccount: Select a payment account first
+bulkExpensePosted: Posted to ledger
+bulkExpenseRowTypeExpense: Expense
+bulkExpenseRowTypeDiscount: Discount/GC
+bulkExpenseColType: Type
+bulkExpenseColDate: Date
+bulkExpenseColName: Name
+bulkExpenseColQty: Qty
+bulkExpenseColAmount: Amount (¥)
+bulkExpenseColAccount: Account
+bulkExpenseColBudget: Budget category
+bulkExpenseDefaultExpenseDesc: Amazon purchase
+bulkExpenseDefaultDiscountDesc: Discount/GC/Points
+bulkExpenseNoRows: No rows to post
+bulkExpenseSkippedRows: "{n} row(s) have no account selected and will not be recorded. Continue?"
+bulkExpenseSkippedTitle: Some rows will be skipped
+bulkExpenseExpensePlaceholder: Expense account
+bulkExpenseIncomePlaceholder: Income account
+bulkExpenseBudgetPlaceholder: Optional
+groupExpenseAccounts: Expense accounts
+groupIncomeAccounts: Income accounts
+groupLiabilityAccounts: Liability accounts
+groupAssetAccounts: Asset accounts
+importGroupAssetTransferAccounts: Asset accounts (transfer source)
+storeMappingsTitle: Store → Account Mappings
+storeMappingsDesc: Remembered account assignments from CSV import. Click × to remove.
+storeMappingsNoItems: No mappings yet.
+storeMappingSaved: Mapping saved
+storeMappingDeleted: Mapping deleted
+storeMappingOverwriteTitle: Overwrite mapping?
+storeMappingOverwriteMsg: Store "{store}" already has an account mapping ({existing}). Overwrite with {new}?
+storeMappingOverwrite: Overwrite
+importAmazonHint: "Amazon transaction detected. Check your order history at:"
+importAmazonBulkBadge: → Bulk Expense
+importAmazonSwitched: Amazon transaction(s) moved to Bulk Expense tab
+importAmazonCount: "{count} Amazon order(s) → Bulk Expense"
+importSalaryCount: "{count} salary row(s) -> Simple"
+importSalarySwitched: Salary row(s) moved to Simple input
+importSalaryAndAmazonSwitched: Salary row(s) moved to Simple input and Amazon row(s) to Bulk Expense
+importEmptyRowsWarning: "{count} row(s) have no account selected and will not be imported. Continue?"
+importEmptyRowsWarningTitle: Rows without account
+importContinue: Continue
+deleteJournalConfirm: Delete Entry
+deleteJournalConfirmMsg: Are you sure you want to delete this entry? This cannot be undone.
+suppressDeleteWarning5min: Don't show this warning for 5 minutes
+includeInAllocatableLabel: Include as budget allocation source
+includeInAllocatableHint: Only checked cash/bank accounts are counted as allocatable money.
+isDepreciableLabel: Depreciable asset (備品等)
+isDepreciableHint: Mark this asset account as a depreciable item
+depreciationSettingsTitle: Depreciation Settings
+depreciationSettingsHint: Select the expense account used to record monthly depreciation (減価償却費)
+depreciationAccountNone: No account selected
+businessOwnerSettingsTitle: Business Owner Advance Settings
+businessOwnerSettingsHint: Configure accounts for recording business expense advances as a sole proprietor.
+isBusinessOwner: I am a sole proprietor (個人事業主)
+businessAdvanceAccountLabel: Business advance account (事業立替金科目)
+businessAdvanceAccountDesc: Asset account that records amounts owed to you by the business.
+businessLossAccountLabel: Loss disposal account
+businessLossAccountDesc: Expense account used when writing off an advance as irrecoverable.
+businessAdvanceBudgetCategoryLabel: Budget source for advances
+businessAdvanceBudgetCategoryDesc: Budget category from which the business portion is deducted.
+transactionTypeBusinessAdvance: Business Advance
+businessRatioLabel: Business use ratio
+businessRatioDesc: Portion of this expense that is a business cost.
+businessAdvanceSplitBusiness: "Business:"
+businessAdvanceSplitPersonal: "Personal:"
+personalPortionLabel: Personal portion
+tabBusinessAdvanceProcess: Advance Processing
+businessAdvanceModeTransfer: Transfer (reimburse)
+businessAdvanceModeDispose: Dispose as loss
+businessAdvanceTransferDesc: Business advance reimbursement
+businessAdvanceDisposeDesc: Write off business advance
+businessAdvanceTransferToLabel: Transfer to account
+businessAdvanceAccountNotSet: Business advance account is not configured. Please set it in Settings.
+businessAdvanceBalanceHistory: Balance History
+changeColHeader: Change
+goToSettings: Go to Settings
+currentBalance: current balance
+depreciationLabel: Depreciation
+depreciationAssetAccountLabel: Asset account (備品等)
+depreciationExpenseAccountLabel: Depreciation expense account
+depreciationByMonths: By period
+depreciationByMonthlyAmount: By monthly amount
+depreciationMonthsLabel: Depreciation period (months)
+depreciationMonthlyAmountLabel: Monthly depreciation amount
+depreciationPreview: Approx
+depreciationMonthUnit: " months"
+depreciationCreated: Depreciation schedule created
+depreciationEntryEditWarning: Editing an individual depreciation entry can break the schedule calculation. Update the source asset entry when possible.
+depreciableAssetsTotal: Depreciable assets total (net book value)
+depreciationReportTitle: Depreciation
+depreciationTotal: Total depreciation
+depreciationNone: No depreciation recorded for this period.
+depreciationBudgetPressure: Budget pressure (% of total expenses)
+depreciationBudgetPressureNoExpense: No expenses recorded for this year.
+budgetConsistencyTitle: Budget Consistency Check
+budgetConsistencyClear: All {n} transactions match budget allocations.
+budgetConsistencyIssues: "{n} suspicious transaction(s) detected"
+budgetConsistencyChecked: "{n} checked"
+budgetCheckIssue: Issue
+budgetCheckAllocated: Allocated
+suspiciousExpenseNoAlloc: Expense not tracked in any budget category
+suspiciousExpenseMismatch: "Expense vs allocation gap: actual ¥{actual} / allocated ¥{allocated}"
+suspiciousIncomeMismatch: "Income vs distribution gap: actual ¥{actual} / distributed ¥{distributed}"
+tabTrialBalance: Trial Balance
+tabTrialBalanceDesc: Reconcile & verify account balances
+tabLoanMgmt: Loan Mgmt
+tabLoanMgmtDesc: Manage loans & borrowings
+sectionShortTermLending: Short-term Lending
+sectionLongTermLending: Long-term Lending
+sectionShortTermLoan: Short-term Borrowing
+sectionLongTermLoan: Long-term Borrowing
+noLoanAccounts: No accounts in this category.
+loanNetChange: Amount
+loanSettlementEntry: Repayment / Collection
+loanOpeningEntry: New Loan / Borrow
+multiLineLoanOpeningNotice: This entry will be registered as a new short-term loan/borrow opening event.
+loanAccountBalance: Outstanding Balance
+loanBalanceHistory: Balance history
+loanHistoryChange: Change
+loanHistoryBalance: Balance
+loanCompletedBadge: Completed
+loanNoEntries: No transaction history for this category.
+loanInputBtn: Go to Input
+loanForceCompleteBtn: Force Complete
+loanForceUncompleteBtn: Reopen
+loanForceSettleConfirmTitle: Confirm Force Settle
+loanForceSettleConfirmMsg: Force settle "{desc}"? A reversing entry dated today will be created automatically.
+loanForceSettleDescPrefix: "Force Settle: "
+loanWriteOffModalTitle: Write Off as Loss
+loanWriteOffDesc: Write off "{desc}" by recording an expense. An entry dated today will be created automatically.
+loanWriteOffAmountLabel: Write-off Amount
+loanWriteOffExpenseLabel: Expense Account
+loanWriteOffIncomeLabel: Income Account
+loanWriteOffConfirmBtn: Write Off & Complete
+loanCompletedAccordion: Completed ({count})
+loanSettledPairsAccordion: Settled ({count})
+loanSettledOpeningLabel: Borrow / Lend
+loanSettledByLabel: Repayment / Collection
+loanDetailBtn: Repayment Plan
+loanDetailTitle: Repayment / Collection Plan
+loanDetailPlanHeader: Plan Settings
+loanDetailTotalPrincipal: Total Principal
+loanDetailAnnualRate: Annual Interest Rate (%)
+loanDetailMonthlyPayment: Fixed Monthly Payment
+loanDetailStartMonth: Start Month
+loanDetailNote: Note
+loanDetailSavePlan: Save Settings
+loanDetailPlanRows: Repayment Schedule
+loanDetailNoPlan: No repayment plan yet. Create one below.
+loanDetailMonth: Month
+loanDetailPrincipal: Principal
+loanDetailInterest: Interest
+loanDetailRowNote: Note
+loanDetailAddRow: Add Row
+loanDetailAutoFill: Auto-fill
+loanDetailAutoFillDesc: Generate a repayment schedule from the plan settings above.
+loanDetailPaymentMethod: Payment method
+loanDetailEqualPrincipal: Equal principal (元金均等)
+loanDetailEqualPayment: Equal payment (元利均等)
+loanDetailAutoFillMonths: Number of months
+loanDetailAutoFillPayment: Monthly payment
+loanDetailAutoFillCalcPayment: Calculated
+loanDetailAutoFillEstMonths: Est. months
+loanDetailAutoFillConfirm: Generate
+loanDetailDeleteRow: Delete
+loanDetailSaveRows: Save Schedule
+loanDetailComparison: Plan vs. Actual
+loanDetailCompPlanned: Planned
+loanDetailCompActual: Actual
+loanDetailCompDiff: Diff
+loanDetailCompPrincipal: Principal
+loanDetailCompInterest: Interest
+loanDetailCompTotal: Total
+loanDetailCompNoData: No comparison data yet.
+loanDetailSaved: Saved
+loanDetailSaveError: Save failed
+loanDetailUnsavedWarning: You have unsaved changes
+loanDetailCompJournalEntries: Entries
+loanHistoryTitle: Transaction History
+loanHistoryDate: Date
+loanHistoryDesc: Description
+loanHistoryPrincipal: Principal Change
+loanHistoryFee: Fee / Interest
+loanHistoryExpectedFee: Expected Interest
+loanHistoryRate: Implied Rate (ann.)
+loanImpliedRate: Avg. implied rate
+loanAddInterestBtn: Add Interest Entry
+loanInterestModalTitle: Add Interest Entry
+loanInterestAmountLabel: Interest Amount
+loanInterestAccount: Interest Account (income/expense)
+loanInterestPaymentAccount: Settlement Account (cash/bank)
+svViewDetails: View Details →
+tabSavings: Savings
+tabSavingsDesc: Track savings goals
+savingsMonthlyContributions: Monthly Contributions (last 12 months)
+savingsNoCategories: No savings categories set up yet. Add a budget category with group "貯蓄" in settings.
+savingsShowFuturePrediction: Show future prediction
+savingsPredictedSuffix: " (predicted)"
+ttSegActualInput: Enter Actuals
+ttSegDeviation: Error Verification
+ttSegBudgetCheck: Budget Check
+ttSegUnknownFunds: Unknown Funds
+ttActualInputTitle: Enter actual account balances
+ttActualInputDesc: Enter the real-world balance for each account to check for discrepancies. Accounts left blank will not be checked.
+ttActualInputDate: As of date
+ttActualInputSubmit: Save & Compare
+ttActualInputSaved: Snapshot saved
+ttActualInputNoAccounts: No asset or liability accounts found.
+ttActualModeGeneral: Assets / Liabilities
+ttActualModeCreditCard: Credit Cards
+ttActualGeneralDesc: Enter current balances for assets and non-credit-card liabilities.
+ttActualCreditCardDesc: Track credit-card balances by month so confirmed past months remain available for later reconciliation.
+ttActualSectionAssets: Assets
+ttActualSectionLiabilities: Liabilities
+ttCcNoAccounts: No credit card accounts found.
+ttCcAddMonth: Add 3 confirmed months
+ttCcShowMoreMonths: Show 3 more months
+ttCcHiddenMonths: "{n} older month(s) hidden"
+ttCcPaymentMonth: Month
+ttCcUsageHint: Usage period / payment
+ttCcEntryStatus: Status
+ttCcWithdrawalAmount: Withdrawal amount
+ttCcStatusOpen: Open
+ttCcStatusConfirmed: Confirmed
+ttCcStatusPaid: Paid
+ccSlotThisMonth: This month's charges
+ccSlotLastMonth: Prior month's charges
+ccSlotFuture: Future months
+ccSlotRevolving: Revolving (リボ払い)
+ccSlotCashing: Cash advance (キャッシング)
+ccSlotTotal: Subtotal
+ccLastMonthZeroNote: Auto-set to 0 (withdrawal date {day} has passed)
+ttDeviationTitle: Book vs Actual Comparison
+ttDeviationNoSnapshot: No actual balance data yet. Enter actual values first.
+ttDeviationSnapshotDate: Snapshot date
+ttDeviationAccount: Account
+ttDeviationBookValue: Book value
+ttDeviationActualValue: Actual value
+ttDeviationDiff: Deviation
+ttDeviationDuplicateCandidates: "{n} matching journal candidate(s)"
+ttDeviationMoreMatches: "{n} more candidate(s)"
+ttDeviationOutOfScopeBadge: Outside current scope
+ttDeviationOutOfScopeWarning: Entries outside this month/last month may remain. Outside-scope book {book}, actual {actual}, deviation {diff}.
+ttDeviationTotal: Total deviation
+ttDeviationGeneralTotal: Assets / Liabilities deviation
+ttDeviationCreditCardTotal: Credit card deviation
+ttDeviationGrandTotal: Overall deviation
+ttDeviationGeneralSection: Assets / General Liabilities
+ttDeviationCreditCardSection: Credit Cards
+ttDeviationNoGeneralEntries: No asset or non-credit-card liability entries in this snapshot.
+ttDeviationNoCreditCardEntries: No credit card entries in this snapshot.
+ttDeviationHiddenResolvedCcRows: "{n} paid reconciled row(s) older than 3 months hidden."
+ttDeviationShowResolvedCcRows: Show hidden rows ({n})
+ttDeviationHideResolvedCcRows: Hide resolved rows
+ttDeviationOnlyHiddenCreditCardEntries: Only paid reconciled credit-card rows older than 3 months are hidden.
+ttDeviationCreditCardOnlyHint: Only credit-card deviations remain. Review the monthly credit-card table.
+ttNoDeviation: No discrepancies found. Books match actuals.
+ttProcessAsUnknownFunds: Process as Unknown Funds
+ttUnknownFundsJournalPreview: "The following journal entries will be recorded:"
+ttUnknownFundsConfirmMsg: Record these entries to correct the balance discrepancies?
+ttUnknownFundsRecorded: Unknown fund entries recorded
+ttDeviationSelectSnapshot: Select snapshot
+ttUnknownFundsTitle: Unknown Fund Entries
+ttUnknownFundsEmpty: No unknown fund entries found.
+ttUnknownFundsFixKnown: Cause found — correct
+ttUnknownFundsMiscLoss: Classify as misc. loss/gain
+ttUnknownFundsFixTitle: Correct Unknown Fund Entry
+ttUnknownFundsMiscTitle: Classify as Miscellaneous
+ttUnknownFundsFixConfirm: Record correcting entry and adjust the unknown fund balance?
+ttUnknownFundsMiscConfirm: Record the following entry to clear this unknown fund?
+ttUnknownFundsProcessed: Entry processed
+ttCauseFoundInput: Cause found — enter directly
+ttBackToDeviation: Back to Error Verification
+ttWorksheetTitle: Adjustment Worksheet
+ttWorksheetNote: Adjustments are saved per reference date in browser storage (not in the database).
+ttWorksheetAddRow: Add row
+ttWorksheetAccount: Account
+ttWorksheetAmount: Amount
+ttWorksheetAdjustment: Adjustment
+ttWorksheetAdjustedDeviation: Adjusted deviation
+ttWorksheetNote2: Note
+ttOffsetCcTitle: Billing Offset Entries
+ttOffsetCcOriginalMonth: Original → Offset month
+ttDeleteSnapshot: Delete this snapshot
+ttDeleteSnapshotConfirm: Delete this snapshot and all its entries? This cannot be undone.
+ttDeleteSnapshotZeroWarning: This snapshot has no discrepancies — it is recommended to keep it as a reconciliation record.
+ttDeleteSnapshotDeleted: Snapshot deleted
+ttLastCleanSnapshot: Last verified (no discrepancy)
+ttMiscReclassWarning: Entries reclassified as misc. loss/gain cannot be reversed outside of double-entry bookkeeping.
+sysUnknownFunds: Unknown Funds
+sysMiscExpense: Misc. Loss
+sysMiscIncome: Misc. Gain
+sysSecuritiesGain: Securities Gain on Sale
+sysSecuritiesLoss: Securities Loss on Sale
+sysCryptoGain: Crypto Gain on Sale
+sysCryptoLoss: Crypto Loss on Sale
+sysPropertyGain: Property Gain on Sale
+sysPropertyLoss: Property Loss on Sale
+sysOpeningBalance: Owner's Equity
+sysBadDebtLoss: Bad Debt Loss
+sysShortTermLending: Short-term Lending
+sysShortTermLoan: Short-term Loan
+sysAccountBadge: System
+sysAccountTooltip: System account — cannot be deleted or renamed
+budgetCheckMovedNotice: Budget consistency check has moved to the Trial Balance page.
+budgetCheckMovedLink: Go to Trial Balance →
+fiscalHealthTitle: Financial Health Index
+fiscalHealthSafe: Healthy
+fiscalHealthCaution: Caution
+fiscalHealthDanger: At Risk
+fiscalHealthLiquidity: Liquidity (30 pts)
+fiscalHealthEquity: Equity Ratio (30 pts)
+fiscalHealthSpending: Spending Reserve (40 pts)
+fiscalHealthNoExpenseData: Full score — no expense history
+fiscalHealthCashLabel: Cash/Deposits
+fiscalHealthBaseLabel: Cap
+fiscalHealthNetWorthLabel: Net worth
+fiscalHealthAnnualEstLabel: Est. annual expenses
+fiscalHealthBreakdown: Breakdown
+fiscalHealthThreshold50: ≥50% = full score
+fiscalHealthThreshold60: ≥60% = full score
+fiscalHealthThreshold100: ≥100% = full score
+bulkEditSectionTitle: Bulk Edit / Replace
+bulkEditSectionDesc: Replace all journal lines for a specific account, or bulk-delete entries matching a condition.
+bulkEditSectionLink: Bulk Edit / Replace →
+bulkEditPageTitle: Bulk Edit / Replace
+bulkReplaceTabLabel: Replace Account in Entries
+bulkDeleteTabLabel: Bulk Delete Entries
+bulkReplaceFromLabel: Replace from (source account)
+bulkReplaceToLabel: Replace to (target account)
+bulkReplacePreviewBtn: Preview
+bulkReplaceExecBtn: Execute Replace
+bulkReplaceConfirmTitle: Confirm Account Replace
+bulkReplaceConfirmBody: All journal lines for "{from}" will be replaced with "{to}". This cannot be undone.
+bulkReplacePreviewMsg: "{count} journal line(s) will be replaced."
+bulkReplaceSuccess: Replaced {count} journal line(s).
+bulkReplaceNoLines: No journal lines found for the selected account.
+bulkDeleteAccountLabel: Account (optional)
+bulkDeleteDateFromLabel: Date from (optional)
+bulkDeleteDateToLabel: Date to (optional)
+bulkDeleteDescLabel: Description contains (optional)
+bulkDeletePreviewBtn: Preview
+bulkDeleteExecBtn: Delete Matching Entries
+bulkDeleteConfirmTitle: Confirm Bulk Delete
+bulkDeleteConfirmBody: All matching journal entries will be permanently deleted. This cannot be undone.
+bulkDeletePreviewMsg: "{count} journal entry(ies) match the conditions."
+bulkDeleteSuccess: Deleted {count} journal entry(ies).
+bulkDeleteNoMatch: No journal entries match the specified conditions.
+bulkDeleteNoCondition: Please specify at least one filter condition.
+deleteNonZeroBalanceTooltip: "Cannot delete: account has a non-zero balance"
+bulkSelectAll: Select all
+bulkSelectedCount: "{selected} / {total} selected"
+bulkReplaceConfirmSuffix: entries will be updated.
+settingsNavCsvTitle: CSV Import Settings
+settingsNavCsvDesc: Configure store-to-account mappings for CSV import.
+settingsNavInitialBalanceDesc: Record opening balances when starting out.
+settingsNavBudgetDesc: Manage budget categories and income filters.
+settingsNavBusinessDesc: Set up accounts for business expense advances.
+settingsNavBulkEditDesc: Replace or bulk-delete journal entries.
+settingsNavDangerDesc: Permanently erase data. Use with caution.
+settingsNavGuidesTitle: User Guide
+settingsNavGuidesDesc: Learn about unique features of this app.
+guidesPageTitle: User Guide
+settingsSubpageBack: ← Settings
+settingsNavExportTitle: Export Reports
+settingsNavExportDesc: Download balance sheet and P&L as JSON or PDF.
+exportPeriodLabel: Report Period
+exportFromLabel: From
+exportToLabel: To (BS as-of)
+exportJSON: Download JSON
+exportJSONC: Download JSONC
+jsoncFileTitle: Household Financial Report
+jsoncFileFormatNote: This file is in JSONC format (JSON with // comments).
+jsoncGeneratedLabel: Generated
+jsoncPeriodRangeLabel: Period
+jsoncExportedAtComment: ISO 8601 export timestamp
+jsoncPeriodSection: Report period
+jsoncFromComment: Income statement start date
+jsoncToComment: Income statement end date
+jsoncBsAsOfComment: Balance sheet as-of date (same as to)
+jsoncBsSectionTitle: Balance Sheet
+jsoncBsNote1: Balances computed as SUM(debit) - SUM(credit) over journal_lines.
+jsoncBsNote2: "Assets: debit-heavy = positive. Liabilities/equity: credit-heavy = positive."
+jsoncBsNote3: Accounts with balance = 0 are included.
+jsoncNetWorthComment: net_worth = total_assets - total_liabilities
+jsoncPlSectionTitle: Income Statement
+jsoncPlNote1: income amount = SUM(credit) - SUM(debit) in period.
+jsoncPlNote2: expense amount = SUM(debit) - SUM(credit) in period.
+jsoncPlNote3: Accounts with amount = 0 are included.
+jsoncNetIncomeComment: net_income = total_income - total_expenses
+jsoncDeprSectionTitle: Depreciation Progress
+jsoncDeprNote1: "Simplified household depreciation: monthly entry DR expense / CR asset."
+jsoncDeprNote2: book_value = total_amount - accumulated  <- matches asset balance on balance sheet.
+jsoncDeprNote3: progress_pct = accumulated / total_amount x 100 (truncated)
+exportPrint: Print
+exportSavePDF: Save as PDF
+exportSQLite: Download SQLite
+exportSchemeLight: Switch to light
+exportSchemeDark: Switch to dark
+exportDepreciationTitle: Depreciation Progress
+exportDepreciationNote: "Simplified household depreciation: monthly depreciation expense reduces the asset account balance directly via journal entries."
+exportDepreciationAcquisitionCost: Acquisition Cost
+exportDepreciationPeriod: Period
+exportDepreciationStartDate: Start Date
+exportDepreciationAccumulated: Accumulated
+exportDepreciationBookValue: Book Value
+exportDepreciationProgress: Progress
+exportDepreciationNone: No depreciable assets registered.
+negativeBalanceWarning: This account has a negative balance
+settingsNavCurrencyTitle: Foreign Currency
+settingsNavCurrencyDesc: Enable currencies and cryptocurrencies to use alongside JPY.
+currencySettingsTitle: Foreign Currency Settings
+currencySettingsFiatGroup: Fiat Currencies
+currencySettingsCryptoGroup: Cryptocurrencies
+currencySettingsNote: Enable the currencies you use. At least one must always remain enabled.
+currencySettingsRateNote: Exchange rates are fetched automatically (30-min cooldown).
+currencySettingsApiSourceTitle: Rate Source APIs
+currencySettingsFiatApiLabel: Fiat Exchange Rates
+currencySettingsCryptoApiLabel: Crypto Prices
+currencySettingsApiApplied: Provider changed. Refreshing rates…
+tabFxExchange: FX Exchange
+fxExchangeTitle: Currency Exchange
+fxFromCurrency: Give (currency)
+fxToCurrency: Receive (currency)
+fxFromAccount: Source account
+fxToAccount: Destination account
+fxFromAmount: Amount given
+fxToAmount: Amount received
+includeAllCurrencies: Include all currencies
+displayCurrencyLabel: Display currency

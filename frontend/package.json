@@ -25,7 +25,8 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.15.0",
     "recharts": "^3.8.1",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "yaml": "^2.8.4"
   },
   "devDependencies": {
     "@balance-sheet/shared": "*",

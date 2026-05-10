@@ -1,0 +1,141 @@
+fiscalHealthTitle: Índice de salud financiera
+fiscalHealthSafe: Saludable
+fiscalHealthCaution: Precaución
+fiscalHealthDanger: En riesgo
+fiscalHealthLiquidity: Liquidez (30 pts)
+fiscalHealthEquity: Ratio de patrimonio (30 pts)
+fiscalHealthSpending: Control de gastos (40 pts)
+fiscalHealthNoExpenseData: Puntuación máxima - sin historial de gastos
+fiscalHealthCashLabel: Efectivo / depósitos
+fiscalHealthBaseLabel: Límite
+fiscalHealthNetWorthLabel: Patrimonio neto
+fiscalHealthAnnualEstLabel: Estimación anual
+fiscalHealthBreakdown: Desglose
+fiscalHealthThreshold50: ≥ 50 % = puntuación máxima
+fiscalHealthThreshold60: ≥ 60 % = puntuación máxima
+fiscalHealthThreshold100: ≥ 100 % = puntuación máxima
+budgetResetBadge: Reiniciado
+carryover: Arrastre
+goal: Objetivo
+goalAlreadyReached: Objetivo ya alcanzado
+goalReachIn: Objetivo alcanzado en {months} meses
+goalReachBy: Objetivo alcanzado para {date}
+creditCardImportReminder: Recordatorio de importación de tarjeta
+importPageTitle: Importación CSV
+availableBalance: Saldo disponible
+used: usado
+budget: Presupuesto
+noBudgetCategories: No hay categorías de presupuesto.
+budgetIncludingSavings: Presupuesto total (incluye ahorro)
+svViewDetails: Ver detalle de ahorro
+recentTransactions: Transacciones recientes
+showAllTransactions: Ver todas las transacciones
+noTransactionsYet: Aún no hay transacciones.
+showMore: Ver más
+defaultPaymentSource: Origen de pago predeterminado
+defaultPaymentSourceHint: Rellena automáticamente el campo « Pagado desde » al introducir gastos.
+preferredPaymentMethod: Método de pago preferido
+preferredPaymentMethodHint: Esta cuenta se preselecciona y aparece primero en « Pagado desde ».
+preferredPaymentMethodNone: Sin preferencia
+appTitle: Balance personal
+toggleColorScheme: Cambiar tema
+languageLabel: Idioma
+navOverview: Resumen
+navInput: Registro
+navAssets: Activos
+navLedger: Libro mayor
+navSettings: Configuración
+navFS: Estados financieros
+assets: Activos
+liabilities: Pasivos
+netWorth: Patrimonio neto
+income: Ingresos
+expenses: Gastos
+netIncome: Resultado neto
+balanceSheetTitle: Balance
+plTitle: Pérdidas y ganancias
+settingsSectionGeneral: General
+settingsSectionAccounts: Cuentas
+settingsSectionNotifications: Notificaciones
+sectionAssets: Activos
+sectionDepreciableAssets: Activos fijos amortizables
+sectionLiabilities: Pasivos
+sectionEquity: Patrimonio
+sectionIncome: Ingresos
+sectionExpenses: Gastos
+typeAsset: Activo
+typeLiability: Pasivo
+typeEquity: Patrimonio
+typeIncome: Ingreso
+typeExpense: Gasto
+thAccount: Cuenta
+thCategory: Categoría
+thCurrency: Moneda
+thBalance: Saldo
+noAccountsYet: Aún no hay cuentas.
+addAccountBtn: + Añadir cuenta
+addTransactionBtn: + Añadir transacción
+editLabel: Editar
+save: Guardar
+cancel: Cancelar
+confirm: Confirmar
+deleteAccount: Eliminar cuenta
+accountName: Cuenta
+paydayLabel: Día de pago (día del mes)
+paydayHint: Se muestra una notificación si no se registra ningún ingreso antes de este día cada mes.
+noNotifications: Sin notificaciones
+notifications: Notificaciones
+notificationPaydayUnrecorded: Día de pago aún no registrado
+notifPaydayToggle: Recordatorio de día de pago
+notifPaydayToggleHint: Mostrar una alerta cuando aún no se haya registrado el ingreso del día de pago.
+notifCreditCardToggle: Recordatorio de importación de tarjeta
+notifCreditCardToggleHint: Mostrar un aviso cuando un extracto de tarjeta esté listo para importar.
+notifCreditCardWithdrawalRiskToggle: Alerta de saldo para cargo de tarjeta
+notifCreditCardWithdrawalRiskToggleHint: Mostrar una alerta desde 14 días antes del cargo si la cuenta bancaria vinculada puede quedar en negativo.
+notifBudgetNegativeToggle: Alerta de presupuesto sobredistribuido
+notifBudgetNegativeToggleHint: Mostrar una alerta cuando las asignaciones de presupuesto superen los activos reales.
+notificationBudgetNegative: Tus asignaciones de presupuesto superan tus activos totales. Puede deberse a una entrada duplicada u olvidada.
+notifLoanOverdueToggle: Alerta de préstamo/deuda a corto plazo vencida
+notifLoanOverdueToggleHint: Mostrar una alerta si no hubo pago o cobro durante el número de días indicado.
+notifLoanOverdueDaysLabel: Umbral (días)
+notifAccountNegativeToggle: Alerta de saldo negativo
+notifAccountNegativeToggleHint: Mostrar una alerta cuando el saldo de una cuenta sea negativo, excluyendo fondos desconocidos.
+notificationLoanOverdueSection: Préstamos / deudas vencidos
+notificationLoanOverdueDays: Hace {days} días
+notificationAccountNegativeSection: Saldos de cuenta negativos
+notificationCreditCardWithdrawalRiskSection: Los cargos de tarjeta pueden sobregirar la cuenta
+notificationCreditCardWithdrawalRiskDetail: Después del pago, el saldo previsto es {balance}.
+settingsNavCsvTitle: Configuración de importación CSV
+settingsNavCsvDesc: Configurar asignaciones de tienda a cuenta para importación CSV.
+settingsNavInitialBalanceDesc: Registrar saldos iniciales al comenzar.
+settingsNavBudgetDesc: Gestionar categorías de presupuesto y filtros de ingresos.
+settingsNavBusinessDesc: Configurar cuentas para anticipos de gastos profesionales.
+settingsNavBulkEditDesc: Reemplazar o eliminar en lote asientos contables.
+settingsNavDangerDesc: Borrar datos permanentemente. Usar con cuidado.
+settingsNavGuidesTitle: Guía de usuario
+settingsNavGuidesDesc: Conocer las funciones propias de esta aplicación.
+guidesPageTitle: Guía de usuario
+settingsSubpageBack: ← Configuración
+settingsNavExportTitle: Exportar informes
+settingsNavExportDesc: Descargar el balance y PyG como JSON o PDF.
+settingsNavCurrencyTitle: Moneda extranjera
+settingsNavCurrencyDesc: Activar monedas y criptomonedas para usarlas junto con JPY.
+businessOwnerSettingsTitle: Configuración de anticipos del propietario del negocio
+businessOwnerSettingsHint: Configurar cuentas para registrar anticipos de gastos profesionales como autónomo.
+isBusinessOwner: Soy autónomo
+businessAdvanceAccountLabel: Cuenta de anticipos profesionales
+sysUnknownFunds: Fondos desconocidos
+sysMiscExpense: Pérdida diversa
+sysMiscIncome: Ganancia diversa
+sysSecuritiesGain: Ganancia por venta de valores
+sysSecuritiesLoss: Pérdida por venta de valores
+sysCryptoGain: Ganancia por venta de criptoactivos
+sysCryptoLoss: Pérdida por venta de criptoactivos
+sysPropertyGain: Ganancia por venta de propiedad
+sysPropertyLoss: Pérdida por venta de propiedad
+sysOpeningBalance: Capital del propietario
+sysBadDebtLoss: Pérdida por incobrables
+sysShortTermLending: Préstamo a corto plazo
+sysShortTermLoan: Deuda a corto plazo
+sysAccountBadge: Sistema
+sysAccountTooltip: Cuenta del sistema - no se puede eliminar ni renombrar

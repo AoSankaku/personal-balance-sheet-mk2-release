@@ -1,0 +1,141 @@
+fiscalHealthTitle: Indice de santé financière
+fiscalHealthSafe: Sain
+fiscalHealthCaution: Prudence
+fiscalHealthDanger: À risque
+fiscalHealthLiquidity: Liquidité (30 pts)
+fiscalHealthEquity: Ratio de fonds propres (30 pts)
+fiscalHealthSpending: Maîtrise des dépenses (40 pts)
+fiscalHealthNoExpenseData: Score maximal - aucun historique de dépenses
+fiscalHealthCashLabel: Espèces / dépôts
+fiscalHealthBaseLabel: Plafond
+fiscalHealthNetWorthLabel: Valeur nette
+fiscalHealthAnnualEstLabel: Estimation annuelle
+fiscalHealthBreakdown: Détail
+fiscalHealthThreshold50: ≥ 50 % = score maximal
+fiscalHealthThreshold60: ≥ 60 % = score maximal
+fiscalHealthThreshold100: ≥ 100 % = score maximal
+budgetResetBadge: Réinitialisé
+carryover: Report
+goal: Objectif
+goalAlreadyReached: Objectif déjà atteint
+goalReachIn: Objectif atteint dans {months} mois
+goalReachBy: Objectif atteint d'ici {date}
+creditCardImportReminder: Rappel d'import de carte de crédit
+importPageTitle: Import CSV
+availableBalance: Solde disponible
+used: utilisé
+budget: Budget
+noBudgetCategories: Aucune catégorie de budget.
+budgetIncludingSavings: Budget total (y compris épargne)
+svViewDetails: Voir le détail de l'épargne
+recentTransactions: Transactions récentes
+showAllTransactions: Voir toutes les transactions
+noTransactionsYet: Aucune transaction pour le moment.
+showMore: Voir plus
+defaultPaymentSource: Source de paiement par défaut
+defaultPaymentSourceHint: Préremplit le champ « Payé depuis » lors de la saisie des dépenses.
+preferredPaymentMethod: Moyen de paiement préféré
+preferredPaymentMethodHint: Ce compte est présélectionné et affiché en premier dans « Payé depuis ».
+preferredPaymentMethodNone: Aucune préférence
+appTitle: Bilan personnel
+toggleColorScheme: Changer de thème
+languageLabel: Langue
+navOverview: Aperçu
+navInput: Saisie
+navAssets: Actifs
+navLedger: Grand livre
+navSettings: Paramètres
+navFS: États financiers
+assets: Actifs
+liabilities: Passifs
+netWorth: Valeur nette
+income: Revenus
+expenses: Dépenses
+netIncome: Résultat net
+balanceSheetTitle: Bilan
+plTitle: Compte de résultat
+settingsSectionGeneral: Général
+settingsSectionAccounts: Comptes
+settingsSectionNotifications: Notifications
+sectionAssets: Actifs
+sectionDepreciableAssets: Immobilisations amortissables
+sectionLiabilities: Passifs
+sectionEquity: Capitaux propres
+sectionIncome: Revenus
+sectionExpenses: Dépenses
+typeAsset: Actif
+typeLiability: Passif
+typeEquity: Capitaux propres
+typeIncome: Revenu
+typeExpense: Dépense
+thAccount: Compte
+thCategory: Catégorie
+thCurrency: Devise
+thBalance: Solde
+noAccountsYet: Aucun compte pour le moment.
+addAccountBtn: + Ajouter un compte
+addTransactionBtn: + Ajouter une transaction
+editLabel: Modifier
+save: Enregistrer
+cancel: Annuler
+confirm: Confirmer
+deleteAccount: Supprimer le compte
+accountName: Compte
+paydayLabel: Jour de paie (jour du mois)
+paydayHint: Une notification apparaît si aucun revenu n'est enregistré avant ce jour chaque mois.
+noNotifications: Aucune notification
+notifications: Notifications
+notificationPaydayUnrecorded: Jour de paie non encore enregistré
+notifPaydayToggle: Rappel du jour de paie
+notifPaydayToggleHint: Afficher une alerte quand le revenu du jour de paie n'a pas encore été enregistré.
+notifCreditCardToggle: Rappel d'import de carte de crédit
+notifCreditCardToggleHint: Afficher une bannière quand un relevé de carte de crédit est prêt à être importé.
+notifCreditCardWithdrawalRiskToggle: Alerte de solde pour prélèvement de carte
+notifCreditCardWithdrawalRiskToggleHint: Afficher une alerte à partir de 14 jours avant le prélèvement si le compte bancaire lié risque de devenir négatif.
+notifBudgetNegativeToggle: Alerte de budget suralloué
+notifBudgetNegativeToggleHint: Afficher une alerte quand les allocations budgétaires dépassent les actifs réels.
+notificationBudgetNegative: Vos allocations budgétaires dépassent vos actifs totaux. Cela peut venir d'une entrée en double ou oubliée.
+notifLoanOverdueToggle: Alerte de prêt/dette à court terme en retard
+notifLoanOverdueToggleHint: Afficher une alerte si aucun remboursement ou recouvrement n'a eu lieu pendant le nombre de jours indiqué.
+notifLoanOverdueDaysLabel: Seuil (jours)
+notifAccountNegativeToggle: Alerte de solde de compte négatif
+notifAccountNegativeToggleHint: Afficher une alerte quand le solde d'un compte devient négatif, hors fonds inconnus.
+notificationLoanOverdueSection: Prêts / dettes en retard
+notificationLoanOverdueDays: Il y a {days} jours
+notificationAccountNegativeSection: Soldes de compte négatifs
+notificationCreditCardWithdrawalRiskSection: Les prélèvements de carte peuvent créer un découvert
+notificationCreditCardWithdrawalRiskDetail: Après paiement, le solde projeté est de {balance}.
+settingsNavCsvTitle: Paramètres d'import CSV
+settingsNavCsvDesc: Configurer les correspondances magasin-compte pour l'import CSV.
+settingsNavInitialBalanceDesc: Enregistrer les soldes d'ouverture au démarrage.
+settingsNavBudgetDesc: Gérer les catégories budgétaires et les filtres de revenus.
+settingsNavBusinessDesc: Configurer les comptes pour les avances de dépenses professionnelles.
+settingsNavBulkEditDesc: Remplacer ou supprimer en lot des écritures de journal.
+settingsNavDangerDesc: Effacer définitivement les données. À utiliser avec prudence.
+settingsNavGuidesTitle: Guide utilisateur
+settingsNavGuidesDesc: Découvrir les fonctions propres à cette application.
+guidesPageTitle: Guide utilisateur
+settingsSubpageBack: ← Paramètres
+settingsNavExportTitle: Exporter les rapports
+settingsNavExportDesc: Télécharger le bilan et le compte de résultat en JSON ou PDF.
+settingsNavCurrencyTitle: Devises étrangères
+settingsNavCurrencyDesc: Activer les devises et cryptomonnaies à utiliser avec le JPY.
+businessOwnerSettingsTitle: Paramètres d'avances du propriétaire d'entreprise
+businessOwnerSettingsHint: Configurer les comptes pour enregistrer les avances de dépenses professionnelles en tant qu'entrepreneur individuel.
+isBusinessOwner: Je suis entrepreneur individuel
+businessAdvanceAccountLabel: Compte d'avances professionnelles
+sysUnknownFunds: Fonds inconnus
+sysMiscExpense: Perte diverse
+sysMiscIncome: Gain divers
+sysSecuritiesGain: Gain sur vente de titres
+sysSecuritiesLoss: Perte sur vente de titres
+sysCryptoGain: Gain sur vente de cryptoactifs
+sysCryptoLoss: Perte sur vente de cryptoactifs
+sysPropertyGain: Gain sur vente d'immobilisation
+sysPropertyLoss: Perte sur vente d'immobilisation
+sysOpeningBalance: Capitaux propres du propriétaire
+sysBadDebtLoss: Perte sur créance irrécouvrable
+sysShortTermLending: Prêt à court terme
+sysShortTermLoan: Emprunt à court terme
+sysAccountBadge: Système
+sysAccountTooltip: Compte système - ne peut pas être supprimé ni renommé

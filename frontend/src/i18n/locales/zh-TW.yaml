@@ -1,0 +1,141 @@
+fiscalHealthTitle: 財務健康指數
+fiscalHealthSafe: 健康
+fiscalHealthCaution: 注意
+fiscalHealthDanger: 有風險
+fiscalHealthLiquidity: 流動性（30分）
+fiscalHealthEquity: 淨資產比率（30分）
+fiscalHealthSpending: 支出控制（40分）
+fiscalHealthNoExpenseData: 滿分 - 無支出歷史
+fiscalHealthCashLabel: 現金 / 存款
+fiscalHealthBaseLabel: 基準
+fiscalHealthNetWorthLabel: 淨資產
+fiscalHealthAnnualEstLabel: 年度估算
+fiscalHealthBreakdown: 明細
+fiscalHealthThreshold50: ≥ 50% = 滿分
+fiscalHealthThreshold60: ≥ 60% = 滿分
+fiscalHealthThreshold100: ≥ 100% = 滿分
+budgetResetBadge: 重設
+carryover: 結轉
+goal: 目標
+goalAlreadyReached: 已達成目標
+goalReachIn: "{months} 個月後達成目標"
+goalReachBy: 預計於 {date} 達成目標
+creditCardImportReminder: 信用卡匯入提醒
+importPageTitle: CSV 匯入
+availableBalance: 可用餘額
+used: 已使用
+budget: 預算
+noBudgetCategories: 尚無預算類別。
+budgetIncludingSavings: 總預算（含儲蓄）
+svViewDetails: 檢視儲蓄詳情
+recentTransactions: 最近交易
+showAllTransactions: 檢視全部交易
+noTransactionsYet: 尚無交易。
+showMore: 顯示更多
+defaultPaymentSource: 預設付款來源
+defaultPaymentSourceHint: 輸入支出時會自動填入「付款來源」欄位。
+preferredPaymentMethod: 偏好的付款方式
+preferredPaymentMethodHint: 此帳戶會被預先選取，並在「付款來源」中優先顯示。
+preferredPaymentMethodNone: 無偏好
+appTitle: 個人資產負債表
+toggleColorScheme: 切換主題
+languageLabel: 語言
+navOverview: 概覽
+navInput: 輸入
+navAssets: 資產
+navLedger: 帳簿
+navSettings: 設定
+navFS: 財務報表
+assets: 資產
+liabilities: 負債
+netWorth: 淨資產
+income: 收入
+expenses: 支出
+netIncome: 淨收入
+balanceSheetTitle: 資產負債表
+plTitle: 損益表
+settingsSectionGeneral: 一般
+settingsSectionAccounts: 帳戶
+settingsSectionNotifications: 通知
+sectionAssets: 資產
+sectionDepreciableAssets: 可折舊固定資產
+sectionLiabilities: 負債
+sectionEquity: 權益
+sectionIncome: 收入
+sectionExpenses: 支出
+typeAsset: 資產
+typeLiability: 負債
+typeEquity: 權益
+typeIncome: 收入
+typeExpense: 支出
+thAccount: 帳戶
+thCategory: 類別
+thCurrency: 貨幣
+thBalance: 餘額
+noAccountsYet: 尚無帳戶。
+addAccountBtn: + 新增帳戶
+addTransactionBtn: + 新增交易
+editLabel: 編輯
+save: 儲存
+cancel: 取消
+confirm: 確認
+deleteAccount: 刪除帳戶
+accountName: 帳戶
+paydayLabel: 發薪日（每月日期）
+paydayHint: 如果每月到這一天仍未記錄收入，就會顯示通知。
+noNotifications: 沒有通知
+notifications: 通知
+notificationPaydayUnrecorded: 發薪日收入尚未記錄
+notifPaydayToggle: 發薪日提醒
+notifPaydayToggleHint: 當發薪日收入尚未記錄時顯示提醒。
+notifCreditCardToggle: 信用卡匯入提醒
+notifCreditCardToggleHint: 當信用卡帳單可以匯入時，在概覽頁顯示提示。
+notifCreditCardWithdrawalRiskToggle: 信用卡扣款餘額提醒
+notifCreditCardWithdrawalRiskToggleHint: 如果信用卡付款後關聯銀行帳戶可能為負數，從扣款日前 14 天開始提醒。
+notifBudgetNegativeToggle: 預算超額分配提醒
+notifBudgetNegativeToggleHint: 當預算分配總額超過實際資產、預算資料不再可靠時顯示提醒。
+notificationBudgetNegative: 預算分配總額超過了總資產。這可能是重複輸入或遺漏輸入造成的。
+notifLoanOverdueToggle: 短期借貸逾期提醒
+notifLoanOverdueToggleHint: 在指定天數內沒有還款或收款時顯示提醒。
+notifLoanOverdueDaysLabel: 門檻（天）
+notifAccountNegativeToggle: 帳戶餘額為負提醒
+notifAccountNegativeToggleHint: 當帳戶餘額變為負數時顯示提醒（不包括不明資金）。
+notificationLoanOverdueSection: 逾期借貸
+notificationLoanOverdueDays: "{days} 天前"
+notificationAccountNegativeSection: 負數帳戶餘額
+notificationCreditCardWithdrawalRiskSection: 信用卡扣款可能導致透支
+notificationCreditCardWithdrawalRiskDetail: 付款後的預計餘額為 {balance}。
+settingsNavCsvTitle: CSV 匯入設定
+settingsNavCsvDesc: 設定 CSV 匯入時的店鋪到帳戶對應。
+settingsNavInitialBalanceDesc: 開始使用時記錄期初餘額。
+settingsNavBudgetDesc: 管理預算類別和收入篩選器。
+settingsNavBusinessDesc: 設定業務費用墊付款帳戶。
+settingsNavBulkEditDesc: 替換或批次刪除日記帳分錄。
+settingsNavDangerDesc: 永久刪除資料。請謹慎使用。
+settingsNavGuidesTitle: 使用者指南
+settingsNavGuidesDesc: 了解此應用程式的獨有功能。
+guidesPageTitle: 使用者指南
+settingsSubpageBack: ← 設定
+settingsNavExportTitle: 匯出報表
+settingsNavExportDesc: 將資產負債表和損益表下載為 JSON 或 PDF。
+settingsNavCurrencyTitle: 外幣
+settingsNavCurrencyDesc: 啟用與 JPY 一起使用的貨幣和加密貨幣。
+businessOwnerSettingsTitle: 業主墊付款設定
+businessOwnerSettingsHint: 以個體經營者身分記錄業務費用墊付款時，設定相關帳戶。
+isBusinessOwner: 我是個體經營者
+businessAdvanceAccountLabel: 業務墊付款帳戶
+sysUnknownFunds: 不明資金
+sysMiscExpense: 雜項損失
+sysMiscIncome: 雜項收益
+sysSecuritiesGain: 證券出售收益
+sysSecuritiesLoss: 證券出售損失
+sysCryptoGain: 加密資產出售收益
+sysCryptoLoss: 加密資產出售損失
+sysPropertyGain: 固定資產出售收益
+sysPropertyLoss: 固定資產出售損失
+sysOpeningBalance: 業主權益
+sysBadDebtLoss: 壞帳損失
+sysShortTermLending: 短期貸出
+sysShortTermLoan: 短期借入
+sysAccountBadge: 系統
+sysAccountTooltip: 系統帳戶 - 不能刪除或重新命名
