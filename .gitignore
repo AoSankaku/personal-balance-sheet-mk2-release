@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+shared/*.js
+worker/**/*.js
+**/tsconfig.tsbuildinfo
+
+# Local environment/runtime state
+.env
+.env.*
+!.env.example
+!.env.*.example
+.dev.vars
+.dev.vars.*
+**/.dev.vars
+**/.dev.vars.*
+!.dev.vars.example
+!**/.dev.vars.example
+*.local
+.wrangler/
+
+# Local financial data, imports, exports, and backups
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.ofx
+*.qif
+*.qfx
+*.sqlite
+*.sqlite3
+*.db
+*.db-*
+*.db-shm
+*.db-wal
+*.sqlite-*
+*.bak
+*.backup
+*.dump
+exports/
+imports/
+backups/
+local-data/
+hidden/
+
+# Key material
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local agent/browser artifacts
+scheculed_tasks.lock
+.claude/settings.local.json
+.claude/*.local.json
+.claude/references/
+.claude/scheduled_tasks.lock
+.playwright-mcp/
+/*-before.png
+/*-after.png
+.mcp.json
+.codex
+.claude/

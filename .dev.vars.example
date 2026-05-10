@@ -1,0 +1,4 @@
+# Root-level local secrets example.
+# This app currently does not require root-level development variables.
+# Keep real values in .dev.vars only; it is ignored by git.
+

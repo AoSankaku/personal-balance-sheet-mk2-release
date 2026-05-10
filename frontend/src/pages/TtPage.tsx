@@ -1,0 +1,167 @@
+import {
+  Anchor,
+  Divider,
+  ScrollArea,
+  SegmentedControl,
+  Skeleton,
+  Stack,
+  Title,
+} from "@mantine/core";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import type {
+  ActualBalanceSnapshot,
+  CreditCardStateEntry,
+} from "@balance-sheet/shared";
+import { api } from "../api/client";
+import { useLang } from "../i18n";
+import { useAppData } from "../context/AppDataContext";
+import { ActualInputSection } from "../components/tt/ActualInputSection";
+import { DeviationSection } from "../components/tt/DeviationSection";
+import { BudgetCheckSection } from "../components/tt/BudgetCheckSection";
+import { UnknownFundsSection } from "../components/tt/UnknownFundsSection";
+import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
+
+// ──────────────────────────────────────────────
+// Main page
+// ──────────────────────────────────────────────
+
+type Segment = "actual" | "deviation" | "budget" | "unknown";
+
+export default function TtPage() {
+  const { t } = useLang();
+  const { loading, error } = useAppData();
+  const [searchParams] = useSearchParams();
+
+  const initialSegment =
+    (searchParams.get("segment") as Segment | null) ?? "actual";
+  const [segment, setSegment] = useState<Segment>(initialSegment);
+  const [snapshots, setSnapshots] = useState<ActualBalanceSnapshot[] | null>(
+    null,
+  );
+  const [snapshotsLoading, setSnapshotsLoading] = useState(false);
+  const [snapshotsLoaded, setSnapshotsLoaded] = useState(false);
+  const [ccState, setCcState] = useState<CreditCardStateEntry[]>([]);
+
+  useEffect(() => {
+    api.trialBalance
+      .getCreditCardState()
+      .then(setCcState)
+      .catch(() => {});
+  }, []);
+
+  async function loadSnapshots() {
+    if (snapshotsLoaded) return;
+    setSnapshotsLoading(true);
+    try {
+      const data = await api.trialBalance.listSnapshots();
+      setSnapshots(data);
+    } catch {
+      setSnapshots([]);
+    } finally {
+      setSnapshotsLoading(false);
+      setSnapshotsLoaded(true);
+    }
+  }
+
+  async function reloadSnapshots() {
+    setSnapshotsLoaded(false);
+    setSnapshotsLoading(true);
+    try {
+      const data = await api.trialBalance.listSnapshots();
+      setSnapshots(data);
+    } catch {
+      // keep existing
+    } finally {
+      setSnapshotsLoading(false);
+      setSnapshotsLoaded(true);
+    }
+  }
+
+  // Load snapshots on mount if starting on deviation or unknown tab
+  useEffect(() => {
+    if (initialSegment === "deviation" || initialSegment === "unknown") {
+      loadSnapshots();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Load snapshots when switching to deviation tab
+  function handleSegmentChange(val: string) {
+    const seg = val as Segment;
+    setSegment(seg);
+    if (seg === "deviation" || seg === "unknown") {
+      loadSnapshots();
+    }
+  }
+
+  function handleSnapshotSaved(snapshot: ActualBalanceSnapshot) {
+    setSnapshots((prev) => (prev ? [snapshot, ...prev] : [snapshot]));
+    setSnapshotsLoaded(true);
+    setSegment("deviation");
+  }
+
+  if (loading) {
+    return (
+      <Stack gap="lg">
+        <Skeleton height={22} width={120} />
+        <Skeleton height={40} radius="md" />
+        <Skeleton height={200} radius="md" />
+      </Stack>
+    );
+  }
+
+  if (error) {
+    return <AppDataErrorAlert error={error} />;
+  }
+
+  return (
+    <Stack gap="lg">
+      <Anchor component={Link} to="/fs" size="sm" c="dimmed">
+        ← {t("navFS")}
+      </Anchor>
+
+      <Title order={3}>{t("tabTrialBalance")}</Title>
+
+      <ScrollArea type="never">
+        <SegmentedControl
+          value={segment}
+          onChange={handleSegmentChange}
+          data={[
+            { value: "actual", label: t("ttSegActualInput") },
+            { value: "deviation", label: t("ttSegDeviation") },
+            { value: "unknown", label: t("ttSegUnknownFunds") },
+            { value: "budget", label: t("ttSegBudgetCheck") },
+          ]}
+        />
+      </ScrollArea>
+
+      <Divider />
+
+      {segment === "actual" && (
+        <ActualInputSection
+          onSaved={handleSnapshotSaved}
+          onCreditCardStateSaved={setCcState}
+        />
+      )}
+
+      {segment === "deviation" && (
+        <>
+          {snapshotsLoading ? (
+            <Skeleton height={200} radius="md" />
+          ) : (
+            <DeviationSection
+              snapshots={snapshots ?? []}
+              ccState={ccState}
+              onJournalCreated={reloadSnapshots}
+            />
+          )}
+        </>
+      )}
+
+      {segment === "unknown" && <UnknownFundsSection />}
+
+      {segment === "budget" && <BudgetCheckSection />}
+    </Stack>
+  );
+}

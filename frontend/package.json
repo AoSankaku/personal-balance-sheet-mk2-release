@@ -1,0 +1,41 @@
+{
+  "name": "@balance-sheet/frontend",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@mantine/charts": "^7.17.8",
+    "@mantine/core": "^7.17.8",
+    "@mantine/dates": "^7.17.8",
+    "@mantine/dropzone": "^7.17.8",
+    "@mantine/form": "^7.17.8",
+    "@mantine/hooks": "^7.17.8",
+    "@mantine/notifications": "^7.17.8",
+    "@tabler/icons-react": "^3.44.0",
+    "country-flag-icons": "^1.6.17",
+    "dayjs": "^1.11.20",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-icons": "^5.6.0",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.15.0",
+    "recharts": "^3.8.1",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@balance-sheet/shared": "*",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.0.1",
+    "postcss": "^8.5.14",
+    "postcss-preset-mantine": "^1.18.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.11",
+    "vite-plugin-pwa": "^1.3.0"
+  }
+}

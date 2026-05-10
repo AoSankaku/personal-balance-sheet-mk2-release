@@ -1,0 +1,23 @@
+{
+  "name": "@balance-sheet/worker",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --ip 0.0.0.0",
+    "build": "wrangler deploy --dry-run",
+    "deploy": "wrangler deploy",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "wrangler d1 migrations apply balance-sheet-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply balance-sheet-db"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.18"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260510.1",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.90.0"
+  }
+}

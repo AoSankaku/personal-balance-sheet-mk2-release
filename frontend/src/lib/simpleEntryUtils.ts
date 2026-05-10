@@ -1,0 +1,162 @@
+import type {
+  Account,
+  BudgetFilterStep,
+  BudgetFilterStepType,
+} from "@balance-sheet/shared";
+
+interface StepAllocationPreview {
+  budget_category_id: number;
+  name: string;
+  amount: number;
+  ratio?: number; // only for remainder steps
+}
+
+export interface StepPreview {
+  step_order: number;
+  step_type: BudgetFilterStepType;
+  inputAmount: number;
+  allocations: StepAllocationPreview[];
+  outputAmount: number;
+}
+
+export function getIncomeDescriptionForSubmit(
+  description: string,
+  incomeAccount: Pick<Account, "category" | "name"> | undefined,
+): string {
+  if (description.trim().length > 0) return description;
+  return incomeAccount?.category === "salary" ? incomeAccount.name : "";
+}
+
+/**
+ * Distribute `pool` across `items` by exact ratios, then give leftover yen
+ * one-by-one to items with the largest fractional parts (largest remainder method).
+ * Returns integer amounts that sum exactly to `pool`.
+ */
+export function distributeWithLargestRemainder(
+  pool: number,
+  items: { id: number; exact: number }[],
+): Map<number, number> {
+  const floors = items.map((item) => ({
+    id: item.id,
+    floor: Math.floor(item.exact),
+    frac: item.exact % 1,
+  }));
+  let leftover = pool - floors.reduce((s, f) => s + f.floor, 0);
+  // Sort by fractional part descending; ties broken by id for determinism
+  floors.sort((a, b) => b.frac - a.frac || a.id - b.id);
+  for (const f of floors) {
+    if (leftover <= 0) break;
+    f.floor += 1;
+    leftover -= 1;
+  }
+  return new Map(floors.map((f) => [f.id, f.floor]));
+}
+
+export function computeFilterSteps(
+  steps: BudgetFilterStep[],
+  totalAmount: number,
+  getCatName: (id: number) => string,
+): StepPreview[] {
+  const result: StepPreview[] = [];
+  let remaining = totalAmount;
+  for (const step of [...steps].sort((a, b) => a.step_order - b.step_order)) {
+    const inputAmount = remaining;
+    const allocations: StepAllocationPreview[] = [];
+    if (step.step_type === "fixed") {
+      for (const alloc of step.allocations) {
+        const amt = Math.min(remaining, alloc.amount ?? 0);
+        allocations.push({
+          budget_category_id: alloc.budget_category_id,
+          name: getCatName(alloc.budget_category_id),
+          amount: amt,
+        });
+        remaining -= amt;
+      }
+    } else if (step.step_type === "capped") {
+      const cap = step.allocations.reduce((s, a) => s + (a.amount ?? 0), 0);
+      const pool = Math.min(remaining, cap);
+      if (cap > 0) {
+        const items = step.allocations.map((a) => ({
+          id: a.budget_category_id,
+          exact: (pool * (a.amount ?? 0)) / cap,
+        }));
+        const dist = distributeWithLargestRemainder(pool, items);
+        for (const alloc of step.allocations) {
+          allocations.push({
+            budget_category_id: alloc.budget_category_id,
+            name: getCatName(alloc.budget_category_id),
+            amount: dist.get(alloc.budget_category_id) ?? 0,
+            ratio: (alloc.amount ?? 0) / cap,
+          });
+        }
+      }
+      remaining -= pool;
+    } else if (step.step_type === "remainder") {
+      const items = step.allocations.map((a) => ({
+        id: a.budget_category_id,
+        exact: remaining * (a.ratio ?? 0),
+      }));
+      const dist = distributeWithLargestRemainder(remaining, items);
+      for (const alloc of step.allocations) {
+        allocations.push({
+          budget_category_id: alloc.budget_category_id,
+          name: getCatName(alloc.budget_category_id),
+          amount: dist.get(alloc.budget_category_id) ?? 0,
+          ratio: alloc.ratio ?? 0,
+        });
+      }
+      remaining = 0;
+    }
+    result.push({
+      step_order: step.step_order,
+      step_type: step.step_type,
+      inputAmount,
+      allocations,
+      outputAmount: remaining,
+    });
+  }
+  return result;
+}
+
+export function computeFilterPreview(
+  steps: BudgetFilterStep[],
+  amount: number,
+): Record<number, number> {
+  const result: Record<number, number> = {};
+  let remaining = amount;
+  for (const step of [...steps].sort((a, b) => a.step_order - b.step_order)) {
+    if (step.step_type === "fixed") {
+      for (const alloc of step.allocations) {
+        const toAlloc = Math.min(remaining, alloc.amount ?? 0);
+        result[alloc.budget_category_id] =
+          (result[alloc.budget_category_id] ?? 0) + toAlloc;
+        remaining -= toAlloc;
+      }
+    } else if (step.step_type === "capped") {
+      const cap = step.allocations.reduce((s, a) => s + (a.amount ?? 0), 0);
+      const pool = Math.min(remaining, cap);
+      if (cap > 0) {
+        const items = step.allocations.map((a) => ({
+          id: a.budget_category_id,
+          exact: (pool * (a.amount ?? 0)) / cap,
+        }));
+        const dist = distributeWithLargestRemainder(pool, items);
+        for (const [id, amt] of dist) {
+          result[id] = (result[id] ?? 0) + amt;
+        }
+      }
+      remaining -= pool;
+    } else if (step.step_type === "remainder") {
+      const items = step.allocations.map((a) => ({
+        id: a.budget_category_id,
+        exact: remaining * (a.ratio ?? 0),
+      }));
+      const dist = distributeWithLargestRemainder(remaining, items);
+      for (const [id, amt] of dist) {
+        result[id] = (result[id] ?? 0) + amt;
+      }
+      remaining = 0;
+    }
+  }
+  return result;
+}

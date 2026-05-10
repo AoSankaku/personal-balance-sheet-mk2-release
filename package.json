@@ -1,0 +1,17 @@
+{
+  "name": "presonal-balance-sheet-mk2",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "worker",
+    "shared"
+  ],
+  "scripts": {
+    "dev:frontend": "bun --cwd frontend run dev",
+    "dev:worker": "bun --cwd worker run dev",
+    "build:frontend": "bun --cwd frontend run build",
+    "build:worker": "bun --cwd worker run build",
+    "install:all": "bun install"
+  },
+  "packageManager": "bun@1.1.0"
+}

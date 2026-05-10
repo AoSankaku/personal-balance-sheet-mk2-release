@@ -1,0 +1,15 @@
+/* Fix Mantine chart tooltip color indicator circle being clipped at SVG edges */
+.m_b30369b5 {
+  overflow: visible;
+}
+
+.currency-cell {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.currency-token {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
