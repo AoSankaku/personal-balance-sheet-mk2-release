@@ -14,13 +14,15 @@ import type { Locale, TranslationKey } from "./translations";
 
 interface LangContextValue {
   locale: Locale;
+  hasExplicitLocale: boolean;
   setLocale: (l: Locale) => void;
+  resetLocaleSelection: () => void;
   t: (key: TranslationKey) => string;
 }
 
 const LangContext = createContext<LangContextValue | null>(null);
 
-function getInitialLocale(): Locale {
+function getStoredLocale(): Locale | null {
   const stored = localStorage.getItem("locale");
   if (
     stored === "en" ||
@@ -31,11 +33,20 @@ function getInitialLocale(): Locale {
     stored === "zh-TW"
   )
     return stored;
+  return null;
+}
+
+function getInitialLocale(): Locale {
+  const stored = getStoredLocale();
+  if (stored) return stored;
   return "ja"; // Japanese is the primary language
 }
 
 export function LangProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(getInitialLocale);
+  const [hasExplicitLocale, setHasExplicitLocale] = useState<boolean>(
+    () => getStoredLocale() !== null,
+  );
 
   // Always-current ref so `t` can be stable without stale-closure issues.
   const localeRef = useRef<Locale>(locale);
@@ -43,7 +54,14 @@ export function LangProvider({ children }: { children: ReactNode }) {
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);
+    setHasExplicitLocale(true);
     localStorage.setItem("locale", l);
+  }, []);
+
+  const resetLocaleSelection = useCallback(() => {
+    setLocaleState("ja");
+    setHasExplicitLocale(false);
+    localStorage.removeItem("locale");
   }, []);
 
   // Stable `t` — never changes reference, reads locale via ref.
@@ -56,8 +74,8 @@ export function LangProvider({ children }: { children: ReactNode }) {
 
   // Memoize context value so only locale changes cause consumer re-renders.
   const value = useMemo(
-    () => ({ locale, setLocale, t }),
-    [locale, setLocale, t],
+    () => ({ locale, hasExplicitLocale, setLocale, resetLocaleSelection, t }),
+    [locale, hasExplicitLocale, setLocale, resetLocaleSelection, t],
   );
 
   useEffect(() => {

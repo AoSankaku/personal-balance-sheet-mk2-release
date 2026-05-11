@@ -93,7 +93,7 @@ interface AppDataContextValue {
   enabledCurrencies: EnabledCurrency[];
   /** True after the first enabled-currency fetch has completed successfully */
   enabledCurrenciesLoaded: boolean;
-  refreshEnabledCurrencies: () => void;
+  refreshEnabledCurrencies: () => Promise<void>;
   /** Visual style used for crypto currency icons */
   cryptoIconStyle: CryptoIconStyle;
   setCryptoIconStyle: (style: CryptoIconStyle) => void;
@@ -118,7 +118,7 @@ export function useAppData() {
 }
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
-  const { t } = useLang();
+  const { t, locale, hasExplicitLocale } = useLang();
   const {
     prices,
     refresh: refreshCryptoPrices,
@@ -182,6 +182,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     [],
   );
   const [enabledCurrenciesLoaded, setEnabledCurrenciesLoaded] = useState(false);
+  const isInitialSetupComplete =
+    hasExplicitLocale && enabledCurrenciesLoaded && enabledCurrencies.length > 0;
   const [cryptoIconStyle, setCryptoIconStyleState] =
     useState<CryptoIconStyle>(getStoredCryptoIconStyle);
 
@@ -211,8 +213,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    if (!isInitialSetupComplete) return;
     ensureRateForCurrency(displayCurrency);
-  }, [displayCurrency, ensureRateForCurrency]);
+  }, [displayCurrency, ensureRateForCurrency, isInitialSetupComplete]);
 
   const refreshEnabledCurrencies = useCallback(async () => {
     try {
@@ -270,8 +273,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!isInitialSetupComplete) return;
     void refreshAllocatable();
-  }, [refreshAllocatable]);
+  }, [refreshAllocatable, isInitialSetupComplete]);
 
   const assetBalanceToday = useMemo(
     () =>
@@ -411,12 +415,19 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   // Re-fetch budget summary when currentYearMonth changes
   useEffect(() => {
+    if (!isInitialSetupComplete) return;
     void refreshBudget();
-  }, [currentYearMonth, displayCurrency, refreshBudget]);
+  }, [currentYearMonth, displayCurrency, refreshBudget, isInitialSetupComplete]);
 
   useEffect(() => {
+    if (!isInitialSetupComplete) return;
     void refreshAllocatable();
-  }, [currentYearMonth, displayCurrency, refreshAllocatable]);
+  }, [
+    currentYearMonth,
+    displayCurrency,
+    refreshAllocatable,
+    isInitialSetupComplete,
+  ]);
 
   // Stable callback — only depends on t (locale string) and the stable refreshCryptoBalances
   const refresh = useCallback(async () => {
@@ -476,15 +487,25 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [t, refreshCryptoBalances, refreshAllocatable]); // both stable → refresh is stable too
 
-  // Runs exactly once on mount (refresh reference never changes)
+  // Load the setup gate first. Full app data is fetched only after setup is complete.
   useEffect(() => {
-    void refresh();
     void refreshEnabledCurrencies();
-  }, [refresh, refreshEnabledCurrencies]);
+  }, [refreshEnabledCurrencies]);
+
+  useEffect(() => {
+    if (!enabledCurrenciesLoaded) return;
+    if (!isInitialSetupComplete) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    void refresh();
+  }, [enabledCurrenciesLoaded, isInitialSetupComplete, refresh]);
 
   // Seed default accounts on first ever load when the DB is empty
   useEffect(() => {
     if (loading) return;
+    if (!isInitialSetupComplete) return;
     if (seedAttempted.current) return;
     seedAttempted.current = true;
     if (accounts.length > 0) {
@@ -493,12 +514,17 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
     if (localStorage.getItem("app:initialSeeded") === "true") return;
     localStorage.setItem("app:initialSeeded", "true");
-    const locale = navigator.language.startsWith("ja") ? "ja" : "en";
     void api.admin
       .seed(locale)
       .then(() => void refresh())
       .catch(() => {});
-  }, [loading, accounts, refresh]);
+  }, [
+    loading,
+    isInitialSetupComplete,
+    accounts,
+    locale,
+    refresh,
+  ]);
 
   const cryptoValueMap = useMemo(() => {
     if (!prices) return new Map<number, number>();

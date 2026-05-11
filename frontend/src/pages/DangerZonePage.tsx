@@ -28,8 +28,8 @@ type DangerScope =
   | "all_data";
 
 export default function DangerZonePage() {
-  const { t, locale } = useLang();
-  const { loading, error, refresh } = useAppData();
+  const { t, locale, resetLocaleSelection } = useLang();
+  const { loading, error, refresh, refreshEnabledCurrencies } = useAppData();
 
   const [dangerScope, setDangerScope] = useState<DangerScope | null>(null);
   const [dangerStep, setDangerStep] = useState<1 | 2>(1);
@@ -55,12 +55,19 @@ export default function DangerZonePage() {
     setDangerLoading(true);
     try {
       await api.admin.erase(dangerScope);
-      if (dangerScope === "accounts_all" || dangerScope === "all_data") {
+      if (dangerScope === "all_data") {
+        resetLocaleSelection();
+        localStorage.removeItem("display_currency");
+        localStorage.removeItem("app:initialSeeded");
+        await refreshEnabledCurrencies();
+      } else if (dangerScope === "accounts_all") {
         await api.admin.seed(locale);
       }
       showFeedback({ message: t("dangerSuccessMsg"), color: "teal" });
       closeDanger();
-      refresh();
+      if (dangerScope !== "all_data") {
+        refresh();
+      }
     } catch {
       showFeedback({ message: t("dangerErrorMsg"), color: "red" });
     } finally {

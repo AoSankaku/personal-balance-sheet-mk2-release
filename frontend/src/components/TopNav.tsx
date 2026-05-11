@@ -24,7 +24,7 @@ import {
   IconSun,
 } from "@tabler/icons-react";
 import * as Flags from "country-flag-icons/react/3x2";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   isShortTermBorrowingCategory,
@@ -285,7 +285,7 @@ function useCreditCardWithdrawalRiskNotifications(): CreditCardWithdrawalRiskNot
   });
 }
 
-function NotificationBell() {
+function NotificationBell({ disabled = false }: { disabled?: boolean }) {
   const { t, locale } = useLang();
   const navigate = useNavigate();
   const [opened, setOpened] = useState(false);
@@ -301,6 +301,11 @@ function NotificationBell() {
     (overdueLoanNotifications.length > 0 ? 1 : 0) +
     (negativeAccountNotifications.length > 0 ? 1 : 0) +
     (creditCardWithdrawalRiskNotifications.length > 0 ? 1 : 0);
+  const effectiveCount = disabled ? 0 : totalCount;
+
+  useEffect(() => {
+    if (disabled) setOpened(false);
+  }, [disabled]);
 
   return (
     <>
@@ -325,16 +330,20 @@ function NotificationBell() {
       >
         <Popover.Target>
           <Indicator
-            disabled={totalCount === 0}
+            disabled={effectiveCount === 0}
             color="red"
             size={16}
-            label={totalCount > 0 ? String(totalCount) : undefined}
+            label={effectiveCount > 0 ? String(effectiveCount) : undefined}
             offset={4}
           >
             <ActionIcon
               variant="default"
               size="md"
-              onClick={() => setOpened((o) => !o)}
+              disabled={disabled}
+              onClick={() => {
+                if (disabled) return;
+                setOpened((o) => !o);
+              }}
               aria-label={t("notifications")}
               title={t("notifications")}
             >
@@ -573,7 +582,15 @@ interface NavLinkItem {
   end?: boolean;
 }
 
-export function TopNav() {
+interface TopNavProps {
+  disableNavigation?: boolean;
+  disableNotifications?: boolean;
+}
+
+export function TopNav({
+  disableNavigation = false,
+  disableNotifications = false,
+}: TopNavProps) {
   const { t } = useLang();
   const computed = useComputedColorScheme("light");
 
@@ -600,41 +617,57 @@ export function TopNav() {
         <Title order={4}>{t("appTitle")}</Title>
         {/* Desktop nav links */}
         <Group gap="md" visibleFrom="sm">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              style={{ textDecoration: "none" }}
-            >
-              {({ isActive }) => (
-                <Anchor
-                  component="span"
-                  size="sm"
-                  fw={isActive ? 700 : 400}
-                  c={
-                    isActive
-                      ? computed === "dark"
-                        ? "blue.4"
-                        : "blue"
-                      : computed === "dark"
-                        ? "gray.3"
-                        : "dimmed"
-                  }
-                >
-                  <Group gap={4} align="center" wrap="nowrap">
-                    {item.icon}
-                    {item.label}
-                  </Group>
-                </Anchor>
-              )}
-            </NavLink>
-          ))}
+          {navItems.map((item) =>
+            disableNavigation ? (
+              <Anchor
+                key={item.to}
+                component="span"
+                size="sm"
+                fw={400}
+                c={computed === "dark" ? "gray.3" : "dimmed"}
+                style={{ opacity: 0.6, cursor: "not-allowed" }}
+              >
+                <Group gap={4} align="center" wrap="nowrap">
+                  {item.icon}
+                  {item.label}
+                </Group>
+              </Anchor>
+            ) : (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                style={{ textDecoration: "none" }}
+              >
+                {({ isActive }) => (
+                  <Anchor
+                    component="span"
+                    size="sm"
+                    fw={isActive ? 700 : 400}
+                    c={
+                      isActive
+                        ? computed === "dark"
+                          ? "blue.4"
+                          : "blue"
+                        : computed === "dark"
+                          ? "gray.3"
+                          : "dimmed"
+                    }
+                  >
+                    <Group gap={4} align="center" wrap="nowrap">
+                      {item.icon}
+                      {item.label}
+                    </Group>
+                  </Anchor>
+                )}
+              </NavLink>
+            ),
+          )}
         </Group>
       </Group>
       <Group gap="xs">
         <CurrencySwitcher />
-        <NotificationBell />
+        <NotificationBell disabled={disableNotifications} />
         <ColorSchemeToggle />
       </Group>
     </Group>

@@ -23,12 +23,17 @@ import TtPage from "./pages/TtPage";
 import DbPage from "./pages/DbPage";
 import SvPage from "./pages/SvPage";
 import LongTermLoanDetailPage from "./pages/LongTermLoanDetailPage";
+import LanguageSetupPage from "./pages/LanguageSetupPage";
 import { FeedbackHost } from "./components/FeedbackHost";
 import { useAppData } from "./context/AppDataContext";
+import { useLang } from "./i18n";
 export default function App() {
   const { enabledCurrencies, enabledCurrenciesLoaded } = useAppData();
+  const { hasExplicitLocale } = useLang();
   const needsCurrencySetup =
     enabledCurrenciesLoaded && enabledCurrencies.length === 0;
+  const needsLanguageSetup = needsCurrencySetup && !hasExplicitLocale;
+  const inInitialSetupFlow = needsLanguageSetup || needsCurrencySetup;
 
   return (
     <AppShell
@@ -37,12 +42,17 @@ export default function App() {
       padding="md"
     >
       <AppShell.Header>
-        <TopNav />
+        <TopNav
+          disableNavigation={inInitialSetupFlow}
+          disableNotifications={inInitialSetupFlow}
+        />
       </AppShell.Header>
 
       <AppShell.Main>
         <FeedbackHost />
-        {!enabledCurrenciesLoaded ? null : needsCurrencySetup ? (
+        {!enabledCurrenciesLoaded ? null : needsLanguageSetup ? (
+          <LanguageSetupPage />
+        ) : needsCurrencySetup ? (
           <CurrencySettingsPage initialSetup />
         ) : (
           <Routes>
@@ -88,7 +98,7 @@ export default function App() {
       </AppShell.Main>
 
       <AppShell.Footer hiddenFrom="sm">
-        <BottomNav />
+        <BottomNav disableNavigation={inInitialSetupFlow} />
       </AppShell.Footer>
     </AppShell>
   );

@@ -9,6 +9,7 @@ import {
   budgetFilterStepAllocations,
   budgetFilters,
   budgetSettings,
+  enabledCurrencies,
   exchangeCredentials,
   journalEntries,
 } from "../db/schema";
@@ -23,95 +24,151 @@ type EraseScope =
   | "budget_categories_all"
   | "all_data";
 
+async function existingColumns(
+  db: ReturnType<typeof createDb>,
+  tableName: string,
+): Promise<Set<string>> {
+  const rows = await db.all<{ name: string }>(
+    sql.raw(`PRAGMA table_info(${tableName})`),
+  );
+  return new Set(rows.map((row) => row.name));
+}
+
+async function clearBudgetSettingsRefs(
+  db: ReturnType<typeof createDb>,
+  columns: string[],
+) {
+  const existing = await existingColumns(db, "budget_settings");
+  const setClauses = columns
+    .filter((column) => existing.has(column))
+    .map((column) => `${column} = NULL`);
+
+  if (setClauses.length === 0) return;
+
+  await db.run(sql.raw(`UPDATE budget_settings SET ${setClauses.join(", ")}`));
+}
+
 // POST /api/admin/erase — bulk-delete data by scope
+async function runEraseStep<T>(
+  context: { currentStep: string },
+  step: string,
+  action: () => Promise<T>,
+): Promise<T> {
+  context.currentStep = step;
+  return action();
+}
+
 router.post("/erase", async (c) => {
-  const body = await c.req.json<{ scope: EraseScope }>();
-  const { scope } = body;
+  const context = { currentStep: "parse_request" };
+  try {
+    const body = await c.req.json<{ scope: EraseScope }>();
+    const { scope } = body;
 
-  if (
-    ![
-      "ledger_this_month",
-      "ledger_this_year",
-      "ledger_all",
-      "accounts_all",
-      "budget_categories_all",
-      "all_data",
-    ].includes(scope)
-  ) {
-    return c.json({ error: "Invalid scope" }, 400);
+    if (
+      ![
+        "ledger_this_month",
+        "ledger_this_year",
+        "ledger_all",
+        "accounts_all",
+        "budget_categories_all",
+        "all_data",
+      ].includes(scope)
+    ) {
+      return c.json({ error: "Invalid scope" }, 400);
+    }
+
+    const db = createDb(c.env);
+
+    // Current date context (server time)
+    const now = new Date();
+    const yearMonth = now.toISOString().slice(0, 7); // YYYY-MM
+    const year = yearMonth.slice(0, 4); // YYYY
+
+    switch (scope) {
+      case "ledger_this_month": {
+        // Delete budget runtime data for this month first
+        await db
+          .delete(budgetAdjustmentLogs)
+          .where(sql`${budgetAdjustmentLogs.year_month} = ${yearMonth}`);
+        await db
+          .delete(budgetAllocations)
+          .where(sql`${budgetAllocations.year_month} = ${yearMonth}`);
+        // Delete journal entries (cascades: journal_lines, journal_entry_budget_allocations)
+        await db
+          .delete(journalEntries)
+          .where(like(journalEntries.date, `${yearMonth}-%`));
+        break;
+      }
+      case "ledger_this_year": {
+        await db
+          .delete(budgetAdjustmentLogs)
+          .where(like(budgetAdjustmentLogs.year_month, `${year}-%`));
+        await db
+          .delete(budgetAllocations)
+          .where(like(budgetAllocations.year_month, `${year}-%`));
+        await db
+          .delete(journalEntries)
+          .where(like(journalEntries.date, `${year}-%`));
+        break;
+      }
+      case "ledger_all": {
+        await db.delete(budgetAdjustmentLogs);
+        await db.delete(budgetAllocations);
+        await db.delete(journalEntries); // cascades lines + journal_entry_budget_allocations
+        break;
+      }
+      case "accounts_all": {
+        await clearBudgetSettingsRefs(db, [
+          "preferred_payment_account_ids",
+          "business_advance_account_id",
+          "business_loss_account_id",
+        ]);
+        // journal_lines.account_id has no onDelete cascade, so delete entries first
+        await db.delete(journalEntries); // cascades journal_lines + budget allocations
+        await db.delete(accounts).where(eq(accounts.is_system, 0)); // cascades: budget_category_accounts, crypto_wallets, credit_card_settings; preserve system accounts
+        break;
+      }
+      case "budget_categories_all": {
+        await clearBudgetSettingsRefs(db, [
+          "business_advance_budget_category_id",
+        ]);
+        // budget_filter_step_allocations.budget_category_id has no onDelete cascade
+        await db.delete(budgetFilterStepAllocations);
+        await db.delete(budgetCategories); // cascades: budget_category_accounts, budget_allocations, journal_entry_budget_allocations, budget_adjustment_logs
+        break;
+      }
+      case "all_data": {
+        // Clear settings references before deleting referenced accounts/categories.
+        await clearBudgetSettingsRefs(db, [
+          "preferred_payment_account_ids",
+          "preferred_filter_ids",
+          "business_advance_account_id",
+          "business_loss_account_id",
+          "business_advance_budget_category_id",
+        ]);
+        // Order: children before parents for tables without cascade
+        await db.delete(journalEntries); // cascades journal_lines, journal_entry_budget_allocations, budget_adjustment_logs (with journal_entry_id)
+        await db.delete(budgetAdjustmentLogs); // remaining manual adjustments
+        await db.delete(budgetFilterStepAllocations); // no cascade from budget_categories
+        await db.delete(budgetCategories); // cascades: budget_category_accounts, budget_allocations
+        await db.delete(budgetFilters); // cascades: filter_steps, step_allocations (already gone)
+        await db.delete(accounts).where(eq(accounts.is_system, 0)); // cascades: crypto_wallets, credit_card_settings; preserve system accounts
+        await db.delete(enabledCurrencies);
+        await db.delete(exchangeCredentials);
+        break;
+      }
+    }
+
+    return c.json({ ok: true, scope });
+  } catch (error) {
+    return c.json(
+      {
+        error: "erase_failed",
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500,
+    );
   }
-
-  const db = createDb(c.env);
-
-  // Current date context (server time)
-  const now = new Date();
-  const yearMonth = now.toISOString().slice(0, 7); // YYYY-MM
-  const year = yearMonth.slice(0, 4); // YYYY
-
-  switch (scope) {
-    case "ledger_this_month": {
-      // Delete budget runtime data for this month first
-      await db
-        .delete(budgetAdjustmentLogs)
-        .where(sql`${budgetAdjustmentLogs.year_month} = ${yearMonth}`);
-      await db
-        .delete(budgetAllocations)
-        .where(sql`${budgetAllocations.year_month} = ${yearMonth}`);
-      // Delete journal entries (cascades: journal_lines, journal_entry_budget_allocations)
-      await db
-        .delete(journalEntries)
-        .where(like(journalEntries.date, `${yearMonth}-%`));
-      break;
-    }
-    case "ledger_this_year": {
-      await db
-        .delete(budgetAdjustmentLogs)
-        .where(like(budgetAdjustmentLogs.year_month, `${year}-%`));
-      await db
-        .delete(budgetAllocations)
-        .where(like(budgetAllocations.year_month, `${year}-%`));
-      await db
-        .delete(journalEntries)
-        .where(like(journalEntries.date, `${year}-%`));
-      break;
-    }
-    case "ledger_all": {
-      await db.delete(budgetAdjustmentLogs);
-      await db.delete(budgetAllocations);
-      await db.delete(journalEntries); // cascades lines + journal_entry_budget_allocations
-      break;
-    }
-    case "accounts_all": {
-      // journal_lines.account_id has no onDelete cascade, so delete entries first
-      await db.delete(journalEntries); // cascades journal_lines + budget allocations
-      await db.delete(accounts).where(eq(accounts.is_system, 0)); // cascades: budget_category_accounts, crypto_wallets, credit_card_settings; preserve system accounts
-      break;
-    }
-    case "budget_categories_all": {
-      // budget_filter_step_allocations.budget_category_id has no onDelete cascade
-      await db.delete(budgetFilterStepAllocations);
-      await db.delete(budgetCategories); // cascades: budget_category_accounts, budget_allocations, journal_entry_budget_allocations, budget_adjustment_logs
-      break;
-    }
-    case "all_data": {
-      // Order: children before parents for tables without cascade
-      await db.delete(journalEntries); // cascades journal_lines, journal_entry_budget_allocations, budget_adjustment_logs (with journal_entry_id)
-      await db.delete(budgetAdjustmentLogs); // remaining manual adjustments
-      await db.delete(budgetFilterStepAllocations); // no cascade from budget_categories
-      await db.delete(budgetCategories); // cascades: budget_category_accounts, budget_allocations
-      await db.delete(budgetFilters); // cascades: filter_steps, step_allocations (already gone)
-      await db.delete(accounts).where(eq(accounts.is_system, 0)); // cascades: crypto_wallets, credit_card_settings; preserve system accounts
-      await db.delete(exchangeCredentials);
-      // Reset budget settings (preferred accounts/filters reference deleted data)
-      await db.update(budgetSettings).set({
-        preferred_payment_account_ids: null,
-        preferred_filter_ids: null,
-      });
-      break;
-    }
-  }
-
-  return c.json({ ok: true, scope });
 });
 
 type SeedLocale = "en" | "ja";

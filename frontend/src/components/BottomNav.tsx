@@ -34,42 +34,69 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export function BottomNav() {
+interface BottomNavProps {
+  disableNavigation?: boolean;
+}
+
+export function BottomNav({ disableNavigation = false }: BottomNavProps) {
   const { t } = useLang();
 
   return (
     <Box>
       <Group grow h="100%" gap={0}>
-        {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            style={{ textDecoration: "none" }}
-          >
-            {({ isActive }) => (
-              <UnstyledButton
-                w="100%"
-                py="xs"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  color: isActive
-                    ? "var(--mantine-color-blue-6)"
-                    : "var(--mantine-color-dimmed)",
-                }}
-              >
-                <Stack gap={2} align="center">
-                  {item.icon}
-                  <Text size="xs" fw={isActive ? 600 : 400}>
-                    {t(item.labelKey)}
-                  </Text>
-                </Stack>
-              </UnstyledButton>
-            )}
-          </NavLink>
-        ))}
+        {NAV_ITEMS.map((item) =>
+          disableNavigation ? (
+            <UnstyledButton
+              key={item.to}
+              w="100%"
+              py="xs"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                color: "var(--mantine-color-dimmed)",
+                opacity: 0.6,
+                cursor: "not-allowed",
+              }}
+            >
+              <Stack gap={2} align="center">
+                {item.icon}
+                <Text size="xs" fw={400}>
+                  {t(item.labelKey)}
+                </Text>
+              </Stack>
+            </UnstyledButton>
+          ) : (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              style={{ textDecoration: "none" }}
+            >
+              {({ isActive }) => (
+                <UnstyledButton
+                  w="100%"
+                  py="xs"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    color: isActive
+                      ? "var(--mantine-color-blue-6)"
+                      : "var(--mantine-color-dimmed)",
+                  }}
+                >
+                  <Stack gap={2} align="center">
+                    {item.icon}
+                    <Text size="xs" fw={isActive ? 600 : 400}>
+                      {t(item.labelKey)}
+                    </Text>
+                  </Stack>
+                </UnstyledButton>
+              )}
+            </NavLink>
+          ),
+        )}
       </Group>
     </Box>
   );
