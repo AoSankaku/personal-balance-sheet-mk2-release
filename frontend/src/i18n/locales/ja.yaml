@@ -986,7 +986,7 @@ currencySettingsTitle: 外貨設定
 currencySettingsFiatGroup: 法定通貨
 currencySettingsCryptoGroup: 仮想通貨
 currencySettingsNote: 使用する通貨を有効にしてください。最低1つは常に有効にする必要があります。
-currencySettingsRateNote: 為替レートは自動取得されます（クールダウン30分）。
+currencySettingsRateNote: 為替レートは自動取得されます（通常クールダウン30分 / 未取得の法定通貨追加時は30秒）。
 currencySettingsApiSourceTitle: レート取得API
 currencySettingsFiatApiLabel: 外貨レート
 currencySettingsCryptoApiLabel: 仮想通貨レート

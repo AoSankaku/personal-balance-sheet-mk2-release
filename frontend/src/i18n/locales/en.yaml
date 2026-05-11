@@ -986,7 +986,7 @@ currencySettingsTitle: Foreign Currency Settings
 currencySettingsFiatGroup: Fiat Currencies
 currencySettingsCryptoGroup: Cryptocurrencies
 currencySettingsNote: Enable the currencies you use. At least one must always remain enabled.
-currencySettingsRateNote: Exchange rates are fetched automatically (30-min cooldown).
+currencySettingsRateNote: Exchange rates are fetched automatically (30-min cooldown; 30s when adding missing fiat codes).
 currencySettingsApiSourceTitle: Rate Source APIs
 currencySettingsFiatApiLabel: Fiat Exchange Rates
 currencySettingsCryptoApiLabel: Crypto Prices
