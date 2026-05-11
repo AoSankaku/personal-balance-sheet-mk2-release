@@ -311,11 +311,11 @@ export default function CurrencySettingsPage({
   const customRateBaseOptions = useMemo(() => {
     return [
       {
-        group: locale === "ja" ? "法定通貨" : "Fiat",
+        group: t("currencySettingsFiatGroup"),
         items: FIAT_CURRENCIES.map((c) => ({ value: c.code, label: c.code })),
       },
       {
-        group: locale === "ja" ? "仮想通貨" : "Crypto",
+        group: t("currencySettingsCryptoGroup"),
         items: CRYPTO_CURRENCIES.map((c) => ({ value: c.code, label: c.code })),
       },
     ];
@@ -366,7 +366,7 @@ export default function CurrencySettingsPage({
       const isCrypto = CRYPTO_CODE_SET.has(code);
       const isCustom = customCodeSet.has(code);
 
-      let quote = locale === "ja" ? "未取得" : "Not fetched";
+      let quote = t("currencySettingsRateMissing");
       if (code === baseCode) {
         quote = `1 ${baseCode} = 1 ${baseCode}`;
       } else if (hasBaseRate && hasRate) {
@@ -383,7 +383,7 @@ export default function CurrencySettingsPage({
         quote,
       };
     });
-  }, [customCodeSet, displayCurrency, enabledCurrencies, exchangeRates, locale]);
+  }, [customCodeSet, displayCurrency, enabledCurrencies, exchangeRates, locale, t]);
 
   function renderRateQuote(quote: string) {
     const match = quote.match(/^(.*?)(\.\d+)(\s?[A-Z]{2,6})?$/);
@@ -553,14 +553,8 @@ export default function CurrencySettingsPage({
 
   const isLastEnabled = enabledCurrencies.length <= 1;
 
-  const disabledReasonBalance =
-    locale === "ja"
-      ? "残高があるため無効化できません"
-      : "Cannot disable: has non-zero balance";
-  const disabledReasonLast =
-    locale === "ja"
-      ? "最後の通貨は削除できません（最低1つ必要です）"
-      : "Cannot disable the last currency — at least one is required";
+  const disabledReasonBalance = t("currencySettingsDisableBalance");
+  const disabledReasonLast = t("currencySettingsDisableLast");
 
   function getCurrencyLabel(code: string): string {
     const fiat = FIAT_CURRENCIES.find((currency) => currency.code === code);
@@ -723,9 +717,7 @@ export default function CurrencySettingsPage({
 
       <Title order={3}>
         {initialSetup
-          ? locale === "ja"
-            ? "\u901a\u8ca8\u306e\u521d\u671f\u8a2d\u5b9a"
-            : "Initial Currency Setup"
+          ? t("currencySettingsInitialSetupTitle")
           : t("currencySettingsTitle")}
       </Title>
 
@@ -736,14 +728,10 @@ export default function CurrencySettingsPage({
           variant="light"
         >
           <Text size="sm" fw={600}>
-            {locale === "ja"
-              ? "\u4f7f\u7528\u3059\u308b\u901a\u8ca8\u30921\u3064\u4ee5\u4e0a\u9078\u629e\u3057\u3066\u304f\u3060\u3055\u3044"
-              : "Please select at least one currency to use"}
+            {t("currencySettingsSelectAtLeastOne")}
           </Text>
           <Text size="sm" mt={4}>
-            {locale === "ja"
-              ? "\u6cd5\u5b9a\u901a\u8ca8\u307e\u305f\u306f\u4eee\u60f3\u901a\u8ca8\u304b\u3089\u6700\u4f4e1\u3064\u6709\u52b9\u306b\u3059\u308b\u5fc5\u8981\u304c\u3042\u308a\u307e\u3059\u3002"
-              : "At least one fiat or crypto currency must be enabled."}
+            {t("currencySettingsFiatOrCryptoRequired")}
           </Text>
         </Alert>
       )}
@@ -759,7 +747,7 @@ export default function CurrencySettingsPage({
         <Group justify="space-between" gap="sm" wrap="wrap">
           <Stack gap={2}>
             <Text fw={600} size="sm">
-              {locale === "ja" ? "仮想通貨アイコン" : "Crypto icons"}
+              {t("currencySettingsCryptoIcons")}
             </Text>
             <Group gap={6} wrap="nowrap">
               <CryptoCurrencyIcon
@@ -788,11 +776,11 @@ export default function CurrencySettingsPage({
             data={[
               {
                 value: "rich",
-                label: locale === "ja" ? "リッチ画像風" : "Rich",
+                label: t("currencySettingsIconStyleRich"),
               },
               {
                 value: "symbol",
-                label: locale === "ja" ? "白い記号" : "White symbol",
+                label: t("currencySettingsIconStyleWhite"),
               },
             ]}
           />
@@ -805,12 +793,10 @@ export default function CurrencySettingsPage({
           <Stack gap="xs">
             <Group gap={6}>
               <Badge color="orange" size="sm">
-                {locale === "ja" ? "記号の競合" : "Symbol conflicts"}
+                {t("currencySettingsSymbolConflicts")}
               </Badge>
               <Text size="xs" c="dimmed">
-                {locale === "ja"
-                  ? "同じ記号を使う通貨が複数有効です。金額表示で優先する通貨を選んでください。"
-                  : "Multiple enabled currencies share the same symbol. Choose which one displays it."}
+                {t("currencySettingsSymbolConflictsDesc")}
               </Text>
             </Group>
             {symbolConflicts.map(({ symbol, list }) => (
@@ -835,11 +821,11 @@ export default function CurrencySettingsPage({
         <Stack gap="xs">
           <Group justify="space-between" align="center" wrap="wrap" gap="xs">
             <Text fw={600} size="sm">
-              {locale === "ja" ? "レート取得状況" : "Rate status"}
+              {t("currencySettingsRateStatus")}
             </Text>
             <Group gap={6} wrap="wrap">
               <Badge variant="light" color="blue">
-                {locale === "ja" ? "基準" : "Base"}{" "}
+                {t("currencySettingsBaseBadge")}{" "}
                 {displayCurrency || enabledCurrencies[0]?.code || "JPY"}
               </Badge>
               <Badge
@@ -857,9 +843,7 @@ export default function CurrencySettingsPage({
             </Group>
           </Group>
           <Text size="xs" c="dimmed">
-            {locale === "ja"
-              ? "法定通貨は基準通貨からの換算、暗号資産は 1 単位あたりの基準通貨価格で表示します。"
-              : "Fiat currencies are quoted from the base currency; crypto is shown as the base-currency price per 1 unit."}
+            {t("currencySettingsRateStatusDesc")}
           </Text>
           <Stack gap={4}>
             {rateStatusRows.map((row) => (
@@ -876,12 +860,8 @@ export default function CurrencySettingsPage({
                     color={row.hasRate ? "teal" : "gray"}
                   >
                     {row.hasRate
-                      ? locale === "ja"
-                        ? "取得済み"
-                        : "Fetched"
-                      : locale === "ja"
-                        ? "未取得"
-                        : "Missing"}
+                      ? t("currencySettingsRateFetched")
+                      : t("currencySettingsRateMissing")}
                   </Badge>
                   <Text size="sm" fw={600} style={{ width: 42 }}>
                     {row.code}
@@ -917,16 +897,14 @@ export default function CurrencySettingsPage({
           <Stack gap="xs">
             <Group justify="space-between" align="center" wrap="wrap" gap="xs">
               <Text fw={600} size="sm">
-                {locale === "ja" ? "カスタム通貨レート" : "Custom currency rates"}
+                {t("currencySettingsCustomRates")}
               </Text>
               <Badge variant="light" color="grape">
-                {locale === "ja" ? "手動" : "Manual"}
+                {t("currencySettingsManualBadge")}
               </Badge>
             </Group>
             <Text size="xs" c="dimmed">
-              {locale === "ja"
-                ? "自動取得できない通貨は、基軸通貨を選択してレートを入力してください。"
-                : "For currencies that cannot be fetched automatically, choose a base currency and enter the rate."}
+              {t("currencySettingsCustomRatesDesc")}
             </Text>
             <Stack gap={6}>
               {customEnabled.map((currency) => {
@@ -961,7 +939,7 @@ export default function CurrencySettingsPage({
                       w={180}
                     />
                     <Select
-                      label={locale === "ja" ? "基軸" : "Base"}
+                      label={t("currencySettingsBaseCurrencyLabel")}
                       value={base}
                       onChange={(value) => updateManualRateBase(code, value)}
                       data={customRateBaseOptions}
@@ -1000,7 +978,7 @@ export default function CurrencySettingsPage({
 
       <Stack gap="xs">
         <Text fw={600} size="sm">
-          {locale === "ja" ? "有効な通貨" : "Enabled currencies"}
+          {t("currencySettingsEnabledList")}
         </Text>
         <Paper withBorder p="sm" radius="sm">
           <Stack gap="xs">
@@ -1017,12 +995,12 @@ export default function CurrencySettingsPage({
 
       <Stack gap="xs">
         <Text fw={600} size="sm">
-          {locale === "ja" ? "通貨を追加" : "Add currency"}
+          {t("currencySettingsAddCurrency")}
         </Text>
         <Group gap="xs" align="flex-end">
           <Select
-            label={locale === "ja" ? "既知の通貨" : "Known currency"}
-            placeholder={locale === "ja" ? "通貨を選択" : "Select currency"}
+            label={t("currencySettingsKnownCurrency")}
+            placeholder={t("currencySettingsSelectCurrency")}
             value={selectedKnownCode}
             onChange={setSelectedKnownCode}
             data={knownCurrencyOptions}
@@ -1112,11 +1090,11 @@ export default function CurrencySettingsPage({
       {/* ── Add custom currency ── */}
       <Stack gap="xs">
         <Text fw={600} size="sm">
-          {locale === "ja" ? "カスタム通貨を追加" : "Add Custom Currency"}
+          {t("currencySettingsAddCustomCurrency")}
         </Text>
         <Group gap="xs" align="flex-end">
           <TextInput
-            label={locale === "ja" ? "通貨コード" : "Code"}
+            label={t("currencySettingsCurrencyCode")}
             placeholder="e.g. VND"
             value={customCode}
             onChange={(e) => setCustomCode(e.currentTarget.value.toUpperCase())}
@@ -1127,10 +1105,8 @@ export default function CurrencySettingsPage({
             w={110}
           />
           <Select
-            label={locale === "ja" ? "表示アイコン" : "Display icon"}
-            placeholder={
-              locale === "ja" ? "アイコンを選択" : "Select an icon"
-            }
+            label={t("currencySettingsDisplayIcon")}
+            placeholder={t("currencySettingsSelectIcon")}
             value={customIcon}
             onChange={(value) =>
               setCustomIcon(
@@ -1154,7 +1130,7 @@ export default function CurrencySettingsPage({
             w={190}
           />
           <TextInput
-            label={locale === "ja" ? "通貨記号" : "Currency symbol"}
+            label={t("currencySettingsSymbol")}
             placeholder={fallbackSymbolForCustomCurrencyIcon(customIcon)}
             value={customSymbol}
             onChange={(e) => setCustomSymbol(e.currentTarget.value)}
@@ -1165,7 +1141,7 @@ export default function CurrencySettingsPage({
             w={120}
           />
           <NumberInput
-            label={locale === "ja" ? "小数桁数" : "Decimal places"}
+            label={t("currencySettingsDecimalPlaces")}
             value={customDecimalPlaces}
             onChange={setCustomDecimalPlaces}
             min={0}

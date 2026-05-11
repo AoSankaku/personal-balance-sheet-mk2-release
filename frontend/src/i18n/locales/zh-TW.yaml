@@ -1,91 +1,370 @@
-fiscalHealthTitle: 財務健康指數
-fiscalHealthSafe: 健康
-fiscalHealthCaution: 注意
-fiscalHealthDanger: 有風險
-fiscalHealthLiquidity: 流動性（30分）
-fiscalHealthEquity: 淨資產比率（30分）
-fiscalHealthSpending: 支出控制（40分）
-fiscalHealthNoExpenseData: 滿分 - 無支出歷史
-fiscalHealthCashLabel: 現金 / 存款
-fiscalHealthBaseLabel: 基準
-fiscalHealthNetWorthLabel: 淨資產
-fiscalHealthAnnualEstLabel: 年度估算
-fiscalHealthBreakdown: 明細
-fiscalHealthThreshold50: ≥ 50% = 滿分
-fiscalHealthThreshold60: ≥ 60% = 滿分
-fiscalHealthThreshold100: ≥ 100% = 滿分
-budgetResetBadge: 重設
-carryover: 結轉
-goal: 目標
-goalAlreadyReached: 已達成目標
-goalReachIn: "{months} 個月後達成目標"
-goalReachBy: 預計於 {date} 達成目標
-creditCardImportReminder: 信用卡匯入提醒
-importPageTitle: CSV 匯入
-availableBalance: 可用餘額
-used: 已使用
-budget: 預算
-noBudgetCategories: 尚無預算類別。
-budgetIncludingSavings: 總預算（含儲蓄）
-svViewDetails: 檢視儲蓄詳情
-recentTransactions: 最近交易
-showAllTransactions: 檢視全部交易
-noTransactionsYet: 尚無交易。
-showMore: 顯示更多
-defaultPaymentSource: 預設付款來源
-defaultPaymentSourceHint: 輸入支出時會自動填入「付款來源」欄位。
-preferredPaymentMethod: 偏好的付款方式
-preferredPaymentMethodHint: 此帳戶會被預先選取，並在「付款來源」中優先顯示。
-preferredPaymentMethodNone: 無偏好
 appTitle: 個人資產負債表
 toggleColorScheme: 切換主題
-languageLabel: 語言
-navOverview: 概覽
-navInput: 輸入
-navAssets: 資產
-navLedger: 帳簿
-navSettings: 設定
-navFS: 財務報表
 assets: 資產
 liabilities: 負債
 netWorth: 淨資產
 income: 收入
 expenses: 支出
 netIncome: 淨收入
+assetBreakdown: 資產構成
+noAssetBalancesYet: 尚無資產餘額。
+addAccountBtn: + 新增帳戶
+addTransactionBtn: + 新增交易
 balanceSheetTitle: 資產負債表
 plTitle: 損益表
 settingsSectionGeneral: 一般
 settingsSectionAccounts: 帳戶
-settingsSectionNotifications: 通知
 sectionAssets: 資產
 sectionDepreciableAssets: 可折舊固定資產
 sectionLiabilities: 負債
 sectionEquity: 權益
 sectionIncome: 收入
 sectionExpenses: 支出
-typeAsset: 資產
-typeLiability: 負債
-typeEquity: 權益
-typeIncome: 收入
-typeExpense: 支出
+failedToLoadData: 資料載入失敗
+errorTitle: 錯誤
+reload: 重新載入
+internalServerError: 伺服器內部錯誤
+accountAdded: 帳戶已新增
+accountDeleted: 帳戶已刪除
+transactionAdded: 交易已新增
+transactionDeleted: 交易已刪除
+statusLabel: 狀態
+statusDismiss: 確定
+total: 合計：
 thAccount: 帳戶
 thCategory: 類別
 thCurrency: 貨幣
 thBalance: 餘額
 noAccountsYet: 尚無帳戶。
-addAccountBtn: + 新增帳戶
-addTransactionBtn: + 新增交易
-editLabel: 編輯
-save: 儲存
+deleteAccount: 刪除帳戶
+catCash: 現金／存款
+catInvestment: 投資
+catProperty: 不動產
+catLoan: 長期借入
+catCreditCard: 信用卡
+catShortTermLoan: 短期借款
+catOpeningBalance: 期初餘額
+catSalary: 工資
+catBusiness: 營業收入
+catInvestmentIncome: 投資收益
+catFood: 餐飲費
+catRent: 房租／居住費
+catTransport: 交通費
+catUtilities: 水電燃氣費
+catEntertainment: 娛樂費
+catOther: 其他
+catCrypto: 加密資產
+catLending: 短期貸出
+catShortTermLending: 短期貸出
+catLongTermLending: 長期貸出
+catLongTermLoan: 長期借入
+catBusinessAdvance: 事業墊付款
+catDailyGoods: 日用雜貨
+catSocial: 交際費
+catInvestmentLoss: 投資損失
+addAccountTitle: 新增帳戶
+editAccountTitle: 編輯帳戶
+editAccount: 編輯
+accountUpdated: 帳戶已更新
+accountNameLabel: 帳戶名稱
+accountNamePlaceholder: 例如：SBI 儲蓄
+typeLabel: 類型
+categoryLabel: 類別
+currencyLabel: 貨幣
 cancel: 取消
 confirm: 確認
-deleteAccount: 刪除帳戶
+nameIsRequired: 名稱為必填項目
+nameConflictAccount: 此名稱已被其他帳戶使用
+nameConflictBudgetCategory: 此名稱已被其他預算類別使用
+typeAsset: 資產
+typeLiability: 負債
+typeEquity: 權益
+typeIncome: 收入
+typeExpense: 支出
+addTransactionTitle: 新增交易
+tabSimple: 簡單
+tabMultiLine: 多行分錄
+dateLabel: 日期
+descriptionLabel: 描述
+descSimplePlaceholder: 例如：購物
+descMultiPlaceholder: 例如：工資
+debitAccountLabel: 借方帳戶（增加）
+creditAccountLabel: 貸方帳戶（減少）
+selectAccount: 選擇帳戶
+amountLabel: 金額
+multiAccountColHeader: 帳戶
+debitColHeader: 借方
+creditColHeader: 貸方
+addRow: 新增行
+totalDebit: 借方合計：
+totalCredit: 貸方合計：
+unbalanced: ⚠ 借貸不平
+add: 新增
+descriptionIsRequired: 描述為必填項目
+selectDebitAccount: 請選擇借方帳戶
+selectCreditAccount: 請選擇貸方帳戶
+amountMustBePositive: 金額必須為正數
+recentJournalEntries: 最近的分錄
+rowsPerPage: 每頁行數
+pageSummary: "第{from}-{to}筆，共{total}筆"
+thDate: 日期
+thDescription: 描述
+thDebit: 借方
+thCredit: 貸方
+thSource: 來源
+thCreatedAt: 輸入時間
+showInputTimestamp: 顯示時間戳
+journalSourceManual: 手動
+journalSourceCsvImport: CSV 匯入
+noTransactionsYet: 尚無交易。
+deleteEntry: 刪除分錄
+recentTransactions: 最近交易
+showMore: 顯示更多
+showAllTransactions: 檢視全部交易
+budgetImpact: 預算
+expenseChartTitle: 月度支出
+noExpenseDataYet: 尚無支出資料。
+bsTrendTitle: 資產負債表趨勢
+bsChartTotalAssets: 總資產
+bsChartTotalLiabilities: 總負債
+bsChartSelectLabel: 選擇系列
+bsChartStacked: 堆疊
+bsChartTotals: 合計
+netWorthOverTime: 淨資產變化趨勢
+chartAssets: 資產
+chartLiabilities: 負債
+chartNetWorth: 淨資產
+chartViewAll: 全部
+chartViewAssetsLiabilities: 資產與負債
+chartViewNetWorth: 淨資產
+granularityYear: 年
+granularityMonth: 月份
+granularityDay: 日
+includeFutureData: 包含未來資料
+reset: 重設
+resetConfirm: 要重設表單嗎？草稿將被清除。
+cryptoPortfolio: 加密資產組合
+addWallet: + 新增錢包
+walletAddress: 錢包地址
+detectedChain: 偵測到的鏈
+estMarketValue: 估計市值
+coinPrice: 代幣價格
+quantity: 數量
+fetchBalance: 取得餘額
+invalidAddress: 無效地址
+noWalletsYet: 尚無錢包。
+deleteWallet: 刪除錢包
+walletLinked: 錢包已關聯
+thChain: 鏈
+thAddress: 地址
+thQuantity: 數量
+thEstValue: 估計價值
+linkAccount: 關聯帳戶
+refresh: 重新整理
+cryptoPrices: 加密資產價格（日圓）
+thTicker: 代碼
+thPrice: 價格（日圓）
+pricesNotLoaded: 價格尚未載入。
+navOverview: 概覽
+navInput: 輸入
+navAssets: 資產
+navLedger: 帳簿
+navCrypto: 加密資產
+navReports: 報表
+navSettings: 設定
+transactionTypeExpense: 支出
+transactionTypeIncome: 收入
+transactionTypeTransfer: 轉帳
+transactionTypeInitial: 初始餘額輸入
+initialAssetAccountLabel: 帳戶
+openingBalanceAccountName: 期初餘額
+paidFromLabel: 付款來源
+depositedToLabel: 存入帳戶
+fromAccountLabel: 轉出帳戶
+toAccountLabel: 轉入帳戶
+incomeTypeLabel: 收入類型
+transferBudgetSourceLabel: 預算來源
+transferBudgetDestinationLabel: 預算去向
+transferBudgetNoMovementPlaceholder: 無預算變動
+transferBudgetDisappearPlaceholder: 消失
+budgetAdjustNoteLabel: 備註
+budgetAdjustNotePlaceholder: 此預算調整的附加備註
+budgetHistoryNoteCol: 備註
+filterThisMonth: 本月
+filterLastMonth: 上月
+filterAll: 全部
+filterPanel: 篩選
+filterActiveCount: "{n} 個篩選條件"
+filterDescriptionLabel: 描述
+filterDescriptionPlaceholder: 搜尋描述…
+filterSourceLabel: 來源
+filterSourceAll: 所有來源
+filterAmountLabel: 金額範圍
+filterAmountMin: 最小值
+filterAmountMax: 最大值
+filterAccountLabel: 帳戶
+filterAccountPlaceholder: 所有帳戶
+filterCreatedRangeLabel: 輸入時間範圍
+filterClearAll: 清除
+outsideDateRangeMsg: "{n} 筆分錄在選定日期範圍外"
+clearDateFilter: ['清除日期篩選']
+availableBalance: 可用餘額
+carryover: 結轉
+budgetResetBadge: 重設
+used: 已使用
+budget: 預算
+noBudgetCategories: 尚無預算類別。
+inputPageTitle: 新增交易
+transactionSaved: 交易已儲存
+viewSimple: 簡單
+viewDoubleEntry: 複式記帳
+budgetTitle: 預算
+addBudgetCategory: + 新增預算類別
+budgetCategoryName: 類別名稱
+budgetRollover: 將未使用的預算結轉至下個月
+budgetLinkedAccounts: 關聯的支出帳戶
+budgetFixedAmount: 固定金額（¥）
+budgetIncomeRatio: "收入比例（%）"
+budgetAdhocAmount: 一次性追加（¥）
+editBudgetCategory: 編輯
+archiveBudgetCategory: 封存
+restoreBudgetCategory: 還原
+showArchivedBudgetCategories: 顯示已封存
+archivedBudgetCategoryBadge: 已封存
+deleteBudgetCategory: 刪除
+saveBudgetCategory: 儲存
+budgetDistributionLabel: 預算分配
+budgetDistributionHint: 設定此項支出中各預算類別所占百分比。
+budgetDistributionTotal: 合計
+defaultPaymentSource: 預設付款來源
+defaultPaymentSourceHint: 輸入支出時會自動填入「付款來源」欄位。
+preferredPaymentMethod: 偏好的付款方式
+preferredPaymentMethodHint: 此帳戶會被預先選取，並在「付款來源」中優先顯示。
+preferredPaymentMethodNone: 無偏好
+preferredFilterTitle: 偏好的預算分配篩選器
+preferredFilterHint: 這些預算分配篩選器會在收入輸入下拉選單中優先顯示（★ 組）。
+preferredFilterNone: 無篩選器
+budgetAllocationDisplay: 預算分配
+budgetDistOtherCategories: 其他類別
+tabBudgetAdjust: 預算調整
+budgetCategoryLabel: 預算類別
+budgetAdjustAmountLabel: 調整金額（+ 追加 / − 減少）
+budgetAdjusted: 預算已調整
+budgetResetToZeroButton: 預算重設（餘額歸零）
+archiveBudgetCategoryAfterReset: 重設後封存此預算類別
+expenseSubAccountLabel: 支出帳戶
+asOfDate: 截止日期
+transactionTypeLoan: 借貸／還款
+loanIncrease: 借入（負債增加）
+loanDecrease: 還款（負債減少）
+loanLend: 貸出（資產增加）
+loanCollect: 收回（資產減少）
+liabilityAccountLabel: 負債帳戶
+lendingAccountLabel: 貸出帳戶
+loanCounterIncrease: 存入目標
+loanCounterIncreaseExpense: 貸款支付的費用
+loanCounterIncreaseLiability: 還清的負債
+loanCounterDecrease: 付款帳戶
+loanCounterDecreaseLiability: 使用的負債
+loanCounterDecreaseIncome: 免除（收入）
+loanCounterLend: 貸出資金來源
+loanCounterLendLiability: 使用的負債
+loanCounterCollect: 收款帳戶
+loanCounterExpenseCovered: 對方墊付的費用
+selectSettlementEntries: 選擇要結清的分錄
+settlementSelectedTotal: 已選合計
+noUnsettledEntries: 沒有未結清的分錄
+loanDifferenceIncome: 收益（收入帳戶）
+loanDifferenceLoss: 損失（支出帳戶）
+loanDifferenceAccountLabel: 差額帳戶
+completedAccountsSection: 已完結的帳戶
+tabInitialBalance: 初始餘額
+initialBalanceHint: 記錄帳戶的期初餘額。初次設定時使用。
+collapse: 收起 ▲
+autoGeneratedDescription: 描述（自動產生）：
+copyFromExistingLabel: 從現有篩選器複製
+copyFromExistingPlaceholder: 選擇要複製的篩選器（選填）
+noRemainderWarningTitle: 無比例分配步驟
+noRemainderWarning: 若「比例分配」未置於最後，輸入收入後將有未分配的現金剩餘。之後可以手動分配到預算類別，但已使用的篩選器無法編輯，如需變更需建立新的篩選器。
+noRemainderWarningConfirm: 仍然儲存
+budgetAdjustDateLabel: 日期
+budgetHistoryTitle: 預算調整歷史
+noBudgetHistory: 尚無預算調整記錄。
+budgetHistoryAmountCol: 金額
+budgetDistributionPreview: 分配預覽
+budgetFilterDefaultLabel: 篩選器分配
+filterStepFixed: 固定
+filterStepCapped: 上限
+filterStepRemainder: 剩餘
+filterStepRemaining: 剩餘
+budgetDistributionPreviewUnallocated: 未分配
+multiLineBudgetRatios: 預算分配
+multiLineBudgetAllocHint: ＋ 增加預算  ／  − 減少預算
+dateRangePlaceholder: 選擇範圍
+rolloverMonthsLabel: 結轉期間
+rolloverMonthsUnit: 個月
+rolloverMonthsDesc: 未使用預算可結轉的最大月數（1-24）
+budgetSettingsTitle: 預算設定
+budgetSettingsSaved: 預算設定已儲存
+budgetHistoryJournalTab: 最近交易
+budgetHistoryBudgetTab: 預算歷史
+tabBalanceSheet: 資產負債表
+tabBalanceSheetDesc: 資產、負債與權益
+tabPL: 損益表
+tabPLDesc: 收入與支出概覽
+navCryptoDesc: 錢包餘額與投資組合
+filterThisYear: 今年
+navFS: 財務報表
+plPerYear: 年化
+plPerMonth: 月均
+plPerDay: 日均
+plTotal: 期間合計
+plGoToCurrent: 當前
+granularityQuarter: 季度
+granularityHalf: 半年度
+budgetHistorySourceIncome: 收入
+budgetHistorySourceTransfer: 轉帳
+budgetHistorySourceManual: 手動
+budgetHistorySourceReset: 重設
+budgetHistorySourceSimple: 簡單輸入
+budgetHistorySourceMultiline: 多行分錄
 accountName: 帳戶
+budgetTargetAccountsLabel: 目標存放帳戶
+budgetTargetAccountsDesc: 僅用作存放位置參考。關聯的預算和帳戶按總餘額分組並進行比較。
+budgetTargetManyToManyError: 這將產生多對多的配置關係。請使用一個預算對應多個帳戶，或多個預算對應一個帳戶。
+budgetPlacementTitle: 預算放置
+budgetPlacementExpected: 目標
+budgetPlacementActual: 實際
+budgetPlacementDifference: 差異
+budgetPlacementUnplaced: 未放置
+budgetPlacementEmpty: 尚未配置目標帳戶。
+budgetPlacementHintsTitle: 提示
+budgetHistoryTypeCol: 類型
+budgetHistoryModeEntries: 明細
+budgetHistoryModeCategories: 按預算
+budgetHistoryCategorySummaryCount: "{count} 個預算類別"
+budgetHistoryEntryCount: "{count} 筆"
+budgetHistoryLatestInput: 最近輸入
+budgetHistoryAdjustedTotal: 預算金額
+budgetHistoryPeriodRunningTotal: 期間累計
+budgetHistoryInputTimestamp: 輸入時間
+deleteAdjustmentLog: 刪除調整記錄
+deleteAdjustmentLogConfirm: 要刪除此調整記錄嗎？
+deleteIncomeChunk: 刪除收入分配
+deleteIncomeChunkConfirm: "這將刪除與此收入分錄關聯的所有 {count} 個類別（共計 ¥{total}）的預算分配。收入分錄本身不會被刪除。"
+incomeAllocationDeleted: 收入分配已刪除
+adjustmentLogDeleted: 調整記錄已刪除
+adjustmentLogUpdated: 調整記錄已更新
+editLabel: 編輯
+editTransactionTitle: 編輯交易
+save: 儲存
+refreshPrices: 重新整理價格
 paydayLabel: 發薪日（每月日期）
 paydayHint: 如果每月到這一天仍未記錄收入，就會顯示通知。
 noNotifications: 沒有通知
-notifications: 通知
 notificationPaydayUnrecorded: 發薪日收入尚未記錄
+notifications: 通知
+settingsSectionNotifications: 通知
 notifPaydayToggle: 發薪日提醒
 notifPaydayToggleHint: 當發薪日收入尚未記錄時顯示提醒。
 notifCreditCardToggle: 信用卡匯入提醒
@@ -104,26 +383,483 @@ notificationLoanOverdueSection: 逾期借貸
 notificationLoanOverdueDays: "{days} 天前"
 notificationAccountNegativeSection: 負數帳戶餘額
 notificationCreditCardWithdrawalRiskSection: 信用卡扣款可能導致透支
-notificationCreditCardWithdrawalRiskDetail: 付款後的預計餘額為 {balance}。
-settingsNavCsvTitle: CSV 匯入設定
-settingsNavCsvDesc: 設定 CSV 匯入時的店鋪到帳戶對應。
-settingsNavInitialBalanceDesc: 開始使用時記錄期初餘額。
-settingsNavBudgetDesc: 管理預算類別和收入篩選器。
-settingsNavBusinessDesc: 設定業務費用墊付款帳戶。
-settingsNavBulkEditDesc: 替換或批次刪除日記帳分錄。
-settingsNavDangerDesc: 永久刪除資料。請謹慎使用。
-settingsNavGuidesTitle: 使用者指南
-settingsNavGuidesDesc: 了解此應用程式的獨有功能。
-guidesPageTitle: 使用者指南
-settingsSubpageBack: ← 設定
-settingsNavExportTitle: 匯出報表
-settingsNavExportDesc: 將資產負債表和損益表下載為 JSON 或 PDF。
-settingsNavCurrencyTitle: 外幣
-settingsNavCurrencyDesc: 啟用與 JPY 一起使用的貨幣和加密貨幣。
+notificationCreditCardWithdrawalRiskDetail: "付款後的預計餘額為 {balance}。"
+accountInUse: 帳戶正在使用中
+accountInUseMsg: 此帳戶已在分錄中使用或有關聯的錢包。請選擇相同類型的替換帳戶。
+replaceWith: 取代為
+replaceAndDelete: 取代並刪除
+creditCardDatesLabel: 帳單設定
+closingDayLabel: 結帳日
+closingDayEndOfMonth: 月底
+confirmationDayLabel: 確認日
+withdrawalDayLabel: 扣款日
+withdrawalAccountLabel: 扣款帳戶
+withdrawalAccountHint: 用於扣款餘額提醒。
+withdrawalAccountPlaceholder: 選擇帳戶
+billingOffsetMonthsLabel: 帳單月偏移
+billingOffsetMonthsHint: 在通常的次月扣款基礎上增加的月數。0 表示通常的次月扣款。
+creditCardStatementOffsetLabel: 交易帳單偏移
+creditCardStatementOffsetHint: 此交易在正常週期基礎上額外增加的月數。0 表示通常的次月扣款。
+creditCardStatementOffsetShort: 偏移
+importPageTitle: CSV 匯入
+importUploadLabel: 上傳 CSV 檔案
+importDetectedFormat: 偵測到的格式
+importSelectFormat: 手動選擇格式
+importFormatSmbcDraft: 三井住友卡（暫定版）
+importFormatSmbcConfirmed: 三井住友卡（確定版）
+importFormatRakutenDraft: 樂天卡（暫定版）
+importFormatRakutenConfirmed: 樂天卡（確定版）
+importFormatUnknown: 未知格式
+importFormatSmbcBank: 三井住友銀行（收支明細）
+importFormatSbiBank: SBI 銀行（收支明細）
+importSelectCard: 信用卡帳戶
+importSelectBankAccount: 銀行帳戶
+importExpenseAccount: 支出帳戶
+importIncomeAccount: 收入帳戶
+importDirectionWithdrawal: 出金
+importDirectionDeposit: 入金
+importNoBankAccounts: 未找到資產帳戶。請先在設定中建立。
+importRowTypeExpense: 支出
+importRowTypeLiability: 負債還款
+importRowTypeTransfer: 轉帳
+importLiabilityAccount: 負債帳戶
+importDuplicateWarning: 可能重複
+importApplyToAll: 套用到所有
+importConfirmButton: 匯入
+importSuccess: 匯入完成
+importDuplicateModalTitle: 重複交易
+importSkip: 跳過
+importImportAnyway: 仍然匯入
+creditCardImportReminder: 信用卡匯入提醒
+importTransactionCount: 筆交易已偵測
+importStoreCol: 商店／描述
+importDateCol: 日期
+importAmountCol: 金額
+importPaymentMonthCol: 帳單月
+importNoCardAccounts: 未找到信用卡帳戶。請先在設定中建立。
+importReviewTitle: 審核交易
+importDuplicateTitle: 重複？
+filterEditTitle: 編輯篩選器
+filterCreateTitle: 建立新篩選器
+filterReadOnlyAlert: 此篩選器已被使用，無法編輯
+filterNameLabel: 篩選器名稱
+filterStepsTitle: 步驟
+filterStepLabel: 步驟
+stepTypeFixed: 固定金額
+stepTypeCapped: 上限分配
+stepTypeRemainder: 比例分配
+filterSelectCategoryPlaceholder: 選擇類別
+filterCappedTotalLabel: 上限總額
+filterRemainderTotalLabel: 合計
+filterAddCategory: 新增類別
+filterAddStep: 新增步驟
+filterNameRequired: 名稱為必填項目
+filterStepsRequired: 請至少新增一個步驟
+filterRemainderMustBeLast: 比例分配步驟必須放在最後
+filterRemainderOnlyOne: 只允許有一個比例分配步驟
+filterRemainderTotalMustBe100: "比例合計必須為 100%"
+filterSelectCategory: 請選擇一個預算類別
+filterCopySuffix: （副本）
+close: 關閉
+saveFailed: 儲存失敗
+entrySaved: 分錄已儲存
+unknownCategoryPrefix: "類別 #"
+applyBudgetFilterLabel: 作為定期收入分配預算
+budgetFilterTitle: 預算分配篩選器
+filterSelectPlaceholder: 選擇一個篩選器
+filterReapplyTitle: 本月已重新套用
+filterReapplyMessage: 本月已套用過相同的篩選器。已合併並重新計算總額。
+languageLabel: 語言
+manageBudget: 管理 →
+budgetFilterManagement: 預算分配篩選器管理
+budgetSetupDesc: 設定預算類別和分配篩選器。
+filterCopied: 篩選器已複製
+copyFailed: 複製失敗
+updateFailed: 更新失敗
+deleteFilter: 刪除篩選器
+filterDeleteConfirm: 確定要刪除此篩選器嗎？
+deleted: 已刪除
+deleteFailed: 刪除失敗
+backToSettings: ← 設定
+createFilterBtn: + 建立新篩選器
+noFilters: 未找到篩選器。點選「+ 建立新篩選器」新增一個。
+thName: 名稱
+thStatus: 狀態
+thActions: 操作
+badgeUsed: 已使用
+badgeUnused: 未使用
+badgeActive: 啟用
+badgeInactive: 停用
+copyAndEdit: 複製並編輯
+activateFilter: 啟用
+deactivateFilter: 停用
+ok: 確定
+overBudgetWarningTitle: "預算分配超過 100%"
+overBudgetWarningMsg: "預算分配總額超過 100%。請在儲存前調整百分比。"
+underBudgetWarningTitle: "預算分配低於 100%"
+underBudgetWarningMsg: "預算分配總額低於 100%。剩餘金額將不會在任何預算類別中記錄。仍然繼續嗎？"
+simpleConvertWarningTitle: 無法轉換為簡單輸入
+simpleConvertTypeMismatchMsg: 此分錄使用的帳戶類型無法在簡單輸入模式中表示。
+simpleConvertMultilineSourceMsg: 此分錄最初是以多行分錄方式建立的，無法轉換為簡單輸入模式。
+assignableMoneyLabel: 可分配預算（現金／銀行）
+assignableMoneyTodayLabel: 截至今天
+assignableMoneyTotalLabel: 包含未來
+assignableMoneyAssetsLabel: 資產
+assignableMoneyCommittedLabel: 已分配
+budgetGroupLabel: 預算組
+budgetGroupDaily: 日常支出
+budgetGroupSavings: 儲蓄
+infiniteRolloverLabel: 無限結轉
+rolloverMonthsColumn: 結轉
+budgetIncludingSavings: 總預算（含儲蓄）
+goalBalanceLabel: 目標餘額
+goalBalanceDesc: 此類別可選的儲蓄或支出目標
+budgetBalanceCapLabel: 餘額上限
+budgetBalanceCapDesc: 當餘額超過此金額時，超出部分將移至所選預算。
+budgetOverflowTargetLabel: 超出預算的目標
+budgetOverflowTargetPlaceholder: 將超出部分保留在此
+goal: 目標
+goalReachIn: "{months} 個月後達成目標"
+goalReachBy: "預計於 {date} 達成目標"
+goalAlreadyReached: 已達成目標
+optional: 選填
+dangerZoneTitle: 危險操作
+dangerZoneDesc: 這些操作是永久性的且無法復原。請謹慎執行。
+dangerAdminApiNoticeTitle: 管理 API 保護
+dangerAdminApiNoticeBody: 這些操作呼叫 /api/admin 端點。此應用不包含內建認證，請使用 Cloudflare Zero Trust、VPN、Tailscale 或帶認證的反向代理保護站點。如不需要這些操作，請在 Worker 環境變數中設定 DISABLE_ADMIN_API=true。
+dangerEraseMonthLedger: 清除本月帳簿及預算輸入
+dangerEraseMonthLedgerDesc: 刪除當月的所有分錄和預算資料（分配、調整）。
+dangerEraseYearLedger: 清除今年帳簿及預算輸入
+dangerEraseYearLedgerDesc: 刪除當年的所有分錄和預算資料。
+dangerEraseAllLedger: 清除所有帳簿及預算輸入
+dangerEraseAllLedgerDesc: 刪除所有時期的分錄、預算分配和調整記錄。
+dangerEraseAllAccounts: 清除所有帳戶
+dangerEraseAllAccountsDesc: 刪除所有帳戶及其分錄（這也將清空帳簿）。
+dangerEraseAllBudgetCategories: 清除所有預算類別
+dangerEraseAllBudgetCategoriesDesc: 刪除所有預算類別、分配和調整記錄。
+dangerEraseAllData: 清除所有資料
+dangerEraseAllDataDesc: 刪除所有內容：帳簿、帳戶、預算類別、篩選器和憑證。應用程式將重設為空白狀態。
+dangerConfirm1Title: 確定要執行嗎？
+dangerConfirm1Body: 這將永久刪除以下資料：
+dangerConfirm2Title: 最終確認
+dangerConfirm2Body: 此操作不可逆轉。沒有復原操作。所有刪除的資料將永久遺失。
+dangerProceedBtn: 繼續 →
+dangerConfirmFinalBtn: 是，永久刪除
+dangerSuccessMsg: 資料已清除
+dangerErrorMsg: 資料清除失敗
+tabCsvImport: CSV 匯入
+tabBulkExpense: 批次支出輸入
+bulkExpensePaymentAccount: 付款帳戶（貸方）
+bulkExpenseAddExpenseRow: + 新增支出行
+bulkExpenseCopyLastDate: 複製最後一行的日期
+bulkExpenseAddDiscountRow: + 新增優惠/禮品卡行
+bulkExpenseOrderDate: 下單日期
+bulkExpenseItemName: 商品名稱
+bulkExpenseQty: 數量
+bulkExpensePrice: 價格（¥）
+bulkExpenseExpenseAccount: 支出帳戶
+bulkExpenseDiscountDate: 使用日期
+bulkExpenseDiscountType: 類型（禮品卡/點數等）
+bulkExpenseDiscountAmount: 金額（¥）
+bulkExpenseIncomeAccount: 收入帳戶
+bulkExpenseBudgetCategory: 預算類別（選填）
+bulkExpenseCalcTotal: 試算合計
+bulkExpenseAmazonBilling: Amazon 帳單金額
+bulkExpenseBillingLabel: 標籤（選填）
+bulkExpenseAddBillingRow: + 新增行
+bulkExpenseBillingTotal: 帳單合計
+bulkExpenseDiff: 差異
+bulkExpensePostAll: 批次過帳
+bulkExpenseNoPaymentAccount: 請先選擇付款帳戶
+bulkExpensePosted: 已過帳到帳簿
+bulkExpenseRowTypeExpense: 支出
+bulkExpenseRowTypeDiscount: 優惠/禮品卡
+bulkExpenseColType: 類型
+bulkExpenseColDate: 日期
+bulkExpenseColName: 名稱
+bulkExpenseColQty: 數量
+bulkExpenseColAmount: 金額（¥）
+bulkExpenseColAccount: 帳戶
+bulkExpenseColBudget: 預算類別
+bulkExpenseDefaultExpenseDesc: Amazon 購物
+bulkExpenseDefaultDiscountDesc: 優惠/禮品卡/點數
+bulkExpenseNoRows: 沒有要過帳的行
+bulkExpenseSkippedRows: "{n} 行未選擇帳戶，將不會被記錄。繼續嗎？"
+bulkExpenseSkippedTitle: 部分行將被跳過
+bulkExpenseExpensePlaceholder: 支出帳戶
+bulkExpenseIncomePlaceholder: 收入帳戶
+bulkExpenseBudgetPlaceholder: 選填
+groupExpenseAccounts: 支出帳戶
+groupIncomeAccounts: 收入帳戶
+groupLiabilityAccounts: 負債帳戶
+groupAssetAccounts: 資產帳戶
+importGroupAssetTransferAccounts: 資產帳戶（轉帳來源）
+storeMappingsTitle: 商店 → 帳戶對應
+storeMappingsDesc: CSV 匯入時記憶的帳戶分配。點選 × 可刪除。
+storeMappingsNoItems: 尚無對應。
+storeMappingSaved: 對應已儲存
+storeMappingDeleted: 對應已刪除
+storeMappingOverwriteTitle: 覆蓋對應？
+storeMappingOverwriteMsg: "商店「{store}」已有帳戶對應（{existing}）。要覆蓋為 {new} 嗎？"
+storeMappingOverwrite: 覆蓋
+importAmazonHint: 偵測到 Amazon 交易。請在此查看訂單歷史：
+importAmazonBulkBadge: → 批次支出輸入
+importAmazonSwitched: Amazon 交易已移至批次支出輸入標籤頁
+importAmazonCount: "{count} 筆 Amazon 訂單 → 批次支出輸入"
+importSalaryCount: "{count} 筆薪水行 → 簡單輸入"
+importSalarySwitched: 薪水行已移至簡單輸入
+importSalaryAndAmazonSwitched: 薪水行移至簡單輸入，Amazon 行移至批次支出輸入
+importEmptyRowsWarning: "{count} 行未選擇帳戶，將不會被匯入。繼續嗎？"
+importEmptyRowsWarningTitle: 未選擇帳戶的行
+importContinue: 繼續
+deleteJournalConfirm: 刪除分錄
+deleteJournalConfirmMsg: 確定要刪除此分錄嗎？此操作無法復原。
+suppressDeleteWarning5min: 5 分鐘內不再顯示此警告
+includeInAllocatableLabel: 作為預算分配來源
+includeInAllocatableHint: 只有選中的現金/銀行帳戶才計入可分配金額。
+isDepreciableLabel: 折舊資產（備品等）
+isDepreciableHint: 將此資產帳戶標記為折舊對象
+depreciationSettingsTitle: 折舊設定
+depreciationSettingsHint: 選擇用於記錄每月折舊費用的支出帳戶
+depreciationAccountNone: 未選擇帳戶
 businessOwnerSettingsTitle: 業主墊付款設定
 businessOwnerSettingsHint: 以個體經營者身分記錄業務費用墊付款時，設定相關帳戶。
 isBusinessOwner: 我是個體經營者
 businessAdvanceAccountLabel: 業務墊付款帳戶
+businessAdvanceAccountDesc: 記錄業務欠款的資產帳戶。
+businessLossAccountLabel: 損失處理帳戶
+businessLossAccountDesc: 將墊付款作為無法收回的損失處理時使用的支出帳戶。
+businessAdvanceBudgetCategoryLabel: 墊付款的預算來源
+businessAdvanceBudgetCategoryDesc: 用於扣除業務部分金額的預算類別。
+transactionTypeBusinessAdvance: 事業墊付款
+businessRatioLabel: 業務使用比例
+businessRatioDesc: 此項支出中屬於業務費用的部分。
+businessAdvanceSplitBusiness: 業務部分：
+businessAdvanceSplitPersonal: 個人部分：
+personalPortionLabel: 個人部分
+tabBusinessAdvanceProcess: 墊付款處理
+businessAdvanceModeTransfer: 轉帳（報銷）
+businessAdvanceModeDispose: 作為損失處理
+businessAdvanceTransferDesc: 業務墊付款報銷
+businessAdvanceDisposeDesc: 沖銷業務墊付款
+businessAdvanceTransferToLabel: 轉入帳戶
+businessAdvanceAccountNotSet: 業務墊付款帳戶尚未設定。請在設定中進行設定。
+businessAdvanceBalanceHistory: 餘額歷史
+changeColHeader: 變動
+goToSettings: 前往設定
+currentBalance: 當前餘額
+depreciationLabel: 折舊
+depreciationAssetAccountLabel: 資產帳戶（備品等）
+depreciationExpenseAccountLabel: 折舊費用帳戶
+depreciationByMonths: 按期分攤
+depreciationByMonthlyAmount: 按月額分攤
+depreciationMonthsLabel: 折舊期限（月）
+depreciationMonthlyAmountLabel: 月折舊額
+depreciationPreview: 概算
+depreciationMonthUnit: " 個月"
+depreciationCreated: 折舊計畫已建立
+depreciationEntryEditWarning: 編輯單筆折舊分錄可能會破壞計畫計算。請盡可能更新來源資產分錄。
+depreciableAssetsTotal: 折舊資產合計（帳面淨值）
+depreciationReportTitle: 折舊
+depreciationTotal: 折舊費用合計
+depreciationNone: 此期間沒有折舊記錄。
+depreciationBudgetPressure: 預算壓力（佔總支出比例）
+depreciationBudgetPressureNoExpense: 今年沒有支出記錄。
+budgetConsistencyTitle: 預算一致性檢查
+budgetConsistencyClear: "全部 {n} 筆交易與預算分配一致。"
+budgetConsistencyIssues: "偵測到 {n} 筆可疑交易"
+budgetConsistencyChecked: "已檢查 {n} 筆"
+budgetCheckIssue: 問題
+budgetCheckAllocated: 已分配
+suspiciousExpenseNoAlloc: 支出未在任何預算類別中追蹤
+suspiciousExpenseMismatch: "支出與分配差異：實際 ¥{actual} / 已分配 ¥{allocated}"
+suspiciousIncomeMismatch: "收入與分配差異：實際 ¥{actual} / 已分配 ¥{distributed}"
+tabTrialBalance: 試算表
+tabTrialBalanceDesc: 核對與驗證帳戶餘額
+tabLoanMgmt: 貸款管理
+tabLoanMgmtDesc: 管理貸出與借入
+sectionShortTermLending: 短期貸出
+sectionLongTermLending: 長期貸出
+sectionShortTermLoan: 短期借入
+sectionLongTermLoan: 長期借入
+noLoanAccounts: 此類別中沒有帳戶。
+loanNetChange: 金額
+loanSettlementEntry: 還款／收回
+loanOpeningEntry: 新建貸出／借入
+multiLineLoanOpeningNotice: 此分錄將登記為新的短期貸出/借入起始事件。
+loanAccountBalance: 未結餘額
+loanBalanceHistory: 餘額歷史
+loanHistoryChange: 變動
+loanHistoryBalance: 餘額
+loanCompletedBadge: 已完結
+loanNoEntries: 此類別沒有交易歷史。
+loanInputBtn: 前往輸入
+loanForceCompleteBtn: 強制完結
+loanForceUncompleteBtn: 重新開啟
+loanForceSettleConfirmTitle: 確認強制結清
+loanForceSettleConfirmMsg: "強制結清「{desc}」？將自動建立今日日期的沖銷分錄。"
+loanForceSettleDescPrefix: 強制結清：
+loanWriteOffModalTitle: 作為損失沖銷
+loanWriteOffDesc: "透過記錄支出來沖銷「{desc}」。將自動建立今日日期的分錄。"
+loanWriteOffAmountLabel: 沖銷金額
+loanWriteOffExpenseLabel: 支出帳戶
+loanWriteOffIncomeLabel: 收入帳戶
+loanWriteOffConfirmBtn: 沖銷並完結
+loanCompletedAccordion: "已完結（{count}）"
+loanSettledPairsAccordion: "已結清（{count}）"
+loanSettledOpeningLabel: 借入／貸出
+loanSettledByLabel: 還款／收回
+loanDetailBtn: 還款計畫
+loanDetailTitle: 還款／收回計畫
+loanDetailPlanHeader: 計畫設定
+loanDetailTotalPrincipal: 本金總額
+loanDetailAnnualRate: "年利率（%）"
+loanDetailMonthlyPayment: 每月固定還款額
+loanDetailStartMonth: 開始月份
+loanDetailNote: 備註
+loanDetailSavePlan: 儲存設定
+loanDetailPlanRows: 還款計畫表
+loanDetailNoPlan: 尚無還款計畫。請在下方建立。
+loanDetailMonth: 月份
+loanDetailPrincipal: 本金
+loanDetailInterest: 利息
+loanDetailRowNote: 備註
+loanDetailAddRow: 新增行
+loanDetailAutoFill: 自動填充
+loanDetailAutoFillDesc: 根據上述計畫設定產生還款計畫表。
+loanDetailPaymentMethod: 計算方法
+loanDetailEqualPrincipal: 等額本金
+loanDetailEqualPayment: 等額本息
+loanDetailAutoFillMonths: 分期月數
+loanDetailAutoFillPayment: 月還款額
+loanDetailAutoFillCalcPayment: 試算
+loanDetailAutoFillEstMonths: 估算月數
+loanDetailAutoFillConfirm: 產生
+loanDetailDeleteRow: 刪除
+loanDetailSaveRows: 儲存計畫表
+loanDetailComparison: 計畫與實際
+loanDetailCompPlanned: 計畫
+loanDetailCompActual: 實際
+loanDetailCompDiff: 差異
+loanDetailCompPrincipal: 本金
+loanDetailCompInterest: 利息
+loanDetailCompTotal: 合計
+loanDetailCompNoData: 尚無對照資料。
+loanDetailSaved: 已儲存
+loanDetailSaveError: 儲存失敗
+loanDetailUnsavedWarning: 有未儲存的變更
+loanDetailCompJournalEntries: 明細
+loanHistoryTitle: 交易歷史
+loanHistoryDate: 日期
+loanHistoryDesc: 描述
+loanHistoryPrincipal: 本金變動
+loanHistoryFee: 手續費／利息
+loanHistoryExpectedFee: 預期利息
+loanHistoryRate: 推算年利率
+loanImpliedRate: 平均推算利率
+loanAddInterestBtn: 新增利息分錄
+loanInterestModalTitle: 新增利息分錄
+loanInterestAmountLabel: 利息金額
+loanInterestAccount: 利息帳戶（收入/支出）
+loanInterestPaymentAccount: 結算帳戶（現金/銀行）
+svViewDetails: 檢視儲蓄詳情
+tabSavings: 儲蓄
+tabSavingsDesc: 追蹤儲蓄目標
+savingsMonthlyContributions: 月存款額（近12個月）
+savingsNoCategories: 尚未設定儲蓄類別。請在設定中新增組別為「儲蓄」的預算類別。
+savingsShowFuturePrediction: 顯示未來預測
+savingsPredictedSuffix: （預測）
+ttSegActualInput: 輸入實際值
+ttSegDeviation: 誤差驗證
+ttSegBudgetCheck: 預算檢查
+ttSegUnknownFunds: 不明資金
+ttActualInputTitle: 輸入實際帳戶餘額
+ttActualInputDesc: 輸入每個帳戶的實際餘額以檢查差異。留空的帳戶將不被檢查。
+ttActualInputDate: 基準日期
+ttActualInputSubmit: 儲存並比較
+ttActualInputSaved: 快照已儲存
+ttActualInputNoAccounts: 未找到資產或負債帳戶。
+ttActualModeGeneral: 資產／負債
+ttActualModeCreditCard: 信用卡
+ttActualGeneralDesc: 輸入資產和非信用卡負債的當前餘額。
+ttActualCreditCardDesc: 按月追蹤信用卡餘額，使已確認的過去月份可用於後續核對。
+ttActualSectionAssets: 資產
+ttActualSectionLiabilities: 負債
+ttCcNoAccounts: 未找到信用卡帳戶。
+ttCcAddMonth: 新增 3 個確認月份
+ttCcShowMoreMonths: 再顯示 3 個月
+ttCcHiddenMonths: "隱藏了 {n} 個較早月份"
+ttCcPaymentMonth: 月份
+ttCcUsageHint: 使用期間／付款
+ttCcEntryStatus: 狀態
+ttCcWithdrawalAmount: 扣款金額
+ttCcStatusOpen: 變動中
+ttCcStatusConfirmed: 已確認
+ttCcStatusPaid: 已付款
+ccSlotThisMonth: 本月扣款部分
+ccSlotLastMonth: 上月扣款部分
+ccSlotFuture: 未來月份
+ccSlotRevolving: 循環信用（リボ払い）
+ccSlotCashing: 現金預借（キャッシング）
+ccSlotTotal: 小計
+ccLastMonthZeroNote: "自動設為 0（扣款日 {day} 已過）"
+ttDeviationTitle: 帳面與實際對比
+ttDeviationNoSnapshot: 尚無實際餘額資料。請先輸入實際值。
+ttDeviationSnapshotDate: 快照日期
+ttDeviationAccount: 帳戶
+ttDeviationBookValue: 帳面價值
+ttDeviationActualValue: 實際值
+ttDeviationDiff: 差異
+ttDeviationDuplicateCandidates: "{n} 筆匹配的分錄候選"
+ttDeviationMoreMatches: "另外 {n} 筆候選"
+ttDeviationOutOfScopeBadge: 超出當前範圍
+ttDeviationOutOfScopeWarning: "本月/上月以外的分錄可能仍有餘額。範圍外帳面 {book}，實際 {actual}，差異 {diff}。"
+ttDeviationTotal: 總差異
+ttDeviationGeneralTotal: 資產／負債差異
+ttDeviationCreditCardTotal: 信用卡差異
+ttDeviationGrandTotal: 總體差異
+ttDeviationGeneralSection: 資產／一般負債
+ttDeviationCreditCardSection: 信用卡
+ttDeviationNoGeneralEntries: 此快照中沒有資產或非信用卡負債記錄。
+ttDeviationNoCreditCardEntries: 此快照中沒有信用卡記錄。
+ttDeviationHiddenResolvedCcRows: "已隱藏 {n} 行 3 個月前已付款且無差異的記錄。"
+ttDeviationShowResolvedCcRows: "顯示隱藏的行（{n}）"
+ttDeviationHideResolvedCcRows: 隱藏已解決的行
+ttDeviationOnlyHiddenCreditCardEntries: 僅隱藏了 3 個月前已付款且無差異的信用卡行。
+ttDeviationCreditCardOnlyHint: 僅剩信用卡差異。請檢視月度信用卡表。
+ttNoDeviation: 未發現差異。帳面與實際一致。
+ttProcessAsUnknownFunds: 作為不明資金處理
+ttUnknownFundsJournalPreview: 將記錄以下分錄：
+ttUnknownFundsConfirmMsg: 記錄這些分錄以修正餘額差異？
+ttUnknownFundsRecorded: 不明資金分錄已記錄
+ttDeviationSelectSnapshot: 選擇快照
+ttUnknownFundsTitle: 不明資金分錄
+ttUnknownFundsEmpty: 未找到不明資金分錄。
+ttUnknownFundsFixKnown: 已查明原因 — 修正
+ttUnknownFundsMiscLoss: 歸類為雜項損益
+ttUnknownFundsFixTitle: 修正不明資金分錄
+ttUnknownFundsMiscTitle: 歸類為雜項
+ttUnknownFundsFixConfirm: 記錄修正分錄並調整不明資金餘額？
+ttUnknownFundsMiscConfirm: 記錄以下分錄以清除此不明資金？
+ttUnknownFundsProcessed: 分錄已處理
+ttCauseFoundInput: 已查明原因 — 直接輸入
+ttBackToDeviation: 返回誤差驗證
+ttWorksheetTitle: 調整試算表
+ttWorksheetNote: 調整值按基準日期保存在瀏覽器中（不保存在資料庫中）。
+ttWorksheetAddRow: 新增行
+ttWorksheetAccount: 帳戶
+ttWorksheetAmount: 金額
+ttWorksheetAdjustment: 調整值
+ttWorksheetAdjustedDeviation: 調整後差異
+ttWorksheetNote2: 備註
+ttOffsetCcTitle: 帳單偏移明細
+ttOffsetCcOriginalMonth: 原本 → 偏移後月份
+ttDeleteSnapshot: 刪除此快照
+ttDeleteSnapshotConfirm: 刪除此快照及其所有記錄？此操作無法復原。
+ttDeleteSnapshotZeroWarning: 此快照沒有差異 — 建議保留作為核對記錄。
+ttDeleteSnapshotDeleted: 快照已刪除
+ttLastCleanSnapshot: 最後驗證（無差異）
+ttMiscReclassWarning: 重新歸類為雜項損益的分錄在複式記帳之外無法撤銷。
 sysUnknownFunds: 不明資金
 sysMiscExpense: 雜項損失
 sysMiscIncome: 雜項收益
@@ -139,3 +875,158 @@ sysShortTermLending: 短期貸出
 sysShortTermLoan: 短期借入
 sysAccountBadge: 系統
 sysAccountTooltip: 系統帳戶 - 不能刪除或重新命名
+budgetCheckMovedNotice: 預算一致性檢查已移至試算表頁面。
+budgetCheckMovedLink: 前往試算表 →
+fiscalHealthTitle: 財務健康指數
+fiscalHealthSafe: 健康
+fiscalHealthCaution: 注意
+fiscalHealthDanger: 有風險
+fiscalHealthLiquidity: 流動性（30分）
+fiscalHealthEquity: 淨資產比率（30分）
+fiscalHealthSpending: 支出控制（40分）
+fiscalHealthNoExpenseData: 滿分 - 無支出歷史
+fiscalHealthCashLabel: 現金 / 存款
+fiscalHealthBaseLabel: 基準
+fiscalHealthNetWorthLabel: 淨資產
+fiscalHealthAnnualEstLabel: 年度估算
+fiscalHealthBreakdown: 明細
+fiscalHealthThreshold50: "≥ 50% = 滿分"
+fiscalHealthThreshold60: "≥ 60% = 滿分"
+fiscalHealthThreshold100: "≥ 100% = 滿分"
+bulkEditSectionTitle: 批次編輯／取代
+bulkEditSectionDesc: 將特定帳戶的所有分錄行取代為其他帳戶，或按條件批次刪除分錄。
+bulkEditSectionLink: 批次編輯／取代 →
+bulkEditPageTitle: 批次編輯／取代
+bulkReplaceTabLabel: 取代分錄中的帳戶
+bulkDeleteTabLabel: 批次刪除分錄
+bulkReplaceFromLabel: 取代來源（來源帳戶）
+bulkReplaceToLabel: 取代目標（目標帳戶）
+bulkReplacePreviewBtn: 預覽
+bulkReplaceExecBtn: 執行取代
+bulkReplaceConfirmTitle: 確認取代帳戶
+bulkReplaceConfirmBody: "「{from}」的所有分錄行將被取代為「{to}」。此操作無法復原。"
+bulkReplacePreviewMsg: "將取代 {count} 筆分錄行。"
+bulkReplaceSuccess: "已取代 {count} 筆分錄行。"
+bulkReplaceNoLines: 所選帳戶沒有找到分錄行。
+bulkDeleteAccountLabel: 帳戶（選填）
+bulkDeleteDateFromLabel: 開始日期（選填）
+bulkDeleteDateToLabel: 結束日期（選填）
+bulkDeleteDescLabel: 描述包含（選填）
+bulkDeletePreviewBtn: 預覽
+bulkDeleteExecBtn: 刪除匹配的分錄
+bulkDeleteConfirmTitle: 確認批次刪除
+bulkDeleteConfirmBody: 所有匹配的分錄將被永久刪除。此操作無法復原。
+bulkDeletePreviewMsg: "{count} 筆分錄符合條件。"
+bulkDeleteSuccess: "已刪除 {count} 筆分錄。"
+bulkDeleteNoMatch: 沒有分錄符合指定的條件。
+bulkDeleteNoCondition: 請至少指定一個篩選條件。
+deleteNonZeroBalanceTooltip: 無法刪除：帳戶餘額不為零
+bulkSelectAll: 全選
+bulkSelectedCount: "已選 {selected} / {total}"
+bulkReplaceConfirmSuffix: 筆分錄將被更新。
+settingsNavCsvTitle: CSV 匯入設定
+settingsNavCsvDesc: 設定 CSV 匯入時的店鋪到帳戶對應。
+settingsNavInitialBalanceDesc: 開始使用時記錄期初餘額。
+settingsNavBudgetDesc: 管理預算類別和收入篩選器。
+settingsNavBusinessDesc: 設定業務費用墊付款帳戶。
+settingsNavBulkEditDesc: 替換或批次刪除日記帳分錄。
+settingsNavDangerDesc: 永久刪除資料。請謹慎使用。
+settingsNavGuidesTitle: 使用者指南
+settingsNavGuidesDesc: 了解此應用程式的獨有功能。
+guidesPageTitle: 使用者指南
+settingsSubpageBack: ← 設定
+settingsNavExportTitle: 匯出報表
+settingsNavExportDesc: 將資產負債表和損益表下載為 JSON 或 PDF。
+exportPeriodLabel: 報表期間
+exportFromLabel: 開始日期
+exportToLabel: 結束日期（資產負債表基準日）
+exportJSON: 下載 JSON
+exportJSONC: 下載 JSONC
+jsoncFileTitle: 家庭財務報告
+jsoncFileFormatNote: 此檔案為 JSONC 格式（帶 // 註解的 JSON）。
+jsoncGeneratedLabel: 產生時間
+jsoncPeriodRangeLabel: 折舊期間
+jsoncExportedAtComment: ISO 8601 匯出時間戳
+jsoncPeriodSection: 報表期間
+jsoncFromComment: 損益表開始日期
+jsoncToComment: 損益表結束日期
+jsoncBsAsOfComment: 資產負債表基準日（與結束日期相同）
+jsoncBsSectionTitle: 資產負債表
+jsoncBsNote1: 餘額透過 journal_lines 的 SUM(借方) - SUM(貸方) 計算。
+jsoncBsNote2: 資產：借方多 = 正數。負債/權益：貸方多 = 正數。
+jsoncBsNote3: 餘額為 0 的帳戶也包含在內。
+jsoncNetWorthComment: 淨資產 = 總資產 - 總負債
+jsoncPlSectionTitle: 損益表
+jsoncPlNote1: 收入金額 = 期間內 SUM(貸方) - SUM(借方)。
+jsoncPlNote2: 支出金額 = 期間內 SUM(借方) - SUM(貸方)。
+jsoncPlNote3: 金額為 0 的帳戶也包含在內。
+jsoncNetIncomeComment: 淨利潤 = 總收入 - 總支出
+jsoncDeprSectionTitle: 折舊進度
+jsoncDeprNote1: 簡化家庭折舊：每月分錄 借：折舊費 / 貸：資產。
+jsoncDeprNote2: 帳面價值 = 總額 - 累計折舊 ← 與資產負債表上的資產餘額一致。
+jsoncDeprNote3: 進度百分比 = 累計折舊 / 總額 × 100（截斷取整）
+exportPrint: 列印
+exportSavePDF: 另存為 PDF
+exportSQLite: 下載 SQLite
+exportSchemeLight: 切換為淺色
+exportSchemeDark: 切換為深色
+exportDepreciationTitle: 折舊進度
+exportDepreciationNote: 簡化家庭折舊：每月折舊費用透過分錄直接減少資產帳戶餘額。
+exportDepreciationAcquisitionCost: 取得原價
+exportDepreciationPeriod: 折舊期間
+exportDepreciationStartDate: 開始日期
+exportDepreciationAccumulated: 累計折舊
+exportDepreciationBookValue: 帳面價值
+exportDepreciationProgress: 進度
+exportDepreciationNone: 沒有註冊的折舊資產。
+negativeBalanceWarning: 此帳戶餘額為負數
+settingsNavCurrencyTitle: 外幣
+settingsNavCurrencyDesc: 啟用與 JPY 一起使用的貨幣和加密貨幣。
+currencySettingsTitle: 外幣設定
+currencySettingsFiatGroup: 法定貨幣
+currencySettingsCryptoGroup: 加密貨幣
+currencySettingsNote: 啟用您使用的貨幣。至少必須始終保持啟用一種。
+currencySettingsRateNote: 匯率自動取得（通常冷卻 30 分鐘；新增缺少的法定貨幣時 30 秒）。
+currencySettingsApiSourceTitle: 匯率來源 API
+currencySettingsFiatApiLabel: 法定貨幣匯率
+currencySettingsCryptoApiLabel: 加密貨幣價格
+currencySettingsApiApplied: 提供者已變更。正在重新整理匯率…
+currencySettingsInitialSetupTitle: 初始貨幣設定
+currencySettingsSelectAtLeastOne: 請至少選擇一種要使用的貨幣
+currencySettingsFiatOrCryptoRequired: 至少必須啟用一種法定貨幣或加密貨幣。
+currencySettingsCryptoIcons: 加密貨幣圖示
+currencySettingsIconStyleRich: 豐富
+currencySettingsIconStyleWhite: 白色符號
+currencySettingsSymbolConflicts: 符號衝突
+currencySettingsSymbolConflictsDesc: 多個已啟用的貨幣共享相同的符號。請選擇顯示哪一個。
+currencySettingsRateStatus: 匯率狀態
+currencySettingsBaseBadge: 基準
+currencySettingsRateStatusDesc: 法定貨幣以基準貨幣報價；加密貨幣顯示為每 1 單位的基準貨幣價格。
+currencySettingsRateFetched: 已取得
+currencySettingsRateMissing: 未取得
+currencySettingsCustomRates: 自訂貨幣匯率
+currencySettingsManualBadge: 手動
+currencySettingsCustomRatesDesc: 對於無法自動取得的貨幣，請選擇基準貨幣並輸入匯率。
+currencySettingsBaseCurrencyLabel: 基準
+currencySettingsEnabledList: 已啟用的貨幣
+currencySettingsAddCurrency: 新增貨幣
+currencySettingsKnownCurrency: 已知貨幣
+currencySettingsSelectCurrency: 選擇貨幣
+currencySettingsAddCustomCurrency: 新增自訂貨幣
+currencySettingsCurrencyCode: 代碼
+currencySettingsDisplayIcon: 顯示圖示
+currencySettingsSelectIcon: 選擇圖示
+currencySettingsSymbol: 貨幣符號
+currencySettingsDecimalPlaces: 小數位數
+currencySettingsDisableBalance: 無法停用：餘額不為零
+currencySettingsDisableLast: 無法停用最後一個貨幣 — 至少需要一個
+tabFxExchange: 外匯兌換
+fxExchangeTitle: 貨幣兌換
+fxFromCurrency: 付出（幣種）
+fxToCurrency: 收到（幣種）
+fxFromAccount: 來源帳戶
+fxToAccount: 目標帳戶
+fxFromAmount: 付出金額
+fxToAmount: 收到金額
+includeAllCurrencies: 包含所有貨幣
+displayCurrencyLabel: 顯示貨幣

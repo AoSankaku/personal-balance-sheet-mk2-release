@@ -1,5 +1,11 @@
 # Personal Balance Sheet MK2
 
+> [!CAUTION]
+> このプロジェクトは、ほとんどClaude CodeとCodexで実装しました。
+
+> [!CAUTION]
+> This project is HEAVILY developed with Claude Code and Codex.
+
 ## 日本語
 
 ### 概要

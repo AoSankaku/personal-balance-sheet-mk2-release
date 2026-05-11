@@ -1,91 +1,370 @@
-fiscalHealthTitle: 财务健康指数
-fiscalHealthSafe: 健康
-fiscalHealthCaution: 注意
-fiscalHealthDanger: 有风险
-fiscalHealthLiquidity: 流动性（30分）
-fiscalHealthEquity: 净资产比率（30分）
-fiscalHealthSpending: 支出控制（40分）
-fiscalHealthNoExpenseData: 满分 - 无支出历史
-fiscalHealthCashLabel: 现金 / 存款
-fiscalHealthBaseLabel: 基准
-fiscalHealthNetWorthLabel: 净资产
-fiscalHealthAnnualEstLabel: 年度估算
-fiscalHealthBreakdown: 明细
-fiscalHealthThreshold50: ≥ 50% = 满分
-fiscalHealthThreshold60: ≥ 60% = 满分
-fiscalHealthThreshold100: ≥ 100% = 满分
-budgetResetBadge: 重置
-carryover: 结转
-goal: 目标
-goalAlreadyReached: 已达成目标
-goalReachIn: "{months} 个月后达成目标"
-goalReachBy: 预计在 {date} 达成目标
-creditCardImportReminder: 信用卡导入提醒
-importPageTitle: CSV 导入
-availableBalance: 可用余额
-used: 已使用
-budget: 预算
-noBudgetCategories: 暂无预算类别。
-budgetIncludingSavings: 总预算（含储蓄）
-svViewDetails: 查看储蓄详情
-recentTransactions: 最近交易
-showAllTransactions: 查看全部交易
-noTransactionsYet: 还没有交易。
-showMore: 显示更多
-defaultPaymentSource: 默认付款来源
-defaultPaymentSourceHint: 录入支出时会自动填入“付款来源”字段。
-preferredPaymentMethod: 首选付款方式
-preferredPaymentMethodHint: 该账户会被预先选中，并在“付款来源”中优先显示。
-preferredPaymentMethodNone: 无偏好
 appTitle: 个人资产负债表
 toggleColorScheme: 切换主题
-languageLabel: 语言
-navOverview: 概览
-navInput: 录入
-navAssets: 资产
-navLedger: 账簿
-navSettings: 设置
-navFS: 财务报表
 assets: 资产
 liabilities: 负债
 netWorth: 净资产
 income: 收入
 expenses: 支出
 netIncome: 净收入
+assetBreakdown: 资产构成
+noAssetBalancesYet: 暂无资产余额。
+addAccountBtn: + 添加账户
+addTransactionBtn: + 添加交易
 balanceSheetTitle: 资产负债表
 plTitle: 损益表
 settingsSectionGeneral: 常规
 settingsSectionAccounts: 账户
-settingsSectionNotifications: 通知
 sectionAssets: 资产
 sectionDepreciableAssets: 可折旧固定资产
 sectionLiabilities: 负债
 sectionEquity: 权益
 sectionIncome: 收入
 sectionExpenses: 支出
-typeAsset: 资产
-typeLiability: 负债
-typeEquity: 权益
-typeIncome: 收入
-typeExpense: 支出
+failedToLoadData: 数据加载失败
+errorTitle: 错误
+reload: 重新加载
+internalServerError: 服务器内部错误
+accountAdded: 账户已添加
+accountDeleted: 账户已删除
+transactionAdded: 交易已添加
+transactionDeleted: 交易已删除
+statusLabel: 状态
+statusDismiss: 确定
+total: 合计：
 thAccount: 账户
 thCategory: 类别
 thCurrency: 货币
 thBalance: 余额
 noAccountsYet: 还没有账户。
-addAccountBtn: + 添加账户
-addTransactionBtn: + 添加交易
-editLabel: 编辑
-save: 保存
+deleteAccount: 删除账户
+catCash: 现金／存款
+catInvestment: 投资
+catProperty: 不动产
+catLoan: 长期借入
+catCreditCard: 信用卡
+catShortTermLoan: 短期借款
+catOpeningBalance: 期初余额
+catSalary: 工资
+catBusiness: 营业收入
+catInvestmentIncome: 投资收益
+catFood: 餐饮费
+catRent: 房租／居住费
+catTransport: 交通费
+catUtilities: 水电燃气费
+catEntertainment: 娱乐费
+catOther: 其他
+catCrypto: 加密资产
+catLending: 短期贷出
+catShortTermLending: 短期贷出
+catLongTermLending: 长期贷出
+catLongTermLoan: 长期借入
+catBusinessAdvance: 事业垫付款
+catDailyGoods: 日用杂货
+catSocial: 交际费
+catInvestmentLoss: 投资损失
+addAccountTitle: 添加账户
+editAccountTitle: 编辑账户
+editAccount: 编辑
+accountUpdated: 账户已更新
+accountNameLabel: 账户名称
+accountNamePlaceholder: 例如：SBI 储蓄
+typeLabel: 类型
+categoryLabel: 类别
+currencyLabel: 货币
 cancel: 取消
 confirm: 确认
-deleteAccount: 删除账户
+nameIsRequired: 名称是必填项
+nameConflictAccount: 此名称已被其他账户使用
+nameConflictBudgetCategory: 此名称已被其他预算类别使用
+typeAsset: 资产
+typeLiability: 负债
+typeEquity: 权益
+typeIncome: 收入
+typeExpense: 支出
+addTransactionTitle: 添加交易
+tabSimple: 简单
+tabMultiLine: 多行分录
+dateLabel: 日期
+descriptionLabel: 描述
+descSimplePlaceholder: 例如：购物
+descMultiPlaceholder: 例如：工资
+debitAccountLabel: 借方账户（增加）
+creditAccountLabel: 贷方账户（减少）
+selectAccount: 选择账户
+amountLabel: 金额
+multiAccountColHeader: 账户
+debitColHeader: 借方
+creditColHeader: 贷方
+addRow: 添加行
+totalDebit: 借方合计：
+totalCredit: 贷方合计：
+unbalanced: ⚠ 借贷不平
+add: 添加
+descriptionIsRequired: 描述是必填项
+selectDebitAccount: 请选择借方账户
+selectCreditAccount: 请选择贷方账户
+amountMustBePositive: 金额必须为正数
+recentJournalEntries: 最近的分录
+rowsPerPage: 每页行数
+pageSummary: "第{from}-{to}条，共{total}条"
+thDate: 日期
+thDescription: 描述
+thDebit: 借方
+thCredit: 贷方
+thSource: 来源
+thCreatedAt: 输入时间
+showInputTimestamp: 显示时间戳
+journalSourceManual: 手动
+journalSourceCsvImport: CSV 导入
+noTransactionsYet: 还没有交易。
+deleteEntry: 删除分录
+recentTransactions: 最近交易
+showMore: 显示更多
+showAllTransactions: 查看全部交易
+budgetImpact: 预算
+expenseChartTitle: 月度支出
+noExpenseDataYet: 暂无支出数据。
+bsTrendTitle: 资产负债表趋势
+bsChartTotalAssets: 总资产
+bsChartTotalLiabilities: 总负债
+bsChartSelectLabel: 选择系列
+bsChartStacked: 堆叠
+bsChartTotals: 合计
+netWorthOverTime: 净资产变化趋势
+chartAssets: 资产
+chartLiabilities: 负债
+chartNetWorth: 净资产
+chartViewAll: 全部
+chartViewAssetsLiabilities: 资产与负债
+chartViewNetWorth: 净资产
+granularityYear: 年
+granularityMonth: 月份
+granularityDay: 日
+includeFutureData: 包含未来数据
+reset: 重置
+resetConfirm: 要重置表单吗？草稿将被清除。
+cryptoPortfolio: 加密资产组合
+addWallet: + 添加钱包
+walletAddress: 钱包地址
+detectedChain: 检测到的链
+estMarketValue: 估计市值
+coinPrice: 代币价格
+quantity: 数量
+fetchBalance: 获取余额
+invalidAddress: 无效地址
+noWalletsYet: 暂无钱包。
+deleteWallet: 删除钱包
+walletLinked: 钱包已关联
+thChain: 链
+thAddress: 地址
+thQuantity: 数量
+thEstValue: 估计价值
+linkAccount: 关联账户
+refresh: 刷新
+cryptoPrices: 加密资产价格（日元）
+thTicker: 代码
+thPrice: 价格（日元）
+pricesNotLoaded: 价格尚未加载。
+navOverview: 概览
+navInput: 录入
+navAssets: 资产
+navLedger: 账簿
+navCrypto: 加密资产
+navReports: 报表
+navSettings: 设置
+transactionTypeExpense: 支出
+transactionTypeIncome: 收入
+transactionTypeTransfer: 转账
+transactionTypeInitial: 初始余额录入
+initialAssetAccountLabel: 账户
+openingBalanceAccountName: 期初余额
+paidFromLabel: 付款来源
+depositedToLabel: 存入账户
+fromAccountLabel: 转出账户
+toAccountLabel: 转入账户
+incomeTypeLabel: 收入类型
+transferBudgetSourceLabel: 预算来源
+transferBudgetDestinationLabel: 预算去向
+transferBudgetNoMovementPlaceholder: 无预算变动
+transferBudgetDisappearPlaceholder: 消失
+budgetAdjustNoteLabel: 备注
+budgetAdjustNotePlaceholder: 此预算调整的附加备注
+budgetHistoryNoteCol: 备注
+filterThisMonth: 本月
+filterLastMonth: 上月
+filterAll: 全部
+filterPanel: 筛选
+filterActiveCount: "{n} 个筛选条件"
+filterDescriptionLabel: 描述
+filterDescriptionPlaceholder: 搜索描述…
+filterSourceLabel: 来源
+filterSourceAll: 所有来源
+filterAmountLabel: 金额范围
+filterAmountMin: 最小值
+filterAmountMax: 最大值
+filterAccountLabel: 账户
+filterAccountPlaceholder: 所有账户
+filterCreatedRangeLabel: 输入时间范围
+filterClearAll: 清除
+outsideDateRangeMsg: "{n} 条分录在所选日期范围外"
+clearDateFilter: ['清除日期筛选']
+availableBalance: 可用余额
+carryover: 结转
+budgetResetBadge: 重置
+used: 已使用
+budget: 预算
+noBudgetCategories: 暂无预算类别。
+inputPageTitle: 添加交易
+transactionSaved: 交易已保存
+viewSimple: 简单
+viewDoubleEntry: 复式记账
+budgetTitle: 预算
+addBudgetCategory: + 添加预算类别
+budgetCategoryName: 类别名称
+budgetRollover: 将未使用的预算结转到下个月
+budgetLinkedAccounts: 关联的支出账户
+budgetFixedAmount: 固定金额（¥）
+budgetIncomeRatio: "收入比例（%）"
+budgetAdhocAmount: 一次性追加（¥）
+editBudgetCategory: 编辑
+archiveBudgetCategory: 归档
+restoreBudgetCategory: 恢复
+showArchivedBudgetCategories: 显示已归档
+archivedBudgetCategoryBadge: 已归档
+deleteBudgetCategory: 删除
+saveBudgetCategory: 保存
+budgetDistributionLabel: 预算分配
+budgetDistributionHint: 设置此项支出中各预算类别所占百分比。
+budgetDistributionTotal: 合计
+defaultPaymentSource: 默认付款来源
+defaultPaymentSourceHint: 录入支出时会自动填入“付款来源”字段。
+preferredPaymentMethod: 首选付款方式
+preferredPaymentMethodHint: 该账户会被预先选中，并在“付款来源”中优先显示。
+preferredPaymentMethodNone: 无偏好
+preferredFilterTitle: 首选预算分配筛选器
+preferredFilterHint: 这些预算分配筛选器会在收入录入下拉框中优先显示（★ 组）。
+preferredFilterNone: 无筛选器
+budgetAllocationDisplay: 预算分配
+budgetDistOtherCategories: 其他类别
+tabBudgetAdjust: 预算调整
+budgetCategoryLabel: 预算类别
+budgetAdjustAmountLabel: 调整金额（+ 追加 / − 减少）
+budgetAdjusted: 预算已调整
+budgetResetToZeroButton: 预算重置（余额归零）
+archiveBudgetCategoryAfterReset: 重置后归档此预算类别
+expenseSubAccountLabel: 支出账户
+asOfDate: 截止日期
+transactionTypeLoan: 借贷／还款
+loanIncrease: 借入（负债增加）
+loanDecrease: 还款（负债减少）
+loanLend: 贷出（资产增加）
+loanCollect: 收回（资产减少）
+liabilityAccountLabel: 负债账户
+lendingAccountLabel: 贷出账户
+loanCounterIncrease: 存入目标
+loanCounterIncreaseExpense: 贷款支付的费用
+loanCounterIncreaseLiability: 还清的负债
+loanCounterDecrease: 付款账户
+loanCounterDecreaseLiability: 使用的负债
+loanCounterDecreaseIncome: 免除（收入）
+loanCounterLend: 贷出资金来源
+loanCounterLendLiability: 使用的负债
+loanCounterCollect: 收款账户
+loanCounterExpenseCovered: 对方垫付的费用
+selectSettlementEntries: 选择要结清的分录
+settlementSelectedTotal: 已选合计
+noUnsettledEntries: 没有未结清的分录
+loanDifferenceIncome: 收益（收入账户）
+loanDifferenceLoss: 损失（支出账户）
+loanDifferenceAccountLabel: 差额账户
+completedAccountsSection: 已完结的账户
+tabInitialBalance: 初始余额
+initialBalanceHint: 记录账户的期初余额。初次设置时使用。
+collapse: 收起 ▲
+autoGeneratedDescription: 描述（自动生成）：
+copyFromExistingLabel: 从现有筛选器复制
+copyFromExistingPlaceholder: 选择要复制的筛选器（可选）
+noRemainderWarningTitle: 无比例分配步骤
+noRemainderWarning: 若「比例分配」未置于最后，输入收入后将有未分配的现金剩余。之后可以手动分配到预算类别，但已使用的筛选器无法编辑，如需更改需创建新的筛选器。
+noRemainderWarningConfirm: 仍然保存
+budgetAdjustDateLabel: 日期
+budgetHistoryTitle: 预算调整历史
+noBudgetHistory: 暂无预算调整记录。
+budgetHistoryAmountCol: 金额
+budgetDistributionPreview: 分配预览
+budgetFilterDefaultLabel: 筛选器分配
+filterStepFixed: 固定
+filterStepCapped: 上限
+filterStepRemainder: 剩余
+filterStepRemaining: 剩余
+budgetDistributionPreviewUnallocated: 未分配
+multiLineBudgetRatios: 预算分配
+multiLineBudgetAllocHint: ＋ 增加预算  ／  − 减少预算
+dateRangePlaceholder: 选择范围
+rolloverMonthsLabel: 结转期间
+rolloverMonthsUnit: 个月
+rolloverMonthsDesc: 未使用预算可结转的最大月数（1-24）
+budgetSettingsTitle: 预算设置
+budgetSettingsSaved: 预算设置已保存
+budgetHistoryJournalTab: 最近交易
+budgetHistoryBudgetTab: 预算历史
+tabBalanceSheet: 资产负债表
+tabBalanceSheetDesc: 资产、负债与权益
+tabPL: 损益表
+tabPLDesc: 收入与支出概览
+navCryptoDesc: 钱包余额与投资组合
+filterThisYear: 今年
+navFS: 财务报表
+plPerYear: 年化
+plPerMonth: 月均
+plPerDay: 日均
+plTotal: 期间合计
+plGoToCurrent: 当前
+granularityQuarter: 季度
+granularityHalf: 半年度
+budgetHistorySourceIncome: 收入
+budgetHistorySourceTransfer: 转账
+budgetHistorySourceManual: 手动
+budgetHistorySourceReset: 重置
+budgetHistorySourceSimple: 简单输入
+budgetHistorySourceMultiline: 多行分录
 accountName: 账户
+budgetTargetAccountsLabel: 目标存放账户
+budgetTargetAccountsDesc: 仅用作存放位置参考。关联的预算和账户按总余额分组并进行比较。
+budgetTargetManyToManyError: 这将产生多对多的配置关系。请使用一个预算对应多个账户，或多个预算对应一个账户。
+budgetPlacementTitle: 预算放置
+budgetPlacementExpected: 目标
+budgetPlacementActual: 实际
+budgetPlacementDifference: 差异
+budgetPlacementUnplaced: 未放置
+budgetPlacementEmpty: 尚未配置目标账户。
+budgetPlacementHintsTitle: 提示
+budgetHistoryTypeCol: 类型
+budgetHistoryModeEntries: 明细
+budgetHistoryModeCategories: 按预算
+budgetHistoryCategorySummaryCount: "{count} 个预算类别"
+budgetHistoryEntryCount: "{count} 条"
+budgetHistoryLatestInput: 最近输入
+budgetHistoryAdjustedTotal: 预算金额
+budgetHistoryPeriodRunningTotal: 期间累计
+budgetHistoryInputTimestamp: 输入时间
+deleteAdjustmentLog: 删除调整记录
+deleteAdjustmentLogConfirm: 要删除此调整记录吗？
+deleteIncomeChunk: 删除收入分配
+deleteIncomeChunkConfirm: "这将删除与此收入分录关联的所有 {count} 个类别（共计 ¥{total}）的预算分配。收入分录本身不会被删除。"
+incomeAllocationDeleted: 收入分配已删除
+adjustmentLogDeleted: 调整记录已删除
+adjustmentLogUpdated: 调整记录已更新
+editLabel: 编辑
+editTransactionTitle: 编辑交易
+save: 保存
+refreshPrices: 刷新价格
 paydayLabel: 发薪日（每月日期）
 paydayHint: 如果每月到这一天仍未记录收入，就会显示通知。
 noNotifications: 没有通知
-notifications: 通知
 notificationPaydayUnrecorded: 发薪日收入尚未记录
+notifications: 通知
+settingsSectionNotifications: 通知
 notifPaydayToggle: 发薪日提醒
 notifPaydayToggleHint: 当发薪日收入尚未记录时显示提醒。
 notifCreditCardToggle: 信用卡导入提醒
@@ -104,26 +383,483 @@ notificationLoanOverdueSection: 逾期借贷
 notificationLoanOverdueDays: "{days} 天前"
 notificationAccountNegativeSection: 负数账户余额
 notificationCreditCardWithdrawalRiskSection: 信用卡扣款可能导致透支
-notificationCreditCardWithdrawalRiskDetail: 付款后的预计余额为 {balance}。
-settingsNavCsvTitle: CSV 导入设置
-settingsNavCsvDesc: 设置 CSV 导入时的店铺到账户映射。
-settingsNavInitialBalanceDesc: 开始使用时记录期初余额。
-settingsNavBudgetDesc: 管理预算类别和收入筛选器。
-settingsNavBusinessDesc: 设置业务费用垫付款账户。
-settingsNavBulkEditDesc: 替换或批量删除日记账分录。
-settingsNavDangerDesc: 永久删除数据。请谨慎使用。
-settingsNavGuidesTitle: 用户指南
-settingsNavGuidesDesc: 了解此应用的独有功能。
-guidesPageTitle: 用户指南
-settingsSubpageBack: ← 设置
-settingsNavExportTitle: 导出报表
-settingsNavExportDesc: 将资产负债表和损益表下载为 JSON 或 PDF。
-settingsNavCurrencyTitle: 外币
-settingsNavCurrencyDesc: 启用与 JPY 一起使用的货币和加密货币。
+notificationCreditCardWithdrawalRiskDetail: "付款后的预计余额为 {balance}。"
+accountInUse: 账户正在使用中
+accountInUseMsg: 此账户已在分录中使用或有关联的钱包。请选择相同类型的替换账户。
+replaceWith: 替换为
+replaceAndDelete: 替换并删除
+creditCardDatesLabel: 账单设置
+closingDayLabel: 结账日
+closingDayEndOfMonth: 月底
+confirmationDayLabel: 确认日
+withdrawalDayLabel: 扣款日
+withdrawalAccountLabel: 扣款账户
+withdrawalAccountHint: 用于扣款余额提醒。
+withdrawalAccountPlaceholder: 选择账户
+billingOffsetMonthsLabel: 账单月偏移
+billingOffsetMonthsHint: 在通常的次月扣款基础上增加的月数。0 表示通常的次月扣款。
+creditCardStatementOffsetLabel: 交易账单偏移
+creditCardStatementOffsetHint: 此交易在正常周期基础上额外增加的月数。0 表示通常的次月扣款。
+creditCardStatementOffsetShort: 偏移
+importPageTitle: CSV 导入
+importUploadLabel: 上传 CSV 文件
+importDetectedFormat: 检测到的格式
+importSelectFormat: 手动选择格式
+importFormatSmbcDraft: 三井住友卡（暂定版）
+importFormatSmbcConfirmed: 三井住友卡（确定版）
+importFormatRakutenDraft: 乐天卡（暂定版）
+importFormatRakutenConfirmed: 乐天卡（确定版）
+importFormatUnknown: 未知格式
+importFormatSmbcBank: 三井住友银行（收支明细）
+importFormatSbiBank: SBI 银行（收支明细）
+importSelectCard: 信用卡账户
+importSelectBankAccount: 银行账户
+importExpenseAccount: 支出账户
+importIncomeAccount: 收入账户
+importDirectionWithdrawal: 出金
+importDirectionDeposit: 入金
+importNoBankAccounts: 未找到资产账户。请先在设置中创建。
+importRowTypeExpense: 支出
+importRowTypeLiability: 负债还款
+importRowTypeTransfer: 转账
+importLiabilityAccount: 负债账户
+importDuplicateWarning: 可能重复
+importApplyToAll: 应用到所有
+importConfirmButton: 导入
+importSuccess: 导入完成
+importDuplicateModalTitle: 重复交易
+importSkip: 跳过
+importImportAnyway: 仍然导入
+creditCardImportReminder: 信用卡导入提醒
+importTransactionCount: 条交易已检测
+importStoreCol: 商店／描述
+importDateCol: 日期
+importAmountCol: 金额
+importPaymentMonthCol: 账单月
+importNoCardAccounts: 未找到信用卡账户。请先在设置中创建。
+importReviewTitle: 审核交易
+importDuplicateTitle: 重复？
+filterEditTitle: 编辑筛选器
+filterCreateTitle: 创建新筛选器
+filterReadOnlyAlert: 此筛选器已被使用，无法编辑
+filterNameLabel: 筛选器名称
+filterStepsTitle: 步骤
+filterStepLabel: 步骤
+stepTypeFixed: 固定金额
+stepTypeCapped: 上限分配
+stepTypeRemainder: 比例分配
+filterSelectCategoryPlaceholder: 选择类别
+filterCappedTotalLabel: 上限总额
+filterRemainderTotalLabel: 合计
+filterAddCategory: 添加类别
+filterAddStep: 添加步骤
+filterNameRequired: 名称是必填项
+filterStepsRequired: 请至少添加一个步骤
+filterRemainderMustBeLast: 比例分配步骤必须放在最后
+filterRemainderOnlyOne: 只允许有一个比例分配步骤
+filterRemainderTotalMustBe100: "比例合计必须为 100%"
+filterSelectCategory: 请选择一个预算类别
+filterCopySuffix: （副本）
+close: 关闭
+saveFailed: 保存失败
+entrySaved: 分录已保存
+unknownCategoryPrefix: "类别 #"
+applyBudgetFilterLabel: 作为定期收入分配预算
+budgetFilterTitle: 预算分配筛选器
+filterSelectPlaceholder: 选择一个筛选器
+filterReapplyTitle: 本月已重新应用
+filterReapplyMessage: 本月已应用过相同的筛选器。已合并并重新计算总额。
+languageLabel: 语言
+manageBudget: 管理 →
+budgetFilterManagement: 预算分配筛选器管理
+budgetSetupDesc: 设置预算类别和分配筛选器。
+filterCopied: 筛选器已复制
+copyFailed: 复制失败
+updateFailed: 更新失败
+deleteFilter: 删除筛选器
+filterDeleteConfirm: 确定要删除此筛选器吗？
+deleted: 已删除
+deleteFailed: 删除失败
+backToSettings: ← 设置
+createFilterBtn: + 创建新筛选器
+noFilters: 未找到筛选器。点击「+ 创建新筛选器」添加一个。
+thName: 名称
+thStatus: 状态
+thActions: 操作
+badgeUsed: 已使用
+badgeUnused: 未使用
+badgeActive: 启用
+badgeInactive: 停用
+copyAndEdit: 复制并编辑
+activateFilter: 启用
+deactivateFilter: 停用
+ok: 确定
+overBudgetWarningTitle: "预算分配超过 100%"
+overBudgetWarningMsg: "预算分配总额超过 100%。请在保存前调整百分比。"
+underBudgetWarningTitle: "预算分配低于 100%"
+underBudgetWarningMsg: "预算分配总额低于 100%。剩余金额将不会在任何预算类别中记录。仍然继续吗？"
+simpleConvertWarningTitle: 无法转换为简单输入
+simpleConvertTypeMismatchMsg: 此分录使用的账户类型无法在简单输入模式中表示。
+simpleConvertMultilineSourceMsg: 此分录最初是以多行分录方式创建的，无法转换为简单输入模式。
+assignableMoneyLabel: 可分配预算（现金／银行）
+assignableMoneyTodayLabel: 截至今天
+assignableMoneyTotalLabel: 包含未来
+assignableMoneyAssetsLabel: 资产
+assignableMoneyCommittedLabel: 已分配
+budgetGroupLabel: 预算组
+budgetGroupDaily: 日常支出
+budgetGroupSavings: 储蓄
+infiniteRolloverLabel: 无限期结转
+rolloverMonthsColumn: 结转
+budgetIncludingSavings: 总预算（含储蓄）
+goalBalanceLabel: 目标余额
+goalBalanceDesc: 此类别可选的储蓄或支出目标
+budgetBalanceCapLabel: 余额上限
+budgetBalanceCapDesc: 当余额超过此金额时，超出部分将移至所选预算。
+budgetOverflowTargetLabel: 超出预算的目标
+budgetOverflowTargetPlaceholder: 将超出部分保留在此
+goal: 目标
+goalReachIn: "{months} 个月后达成目标"
+goalReachBy: "预计在 {date} 达成目标"
+goalAlreadyReached: 已达成目标
+optional: 可选
+dangerZoneTitle: 危险操作
+dangerZoneDesc: 这些操作是永久性的且无法撤销。请谨慎执行。
+dangerAdminApiNoticeTitle: 管理 API 保护
+dangerAdminApiNoticeBody: 这些操作调用 /api/admin 端点。此应用不包含内置认证，请使用 Cloudflare Zero Trust、VPN、Tailscale 或带认证的反向代理保护站点。如不需要这些操作，请在 Worker 环境变量中设置 DISABLE_ADMIN_API=true。
+dangerEraseMonthLedger: 清除本月账簿及预算输入
+dangerEraseMonthLedgerDesc: 删除当月的所有分录和预算数据（分配、调整）。
+dangerEraseYearLedger: 清除今年账簿及预算输入
+dangerEraseYearLedgerDesc: 删除当年的所有分录和预算数据。
+dangerEraseAllLedger: 清除所有账簿及预算输入
+dangerEraseAllLedgerDesc: 删除所有时期的分录、预算分配和调整记录。
+dangerEraseAllAccounts: 清除所有账户
+dangerEraseAllAccountsDesc: 删除所有账户及其分录（这也将清空账簿）。
+dangerEraseAllBudgetCategories: 清除所有预算类别
+dangerEraseAllBudgetCategoriesDesc: 删除所有预算类别、分配和调整记录。
+dangerEraseAllData: 清除所有数据
+dangerEraseAllDataDesc: 删除所有内容：账簿、账户、预算类别、筛选器和凭证。应用将重置为空白状态。
+dangerConfirm1Title: 确定要执行吗？
+dangerConfirm1Body: 这将永久删除以下数据：
+dangerConfirm2Title: 最终确认
+dangerConfirm2Body: 此操作不可逆转。没有撤销操作。所有删除的数据将永久丢失。
+dangerProceedBtn: 继续 →
+dangerConfirmFinalBtn: 是，永久删除
+dangerSuccessMsg: 数据已清除
+dangerErrorMsg: 数据清除失败
+tabCsvImport: CSV 导入
+tabBulkExpense: 批量支出录入
+bulkExpensePaymentAccount: 付款账户（贷方）
+bulkExpenseAddExpenseRow: + 添加支出行
+bulkExpenseCopyLastDate: 复制最后一行的日期
+bulkExpenseAddDiscountRow: + 添加优惠/礼品卡行
+bulkExpenseOrderDate: 下单日期
+bulkExpenseItemName: 商品名称
+bulkExpenseQty: 数量
+bulkExpensePrice: 价格（¥）
+bulkExpenseExpenseAccount: 支出账户
+bulkExpenseDiscountDate: 使用日期
+bulkExpenseDiscountType: 类型（礼品卡/积分等）
+bulkExpenseDiscountAmount: 金额（¥）
+bulkExpenseIncomeAccount: 收入账户
+bulkExpenseBudgetCategory: 预算类别（可选）
+bulkExpenseCalcTotal: 试算合计
+bulkExpenseAmazonBilling: Amazon 账单金额
+bulkExpenseBillingLabel: 标签（可选）
+bulkExpenseAddBillingRow: + 添加行
+bulkExpenseBillingTotal: 账单合计
+bulkExpenseDiff: 差异
+bulkExpensePostAll: 批量过账
+bulkExpenseNoPaymentAccount: 请先选择付款账户
+bulkExpensePosted: 已过账到账簿
+bulkExpenseRowTypeExpense: 支出
+bulkExpenseRowTypeDiscount: 优惠/礼品卡
+bulkExpenseColType: 类型
+bulkExpenseColDate: 日期
+bulkExpenseColName: 名称
+bulkExpenseColQty: 数量
+bulkExpenseColAmount: 金额（¥）
+bulkExpenseColAccount: 账户
+bulkExpenseColBudget: 预算类别
+bulkExpenseDefaultExpenseDesc: Amazon 购物
+bulkExpenseDefaultDiscountDesc: 优惠/礼品卡/积分
+bulkExpenseNoRows: 没有要过账的行
+bulkExpenseSkippedRows: "{n} 行未选择账户，将不会被记录。继续吗？"
+bulkExpenseSkippedTitle: 部分行将被跳过
+bulkExpenseExpensePlaceholder: 支出账户
+bulkExpenseIncomePlaceholder: 收入账户
+bulkExpenseBudgetPlaceholder: 可选
+groupExpenseAccounts: 支出账户
+groupIncomeAccounts: 收入账户
+groupLiabilityAccounts: 负债账户
+groupAssetAccounts: 资产账户
+importGroupAssetTransferAccounts: 资产账户（转账来源）
+storeMappingsTitle: 商店 → 账户映射
+storeMappingsDesc: CSV 导入时记忆的账户分配。点击 × 可删除。
+storeMappingsNoItems: 暂无映射。
+storeMappingSaved: 映射已保存
+storeMappingDeleted: 映射已删除
+storeMappingOverwriteTitle: 覆盖映射？
+storeMappingOverwriteMsg: "商店「{store}」已有账户映射（{existing}）。要覆盖为 {new} 吗？"
+storeMappingOverwrite: 覆盖
+importAmazonHint: 检测到 Amazon 交易。请在此查看订单历史：
+importAmazonBulkBadge: → 批量支出录入
+importAmazonSwitched: Amazon 交易已移至批量支出录入标签页
+importAmazonCount: "{count} 笔 Amazon 订单 → 批量支出录入"
+importSalaryCount: "{count} 笔工资行 → 简单输入"
+importSalarySwitched: 工资行已移至简单输入
+importSalaryAndAmazonSwitched: 工资行移至简单输入，Amazon 行移至批量支出录入
+importEmptyRowsWarning: "{count} 行未选择账户，将不会被导入。继续吗？"
+importEmptyRowsWarningTitle: 未选择账户的行
+importContinue: 继续
+deleteJournalConfirm: 删除分录
+deleteJournalConfirmMsg: 确定要删除此分录吗？此操作不可撤销。
+suppressDeleteWarning5min: 5 分钟内不再显示此警告
+includeInAllocatableLabel: 作为预算分配来源
+includeInAllocatableHint: 只有选中的现金/银行账户才计入可分配金额。
+isDepreciableLabel: 折旧资产（备品等）
+isDepreciableHint: 将此资产账户标记为折旧对象
+depreciationSettingsTitle: 折旧设置
+depreciationSettingsHint: 选择用于记录每月折旧费用的支出账户
+depreciationAccountNone: 未选择账户
 businessOwnerSettingsTitle: 业主垫付款设置
 businessOwnerSettingsHint: 以个体经营者身份记录业务费用垫付款时，配置相关账户。
 isBusinessOwner: 我是个体经营者
 businessAdvanceAccountLabel: 业务垫付款账户
+businessAdvanceAccountDesc: 记录业务欠款的资产账户。
+businessLossAccountLabel: 损失处理账户
+businessLossAccountDesc: 将垫付款作为无法收回的损失处理时使用的支出账户。
+businessAdvanceBudgetCategoryLabel: 垫付款的预算来源
+businessAdvanceBudgetCategoryDesc: 用于扣除业务部分金额的预算类别。
+transactionTypeBusinessAdvance: 事业垫付款
+businessRatioLabel: 业务使用比例
+businessRatioDesc: 此项支出中属于业务费用的部分。
+businessAdvanceSplitBusiness: 业务部分：
+businessAdvanceSplitPersonal: 个人部分：
+personalPortionLabel: 个人部分
+tabBusinessAdvanceProcess: 垫付款处理
+businessAdvanceModeTransfer: 转账（报销）
+businessAdvanceModeDispose: 作为损失处理
+businessAdvanceTransferDesc: 业务垫付款报销
+businessAdvanceDisposeDesc: 核销业务垫付款
+businessAdvanceTransferToLabel: 转入账户
+businessAdvanceAccountNotSet: 业务垫付款账户尚未设置。请在设置中进行配置。
+businessAdvanceBalanceHistory: 余额历史
+changeColHeader: 变动
+goToSettings: 前往设置
+currentBalance: 当前余额
+depreciationLabel: 折旧
+depreciationAssetAccountLabel: 资产账户（备品等）
+depreciationExpenseAccountLabel: 折旧费用账户
+depreciationByMonths: 按期分摊
+depreciationByMonthlyAmount: 按月额分摊
+depreciationMonthsLabel: 折旧期限（月）
+depreciationMonthlyAmountLabel: 月折旧额
+depreciationPreview: 概算
+depreciationMonthUnit: " 个月"
+depreciationCreated: 折旧计划已创建
+depreciationEntryEditWarning: 编辑单条折旧分录可能会破坏计划计算。请尽可能更新源资产分录。
+depreciableAssetsTotal: 折旧资产合计（账面净值）
+depreciationReportTitle: 折旧
+depreciationTotal: 折旧费用合计
+depreciationNone: 此期间没有折旧记录。
+depreciationBudgetPressure: 预算压力（占总支出比例）
+depreciationBudgetPressureNoExpense: 今年没有支出记录。
+budgetConsistencyTitle: 预算一致性检查
+budgetConsistencyClear: "全部 {n} 条交易与预算分配一致。"
+budgetConsistencyIssues: "检测到 {n} 条可疑交易"
+budgetConsistencyChecked: "已检查 {n} 条"
+budgetCheckIssue: 问题
+budgetCheckAllocated: 已分配
+suspiciousExpenseNoAlloc: 支出未在任何预算类别中跟踪
+suspiciousExpenseMismatch: "支出与分配差异：实际 ¥{actual} / 已分配 ¥{allocated}"
+suspiciousIncomeMismatch: "收入与分配差异：实际 ¥{actual} / 已分配 ¥{distributed}"
+tabTrialBalance: 试算表
+tabTrialBalanceDesc: 核对与验证账户余额
+tabLoanMgmt: 贷款管理
+tabLoanMgmtDesc: 管理贷出与借入
+sectionShortTermLending: 短期贷出
+sectionLongTermLending: 长期贷出
+sectionShortTermLoan: 短期借入
+sectionLongTermLoan: 长期借入
+noLoanAccounts: 此类别中没有账户。
+loanNetChange: 金额
+loanSettlementEntry: 还款／收回
+loanOpeningEntry: 新建贷出／借入
+multiLineLoanOpeningNotice: 此分录将登记为新的短期贷出/借入起始事件。
+loanAccountBalance: 未结余额
+loanBalanceHistory: 余额历史
+loanHistoryChange: 变动
+loanHistoryBalance: 余额
+loanCompletedBadge: 已完结
+loanNoEntries: 此类别没有交易历史。
+loanInputBtn: 前往输入
+loanForceCompleteBtn: 强制完结
+loanForceUncompleteBtn: 重新打开
+loanForceSettleConfirmTitle: 确认强制结清
+loanForceSettleConfirmMsg: "强制结清「{desc}」？将自动创建今日日期的冲销分录。"
+loanForceSettleDescPrefix: 强制结清：
+loanWriteOffModalTitle: 作为损失核销
+loanWriteOffDesc: "通过记录支出来核销「{desc}」。将自动创建今日日期的分录。"
+loanWriteOffAmountLabel: 核销金额
+loanWriteOffExpenseLabel: 支出账户
+loanWriteOffIncomeLabel: 收入账户
+loanWriteOffConfirmBtn: 核销并完结
+loanCompletedAccordion: "已完结（{count}）"
+loanSettledPairsAccordion: "已结清（{count}）"
+loanSettledOpeningLabel: 借入／贷出
+loanSettledByLabel: 还款／收回
+loanDetailBtn: 还款计划
+loanDetailTitle: 还款／收回计划
+loanDetailPlanHeader: 计划设定
+loanDetailTotalPrincipal: 本金总额
+loanDetailAnnualRate: "年利率（%）"
+loanDetailMonthlyPayment: 每月固定还款额
+loanDetailStartMonth: 开始月份
+loanDetailNote: 备注
+loanDetailSavePlan: 保存设定
+loanDetailPlanRows: 还款计划表
+loanDetailNoPlan: 尚无还款计划。请在下方创建。
+loanDetailMonth: 月份
+loanDetailPrincipal: 本金
+loanDetailInterest: 利息
+loanDetailRowNote: 备注
+loanDetailAddRow: 添加行
+loanDetailAutoFill: 自动填充
+loanDetailAutoFillDesc: 根据上述计划设定生成还款计划表。
+loanDetailPaymentMethod: 计算方法
+loanDetailEqualPrincipal: 等额本金
+loanDetailEqualPayment: 等额本息
+loanDetailAutoFillMonths: 分期月数
+loanDetailAutoFillPayment: 月还款额
+loanDetailAutoFillCalcPayment: 试算
+loanDetailAutoFillEstMonths: 估算月数
+loanDetailAutoFillConfirm: 生成
+loanDetailDeleteRow: 删除
+loanDetailSaveRows: 保存计划表
+loanDetailComparison: 计划与实际
+loanDetailCompPlanned: 计划
+loanDetailCompActual: 实际
+loanDetailCompDiff: 差异
+loanDetailCompPrincipal: 本金
+loanDetailCompInterest: 利息
+loanDetailCompTotal: 合计
+loanDetailCompNoData: 尚无对照数据。
+loanDetailSaved: 已保存
+loanDetailSaveError: 保存失败
+loanDetailUnsavedWarning: 有未保存的更改
+loanDetailCompJournalEntries: 明细
+loanHistoryTitle: 交易历史
+loanHistoryDate: 日期
+loanHistoryDesc: 描述
+loanHistoryPrincipal: 本金变动
+loanHistoryFee: 手续费／利息
+loanHistoryExpectedFee: 预期利息
+loanHistoryRate: 推算年利率
+loanImpliedRate: 平均推算利率
+loanAddInterestBtn: 添加利息分录
+loanInterestModalTitle: 添加利息分录
+loanInterestAmountLabel: 利息金额
+loanInterestAccount: 利息账户（收入/支出）
+loanInterestPaymentAccount: 结算账户（现金/银行）
+svViewDetails: 查看储蓄详情
+tabSavings: 储蓄
+tabSavingsDesc: 追踪储蓄目标
+savingsMonthlyContributions: 月存款额（近12个月）
+savingsNoCategories: 尚未设置储蓄类别。请在设置中添加组为「储蓄」的预算类别。
+savingsShowFuturePrediction: 显示未来预测
+savingsPredictedSuffix: （预测）
+ttSegActualInput: 输入实际值
+ttSegDeviation: 误差验证
+ttSegBudgetCheck: 预算检查
+ttSegUnknownFunds: 不明资金
+ttActualInputTitle: 输入实际账户余额
+ttActualInputDesc: 输入每个账户的实际余额以检查差异。留空的账户将不被检查。
+ttActualInputDate: 基准日期
+ttActualInputSubmit: 保存并比较
+ttActualInputSaved: 快照已保存
+ttActualInputNoAccounts: 未找到资产或负债账户。
+ttActualModeGeneral: 资产／负债
+ttActualModeCreditCard: 信用卡
+ttActualGeneralDesc: 输入资产和非信用卡负债的当前余额。
+ttActualCreditCardDesc: 按月跟踪信用卡余额，使已确认的过去月份可用于后续核对。
+ttActualSectionAssets: 资产
+ttActualSectionLiabilities: 负债
+ttCcNoAccounts: 未找到信用卡账户。
+ttCcAddMonth: 添加 3 个确认月份
+ttCcShowMoreMonths: 再显示 3 个月
+ttCcHiddenMonths: "隐藏了 {n} 个较早月份"
+ttCcPaymentMonth: 月份
+ttCcUsageHint: 使用期间／付款
+ttCcEntryStatus: 状态
+ttCcWithdrawalAmount: 扣款金额
+ttCcStatusOpen: 变动中
+ttCcStatusConfirmed: 已确认
+ttCcStatusPaid: 已付款
+ccSlotThisMonth: 本月扣款部分
+ccSlotLastMonth: 上月扣款部分
+ccSlotFuture: 未来月份
+ccSlotRevolving: 循环信用（リボ払い）
+ccSlotCashing: 现金预借（キャッシング）
+ccSlotTotal: 小计
+ccLastMonthZeroNote: "自动设为 0（扣款日 {day} 已过）"
+ttDeviationTitle: 账面与实际对比
+ttDeviationNoSnapshot: 尚无实际余额数据。请先输入实际值。
+ttDeviationSnapshotDate: 快照日期
+ttDeviationAccount: 账户
+ttDeviationBookValue: 账面价值
+ttDeviationActualValue: 实际值
+ttDeviationDiff: 差异
+ttDeviationDuplicateCandidates: "{n} 条匹配的分录候选"
+ttDeviationMoreMatches: "另外 {n} 条候选"
+ttDeviationOutOfScopeBadge: 超出当前范围
+ttDeviationOutOfScopeWarning: "本月/上月以外的分录可能仍有余额。范围外账面 {book}，实际 {actual}，差异 {diff}。"
+ttDeviationTotal: 总差异
+ttDeviationGeneralTotal: 资产／负债差异
+ttDeviationCreditCardTotal: 信用卡差异
+ttDeviationGrandTotal: 总体差异
+ttDeviationGeneralSection: 资产／一般负债
+ttDeviationCreditCardSection: 信用卡
+ttDeviationNoGeneralEntries: 此快照中没有资产或非信用卡负债记录。
+ttDeviationNoCreditCardEntries: 此快照中没有信用卡记录。
+ttDeviationHiddenResolvedCcRows: "已隐藏 {n} 行 3 个月前已付款且无差异的记录。"
+ttDeviationShowResolvedCcRows: "显示隐藏的行（{n}）"
+ttDeviationHideResolvedCcRows: 隐藏已解决的行
+ttDeviationOnlyHiddenCreditCardEntries: 仅隐藏了 3 个月前已付款且无差异的信用卡行。
+ttDeviationCreditCardOnlyHint: 仅剩信用卡差异。请查看月度信用卡表。
+ttNoDeviation: 未发现差异。账面与实际一致。
+ttProcessAsUnknownFunds: 作为不明资金处理
+ttUnknownFundsJournalPreview: 将记录以下分录：
+ttUnknownFundsConfirmMsg: 记录这些分录以修正余额差异？
+ttUnknownFundsRecorded: 不明资金分录已记录
+ttDeviationSelectSnapshot: 选择快照
+ttUnknownFundsTitle: 不明资金分录
+ttUnknownFundsEmpty: 未找到不明资金分录。
+ttUnknownFundsFixKnown: 已查明原因 — 修正
+ttUnknownFundsMiscLoss: 归类为杂项损益
+ttUnknownFundsFixTitle: 修正不明资金分录
+ttUnknownFundsMiscTitle: 归类为杂项
+ttUnknownFundsFixConfirm: 记录修正分录并调整不明资金余额？
+ttUnknownFundsMiscConfirm: 记录以下分录以清除此不明资金？
+ttUnknownFundsProcessed: 分录已处理
+ttCauseFoundInput: 已查明原因 — 直接输入
+ttBackToDeviation: 返回误差验证
+ttWorksheetTitle: 调整试算表
+ttWorksheetNote: 调整值按基准日期保存在浏览器中（不保存在数据库中）。
+ttWorksheetAddRow: 添加行
+ttWorksheetAccount: 账户
+ttWorksheetAmount: 金额
+ttWorksheetAdjustment: 调整值
+ttWorksheetAdjustedDeviation: 调整后差异
+ttWorksheetNote2: 备注
+ttOffsetCcTitle: 账单偏移明细
+ttOffsetCcOriginalMonth: 原本 → 偏移后月份
+ttDeleteSnapshot: 删除此快照
+ttDeleteSnapshotConfirm: 删除此快照及其所有记录？此操作不可撤销。
+ttDeleteSnapshotZeroWarning: 此快照没有差异 — 建议保留作为核对记录。
+ttDeleteSnapshotDeleted: 快照已删除
+ttLastCleanSnapshot: 最后验证（无差异）
+ttMiscReclassWarning: 重新归类为杂项损益的分录在复式记账之外无法撤销。
 sysUnknownFunds: 不明资金
 sysMiscExpense: 杂项损失
 sysMiscIncome: 杂项收益
@@ -139,3 +875,158 @@ sysShortTermLending: 短期贷出
 sysShortTermLoan: 短期借入
 sysAccountBadge: 系统
 sysAccountTooltip: 系统账户 - 不能删除或重命名
+budgetCheckMovedNotice: 预算一致性检查已移至试算表页面。
+budgetCheckMovedLink: 前往试算表 →
+fiscalHealthTitle: 财务健康指数
+fiscalHealthSafe: 健康
+fiscalHealthCaution: 注意
+fiscalHealthDanger: 有风险
+fiscalHealthLiquidity: 流动性（30分）
+fiscalHealthEquity: 净资产比率（30分）
+fiscalHealthSpending: 支出控制（40分）
+fiscalHealthNoExpenseData: 满分 - 无支出历史
+fiscalHealthCashLabel: 现金 / 存款
+fiscalHealthBaseLabel: 基准
+fiscalHealthNetWorthLabel: 净资产
+fiscalHealthAnnualEstLabel: 年度估算
+fiscalHealthBreakdown: 明细
+fiscalHealthThreshold50: "≥ 50% = 满分"
+fiscalHealthThreshold60: "≥ 60% = 满分"
+fiscalHealthThreshold100: "≥ 100% = 满分"
+bulkEditSectionTitle: 批量编辑／替换
+bulkEditSectionDesc: 将特定账户的所有分录行替换为其他账户，或按条件批量删除分录。
+bulkEditSectionLink: 批量编辑／替换 →
+bulkEditPageTitle: 批量编辑／替换
+bulkReplaceTabLabel: 替换分录中的账户
+bulkDeleteTabLabel: 批量删除分录
+bulkReplaceFromLabel: 替换来源（源账户）
+bulkReplaceToLabel: 替换目标（目标账户）
+bulkReplacePreviewBtn: 预览
+bulkReplaceExecBtn: 执行替换
+bulkReplaceConfirmTitle: 确认替换账户
+bulkReplaceConfirmBody: "「{from}」的所有分录行将被替换为「{to}」。此操作不可撤销。"
+bulkReplacePreviewMsg: "将替换 {count} 条分录行。"
+bulkReplaceSuccess: "已替换 {count} 条分录行。"
+bulkReplaceNoLines: 所选账户没有找到分录行。
+bulkDeleteAccountLabel: 账户（可选）
+bulkDeleteDateFromLabel: 开始日期（可选）
+bulkDeleteDateToLabel: 结束日期（可选）
+bulkDeleteDescLabel: 描述包含（可选）
+bulkDeletePreviewBtn: 预览
+bulkDeleteExecBtn: 删除匹配的分录
+bulkDeleteConfirmTitle: 确认批量删除
+bulkDeleteConfirmBody: 所有匹配的分录将被永久删除。此操作不可撤销。
+bulkDeletePreviewMsg: "{count} 条分录匹配条件。"
+bulkDeleteSuccess: "已删除 {count} 条分录。"
+bulkDeleteNoMatch: 没有分录匹配指定的条件。
+bulkDeleteNoCondition: 请至少指定一个筛选条件。
+deleteNonZeroBalanceTooltip: 无法删除：账户余额不为零
+bulkSelectAll: 全选
+bulkSelectedCount: "已选 {selected} / {total}"
+bulkReplaceConfirmSuffix: 条分录将被更新。
+settingsNavCsvTitle: CSV 导入设置
+settingsNavCsvDesc: 设置 CSV 导入时的店铺到账户映射。
+settingsNavInitialBalanceDesc: 开始使用时记录期初余额。
+settingsNavBudgetDesc: 管理预算类别和收入筛选器。
+settingsNavBusinessDesc: 设置业务费用垫付款账户。
+settingsNavBulkEditDesc: 替换或批量删除日记账分录。
+settingsNavDangerDesc: 永久删除数据。请谨慎使用。
+settingsNavGuidesTitle: 用户指南
+settingsNavGuidesDesc: 了解此应用的独有功能。
+guidesPageTitle: 用户指南
+settingsSubpageBack: ← 设置
+settingsNavExportTitle: 导出报表
+settingsNavExportDesc: 将资产负债表和损益表下载为 JSON 或 PDF。
+exportPeriodLabel: 报表期间
+exportFromLabel: 开始日期
+exportToLabel: 结束日期（资产负债表基准日）
+exportJSON: 下载 JSON
+exportJSONC: 下载 JSONC
+jsoncFileTitle: 家庭财务报告
+jsoncFileFormatNote: 此文件为 JSONC 格式（带 // 注释的 JSON）。
+jsoncGeneratedLabel: 生成时间
+jsoncPeriodRangeLabel: 折旧期间
+jsoncExportedAtComment: ISO 8601 导出时间戳
+jsoncPeriodSection: 报表期间
+jsoncFromComment: 损益表开始日期
+jsoncToComment: 损益表结束日期
+jsoncBsAsOfComment: 资产负债表基准日（与结束日期相同）
+jsoncBsSectionTitle: 资产负债表
+jsoncBsNote1: 余额通过 journal_lines 的 SUM(借方) - SUM(贷方) 计算。
+jsoncBsNote2: 资产：借方多 = 正数。负债/权益：贷方多 = 正数。
+jsoncBsNote3: 余额为 0 的账户也包含在内。
+jsoncNetWorthComment: 净资产 = 总资产 - 总负债
+jsoncPlSectionTitle: 损益表
+jsoncPlNote1: 收入金额 = 期间内 SUM(贷方) - SUM(借方)。
+jsoncPlNote2: 支出金额 = 期间内 SUM(借方) - SUM(贷方)。
+jsoncPlNote3: 金额为 0 的账户也包含在内。
+jsoncNetIncomeComment: 净利润 = 总收入 - 总支出
+jsoncDeprSectionTitle: 折旧进度
+jsoncDeprNote1: 简化家庭折旧：每月分录 借：折旧费 / 贷：资产。
+jsoncDeprNote2: 账面价值 = 总额 - 累计折旧 ← 与资产负债表上的资产余额一致。
+jsoncDeprNote3: 进度百分比 = 累计折旧 / 总额 × 100（截断取整）
+exportPrint: 打印
+exportSavePDF: 另存为 PDF
+exportSQLite: 下载 SQLite
+exportSchemeLight: 切换为浅色
+exportSchemeDark: 切换为深色
+exportDepreciationTitle: 折旧进度
+exportDepreciationNote: 简化家庭折旧：每月折旧费用通过分录直接减少资产账户余额。
+exportDepreciationAcquisitionCost: 取得原价
+exportDepreciationPeriod: 折旧期间
+exportDepreciationStartDate: 开始日期
+exportDepreciationAccumulated: 累计折旧
+exportDepreciationBookValue: 账面价值
+exportDepreciationProgress: 进度
+exportDepreciationNone: 没有注册的折旧资产。
+negativeBalanceWarning: 此账户余额为负数
+settingsNavCurrencyTitle: 外币
+settingsNavCurrencyDesc: 启用与 JPY 一起使用的货币和加密货币。
+currencySettingsTitle: 外币设置
+currencySettingsFiatGroup: 法定货币
+currencySettingsCryptoGroup: 加密货币
+currencySettingsNote: 启用您使用的货币。至少必须始终保持启用一种。
+currencySettingsRateNote: 汇率自动获取（通常冷却 30 分钟；添加缺少的法定货币时 30 秒）。
+currencySettingsApiSourceTitle: 汇率来源 API
+currencySettingsFiatApiLabel: 法定货币汇率
+currencySettingsCryptoApiLabel: 加密货币价格
+currencySettingsApiApplied: 提供商已更改。正在刷新汇率…
+currencySettingsInitialSetupTitle: 初始货币设置
+currencySettingsSelectAtLeastOne: 请至少选择一种要使用的货币
+currencySettingsFiatOrCryptoRequired: 至少必须启用一种法定货币或加密货币。
+currencySettingsCryptoIcons: 加密货币图标
+currencySettingsIconStyleRich: 丰富
+currencySettingsIconStyleWhite: 白色符号
+currencySettingsSymbolConflicts: 符号冲突
+currencySettingsSymbolConflictsDesc: 多个已启用的货币共享相同的符号。请选择显示哪一个。
+currencySettingsRateStatus: 汇率状态
+currencySettingsBaseBadge: 基准
+currencySettingsRateStatusDesc: 法定货币以基准货币报价；加密货币显示为每 1 单位的基准货币价格。
+currencySettingsRateFetched: 已获取
+currencySettingsRateMissing: 未获取
+currencySettingsCustomRates: 自定义货币汇率
+currencySettingsManualBadge: 手动
+currencySettingsCustomRatesDesc: 对于无法自动获取的货币，请选择基准货币并输入汇率。
+currencySettingsBaseCurrencyLabel: 基准
+currencySettingsEnabledList: 已启用的货币
+currencySettingsAddCurrency: 添加货币
+currencySettingsKnownCurrency: 已知货币
+currencySettingsSelectCurrency: 选择货币
+currencySettingsAddCustomCurrency: 添加自定义货币
+currencySettingsCurrencyCode: 代码
+currencySettingsDisplayIcon: 显示图标
+currencySettingsSelectIcon: 选择图标
+currencySettingsSymbol: 货币符号
+currencySettingsDecimalPlaces: 小数位数
+currencySettingsDisableBalance: 无法禁用：余额不为零
+currencySettingsDisableLast: 无法禁用最后一个货币 — 至少需要一个
+tabFxExchange: 外汇兑换
+fxExchangeTitle: 货币兑换
+fxFromCurrency: 付出（币种）
+fxToCurrency: 收到（币种）
+fxFromAccount: 源账户
+fxToAccount: 目标账户
+fxFromAmount: 付出金额
+fxToAmount: 收到金额
+includeAllCurrencies: 包含所有货币
+displayCurrencyLabel: 显示货币

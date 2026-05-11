@@ -991,6 +991,35 @@ currencySettingsApiSourceTitle: Rate Source APIs
 currencySettingsFiatApiLabel: Fiat Exchange Rates
 currencySettingsCryptoApiLabel: Crypto Prices
 currencySettingsApiApplied: Provider changed. Refreshing rates…
+currencySettingsInitialSetupTitle: Initial Currency Setup
+currencySettingsSelectAtLeastOne: Please select at least one currency to use
+currencySettingsFiatOrCryptoRequired: At least one fiat or crypto currency must be enabled.
+currencySettingsCryptoIcons: Crypto icons
+currencySettingsIconStyleRich: Rich
+currencySettingsIconStyleWhite: White symbol
+currencySettingsSymbolConflicts: Symbol conflicts
+currencySettingsSymbolConflictsDesc: Multiple enabled currencies share the same symbol. Choose which one displays it.
+currencySettingsRateStatus: Rate status
+currencySettingsBaseBadge: Base
+currencySettingsRateStatusDesc: Fiat currencies are quoted from the base currency; crypto is shown as the base-currency price per 1 unit.
+currencySettingsRateFetched: Fetched
+currencySettingsRateMissing: Missing
+currencySettingsCustomRates: Custom currency rates
+currencySettingsManualBadge: Manual
+currencySettingsCustomRatesDesc: For currencies that cannot be fetched automatically, choose a base currency and enter the rate.
+currencySettingsBaseCurrencyLabel: Base
+currencySettingsEnabledList: Enabled currencies
+currencySettingsAddCurrency: Add currency
+currencySettingsKnownCurrency: Known currency
+currencySettingsSelectCurrency: Select currency
+currencySettingsAddCustomCurrency: Add Custom Currency
+currencySettingsCurrencyCode: Code
+currencySettingsDisplayIcon: Display icon
+currencySettingsSelectIcon: Select an icon
+currencySettingsSymbol: Currency symbol
+currencySettingsDecimalPlaces: Decimal places
+currencySettingsDisableBalance: "Cannot disable: has non-zero balance"
+currencySettingsDisableLast: Cannot disable the last currency — at least one is required
 tabFxExchange: FX Exchange
 fxExchangeTitle: Currency Exchange
 fxFromCurrency: Give (currency)
