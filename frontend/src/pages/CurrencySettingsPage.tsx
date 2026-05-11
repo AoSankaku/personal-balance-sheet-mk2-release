@@ -247,8 +247,8 @@ export default function CurrencySettingsPage({
     cryptoIconStyle,
     setCryptoIconStyle,
     exchangeRates,
-    manualExchangeRates,
-    setManualExchangeRate,
+    manualExchangeRateSpecs,
+    setManualExchangeRateSpec,
     ratesCooldown,
     pricesCooldown,
   } = useAppData();
@@ -268,7 +268,7 @@ export default function CurrencySettingsPage({
     useState<FiatProvider>(getFiatProvider);
   const [providerMsg, setProviderMsg] = useState<string | null>(null);
   const [manualRateInputs, setManualRateInputs] = useState<
-    Record<string, number | string>
+    Record<string, { base: string; rate: number | string }>
   >({});
 
   const enabledSet = new Set(enabledCurrencies.map((c) => c.code));
@@ -295,14 +295,31 @@ export default function CurrencySettingsPage({
 
   useEffect(() => {
     setManualRateInputs((prev) => {
-      const next: Record<string, number | string> = {};
+      const next: Record<string, { base: string; rate: number | string }> = {};
       for (const currency of customEnabled) {
-        next[currency.code] =
-          prev[currency.code] ?? manualExchangeRates[currency.code] ?? "";
+        const existing = prev[currency.code];
+        const saved = manualExchangeRateSpecs[currency.code];
+        next[currency.code] = {
+          base: existing?.base ?? saved?.base ?? "JPY",
+          rate: existing?.rate ?? saved?.rate ?? "",
+        };
       }
       return next;
     });
-  }, [customEnabled, manualExchangeRates]);
+  }, [customEnabled, manualExchangeRateSpecs]);
+
+  const customRateBaseOptions = useMemo(() => {
+    return [
+      {
+        group: locale === "ja" ? "法定通貨" : "Fiat",
+        items: FIAT_CURRENCIES.map((c) => ({ value: c.code, label: c.code })),
+      },
+      {
+        group: locale === "ja" ? "仮想通貨" : "Crypto",
+        items: CRYPTO_CURRENCIES.map((c) => ({ value: c.code, label: c.code })),
+      },
+    ];
+  }, [locale]);
 
   const knownCurrencyOptions = useMemo(() => {
     const options = [
@@ -493,19 +510,34 @@ export default function CurrencySettingsPage({
   }
 
   function updateManualRateInput(code: string, value: number | string) {
-    setManualRateInputs((prev) => ({ ...prev, [code]: value }));
+    setManualRateInputs((prev) => ({
+      ...prev,
+      [code]: { base: prev[code]?.base ?? "JPY", rate: value },
+    }));
+  }
+
+  function updateManualRateBase(code: string, base: string | null) {
+    const nextBase = (base ?? "JPY").trim().toUpperCase() || "JPY";
+    setManualRateInputs((prev) => ({
+      ...prev,
+      [code]: { base: nextBase, rate: prev[code]?.rate ?? "" },
+    }));
   }
 
   function saveManualRate(code: string) {
-    const raw = manualRateInputs[code];
-    const rate = Number(raw);
+    const input = manualRateInputs[code];
+    const rate = Number(input?.rate);
     if (!Number.isFinite(rate) || rate <= 0) return;
-    setManualExchangeRate(code, rate);
+    const base = (input?.base ?? "JPY").trim().toUpperCase() || "JPY";
+    setManualExchangeRateSpec(code, { base, rate });
   }
 
   function clearManualRate(code: string) {
-    updateManualRateInput(code, "");
-    setManualExchangeRate(code, null);
+    setManualRateInputs((prev) => ({
+      ...prev,
+      [code]: { base: prev[code]?.base ?? "JPY", rate: "" },
+    }));
+    setManualExchangeRateSpec(code, null);
   }
 
   async function setPrimary(symbol: string, primaryCode: string) {
@@ -893,16 +925,17 @@ export default function CurrencySettingsPage({
             </Group>
             <Text size="xs" c="dimmed">
               {locale === "ja"
-                ? "自動取得できない通貨は、1単位あたりのJPYレートを入力してください。"
-                : "Enter the JPY value of 1 unit for currencies that cannot be fetched automatically."}
+                ? "自動取得できない通貨は、基軸通貨を選択してレートを入力してください。"
+                : "For currencies that cannot be fetched automatically, choose a base currency and enter the rate."}
             </Text>
             <Stack gap={6}>
               {customEnabled.map((currency) => {
                 const code = currency.code;
-                const input = manualRateInputs[code] ?? "";
+                const input = manualRateInputs[code]?.rate ?? "";
+                const base = manualRateInputs[code]?.base ?? "JPY";
                 const numericInput = Number(input);
                 const canSave = Number.isFinite(numericInput) && numericInput > 0;
-                const savedRate = manualExchangeRates[code] ?? 0;
+                const savedRate = manualExchangeRateSpecs[code]?.rate ?? 0;
 
                 return (
                   <Group key={code} gap="xs" align="flex-end" wrap="nowrap">
@@ -923,9 +956,18 @@ export default function CurrencySettingsPage({
                       decimalScale={8}
                       allowNegative={false}
                       clampBehavior="none"
-                      rightSection={<Text size="xs">JPY</Text>}
+                      rightSection={<Text size="xs">{base}</Text>}
                       rightSectionWidth={42}
                       w={180}
+                    />
+                    <Select
+                      label={locale === "ja" ? "基軸" : "Base"}
+                      value={base}
+                      onChange={(value) => updateManualRateBase(code, value)}
+                      data={customRateBaseOptions}
+                      searchable
+                      allowDeselect={false}
+                      w={120}
                     />
                     <ActionIcon
                       variant="filled"

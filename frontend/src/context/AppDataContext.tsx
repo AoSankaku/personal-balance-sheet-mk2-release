@@ -27,6 +27,10 @@ import { api } from "../api/client";
 import { useLang } from "../i18n";
 import { useCryptoPrices } from "../hooks/useCryptoPrices";
 import { useExchangeRates } from "../hooks/useExchangeRates";
+import type {
+  ManualExchangeRateSpec,
+  ManualExchangeRateSpecs,
+} from "../lib/manualExchangeRates";
 import { getEffectiveSymbol } from "../lib/currencyUtils";
 import {
   computeAllocatableBudget,
@@ -99,10 +103,15 @@ interface AppDataContextValue {
   setCryptoIconStyle: (style: CryptoIconStyle) => void;
   /** Exchange rates: 1 unit = X JPY. Always includes JPY: 1. */
   exchangeRates: ExchangeRates;
-  /** Manually entered rates: 1 unit = X JPY. */
-  manualExchangeRates: ExchangeRates;
-  /** Save or clear a manually entered exchange rate. */
-  setManualExchangeRate: (code: string, rate: number | null) => void;
+  /** Manually entered custom-currency rates: 1 unit of CODE = rate units of base */
+  manualExchangeRateSpecs: ManualExchangeRateSpecs;
+  /** Save or clear a manually entered custom-currency exchange rate */
+  setManualExchangeRateSpec: (
+    code: string,
+    spec: ManualExchangeRateSpec | null,
+  ) => void;
+  /** Clear manually entered and cached exchange rates. */
+  resetExchangeRates: () => void;
   /** Seconds until next exchange rate refresh is allowed */
   ratesCooldown: number;
   /** Convert an amount between currencies using current rates */
@@ -131,8 +140,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     cooldownRemaining: ratesCooldown,
     convert: convertCurrency,
     forceRefresh: forceRefreshRates,
-    manualRates: manualExchangeRates,
-    setManualRate: setManualExchangeRate,
+    manualRateSpecs: manualExchangeRateSpecs,
+    setManualRateSpec: setManualExchangeRateSpec,
+    resetStoredRates: resetExchangeRates,
+    ensureRatesForCurrencies,
   } = useExchangeRates(prices);
 
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -192,30 +203,30 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     storeCryptoIconStyle(style);
   }, []);
 
-  const ensureRateForCurrency = useCallback(
-    (currency: string) => {
-      if (!currency || currency === "JPY") return;
-      if ((exchangeRates[currency] ?? 0) > 0) return;
-      void forceRefreshRates();
-    },
-    [exchangeRates, forceRefreshRates],
-  );
+  const ensureRatesForEnabledCurrencies = useCallback(() => {
+    if (!enabledCurrenciesLoaded) return;
+    void ensureRatesForCurrencies(enabledCurrencies.map((c) => c.code));
+  }, [enabledCurrencies, enabledCurrenciesLoaded, ensureRatesForCurrencies]);
 
   const setDisplayCurrency = useCallback(
     (currency: string) => {
       setDisplayCurrencyState(currency);
-      ensureRateForCurrency(currency);
+      void ensureRatesForCurrencies([currency]);
       try {
         localStorage.setItem("display_currency", currency);
       } catch {}
     },
-    [ensureRateForCurrency],
+    [ensureRatesForCurrencies],
   );
 
   useEffect(() => {
     if (!isInitialSetupComplete) return;
-    ensureRateForCurrency(displayCurrency);
-  }, [displayCurrency, ensureRateForCurrency, isInitialSetupComplete]);
+    void ensureRatesForCurrencies([displayCurrency]);
+  }, [displayCurrency, ensureRatesForCurrencies, isInitialSetupComplete]);
+
+  useEffect(() => {
+    ensureRatesForEnabledCurrencies();
+  }, [ensureRatesForEnabledCurrencies]);
 
   const refreshEnabledCurrencies = useCallback(async () => {
     try {
@@ -505,7 +516,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   // Seed default accounts on first ever load when the DB is empty
   useEffect(() => {
     if (loading) return;
-    if (!isInitialSetupComplete) return;
+    if (!isInitialSetupComplete) {
+      seedAttempted.current = false;
+      return;
+    }
     if (seedAttempted.current) return;
     seedAttempted.current = true;
     if (accounts.length > 0) {
@@ -598,8 +612,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         cryptoIconStyle,
         setCryptoIconStyle,
         exchangeRates,
-        manualExchangeRates,
-        setManualExchangeRate,
+        manualExchangeRateSpecs,
+        setManualExchangeRateSpec,
+        resetExchangeRates,
         ratesCooldown,
         convertCurrency,
       }}
