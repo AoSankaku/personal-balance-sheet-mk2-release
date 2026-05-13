@@ -46,6 +46,7 @@ import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import {
   CATEGORY_TRANSLATION_KEY,
   categoryIndex,
+  isUserSelectableAccount,
   systemAccountTranslationKey,
 } from "../lib/accountUtils";
 
@@ -160,13 +161,15 @@ export default function DbPage() {
   // Grouped account options for the write-off modal (mirrors SimpleEntryForm pattern)
   const counterAccountOptions = useMemo(() => {
     const buildGrouped = (type: "expense" | "income") => {
-      const sorted = [...accounts.filter((a) => a.type === type)].sort(
-        (a, b) => {
-          const ai = categoryIndex(a.type, a.category, a.is_system ?? false);
-          const bi = categoryIndex(b.type, b.category, b.is_system ?? false);
-          return ai !== bi ? ai - bi : a.name.localeCompare(b.name, "ja");
-        },
-      );
+      const sorted = [
+        ...accounts.filter(
+          (a) => a.type === type && isUserSelectableAccount(a),
+        ),
+      ].sort((a, b) => {
+        const ai = categoryIndex(a.type, a.category, a.is_system ?? false);
+        const bi = categoryIndex(b.type, b.category, b.is_system ?? false);
+        return ai !== bi ? ai - bi : a.name.localeCompare(b.name, "ja");
+      });
       const groups = new Map<
         string,
         { group: string; items: AccountOption[] }

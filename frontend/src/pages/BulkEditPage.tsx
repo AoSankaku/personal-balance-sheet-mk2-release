@@ -285,7 +285,9 @@ export default function BulkEditPage() {
   const accountOptions = buildAccountGroups(
     accounts.filter((a) => !a.is_system),
   );
-  const allAccountOptions = buildAccountGroups(accounts);
+  const allAccountOptions = buildAccountGroups(
+    accounts.filter((a) => !a.is_system),
+  );
   const replacementAccountOptions = filterSelectData(
     allAccountOptions,
     (o) => o.value !== fromAccountId,

@@ -14,6 +14,10 @@ import type { BudgetCategory } from "@balance-sheet/shared";
 import { api, ApiError } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
+import {
+  isUserSelectableAccount,
+  toAccountSelectOption,
+} from "../lib/accountUtils";
 
 interface Props {
   opened: boolean;
@@ -152,9 +156,10 @@ export function BudgetCategoryModal({
         account.type === "asset" &&
         !account.is_depreciable &&
         account.include_in_allocatable !== false &&
-        account.category === "cash",
+        account.category === "cash" &&
+        isUserSelectableAccount(account),
     )
-    .map((account) => ({ value: String(account.id), label: account.name }));
+    .map((account) => toAccountSelectOption(account, t));
 
   function handleTargetAccountIdsChange(values: string[]) {
     form.setFieldValue("target_account_ids", values);

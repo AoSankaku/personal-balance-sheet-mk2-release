@@ -34,6 +34,43 @@ export function systemAccountTranslationKey(
   }
 }
 
+type AccountDisplayLike = {
+  id?: number | string;
+  name: string;
+  is_system?: boolean | number;
+};
+
+export function isSystemAccount(account: { is_system?: boolean | number }) {
+  return account.is_system === true || account.is_system === 1;
+}
+
+export function isUserSelectableAccount(account: {
+  is_system?: boolean | number;
+}) {
+  return !isSystemAccount(account);
+}
+
+export function accountDisplayName(
+  account: AccountDisplayLike,
+  t?: (key: TranslationKey) => string,
+): string {
+  if (isSystemAccount(account)) {
+    const key = systemAccountTranslationKey(account.name);
+    if (key) return t ? t(key) : key;
+  }
+  return account.name;
+}
+
+export function toAccountSelectOption(
+  account: AccountDisplayLike & { id: number | string },
+  t?: (key: TranslationKey) => string,
+) {
+  return {
+    value: String(account.id),
+    label: accountDisplayName(account, t),
+  };
+}
+
 /**
  * Canonical category ordering per account type.
  * System accounts are always sorted last (handled by caller).

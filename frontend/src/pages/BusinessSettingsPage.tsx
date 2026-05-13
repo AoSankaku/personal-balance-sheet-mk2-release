@@ -15,6 +15,10 @@ import { api } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
+import {
+  isUserSelectableAccount,
+  toAccountSelectOption,
+} from "../lib/accountUtils";
 
 export default function BusinessSettingsPage() {
   const { t } = useLang();
@@ -91,8 +95,8 @@ export default function BusinessSettingsPage() {
                   .then(() => void refreshBudgetSettings());
               }}
               data={accounts
-                .filter((a) => a.type === "asset")
-                .map((a) => ({ value: String(a.id), label: a.name }))}
+                .filter((a) => a.type === "asset" && isUserSelectableAccount(a))
+                .map((a) => toAccountSelectOption(a, t))}
             />
             <Select
               size="sm"
@@ -114,8 +118,10 @@ export default function BusinessSettingsPage() {
                   .then(() => void refreshBudgetSettings());
               }}
               data={accounts
-                .filter((a) => a.type === "expense")
-                .map((a) => ({ value: String(a.id), label: a.name }))}
+                .filter(
+                  (a) => a.type === "expense" && isUserSelectableAccount(a),
+                )
+                .map((a) => toAccountSelectOption(a, t))}
             />
             <Select
               size="sm"

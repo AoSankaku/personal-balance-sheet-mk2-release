@@ -64,6 +64,10 @@ import {
   type CsvRowState,
   type BulkExpenseRow,
 } from "../utils/inputDrafts";
+import {
+  isUserSelectableAccount,
+  toAccountSelectOption,
+} from "../lib/accountUtils";
 
 type SortCol = "date" | "store";
 type SortDir = "asc" | "desc";
@@ -125,9 +129,14 @@ export function CsvImportTab({
     setCsvDraft({ parseResult, manualFormat, selectedAccountId, rowStates });
   }, [parseResult, manualFormat, selectedAccountId, rowStates]);
 
-  const bankAccounts = accounts.filter((a) => a.type === "asset");
+  const bankAccounts = accounts.filter(
+    (a) => a.type === "asset" && isUserSelectableAccount(a),
+  );
   const creditCardAccounts = accounts.filter(
-    (a) => a.type === "liability" && a.category === "credit_card",
+    (a) =>
+      a.type === "liability" &&
+      a.category === "credit_card" &&
+      isUserSelectableAccount(a),
   );
 
   const groupedExpenseOpts = buildGroupedExpenseOptions(
@@ -149,14 +158,8 @@ export function CsvImportTab({
     selectedAccountId,
   );
 
-  const cardOptions = creditCardAccounts.map((a) => ({
-    value: String(a.id),
-    label: a.name,
-  }));
-  const bankOptions = bankAccounts.map((a) => ({
-    value: String(a.id),
-    label: a.name,
-  }));
+  const cardOptions = creditCardAccounts.map((a) => toAccountSelectOption(a, t));
+  const bankOptions = bankAccounts.map((a) => toAccountSelectOption(a, t));
   const budgetCategoryOptions = budgetCategories.map((cat) => ({
     value: String(cat.id),
     label: cat.name,

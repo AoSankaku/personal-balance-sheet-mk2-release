@@ -11,6 +11,10 @@ import { DatePickerInput } from "@mantine/dates";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
 import { api } from "../api/client";
+import {
+  isUserSelectableAccount,
+  toAccountSelectOption,
+} from "../lib/accountUtils";
 
 interface Props {
   onSuccess?: () => void;
@@ -41,12 +45,13 @@ export function ForeignExchangeForm({ onSuccess }: Props) {
   }));
 
   const assetLiabilityAccounts = accounts.filter(
-    (a) => a.type === "asset" || a.type === "liability",
+    (a) =>
+      (a.type === "asset" || a.type === "liability") &&
+      isUserSelectableAccount(a),
   );
-  const accountOptions = assetLiabilityAccounts.map((a) => ({
-    value: String(a.id),
-    label: a.name,
-  }));
+  const accountOptions = assetLiabilityAccounts.map((a) =>
+    toAccountSelectOption(a, t),
+  );
 
   // Auto-fill toAmount when fromAmount changes using exchange rates
   function handleFromAmountChange(val: number | string) {

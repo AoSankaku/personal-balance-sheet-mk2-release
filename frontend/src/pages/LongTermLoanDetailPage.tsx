@@ -59,6 +59,10 @@ import {
   impliedAnnualRate,
   type ClassifiedEntry,
 } from "./longTermLoanUtils";
+import {
+  isUserSelectableAccount,
+  toAccountSelectOption,
+} from "../lib/accountUtils";
 
 interface Props {
   kind: "loan" | "lend";
@@ -537,16 +541,25 @@ export default function LongTermLoanDetailPage({ kind }: Props) {
   const interestAccountOptions = useMemo(
     () =>
       accounts
-        .filter((a) => a.type === (isAsset ? "income" : "expense"))
-        .map((a) => ({ value: String(a.id), label: a.name })),
-    [accounts, isAsset],
+        .filter(
+          (a) =>
+            a.type === (isAsset ? "income" : "expense") &&
+            isUserSelectableAccount(a),
+        )
+        .map((a) => toAccountSelectOption(a, t)),
+    [accounts, isAsset, t],
   );
   const paymentAccountOptions = useMemo(
     () =>
       accounts
-        .filter((a) => a.type === "asset" && a.id !== accountId)
-        .map((a) => ({ value: String(a.id), label: a.name })),
-    [accounts, accountId],
+        .filter(
+          (a) =>
+            a.type === "asset" &&
+            a.id !== accountId &&
+            isUserSelectableAccount(a),
+        )
+        .map((a) => toAccountSelectOption(a, t)),
+    [accounts, accountId, t],
   );
 
   if (!isCorrectKind && account) {

@@ -40,7 +40,11 @@ import { isLongTermLoanCategory } from "@balance-sheet/shared";
 import { api } from "../api/client";
 import { useLang, type Locale } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
-import { categoryIndex } from "../lib/accountUtils";
+import {
+  categoryIndex,
+  isUserSelectableAccount,
+  toAccountSelectOption,
+} from "../lib/accountUtils";
 import { AccountTable } from "../components/AccountTable";
 import { AddAccountModal } from "../components/AddAccountModal";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
@@ -611,10 +615,9 @@ export default function SettingsPage() {
               ? [
                   {
                     group: t("sectionAssets"),
-                    items: assets.map((a) => ({
-                      value: String(a.id),
-                      label: a.name,
-                    })),
+                    items: assets
+                      .filter(isUserSelectableAccount)
+                      .map((a) => toAccountSelectOption(a, t)),
                   },
                 ]
               : []),
@@ -622,10 +625,9 @@ export default function SettingsPage() {
               ? [
                   {
                     group: t("sectionLiabilities"),
-                    items: liabilities.map((a) => ({
-                      value: String(a.id),
-                      label: a.name,
-                    })),
+                    items: liabilities
+                      .filter(isUserSelectableAccount)
+                      .map((a) => toAccountSelectOption(a, t)),
                   },
                 ]
               : []),

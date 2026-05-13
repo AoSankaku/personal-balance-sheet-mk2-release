@@ -35,6 +35,10 @@ import {
   buildGroupedLiabilityOptions,
 } from "../utils/csvInputUtils";
 import {
+  isUserSelectableAccount,
+  toAccountSelectOption,
+} from "../lib/accountUtils";
+import {
   bulkDraft,
   setBulkDraft,
   DEFAULT_BILLING_ROW,
@@ -105,11 +109,21 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
     t("catLending"),
   );
   const loanItems = accounts
-    .filter((a) => a.type === "liability" && a.category === "loan")
-    .map((a) => ({ value: String(a.id), label: a.name }));
+    .filter(
+      (a) =>
+        a.type === "liability" &&
+        a.category === "loan" &&
+        isUserSelectableAccount(a),
+    )
+    .map((a) => toAccountSelectOption(a, t));
   const shortTermLoanItems = accounts
-    .filter((a) => a.type === "liability" && a.category === "short_term_loan")
-    .map((a) => ({ value: String(a.id), label: a.name }));
+    .filter(
+      (a) =>
+        a.type === "liability" &&
+        a.category === "short_term_loan" &&
+        isUserSelectableAccount(a),
+    )
+    .map((a) => toAccountSelectOption(a, t));
   const expenseAndRepaymentOpts = [
     ...expenseOpts,
     ...(loanItems.length > 0

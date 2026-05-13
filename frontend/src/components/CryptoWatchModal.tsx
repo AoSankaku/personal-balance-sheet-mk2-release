@@ -18,7 +18,11 @@ import type {
 import { api } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
-import { categoryIndex } from "../lib/accountUtils";
+import {
+  categoryIndex,
+  isUserSelectableAccount,
+  toAccountSelectOption,
+} from "../lib/accountUtils";
 import { formatJPY } from "../lib/numberFormat";
 
 /** Auto-detect chain from address format.
@@ -84,7 +88,7 @@ export function CryptoWatchModal({
   const isAddressNonEmpty = address.trim().length > 0;
 
   const availableAccounts = assetAccounts
-    .filter((a) => !linkedAccountIds.has(a.id))
+    .filter((a) => !linkedAccountIds.has(a.id) && isUserSelectableAccount(a))
     .slice()
     .sort(
       (a, b) =>
@@ -257,10 +261,7 @@ export function CryptoWatchModal({
         <Select
           label={t("linkAccount")}
           placeholder={t("selectAccount")}
-          data={availableAccounts.map((a) => ({
-            value: String(a.id),
-            label: a.name,
-          }))}
+          data={availableAccounts.map((a) => toAccountSelectOption(a, t))}
           value={accountId}
           onChange={setAccountId}
         />

@@ -17,7 +17,11 @@ import dayjs from "dayjs";
 import { api } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
-import { categoryIndex } from "../lib/accountUtils";
+import {
+  categoryIndex,
+  isUserSelectableAccount,
+  toAccountSelectOption,
+} from "../lib/accountUtils";
 import { showFeedback } from "../lib/feedback";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import type { Account } from "@balance-sheet/shared";
@@ -54,7 +58,12 @@ export default function InitialBalancePage() {
   }
 
   const assets = useMemo(
-    () => sortByCategory(accounts.filter((a) => a.type === "asset")),
+    () =>
+      sortByCategory(
+        accounts.filter(
+          (a) => a.type === "asset" && isUserSelectableAccount(a),
+        ),
+      ),
     [accounts],
   );
 
@@ -140,10 +149,7 @@ export default function InitialBalancePage() {
           <Select
             label={t("initialAssetAccountLabel")}
             placeholder={t("selectAccount")}
-            data={assets.map((a) => ({
-              value: String(a.id),
-              label: a.name,
-            }))}
+            data={assets.map((a) => toAccountSelectOption(a, t))}
             searchable
             required
             value={initialAssetId}

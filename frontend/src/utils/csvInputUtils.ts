@@ -1,6 +1,7 @@
 // ─── Shared utilities for CSV import and account option building ──────────────
 
 import type { useAppData } from "../context/AppDataContext";
+import { isUserSelectableAccount } from "../lib/accountUtils";
 import type { CsvFormat, ParsedTransaction } from "./csvParser";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -79,10 +80,15 @@ export function buildGroupedExpenseOptions(
   lendingGroupLabel: string,
 ): AccountOptionGroup[] {
   const expenseItems = accounts
-    .filter((a) => a.type === "expense")
+    .filter((a) => a.type === "expense" && isUserSelectableAccount(a))
     .map((a) => ({ value: String(a.id), label: a.name }));
   const lendingItems = accounts
-    .filter((a) => a.type === "asset" && a.category === "lending")
+    .filter(
+      (a) =>
+        a.type === "asset" &&
+        a.category === "lending" &&
+        isUserSelectableAccount(a),
+    )
     .map((a) => ({ value: String(a.id), label: a.name }));
   return [
     ...(expenseItems.length > 0
@@ -99,7 +105,7 @@ export function buildGroupedIncomeOptions(
   groupLabel: string,
 ): AccountOptionGroup[] {
   const items = accounts
-    .filter((a) => a.type === "income")
+    .filter((a) => a.type === "income" && isUserSelectableAccount(a))
     .map((a) => ({ value: String(a.id), label: a.name }));
   return items.length > 0 ? [{ group: groupLabel, items }] : [];
 }
@@ -109,7 +115,7 @@ export function buildGroupedLiabilityOptions(
   groupLabel: string,
 ): AccountOptionGroup[] {
   const items = accounts
-    .filter((a) => a.type === "liability")
+    .filter((a) => a.type === "liability" && isUserSelectableAccount(a))
     .map((a) => ({ value: String(a.id), label: a.name }));
   return items.length > 0 ? [{ group: groupLabel, items }] : [];
 }
@@ -121,7 +127,10 @@ export function buildGroupedAssetOptions(
 ): AccountOptionGroup[] {
   const items = accounts
     .filter(
-      (a) => a.type === "asset" && String(a.id) !== (excludedAccountId ?? ""),
+      (a) =>
+        a.type === "asset" &&
+        String(a.id) !== (excludedAccountId ?? "") &&
+        isUserSelectableAccount(a),
     )
     .map((a) => ({ value: String(a.id), label: a.name }));
   return items.length > 0 ? [{ group: groupLabel, items }] : [];

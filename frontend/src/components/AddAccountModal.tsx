@@ -22,6 +22,10 @@ import type {
 } from "@balance-sheet/shared";
 import { ApiError } from "../api/client";
 import { useLang, type TranslationKey } from "../i18n";
+import {
+  isUserSelectableAccount,
+  toAccountSelectOption,
+} from "../lib/accountUtils";
 
 const CLOSING_DAY_BASE_OPTIONS = Array.from({ length: 31 }, (_, i) => ({
   value: String(i + 1),
@@ -309,11 +313,11 @@ export function AddAccountModal({
     .filter((c) => !c.businessOwnerOnly || isBusinessOwner)
     .map((c) => ({ value: c.value, label: t(c.labelKey) }));
   const withdrawalAccountSelectOptions = withdrawalAccountOptions
-    .filter((account) => account.type === "asset")
-    .map((account) => ({
-      value: String(account.id),
-      label: account.name,
-    }));
+    .filter(
+      (account) =>
+        account.type === "asset" && isUserSelectableAccount(account),
+    )
+    .map((account) => toAccountSelectOption(account, t));
 
   const totalRatio = form.values.budget_ratios.reduce(
     (sum, r) => sum + (Number(r.ratio) || 0),

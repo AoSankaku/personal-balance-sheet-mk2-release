@@ -23,6 +23,10 @@ import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { pad, toDateStr } from "../lib/dateUtils";
 import { formatCurrency } from "../lib/numberFormat";
+import {
+  isUserSelectableAccount,
+  toAccountSelectOption,
+} from "../lib/accountUtils";
 
 type Granularity = "year" | "month" | "day";
 
@@ -222,9 +226,11 @@ export function BsHistoryChart({ journal, accounts }: Props) {
   // Grouped options for MultiSelect
   const selectData = useMemo(() => {
     const assetAccounts = accounts.filter(
-      (a) => a.type === "asset" && a.name !== "__system:unknown_funds__",
+      (a) => a.type === "asset" && isUserSelectableAccount(a),
     );
-    const liabilityAccounts = accounts.filter((a) => a.type === "liability");
+    const liabilityAccounts = accounts.filter(
+      (a) => a.type === "liability" && isUserSelectableAccount(a),
+    );
 
     return [
       {
@@ -236,17 +242,11 @@ export function BsHistoryChart({ journal, accounts }: Props) {
       },
       {
         group: t("sectionAssets"),
-        items: assetAccounts.map((a) => ({
-          value: String(a.id),
-          label: a.name,
-        })),
+        items: assetAccounts.map((a) => toAccountSelectOption(a, t)),
       },
       {
         group: t("sectionLiabilities"),
-        items: liabilityAccounts.map((a) => ({
-          value: String(a.id),
-          label: a.name,
-        })),
+        items: liabilityAccounts.map((a) => toAccountSelectOption(a, t)),
       },
     ];
   }, [accounts, totalAssetsLabel, totalLiabilitiesLabel, t]);

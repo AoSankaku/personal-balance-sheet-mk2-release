@@ -44,7 +44,11 @@ import { api, ApiError } from "../api/client";
 import { useAppData } from "../context/AppDataContext";
 import { useLang, type TranslationKey } from "../i18n";
 import { showFeedback } from "../lib/feedback";
-import { systemAccountTranslationKey } from "../lib/accountUtils";
+import {
+  isUserSelectableAccount,
+  systemAccountTranslationKey,
+  toAccountSelectOption,
+} from "../lib/accountUtils";
 import { formatCurrency } from "../lib/numberFormat";
 
 interface Props {
@@ -203,8 +207,10 @@ export function AccountTable({
   }
 
   const replacementOptions = accounts
-    .filter((a) => a.id !== deletingAccount?.id)
-    .map((a) => ({ value: String(a.id), label: a.name }));
+    .filter(
+      (a) => a.id !== deletingAccount?.id && isUserSelectableAccount(a),
+    )
+    .map((a) => toAccountSelectOption(a, t));
 
   return (
     <>

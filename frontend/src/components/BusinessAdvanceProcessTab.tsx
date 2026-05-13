@@ -23,6 +23,10 @@ import { api } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { showFeedback } from "../lib/feedback";
+import {
+  isUserSelectableAccount,
+  toAccountSelectOption,
+} from "../lib/accountUtils";
 import { formatJPY } from "../lib/numberFormat";
 
 export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
@@ -71,13 +75,14 @@ export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
     .filter(
       (a) =>
         a.type === "asset" &&
-        a.id !== budgetSettings?.business_advance_account_id,
+        a.id !== budgetSettings?.business_advance_account_id &&
+        isUserSelectableAccount(a),
     )
-    .map((a) => ({ value: String(a.id), label: a.name }));
+    .map((a) => toAccountSelectOption(a, t));
 
   const expenseOptions = accounts
-    .filter((a) => a.type === "expense")
-    .map((a) => ({ value: String(a.id), label: a.name }));
+    .filter((a) => a.type === "expense" && isUserSelectableAccount(a))
+    .map((a) => toAccountSelectOption(a, t));
 
   async function handleSubmit() {
     if (!advanceAccount || amount <= 0 || !date) return;
