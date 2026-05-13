@@ -1029,6 +1029,7 @@ export const translationKeys = [
   "fxToAccount",
   "fxFromAmount",
   "fxToAmount",
+  "loanOtherCurrencyReadOnly",
   "includeAllCurrencies",
   "displayCurrencyLabel",
 ] as const;

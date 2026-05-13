@@ -419,10 +419,20 @@ export const api = {
       }),
   },
   loans: {
-    unsettled: (accountId: number, settlerEntryId?: number) =>
-      request<{ entries: UnsettledLoanEntry[] }>(
-        `/loans/unsettled?account_id=${accountId}${settlerEntryId != null ? `&settler_entry_id=${settlerEntryId}` : ""}`,
-      ),
+    unsettled: (
+      accountId: number,
+      settlerEntryId?: number,
+      currency?: string,
+    ) => {
+      const q = new URLSearchParams({ account_id: String(accountId) });
+      if (settlerEntryId != null) {
+        q.set("settler_entry_id", String(settlerEntryId));
+      }
+      if (currency) q.set("currency", currency);
+      return request<{ entries: UnsettledLoanEntry[] }>(
+        `/loans/unsettled?${q.toString()}`,
+      );
+    },
     settle: (body: {
       journal_entry_ids: number[];
       settled_by_journal_entry_id?: number;

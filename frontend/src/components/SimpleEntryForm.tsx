@@ -256,7 +256,7 @@ export function SimpleEntryForm({
   isEditing = false,
   editEntryId,
 }: Props) {
-  const { t } = useLang();
+  const { t, locale } = useLang();
   const {
     budgetCategories,
     budgetSettings,
@@ -748,7 +748,9 @@ export function SimpleEntryForm({
     }
     setIsLoadingUnsettled(true);
     import("../api/client")
-      .then(({ api }) => api.loans.unsettled(loanAccountId, editEntryId))
+      .then(({ api }) =>
+        api.loans.unsettled(loanAccountId, editEntryId, selectedCurrency),
+      )
       .then(({ entries }) => {
         setUnsettledEntries(entries);
         // Pre-select entries already settled by the entry being edited
@@ -767,6 +769,7 @@ export function SimpleEntryForm({
     form.values.entryType,
     accounts,
     editEntryId,
+    selectedCurrency,
   ]);
 
   async function doSubmit(values: HouseholdForm) {
@@ -1815,6 +1818,9 @@ export function SimpleEntryForm({
             incomeOnlyOptions={incomeOnlyOptions}
             accounts={accounts}
             budgetCategories={budgetCategories}
+            locale={locale}
+            selectedCurrency={selectedCurrency}
+            currencySymbol={currencySymbol}
             unsettledEntries={unsettledEntries}
             setUnsettledEntries={setUnsettledEntries}
             settledEntryIds={settledEntryIds}

@@ -10,6 +10,10 @@ import {
 
 const router = new Hono<{ Bindings: Env }>();
 
+function normalizeCurrency(currency: string | null | undefined) {
+  return (currency || "JPY").toUpperCase();
+}
+
 /**
  * GET /api/loans/unsettled?account_id=N
  * Returns all unsettled opening loan events for a given account.
@@ -19,6 +23,9 @@ router.get("/unsettled", async (c) => {
   const accountIdStr = c.req.query("account_id");
   const accountId = accountIdStr ? Number(accountIdStr) : NaN;
   if (isNaN(accountId)) return c.json({ error: "account_id is required" }, 400);
+  const requestedCurrency = c.req.query("currency")
+    ? normalizeCurrency(c.req.query("currency"))
+    : null;
 
   const settlerEntryIdStr = c.req.query("settler_entry_id");
   const settlerEntryId = settlerEntryIdStr ? Number(settlerEntryIdStr) : null;
@@ -63,6 +70,7 @@ router.get("/unsettled", async (c) => {
       journal_entry_id: journalLines.journal_entry_id,
       debit: journalLines.debit,
       credit: journalLines.credit,
+      currency: journalLines.currency,
     })
     .from(journalLines)
     .where(
@@ -73,33 +81,51 @@ router.get("/unsettled", async (c) => {
     );
 
   // Build a map: entry_id → net amount on this account
-  const amountByEntry = new Map<number, number>();
+  const amountByEntryCurrency = new Map<string, number>();
   for (const line of lineRows) {
+    const lineCurrency = normalizeCurrency(line.currency);
+    if (requestedCurrency && lineCurrency !== requestedCurrency) continue;
     const net =
       acct.type === "asset" || acct.type === "expense"
         ? line.debit - line.credit
         : line.credit - line.debit;
-    amountByEntry.set(
-      line.journal_entry_id,
-      (amountByEntry.get(line.journal_entry_id) ?? 0) + net,
+    const key = `${line.journal_entry_id}:${lineCurrency}`;
+    amountByEntryCurrency.set(
+      key,
+      (amountByEntryCurrency.get(key) ?? 0) + net,
     );
   }
 
   // Only return settlements where this account was actually involved (net > 0)
   const entries = settlements
-    .filter((s) => (amountByEntry.get(s.journal_entry_id) ?? 0) > 0)
-    .map((s) => ({
-      journal_entry_id: s.journal_entry_id,
-      date: s.date,
-      description: s.description,
-      amount: amountByEntry.get(s.journal_entry_id) ?? 0,
-      already_settled_by_current:
-        settlerEntryId != null &&
-        s.is_settled === 1 &&
-        s.settled_by_journal_entry_id === settlerEntryId
-          ? true
-          : undefined,
-    }));
+    .flatMap((s) => {
+      const rows: {
+        journal_entry_id: number;
+        date: string;
+        description: string;
+        amount: number;
+        currency: string;
+        already_settled_by_current?: boolean;
+      }[] = [];
+      for (const [key, amount] of amountByEntryCurrency) {
+        const [entryIdStr, lineCurrency] = key.split(":");
+        if (Number(entryIdStr) !== s.journal_entry_id || amount <= 0) continue;
+        rows.push({
+          journal_entry_id: s.journal_entry_id,
+          date: s.date,
+          description: s.description,
+          amount,
+          currency: lineCurrency ?? "JPY",
+          already_settled_by_current:
+            settlerEntryId != null &&
+            s.is_settled === 1 &&
+            s.settled_by_journal_entry_id === settlerEntryId
+              ? true
+              : undefined,
+        });
+      }
+      return rows;
+    });
 
   return c.json({ entries });
 });

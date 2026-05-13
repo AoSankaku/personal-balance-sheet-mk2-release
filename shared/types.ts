@@ -203,6 +203,8 @@ export interface UnsettledLoanEntry {
   description: string;
   /** Net amount of the loan/lending in this entry (debit-normal for asset, credit-normal for liability) */
   amount: number;
+  /** Currency of the unsettled loan/lending amount */
+  currency: string;
   /** True when this entry was already settled by the entry currently being edited */
   already_settled_by_current?: boolean;
 }

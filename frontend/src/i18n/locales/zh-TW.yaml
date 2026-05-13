@@ -1028,5 +1028,6 @@ fxFromAccount: 來源帳戶
 fxToAccount: 目標帳戶
 fxFromAmount: 付出金額
 fxToAmount: 收到金額
+loanOtherCurrencyReadOnly: 切換顯示貨幣後才能輸入還款
 includeAllCurrencies: 包含所有貨幣
 displayCurrencyLabel: 顯示貨幣

@@ -1028,5 +1028,6 @@ fxFromAccount: 源账户
 fxToAccount: 目标账户
 fxFromAmount: 付出金额
 fxToAmount: 收到金额
+loanOtherCurrencyReadOnly: 切换显示货币后才能录入还款
 includeAllCurrencies: 包含所有货币
 displayCurrencyLabel: 显示货币

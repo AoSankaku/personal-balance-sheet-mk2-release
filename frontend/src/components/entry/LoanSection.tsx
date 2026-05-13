@@ -21,7 +21,7 @@ import type {
 } from "@balance-sheet/shared";
 import { isShortTermLoanCategory } from "@balance-sheet/shared";
 import { useLang } from "../../i18n";
-import { useAppData } from "../../context/AppDataContext";
+import { formatCurrency } from "../../lib/numberFormat";
 import {
   renderAccountOption,
   type AccountOption,
@@ -41,6 +41,9 @@ interface Props {
   incomeOnlyOptions: AccountOption[];
   accounts: Account[];
   budgetCategories: BudgetCategory[];
+  locale: string;
+  selectedCurrency: string;
+  currencySymbol: string;
   unsettledEntries: UnsettledLoanEntry[];
   setUnsettledEntries: (v: UnsettledLoanEntry[]) => void;
   settledEntryIds: number[];
@@ -67,6 +70,9 @@ export function LoanSection({
   incomeOnlyOptions,
   accounts,
   budgetCategories,
+  locale,
+  selectedCurrency,
+  currencySymbol,
   unsettledEntries,
   setUnsettledEntries,
   settledEntryIds,
@@ -79,7 +85,6 @@ export function LoanSection({
   handleLoanCounterAccountChange,
 }: Props) {
   const { t } = useLang();
-  const { displayCurrencySymbol: currencySymbol } = useAppData();
   const [showZeroCategories, setShowZeroCategories] = useState(false);
 
   const loanAccountId = form.values.loanAccountId;
@@ -355,7 +360,14 @@ export function LoanSection({
                           {entry.date}
                         </Text>
                         <Text size="sm" fw={500}>
-                          ¥{entry.amount.toLocaleString()}
+                          {formatCurrency(
+                            entry.amount,
+                            locale,
+                            entry.currency,
+                            entry.currency === selectedCurrency
+                              ? currencySymbol
+                              : undefined,
+                          )}
                         </Text>
                       </Group>
                     ))}
@@ -365,7 +377,12 @@ export function LoanSection({
                           {t("settlementSelectedTotal")}:
                         </Text>
                         <Text size="sm" fw={500}>
-                          ¥{selectedTotal.toLocaleString()}
+                          {formatCurrency(
+                            selectedTotal,
+                            locale,
+                            selectedCurrency,
+                            currencySymbol,
+                          )}
                         </Text>
                       </Group>
                     )}
@@ -379,7 +396,13 @@ export function LoanSection({
                     {diffIsExpense
                       ? t("loanDifferenceLoss")
                       : t("loanDifferenceIncome")}
-                    : ¥{Math.abs(diff).toLocaleString()}
+                    :{" "}
+                    {formatCurrency(
+                      Math.abs(diff),
+                      locale,
+                      selectedCurrency,
+                      currencySymbol,
+                    )}
                   </Text>
                   <Select
                     label={t("loanDifferenceAccountLabel")}

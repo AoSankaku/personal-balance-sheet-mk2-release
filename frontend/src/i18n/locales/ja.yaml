@@ -1028,5 +1028,6 @@ fxFromAccount: 振替元科目
 fxToAccount: 振替先科目
 fxFromAmount: 渡す金額
 fxToAmount: 受け取る金額
+loanOtherCurrencyReadOnly: 返済入力するには表示通貨を切り替えてください
 includeAllCurrencies: 全通貨を含む
 displayCurrencyLabel: 表示通貨

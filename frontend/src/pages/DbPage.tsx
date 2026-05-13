@@ -11,6 +11,7 @@ import {
   Paper,
   Select,
   Stack,
+  Switch,
   Text,
   ThemeIcon,
 } from "@mantine/core";
@@ -36,7 +37,7 @@ import {
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { api } from "../api/client";
-import { formatJPY } from "../lib/numberFormat";
+import { formatCurrency } from "../lib/numberFormat";
 import { isShortTermLoanAccountActive } from "./dbPageUtils";
 import {
   type AccountOption,
@@ -93,23 +94,41 @@ const SECTIONS: LoanSection[] = [
   },
 ];
 
+function normalizeCurrency(currency: string | null | undefined) {
+  return (currency || "JPY").toUpperCase();
+}
+
+function accountBalanceInCurrency(
+  account: ReturnType<typeof useAppData>["accounts"][number],
+  currency: string,
+) {
+  if (account.balances) return account.balances[currency] ?? 0;
+  return currency === "JPY" ? (account.balance ?? 0) : 0;
+}
+
 export default function DbPage() {
   const { t, locale } = useLang();
-  const { accounts, journal, loading, error, refresh } = useAppData();
+  const {
+    accounts,
+    journal,
+    loading,
+    error,
+    refresh,
+    displayCurrency,
+    displayCurrencySymbol,
+  } = useAppData();
   const navigate = useNavigate();
+  const selectedCurrency = normalizeCurrency(displayCurrency);
+  const [showAllCurrencies, setShowAllCurrencies] = useState(false);
   const [pendingSettle, setPendingSettle] = useState<{
     entry: JournalEntry;
     acct: ReturnType<typeof useAppData>["accounts"][number];
     netChange: number;
+    currency: string;
   } | null>(null);
   const [settleCounterAccountId, setSettleCounterAccountId] = useState<
     number | null
   >(null);
-
-  const accountMap = useMemo(
-    () => new Map(accounts.map((a) => [a.id, a])),
-    [accounts],
-  );
 
   const sectionData = useMemo(() => {
     return SECTIONS.map((sec) => {
@@ -120,43 +139,87 @@ export default function DbPage() {
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
         );
 
-      const sectionAccountIds = new Set(sectionAccounts.map((a) => a.id));
+      const accountViews = sectionAccounts.flatMap((acct) => {
+        const entriesByCurrency = new Map<string, EntryWithChange[]>();
 
-      // All journal entries involving this section's accounts
-      const allEntries = journal
-        .filter((e) => e.lines.some((l) => sectionAccountIds.has(l.account_id)))
-        .sort(
-          (a, b) =>
-            new Date(b.date).getTime() - new Date(a.date).getTime() ||
-            b.id - a.id,
-        );
-
-      // Build per-account entries
-      const entriesByAccount = new Map(
-        sectionAccounts.map((acct) => {
-          const acctEntries = allEntries
-            .filter((e) => e.lines.some((l) => l.account_id === acct.id))
-            .map((e) => {
-              let netChange = 0;
-              for (const l of e.lines) {
-                if (l.account_id !== acct.id) continue;
-                const a = accountMap.get(l.account_id);
-                if (!a) continue;
-                if (a.type === "asset" || a.type === "expense") {
-                  netChange += l.debit - l.credit;
-                } else {
-                  netChange += l.credit - l.debit;
-                }
-              }
-              return { entry: e, netChange };
+        for (const entry of journal) {
+          const amountByCurrency = new Map<string, number>();
+          for (const line of entry.lines) {
+            if (line.account_id !== acct.id) continue;
+            const currency = normalizeCurrency(line.currency);
+            const change =
+              acct.type === "asset" || acct.type === "expense"
+                ? line.debit - line.credit
+                : line.credit - line.debit;
+            amountByCurrency.set(
+              currency,
+              (amountByCurrency.get(currency) ?? 0) + change,
+            );
+          }
+          for (const [currency, netChange] of amountByCurrency) {
+            if (Math.abs(netChange) <= 0.001) continue;
+            if (!entriesByCurrency.has(currency)) {
+              entriesByCurrency.set(currency, []);
+            }
+            entriesByCurrency.get(currency)!.push({
+              entry,
+              netChange,
+              currency,
             });
-          return [acct.id, acctEntries] as const;
-        }),
-      );
+          }
+        }
 
-      return { sec, accounts: sectionAccounts, entriesByAccount };
+        for (const entries of entriesByCurrency.values()) {
+          entries.sort(
+            (a, b) =>
+              new Date(b.entry.date).getTime() -
+                new Date(a.entry.date).getTime() || b.entry.id - a.entry.id,
+          );
+        }
+
+        const currencies = new Set<string>();
+        if (showAllCurrencies) {
+          for (const [currency, balance] of Object.entries(
+            acct.balances ?? {},
+          )) {
+            if (Math.abs(balance) > 0.001) currencies.add(currency);
+          }
+          for (const currency of entriesByCurrency.keys()) {
+            currencies.add(currency);
+          }
+        } else {
+          const selectedBalance = accountBalanceInCurrency(
+            acct,
+            selectedCurrency,
+          );
+          const selectedEntries = entriesByCurrency.get(selectedCurrency) ?? [];
+          if (
+            Math.abs(selectedBalance) > 0.001 ||
+            selectedEntries.length > 0
+          ) {
+            currencies.add(selectedCurrency);
+          }
+        }
+
+        return [...currencies]
+          .sort((a, b) =>
+            a === selectedCurrency
+              ? -1
+              : b === selectedCurrency
+                ? 1
+                : a.localeCompare(b),
+          )
+          .map((currency) => ({
+            acct,
+            currency,
+            balance: accountBalanceInCurrency(acct, currency),
+            entries: entriesByCurrency.get(currency) ?? [],
+          }));
+      });
+
+      return { sec, accountViews };
     });
-  }, [accounts, journal, accountMap]);
+  }, [accounts, journal, selectedCurrency, showAllCurrencies]);
 
   // Grouped account options for the write-off modal (mirrors SimpleEntryForm pattern)
   const counterAccountOptions = useMemo(() => {
@@ -208,7 +271,9 @@ export default function DbPage() {
     entry: JournalEntry,
     acct: ReturnType<typeof useAppData>["accounts"][number],
     netChange: number,
+    currency: string,
   ) {
+    if (currency !== selectedCurrency) return;
     const isLending = isShortTermLendingCategory(acct.category as never);
     navigate("/input", {
       state: {
@@ -229,8 +294,10 @@ export default function DbPage() {
     entry: JournalEntry,
     acct: ReturnType<typeof useAppData>["accounts"][number],
     netChange: number,
+    currency: string,
   ) {
-    setPendingSettle({ entry, acct, netChange });
+    if (currency !== selectedCurrency) return;
+    setPendingSettle({ entry, acct, netChange, currency });
     setSettleCounterAccountId(null);
   }
 
@@ -242,20 +309,20 @@ export default function DbPage() {
   async function handleConfirmSettle() {
     if (!pendingSettle || settleCounterAccountId === null) return;
     try {
-      const { entry, acct } = pendingSettle;
+      const { entry, acct, currency } = pendingSettle;
       const today = new Date().toISOString().slice(0, 10);
 
-      // Compute per-currency net amounts for this account from this entry
-      const byCurrency = new Map<string, number>();
+      let amount = 0;
       for (const l of entry.lines) {
         if (l.account_id !== acct.id) continue;
-        const cur = l.currency ?? "JPY";
+        if (normalizeCurrency(l.currency) !== currency) continue;
         const change =
           acct.type === "asset" || acct.type === "expense"
             ? l.debit - l.credit
             : l.credit - l.debit;
-        byCurrency.set(cur, (byCurrency.get(cur) ?? 0) + change);
+        amount += change;
       }
+      if (amount <= 0) return;
 
       const lines: {
         account_id: number;
@@ -263,41 +330,36 @@ export default function DbPage() {
         credit: number;
         currency: string;
       }[] = [];
-      for (const [cur, amount] of byCurrency) {
-        if (amount <= 0) continue;
-        if (acct.type === "asset" || acct.type === "expense") {
-          // Lending write-off: DR expense / CR lending_account
-          lines.push(
-            {
-              account_id: settleCounterAccountId,
-              debit: amount,
-              credit: 0,
-              currency: cur,
-            },
-            {
-              account_id: acct.id,
-              debit: 0,
-              credit: amount,
-              currency: cur,
-            },
-          );
-        } else {
-          // Borrowing write-off: DR borrowing_account / CR income_account
-          lines.push(
-            {
-              account_id: acct.id,
-              debit: amount,
-              credit: 0,
-              currency: cur,
-            },
-            {
-              account_id: settleCounterAccountId,
-              debit: 0,
-              credit: amount,
-              currency: cur,
-            },
-          );
-        }
+      if (acct.type === "asset" || acct.type === "expense") {
+        lines.push(
+          {
+            account_id: settleCounterAccountId,
+            debit: amount,
+            credit: 0,
+            currency,
+          },
+          {
+            account_id: acct.id,
+            debit: 0,
+            credit: amount,
+            currency,
+          },
+        );
+      } else {
+        lines.push(
+          {
+            account_id: acct.id,
+            debit: amount,
+            credit: 0,
+            currency,
+          },
+          {
+            account_id: settleCounterAccountId,
+            debit: 0,
+            credit: amount,
+            currency,
+          },
+        );
       }
 
       await api.journal.create({
@@ -342,24 +404,30 @@ export default function DbPage() {
           </Text>
         </Box>
       </Group>
+      <Group justify="flex-end">
+        <Switch
+          label={t("includeAllCurrencies")}
+          checked={showAllCurrencies}
+          onChange={(event) =>
+            setShowAllCurrencies(event.currentTarget.checked)
+          }
+        />
+      </Group>
 
-      {sectionData.map(({ sec, accounts: sAccounts, entriesByAccount }) => {
-        const totalBalance = sAccounts.reduce(
-          (s, a) => s + (a.balance ?? 0),
-          0,
-        );
-        const activeAccounts = sAccounts.filter((a) =>
+      {sectionData.map(({ sec, accountViews }) => {
+        const totalBalance = accountViews
+          .filter((view) => view.currency === selectedCurrency)
+          .reduce((sum, view) => sum + view.balance, 0);
+        const activeAccounts = accountViews.filter((view) =>
           sec.isLongTerm
-            ? !a.is_completed
-            : isShortTermLoanAccountActive(a, entriesByAccount.get(a.id) ?? []),
-        );
-        const completedAccounts = sAccounts.filter((a) =>
-          sec.isLongTerm
-            ? a.is_completed
-            : !isShortTermLoanAccountActive(
-                a,
-                entriesByAccount.get(a.id) ?? [],
+            ? !view.acct.is_completed && Math.abs(view.balance) > 0.001
+            : isShortTermLoanAccountActive(
+                { is_completed: view.acct.is_completed, balance: view.balance },
+                view.entries,
               ),
+        );
+        const completedAccounts = accountViews.filter(
+          (view) => !activeAccounts.includes(view),
         );
 
         return (
@@ -385,12 +453,17 @@ export default function DbPage() {
               </Group>
               {totalBalance > 0 && (
                 <Text fw={700} c={sec.color} size="lg">
-                  {formatJPY(totalBalance, locale)}
+                  {formatCurrency(
+                    totalBalance,
+                    locale,
+                    selectedCurrency,
+                    displayCurrencySymbol,
+                  )}
                 </Text>
               )}
             </Group>
 
-            {sAccounts.length === 0 ? (
+            {accountViews.length === 0 ? (
               <Text size="sm" c="dimmed">
                 {t("noLoanAccounts")}
               </Text>
@@ -399,10 +472,14 @@ export default function DbPage() {
                 {/* ── Long-term: per-account card + buttons ── */}
                 {sec.isLongTerm && (
                   <>
-                    {activeAccounts.map((acct) => (
+                    {activeAccounts.map((view) => (
                       <LongTermAccountCard
-                        key={acct.id}
-                        acct={acct}
+                        key={`${view.acct.id}:${view.currency}`}
+                        acct={view.acct}
+                        balance={view.balance}
+                        currency={view.currency}
+                        selectedCurrency={selectedCurrency}
+                        displayCurrencySymbol={displayCurrencySymbol}
                         color={sec.color}
                         locale={locale}
                         kind={sec.isAsset ? "lend" : "loan"}
@@ -429,10 +506,14 @@ export default function DbPage() {
                           </Accordion.Control>
                           <Accordion.Panel>
                             <Stack gap="sm">
-                              {completedAccounts.map((acct) => (
+                              {completedAccounts.map((view) => (
                                 <LongTermAccountCard
-                                  key={acct.id}
-                                  acct={acct}
+                                  key={`${view.acct.id}:${view.currency}`}
+                                  acct={view.acct}
+                                  balance={view.balance}
+                                  currency={view.currency}
+                                  selectedCurrency={selectedCurrency}
+                                  displayCurrencySymbol={displayCurrencySymbol}
                                   color={sec.color}
                                   locale={locale}
                                   kind={sec.isAsset ? "lend" : "loan"}
@@ -450,18 +531,32 @@ export default function DbPage() {
                 {/* ── Short-term: per-account block with entries ── */}
                 {!sec.isLongTerm && (
                   <>
-                    {activeAccounts.map((acct) => (
+                    {activeAccounts.map((view) => (
                       <ShortTermAccountBlock
-                        key={acct.id}
-                        acct={acct}
-                        entries={entriesByAccount.get(acct.id) ?? []}
+                        key={`${view.acct.id}:${view.currency}`}
+                        acct={view.acct}
+                        balance={view.balance}
+                        currency={view.currency}
+                        selectedCurrency={selectedCurrency}
+                        displayCurrencySymbol={displayCurrencySymbol}
+                        entries={view.entries}
                         color={sec.color}
                         locale={locale}
                         onInputEntry={(entry, netChange) =>
-                          handleInputEntry(entry, acct, netChange)
+                          handleInputEntry(
+                            entry,
+                            view.acct,
+                            netChange,
+                            view.currency,
+                          )
                         }
                         onForceSettleEntry={(entry, netChange) =>
-                          handleForceSettleEntry(entry, acct, netChange)
+                          handleForceSettleEntry(
+                            entry,
+                            view.acct,
+                            netChange,
+                            view.currency,
+                          )
                         }
                       />
                     ))}
@@ -485,21 +580,31 @@ export default function DbPage() {
                           </Accordion.Control>
                           <Accordion.Panel>
                             <Stack gap="md">
-                              {completedAccounts.map((acct) => (
+                              {completedAccounts.map((view) => (
                                 <ShortTermAccountBlock
-                                  key={acct.id}
-                                  acct={acct}
-                                  entries={entriesByAccount.get(acct.id) ?? []}
+                                  key={`${view.acct.id}:${view.currency}`}
+                                  acct={view.acct}
+                                  balance={view.balance}
+                                  currency={view.currency}
+                                  selectedCurrency={selectedCurrency}
+                                  displayCurrencySymbol={displayCurrencySymbol}
+                                  entries={view.entries}
                                   color={sec.color}
                                   locale={locale}
                                   onInputEntry={(entry, netChange) =>
-                                    handleInputEntry(entry, acct, netChange)
+                                    handleInputEntry(
+                                      entry,
+                                      view.acct,
+                                      netChange,
+                                      view.currency,
+                                    )
                                   }
                                   onForceSettleEntry={(entry, netChange) =>
                                     handleForceSettleEntry(
                                       entry,
-                                      acct,
+                                      view.acct,
                                       netChange,
+                                      view.currency,
                                     )
                                   }
                                 />
@@ -536,7 +641,14 @@ export default function DbPage() {
                 {t("loanWriteOffAmountLabel")}:
               </Text>
               <Text size="sm" fw={700}>
-                {formatJPY(pendingSettle.netChange, locale)}
+                {formatCurrency(
+                  pendingSettle.netChange,
+                  locale,
+                  pendingSettle.currency,
+                  pendingSettle.currency === selectedCurrency
+                    ? displayCurrencySymbol
+                    : undefined,
+                )}
               </Text>
             </Group>
             <Select
@@ -591,6 +703,10 @@ interface LongTermAccountCardProps {
   acct: ReturnType<
     typeof import("../context/AppDataContext").useAppData
   >["accounts"][number];
+  balance: number;
+  currency: string;
+  selectedCurrency: string;
+  displayCurrencySymbol: string;
   color: string;
   locale: string;
   kind: "loan" | "lend";
@@ -599,19 +715,26 @@ interface LongTermAccountCardProps {
 
 function LongTermAccountCard({
   acct,
+  balance,
+  currency,
+  selectedCurrency,
+  displayCurrencySymbol,
   color,
   locale,
   kind,
   t,
 }: LongTermAccountCardProps) {
+  const isSelectedCurrency = currency === selectedCurrency;
+  const isCompleted = acct.is_completed || Math.abs(balance) <= 0.001;
+
   return (
     <Card
       withBorder
       radius="md"
       p="sm"
-      opacity={acct.is_completed ? 0.7 : 1}
+      opacity={isCompleted ? 0.7 : 1}
       style={
-        acct.is_completed
+        isCompleted
           ? undefined
           : { borderLeft: `3px solid var(--mantine-color-${color}-6)` }
       }
@@ -621,7 +744,7 @@ function LongTermAccountCard({
           <ThemeIcon
             size={28}
             radius="sm"
-            color={acct.is_completed ? "gray" : color}
+            color={isCompleted ? "gray" : color}
             variant="light"
           >
             <IconBuildingBank size={14} />
@@ -631,11 +754,14 @@ function LongTermAccountCard({
               <Text
                 size="sm"
                 fw={600}
-                c={acct.is_completed ? "dimmed" : undefined}
+                c={isCompleted ? "dimmed" : undefined}
               >
                 {acct.name}
               </Text>
-              {acct.is_completed && (
+              <Badge size="xs" variant="light">
+                {currency}
+              </Badge>
+              {isCompleted && (
                 <Badge size="xs" color="gray" variant="light">
                   {t("loanCompletedBadge")}
                 </Badge>
@@ -654,24 +780,42 @@ function LongTermAccountCard({
             <Text
               size="lg"
               fw={800}
-              c={(acct.balance ?? 0) > 0 ? color : "dimmed"}
+              c={balance > 0 ? color : "dimmed"}
             >
-              {formatJPY(acct.balance ?? 0, locale)}
+              {formatCurrency(
+                balance,
+                locale,
+                currency,
+                isSelectedCurrency ? displayCurrencySymbol : undefined,
+              )}
             </Text>
           </Box>
         </Group>
       </Group>
       <Group gap="xs" mt="sm">
-        <Button
-          component={Link}
-          to={`/fs/db/long-term-${kind}/${acct.id}`}
-          size="xs"
-          variant="filled"
-          color={color}
-          leftSection={<IconCalendarStats size={12} />}
-        >
-          {t("loanDetailBtn")}
-        </Button>
+        {isSelectedCurrency ? (
+          <Button
+            component={Link}
+            to={`/fs/db/long-term-${kind}/${acct.id}`}
+            size="xs"
+            variant="filled"
+            color={color}
+            leftSection={<IconCalendarStats size={12} />}
+          >
+            {t("loanDetailBtn")}
+          </Button>
+        ) : (
+          <Button
+            size="xs"
+            variant="filled"
+            color={color}
+            disabled
+            title={t("loanOtherCurrencyReadOnly")}
+            leftSection={<IconCalendarStats size={12} />}
+          >
+            {t("loanDetailBtn")}
+          </Button>
+        )}
       </Group>
     </Card>
   );
@@ -684,12 +828,17 @@ interface EntryWithChange {
     typeof import("../context/AppDataContext").useAppData
   >["journal"][number];
   netChange: number;
+  currency: string;
 }
 
 interface ShortTermAccountBlockProps {
   acct: ReturnType<
     typeof import("../context/AppDataContext").useAppData
   >["accounts"][number];
+  balance: number;
+  currency: string;
+  selectedCurrency: string;
+  displayCurrencySymbol: string;
   entries: EntryWithChange[];
   color: string;
   locale: string;
@@ -699,6 +848,10 @@ interface ShortTermAccountBlockProps {
 
 function ShortTermAccountBlock({
   acct,
+  balance,
+  currency,
+  selectedCurrency,
+  displayCurrencySymbol,
   entries,
   color,
   locale,
@@ -706,6 +859,7 @@ function ShortTermAccountBlock({
   onForceSettleEntry,
 }: ShortTermAccountBlockProps) {
   const { t } = useLang();
+  const isSelectedCurrency = currency === selectedCurrency;
 
   const { activeEntries, settledPairs } = useMemo(() => {
     const settledOpeningIds = new Set<number>();
@@ -772,6 +926,9 @@ function ShortTermAccountBlock({
                 >
                   {acct.name}
                 </Text>
+                <Badge size="xs" variant="light">
+                  {currency}
+                </Badge>
                 {acct.is_completed && (
                   <Badge size="xs" color="gray" variant="light">
                     {t("loanCompletedBadge")}
@@ -793,12 +950,17 @@ function ShortTermAccountBlock({
               c={
                 acct.is_completed
                   ? "dimmed"
-                  : (acct.balance ?? 0) > 0
+                  : balance > 0
                     ? color
                     : "dimmed"
               }
             >
-              {formatJPY(acct.balance ?? 0, locale)}
+              {formatCurrency(
+                balance,
+                locale,
+                currency,
+                isSelectedCurrency ? displayCurrencySymbol : undefined,
+              )}
             </Text>
           </Box>
         </Group>
@@ -810,7 +972,7 @@ function ShortTermAccountBlock({
           {t("loanNoEntries")}
         </Text>
       ) : (
-        activeEntries.map(({ entry, netChange }) => {
+        activeEntries.map(({ entry, netChange, currency: entryCurrency }) => {
           const isIncrease = netChange > 0;
           return (
             <Card
@@ -832,6 +994,9 @@ function ShortTermAccountBlock({
                     <Text size="xs" c="dimmed">
                       {entry.date}
                     </Text>
+                    <Badge size="xs" variant="light">
+                      {entryCurrency}
+                    </Badge>
                     <Badge
                       size="xs"
                       color={isIncrease ? color : "gray"}
@@ -850,7 +1015,14 @@ function ShortTermAccountBlock({
                   style={{ whiteSpace: "nowrap" }}
                 >
                   {isIncrease ? "+" : ""}
-                  {formatJPY(netChange, locale)}
+                  {formatCurrency(
+                    netChange,
+                    locale,
+                    entryCurrency,
+                    entryCurrency === selectedCurrency
+                      ? displayCurrencySymbol
+                      : undefined,
+                  )}
                 </Text>
               </Group>
               {isIncrease && !acct.is_completed && (
@@ -859,6 +1031,12 @@ function ShortTermAccountBlock({
                     size="xs"
                     variant="light"
                     color={color}
+                    disabled={!isSelectedCurrency}
+                    title={
+                      !isSelectedCurrency
+                        ? t("loanOtherCurrencyReadOnly")
+                        : undefined
+                    }
                     leftSection={<IconPencil size={12} />}
                     onClick={() => onInputEntry(entry, netChange)}
                   >
@@ -868,6 +1046,12 @@ function ShortTermAccountBlock({
                     size="xs"
                     variant="subtle"
                     color="orange"
+                    disabled={!isSelectedCurrency}
+                    title={
+                      !isSelectedCurrency
+                        ? t("loanOtherCurrencyReadOnly")
+                        : undefined
+                    }
                     leftSection={<IconCheck size={12} />}
                     onClick={() => onForceSettleEntry(entry, netChange)}
                   >
@@ -903,6 +1087,8 @@ function ShortTermAccountBlock({
                     opening={opening}
                     settlement={settlement}
                     locale={locale}
+                    selectedCurrency={selectedCurrency}
+                    displayCurrencySymbol={displayCurrencySymbol}
                     t={t}
                   />
                 ))}
@@ -923,6 +1109,8 @@ interface SettledPairCardProps {
   opening: EntryWithChange;
   settlement: EntryWithChange | undefined;
   locale: string;
+  selectedCurrency: string;
+  displayCurrencySymbol: string;
   t: ReturnType<typeof useLang>["t"];
 }
 
@@ -930,6 +1118,8 @@ function SettledPairCard({
   opening,
   settlement,
   locale,
+  selectedCurrency,
+  displayCurrencySymbol,
   t,
 }: SettledPairCardProps) {
   return (
@@ -950,13 +1140,24 @@ function SettledPairCard({
             <Text size="xs" c="dimmed">
               {opening.entry.date}
             </Text>
+            <Badge size="xs" variant="light">
+              {opening.currency}
+            </Badge>
             <Badge size="xs" color="gray" variant="dot">
               {t("loanSettledOpeningLabel")}
             </Badge>
           </Group>
         </Box>
         <Text size="sm" fw={700} c="dimmed" style={{ whiteSpace: "nowrap" }}>
-          +{formatJPY(opening.netChange, locale)}
+          +
+          {formatCurrency(
+            opening.netChange,
+            locale,
+            opening.currency,
+            opening.currency === selectedCurrency
+              ? displayCurrencySymbol
+              : undefined,
+          )}
         </Text>
       </Group>
 
@@ -981,6 +1182,9 @@ function SettledPairCard({
                 <Text size="xs" c="dimmed">
                   {settlement.entry.date}
                 </Text>
+                <Badge size="xs" variant="light">
+                  {settlement.currency}
+                </Badge>
                 <Badge size="xs" color="green" variant="dot">
                   {t("loanSettledByLabel")}
                 </Badge>
@@ -992,7 +1196,14 @@ function SettledPairCard({
               c="dimmed"
               style={{ whiteSpace: "nowrap" }}
             >
-              {formatJPY(settlement.netChange, locale)}
+              {formatCurrency(
+                settlement.netChange,
+                locale,
+                settlement.currency,
+                settlement.currency === selectedCurrency
+                  ? displayCurrencySymbol
+                  : undefined,
+              )}
             </Text>
           </Group>
         </>

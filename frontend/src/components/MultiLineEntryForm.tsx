@@ -30,6 +30,7 @@ import {
 import { api } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
+import { formatCurrency } from "../lib/numberFormat";
 import { renderAccountOption } from "./SimpleEntryForm";
 import {
   systemAccountTranslationKey,
@@ -74,12 +75,14 @@ export function MultiLineEntryForm({
   submitLabel,
   editEntryId,
 }: Props) {
-  const { t } = useLang();
+  const { t, locale } = useLang();
   const {
     accounts,
     budgetCategories,
+    displayCurrency,
     displayCurrencySymbol: currencySymbol,
   } = useAppData();
+  const selectedCurrency = displayCurrency || "JPY";
   const isMobile = useMediaQuery("(max-width: 48em)");
   const isControlled = initialValues != null;
 
@@ -183,7 +186,7 @@ export function MultiLineEntryForm({
       try {
         const results = await Promise.all(
           settlementAccountIds.map((id) =>
-            api.loans.unsettled(id, editEntryId),
+            api.loans.unsettled(id, editEntryId, selectedCurrency),
           ),
         );
         if (cancelled) return;
@@ -218,7 +221,7 @@ export function MultiLineEntryForm({
     return () => {
       cancelled = true;
     };
-  }, [settlementKey, editEntryId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [settlementKey, editEntryId, selectedCurrency]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const allOptions = useMemo(() => {
     type AType = (typeof accounts)[0]["type"];
@@ -618,8 +621,18 @@ export function MultiLineEntryForm({
                             <Text size="xs" c="dimmed">
                               {entry.date}
                             </Text>
+                            <Badge size="xs" variant="light">
+                              {entry.currency}
+                            </Badge>
                             <Text size="sm" fw={500}>
-                              ¥{entry.amount.toLocaleString()}
+                              {formatCurrency(
+                                entry.amount,
+                                locale,
+                                entry.currency,
+                                entry.currency === selectedCurrency
+                                  ? currencySymbol
+                                  : undefined,
+                              )}
                             </Text>
                           </Group>
                         ))}
@@ -629,7 +642,12 @@ export function MultiLineEntryForm({
                               {t("settlementSelectedTotal")}:
                             </Text>
                             <Text size="sm" fw={500}>
-                              ¥{selectedTotal.toLocaleString()}
+                              {formatCurrency(
+                                selectedTotal,
+                                locale,
+                                selectedCurrency,
+                                currencySymbol,
+                              )}
                             </Text>
                           </Group>
                         )}

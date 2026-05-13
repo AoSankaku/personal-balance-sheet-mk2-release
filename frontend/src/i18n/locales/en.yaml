@@ -1028,5 +1028,6 @@ fxFromAccount: Source account
 fxToAccount: Destination account
 fxFromAmount: Amount given
 fxToAmount: Amount received
+loanOtherCurrencyReadOnly: Switch display currency to enter repayment
 includeAllCurrencies: Include all currencies
 displayCurrencyLabel: Display currency
