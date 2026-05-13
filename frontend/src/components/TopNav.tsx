@@ -23,6 +23,7 @@ import {
   IconSettings,
   IconSun,
 } from "@tabler/icons-react";
+import { useMediaQuery } from "@mantine/hooks";
 import * as Flags from "country-flag-icons/react/3x2";
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -123,12 +124,14 @@ function CurrencyOptionIcon({
 function ColorSchemeToggle() {
   const { setColorScheme } = useMantineColorScheme();
   const computed = useComputedColorScheme("light");
+  const { t } = useLang();
   return (
     <ActionIcon
       variant="default"
       size="md"
       onClick={() => setColorScheme(computed === "light" ? "dark" : "light")}
-      aria-label="Toggle color scheme"
+      aria-label={t("toggleColorScheme")}
+      title={t("toggleColorScheme")}
     >
       {computed === "light" ? <IconMoon size={16} /> : <IconSun size={16} />}
     </ActionIcon>
@@ -523,6 +526,93 @@ function NotificationBell({ disabled = false }: { disabled?: boolean }) {
   );
 }
 
+function CompactCurrencyMenu({
+  options,
+  displayCurrency,
+  cryptoIconStyle,
+  onSelect,
+}: {
+  options: { value: string; customIcon?: string | null }[];
+  displayCurrency: string;
+  cryptoIconStyle: CryptoIconStyle;
+  onSelect: (value: string) => void;
+}) {
+  const { t } = useLang();
+  const [opened, setOpened] = useState(false);
+
+  return (
+    <>
+      {opened && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 199 }}
+          onClick={() => setOpened(false)}
+        />
+      )}
+      <style>{`
+        .compact-currency-option {
+          cursor: pointer;
+          border-radius: 4px;
+        }
+        .compact-currency-option:hover {
+          background: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+        }
+      `}</style>
+      <Popover
+        opened={opened}
+        onClose={() => setOpened(false)}
+        position="bottom-end"
+        withArrow
+        shadow="md"
+        withinPortal
+        zIndex={200}
+      >
+        <Popover.Target>
+          <ActionIcon
+            variant="default"
+            size="md"
+            aria-label={t("displayCurrencyLabel")}
+            title={t("displayCurrencyLabel")}
+            onClick={() => setOpened((o) => !o)}
+          >
+            <CurrencyOptionIcon
+              code={displayCurrency}
+              cryptoIconStyle={cryptoIconStyle}
+              customIcon={
+                options.find((c) => c.value === displayCurrency)?.customIcon
+              }
+            />
+          </ActionIcon>
+        </Popover.Target>
+        <Popover.Dropdown p="xs" miw={120}>
+          <Stack gap={2}>
+            {options.map((opt) => (
+              <UnstyledButton
+                key={opt.value}
+                px={6}
+                py={6}
+                className="compact-currency-option"
+                onClick={() => {
+                  onSelect(opt.value);
+                  setOpened(false);
+                }}
+              >
+                <Group gap={8} wrap="nowrap">
+                  <CurrencyOptionIcon
+                    code={opt.value}
+                    cryptoIconStyle={cryptoIconStyle}
+                    customIcon={opt.customIcon}
+                  />
+                  <Text size="sm">{opt.value}</Text>
+                </Group>
+              </UnstyledButton>
+            ))}
+          </Stack>
+        </Popover.Dropdown>
+      </Popover>
+    </>
+  );
+}
+
 function CurrencySwitcher() {
   const {
     enabledCurrencies,
@@ -530,6 +620,7 @@ function CurrencySwitcher() {
     setDisplayCurrency,
     cryptoIconStyle,
   } = useAppData();
+  const isCompact = useMediaQuery("(max-width: 500px)");
 
   if (enabledCurrencies.length <= 1) return null;
 
@@ -539,6 +630,17 @@ function CurrencySwitcher() {
     customIcon: c.custom_icon,
   }));
   const selectedCurrency = enabledCurrencies.find((c) => c.code === displayCurrency);
+
+  if (isCompact) {
+    return (
+      <CompactCurrencyMenu
+        options={options}
+        displayCurrency={displayCurrency}
+        cryptoIconStyle={cryptoIconStyle}
+        onSelect={(v) => setDisplayCurrency(v)}
+      />
+    );
+  }
 
   return (
     <Select
@@ -612,8 +714,8 @@ export function TopNav({
   ];
 
   return (
-    <Group h="100%" px="md" justify="space-between">
-      <Group gap="xl">
+    <Group h="100%" px="sm" justify="space-between" style={{ overflow: "hidden" }}>
+      <Group gap="sm">
         <Title order={4}>{t("appTitle")}</Title>
         {/* Desktop nav links */}
         <Group gap="md" visibleFrom="sm">
