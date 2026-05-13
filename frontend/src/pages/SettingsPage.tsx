@@ -285,11 +285,32 @@ export default function SettingsPage() {
       color: "cyan",
     },
     {
+      to: "/settings/export",
+      Icon: IconFileDownload,
+      label: t("settingsNavExportTitle"),
+      desc: t("settingsNavExportDesc"),
+      color: "orange",
+    },
+    {
+      to: "/settings/currencies",
+      Icon: IconCurrencyDollar,
+      label: t("settingsNavCurrencyTitle"),
+      desc: t("settingsNavCurrencyDesc"),
+      color: "yellow",
+    },
+    {
       to: "/settings/business",
       Icon: IconBriefcase,
       label: t("businessOwnerSettingsTitle"),
       desc: t("settingsNavBusinessDesc"),
       color: "violet",
+    },
+    {
+      to: "/settings/guides",
+      Icon: IconHelp,
+      label: t("settingsNavGuidesTitle"),
+      desc: t("settingsNavGuidesDesc"),
+      color: "indigo",
     },
     {
       to: "/settings/bulk_edit",
@@ -304,27 +325,6 @@ export default function SettingsPage() {
       label: t("dangerZoneTitle"),
       desc: t("settingsNavDangerDesc"),
       color: "red",
-    },
-    {
-      to: "/settings/guides",
-      Icon: IconHelp,
-      label: t("settingsNavGuidesTitle"),
-      desc: t("settingsNavGuidesDesc"),
-      color: "indigo",
-    },
-    {
-      to: "/settings/export",
-      Icon: IconFileDownload,
-      label: t("settingsNavExportTitle"),
-      desc: t("settingsNavExportDesc"),
-      color: "orange",
-    },
-    {
-      to: "/settings/currencies",
-      Icon: IconCurrencyDollar,
-      label: t("settingsNavCurrencyTitle"),
-      desc: t("settingsNavCurrencyDesc"),
-      color: "yellow",
     },
   ] as const;
 

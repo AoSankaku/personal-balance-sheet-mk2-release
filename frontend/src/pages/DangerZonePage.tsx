@@ -59,15 +59,15 @@ export default function DangerZonePage() {
         resetLocaleSelection();
         localStorage.removeItem("display_currency");
         localStorage.removeItem("app:initialSeeded");
+        // resetLocaleSelection always resets to "ja"; seed with that locale
+        await api.admin.seed("ja");
         await refreshEnabledCurrencies();
       } else if (dangerScope === "accounts_all") {
         await api.admin.seed(locale);
       }
       showFeedback({ message: t("dangerSuccessMsg"), color: "teal" });
       closeDanger();
-      if (dangerScope !== "all_data") {
-        refresh();
-      }
+      refresh();
     } catch {
       showFeedback({ message: t("dangerErrorMsg"), color: "red" });
     } finally {

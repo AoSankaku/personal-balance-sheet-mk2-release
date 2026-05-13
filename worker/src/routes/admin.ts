@@ -171,7 +171,34 @@ router.post("/erase", async (c) => {
   }
 });
 
-type SeedLocale = "en" | "ja";
+type SeedLocale = "en" | "ja" | "es" | "fr" | "zh-CN" | "zh-TW";
+
+const SUPPORTED_SEED_LOCALES: SeedLocale[] = [
+  "ja",
+  "en",
+  "es",
+  "fr",
+  "zh-CN",
+  "zh-TW",
+];
+
+const SYSTEM_ACCOUNTS: {
+  name: string;
+  type: (typeof accounts.$inferInsert)["type"];
+  category: (typeof accounts.$inferInsert)["category"];
+}[] = [
+  { name: "__system:unknown_funds__", type: "asset", category: "other" },
+  { name: "__system:misc_expense__", type: "expense", category: "other" },
+  { name: "__system:misc_income__", type: "income", category: "other" },
+  { name: "__system:securities_gain__", type: "income", category: "investment" },
+  { name: "__system:securities_loss__", type: "expense", category: "investment_loss" },
+  { name: "__system:crypto_gain__", type: "income", category: "investment" },
+  { name: "__system:crypto_loss__", type: "expense", category: "investment_loss" },
+  { name: "__system:property_gain__", type: "income", category: "other" },
+  { name: "__system:property_loss__", type: "expense", category: "other" },
+  { name: "__system:opening_balance__", type: "equity", category: "opening_balance" },
+  { name: "__system:bad_debt_loss__", type: "expense", category: "other" },
+];
 
 const SEED_ACCOUNTS: {
   name: Record<SeedLocale, string>;
@@ -179,55 +206,154 @@ const SEED_ACCOUNTS: {
   category: (typeof accounts.$inferInsert)["category"];
 }[] = [
   {
-    name: { ja: "XX銀行預金", en: "XX Bank Savings" },
+    name: {
+      ja: "XX銀行預金",
+      en: "XX Bank Savings",
+      es: "Ahorros XX Bank",
+      fr: "Épargne XX Bank",
+      "zh-CN": "XX银行存款",
+      "zh-TW": "XX銀行存款",
+    },
     type: "asset",
     category: "cash",
   },
   {
-    name: { ja: "友人貸付", en: "Loan to Friends" },
+    name: {
+      ja: "友人貸付",
+      en: "Loan to Friends",
+      es: "Préstamo a Amigos",
+      fr: "Prêt à des Amis",
+      "zh-CN": "朋友借款",
+      "zh-TW": "朋友借款",
+    },
     type: "asset",
     category: "lending",
   },
   {
-    name: { ja: "友人借入", en: "Loan from Friends" },
+    name: {
+      ja: "友人借入",
+      en: "Loan from Friends",
+      es: "Préstamo de Amigos",
+      fr: "Emprunt à des Amis",
+      "zh-CN": "向朋友借款",
+      "zh-TW": "向朋友借款",
+    },
     type: "liability",
     category: "short_term_loan",
   },
   {
-    name: { ja: "XXクレジットカード", en: "XX Credit Card" },
+    name: {
+      ja: "XXクレジットカード",
+      en: "XX Credit Card",
+      es: "XX Tarjeta de Crédito",
+      fr: "XX Carte de Crédit",
+      "zh-CN": "XX信用卡",
+      "zh-TW": "XX信用卡",
+    },
     type: "liability",
     category: "credit_card",
   },
   {
-    name: { ja: "元入金", en: "Opening Balance" },
+    name: {
+      ja: "元入金",
+      en: "Opening Balance",
+      es: "Saldo Inicial",
+      fr: "Solde d'ouverture",
+      "zh-CN": "期初余额",
+      "zh-TW": "期初餘額",
+    },
     type: "equity",
     category: "opening_balance",
   },
-  { name: { ja: "給料", en: "Salary" }, type: "income", category: "salary" },
   {
-    name: { ja: "臨時収入", en: "Occasional Income" },
+    name: {
+      ja: "給料",
+      en: "Salary",
+      es: "Salario",
+      fr: "Salaire",
+      "zh-CN": "工资",
+      "zh-TW": "工資",
+    },
+    type: "income",
+    category: "salary",
+  },
+  {
+    name: {
+      ja: "臨時収入",
+      en: "Occasional Income",
+      es: "Ingresos Ocasionales",
+      fr: "Revenus Occasionnels",
+      "zh-CN": "临时收入",
+      "zh-TW": "臨時收入",
+    },
     type: "income",
     category: "other",
   },
-  { name: { ja: "食費", en: "Food" }, type: "expense", category: "food" },
-  { name: { ja: "住居費", en: "Housing" }, type: "expense", category: "rent" },
+  {
+    name: {
+      ja: "食費",
+      en: "Food",
+      es: "Comida",
+      fr: "Nourriture",
+      "zh-CN": "餐饮费",
+      "zh-TW": "餐飲費",
+    },
+    type: "expense",
+    category: "food",
+  },
+  {
+    name: {
+      ja: "住居費",
+      en: "Housing",
+      es: "Vivienda",
+      fr: "Logement",
+      "zh-CN": "居住费",
+      "zh-TW": "居住費",
+    },
+    type: "expense",
+    category: "rent",
+  },
 ];
 
 // POST /api/admin/seed — insert default accounts (only if accounts table is empty)
 router.post("/seed", async (c) => {
   const body = await c.req.json<{ locale?: string }>().catch(() => ({}));
   const locale: SeedLocale =
-    typeof body.locale === "string" && body.locale.startsWith("ja")
-      ? "ja"
+    typeof body.locale === "string" &&
+    SUPPORTED_SEED_LOCALES.includes(body.locale as SeedLocale)
+      ? (body.locale as SeedLocale)
       : "en";
 
   const db = createDb(c.env);
 
-  const [{ total }] = await db.select({ total: count() }).from(accounts);
+  // Only seed default accounts if the table has no regular accounts
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(accounts)
+    .where(eq(accounts.is_system, 0));
 
   if (Number(total) > 0) {
     return c.json({ ok: true, skipped: true });
   }
+
+  // Reset system accounts: delete existing rows, then insert fresh ones.
+  // This prevents multiplication across repeated seed calls and resets any
+  // system-account state (amounts, allocation flags, etc.).
+  // Safe here because journal entries have already been deleted by the
+  // preceding erase step when this endpoint is used in the reset flow.
+  await db.delete(accounts).where(eq(accounts.is_system, 1));
+  await db
+    .insert(accounts)
+    .values(
+      SYSTEM_ACCOUNTS.map((a) => ({
+        name: a.name,
+        type: a.type,
+        category: a.category,
+        currency: "JPY",
+        is_system: 1,
+        include_in_allocatable: 0,
+      })),
+    );
 
   const inserted = await db
     .insert(accounts)

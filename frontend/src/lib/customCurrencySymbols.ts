@@ -7,18 +7,27 @@ export type CustomCurrencyIconKey =
   | "heart"
   | "bolt"
   | "shield"
-  | "plus"
-  | "minus"
   | "xmark"
   | "check"
   | "asterisk"
   | "at"
   | "hashtag"
-  | "percent"
   | "infinity"
-  | "equals"
-  | "slash"
-  | "wave";
+  | "crosshairs"
+  | "circleHalf"
+  | "circleNotch"
+  | "ring"
+  | "starHalf"
+  | "key"
+  | "sun"
+  | "moon"
+  | "droplet"
+  | "snowflake"
+  | "gear"
+  | "gem"
+  | "globe"
+  | "crown"
+  | "arrowsRotate";
 
 export interface CustomCurrencyIconOption {
   value: CustomCurrencyIconKey;
@@ -35,18 +44,27 @@ export const CUSTOM_CURRENCY_ICON_OPTIONS: CustomCurrencyIconOption[] = [
   { value: "heart", label: "Heart", fallbackSymbol: "<3" },
   { value: "bolt", label: "Bolt", fallbackSymbol: "!" },
   { value: "shield", label: "Shield", fallbackSymbol: "#" },
-  { value: "plus", label: "Plus", fallbackSymbol: "+" },
-  { value: "minus", label: "Minus", fallbackSymbol: "-" },
   { value: "xmark", label: "X mark", fallbackSymbol: "x" },
   { value: "check", label: "Check", fallbackSymbol: "v" },
   { value: "asterisk", label: "Asterisk", fallbackSymbol: "*" },
   { value: "at", label: "At", fallbackSymbol: "@" },
   { value: "hashtag", label: "Hashtag", fallbackSymbol: "#" },
-  { value: "percent", label: "Percent", fallbackSymbol: "%" },
   { value: "infinity", label: "Infinity", fallbackSymbol: "inf" },
-  { value: "equals", label: "Equals", fallbackSymbol: "=" },
-  { value: "slash", label: "Slash", fallbackSymbol: "/" },
-  { value: "wave", label: "Wave", fallbackSymbol: "~" },
+  { value: "crosshairs", label: "Crosshairs", fallbackSymbol: "@" },
+  { value: "circleHalf", label: "Half circle", fallbackSymbol: "C" },
+  { value: "circleNotch", label: "Notch circle", fallbackSymbol: "O" },
+  { value: "ring", label: "Ring", fallbackSymbol: "O" },
+  { value: "starHalf", label: "Half star", fallbackSymbol: "~" },
+  { value: "key", label: "Key", fallbackSymbol: "k" },
+  { value: "sun", label: "Sun", fallbackSymbol: "@" },
+  { value: "moon", label: "Moon", fallbackSymbol: "C" },
+  { value: "droplet", label: "Droplet", fallbackSymbol: "," },
+  { value: "snowflake", label: "Snowflake", fallbackSymbol: "*" },
+  { value: "gear", label: "Gear", fallbackSymbol: "@" },
+  { value: "gem", label: "Gem", fallbackSymbol: "<>" },
+  { value: "globe", label: "Globe", fallbackSymbol: "O" },
+  { value: "crown", label: "Crown", fallbackSymbol: "^" },
+  { value: "arrowsRotate", label: "Rotate arrows", fallbackSymbol: "<>" },
 ];
 
 export const DEFAULT_CUSTOM_CURRENCY_ICON =

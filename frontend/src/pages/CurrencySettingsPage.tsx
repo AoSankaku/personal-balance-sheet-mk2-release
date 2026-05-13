@@ -1125,7 +1125,7 @@ export default function CurrencySettingsPage({
             )}
             searchable
             allowDeselect={false}
-            limit={8}
+            limit={60}
             maxDropdownHeight={260}
             w={190}
           />
