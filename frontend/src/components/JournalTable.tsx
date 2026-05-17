@@ -23,6 +23,7 @@ interface Props {
   view?: "simple" | "double";
   showTimestamp?: boolean;
   displayCurrency?: string;
+  displayCurrencySymbol?: string;
 }
 
 function normalizeCurrency(currency: string | null | undefined) {
@@ -37,6 +38,41 @@ function lineMatchesCurrency(
   return normalizeCurrency(line.currency) === normalizeCurrency(currency);
 }
 
+function isSimpleDisplayPositive(
+  debitLines: JournalEntry["lines"][number][],
+  creditLines: JournalEntry["lines"][number][],
+  accountTypeMap: Map<number, Account["type"]>,
+) {
+  if (debitLines.some((l) => accountTypeMap.get(l.account_id) === "expense")) {
+    return false;
+  }
+  if (
+    creditLines.some((l) => {
+      const type = accountTypeMap.get(l.account_id);
+      return type === "income" || type === "equity";
+    })
+  ) {
+    return true;
+  }
+  if (debitLines.some((l) => accountTypeMap.get(l.account_id) === "asset")) {
+    return true;
+  }
+  if (creditLines.some((l) => accountTypeMap.get(l.account_id) === "asset")) {
+    return false;
+  }
+  if (
+    debitLines.some((l) => accountTypeMap.get(l.account_id) === "liability")
+  ) {
+    return false;
+  }
+  if (
+    creditLines.some((l) => accountTypeMap.get(l.account_id) === "liability")
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function JournalTable({
   entries,
   accounts,
@@ -45,6 +81,7 @@ export function JournalTable({
   view = "double",
   showTimestamp = false,
   displayCurrency,
+  displayCurrencySymbol,
 }: Props) {
   const { t, locale } = useLang();
   const isMobile = useMediaQuery("(max-width: 48em)");
@@ -61,8 +98,15 @@ export function JournalTable({
     }).format(d);
   }
   const accountTypeMap = new Map(accounts.map((a) => [a.id, a.type]));
-  const formatAmount = (amount: number, currency?: string) =>
-    formatCurrency(amount, locale, normalizeCurrency(currency));
+  const formatAmount = (amount: number, currency?: string) => {
+    const normalized = normalizeCurrency(currency);
+    const symbol =
+      displayCurrency &&
+      normalizeCurrency(displayCurrency) === normalized
+        ? displayCurrencySymbol
+        : undefined;
+    return formatCurrency(amount, locale, normalized, symbol);
+  };
 
   return (
     <Stack gap="xs">
@@ -115,10 +159,11 @@ export function JournalTable({
                       l.credit > 0 && lineMatchesCurrency(l, displayCurrency),
                   );
                   const selectedLines = [...debitLines, ...creditLines];
-                  const isPositive = creditLines.some((l) => {
-                    const t = accountTypeMap.get(l.account_id);
-                    return t === "income" || t === "equity";
-                  });
+                  const isPositive = isSimpleDisplayPositive(
+                    debitLines,
+                    creditLines,
+                    accountTypeMap,
+                  );
                   const debitAmount = debitLines.reduce(
                     (s, l) => s + l.debit,
                     0,

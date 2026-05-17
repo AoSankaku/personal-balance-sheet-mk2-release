@@ -138,6 +138,7 @@ export default function LedgerPage() {
     budgetCategories,
     budgetSummary,
     displayCurrency,
+    displayCurrencySymbol,
     loading,
     error,
     refresh,
@@ -270,6 +271,8 @@ export default function LedgerPage() {
     { open: openDeleteJournalConfirm, close: closeDeleteJournalConfirm },
   ] = useDisclosure(false);
   const selectedCurrency = normalizeCurrency(displayCurrency);
+  const formatSelectedCurrency = (amount: number) =>
+    formatCurrency(amount, locale, selectedCurrency, displayCurrencySymbol);
 
   useEffect(() => {
     setJournalPage(1);
@@ -1000,7 +1003,7 @@ export default function LedgerPage() {
                   {t("income")}
                 </Text>
                 <Text size="sm" fw={700} c="teal">
-                  {formatCurrency(filteredPL.income, locale, selectedCurrency)}
+                  {formatSelectedCurrency(filteredPL.income)}
                 </Text>
               </Group>
               <Group gap={6}>
@@ -1008,7 +1011,7 @@ export default function LedgerPage() {
                   {t("expenses")}
                 </Text>
                 <Text size="sm" fw={700} c="red">
-                  {formatCurrency(filteredPL.expense, locale, selectedCurrency)}
+                  {formatSelectedCurrency(filteredPL.expense)}
                 </Text>
               </Group>
               <Group gap={6}>
@@ -1021,11 +1024,7 @@ export default function LedgerPage() {
                   c={filteredPL.net_income >= 0 ? "blue" : "red"}
                 >
                   {filteredPL.net_income >= 0 ? "+" : ""}
-                  {formatCurrency(
-                    filteredPL.net_income,
-                    locale,
-                    selectedCurrency,
-                  )}
+                  {formatSelectedCurrency(filteredPL.net_income)}
                 </Text>
               </Group>
             </Group>
@@ -1071,6 +1070,7 @@ export default function LedgerPage() {
             view={viewMode}
             showTimestamp={showTimestamp}
             displayCurrency={selectedCurrency}
+            displayCurrencySymbol={displayCurrencySymbol}
           />
           <Group justify="space-between" align="center" wrap="wrap" gap="xs">
             {journalPage === journalPageCount && outsideRangeCount > 0 ? (
@@ -1117,13 +1117,13 @@ export default function LedgerPage() {
                 fw={700}
                 c={allocatableToday >= 0 ? "teal" : "red"}
               >
-                {formatCurrency(allocatableToday, locale, selectedCurrency)}
+                {formatSelectedCurrency(allocatableToday)}
               </Text>
               <Text size="xs" c="dimmed">
                 {t("assignableMoneyTodayLabel")}
               </Text>
               <Text size="sm" c={allocatableTotal >= 0 ? "dimmed" : "red"}>
-                {formatCurrency(allocatableTotal, locale, selectedCurrency)}
+                {formatSelectedCurrency(allocatableTotal)}
               </Text>
               <Text size="xs" c="dimmed">
                 {t("assignableMoneyTotalLabel")}
@@ -1291,11 +1291,7 @@ export default function LedgerPage() {
                                   c={displayAmount >= 0 ? "teal" : "red"}
                                 >
                                   {displayAmount >= 0 ? "+" : ""}
-                                  {formatCurrency(
-                                    displayAmount,
-                                    locale,
-                                    selectedCurrency,
-                                  )}
+                                  {formatSelectedCurrency(displayAmount)}
                                 </Text>
                               );
                             })()}
@@ -1383,11 +1379,7 @@ export default function LedgerPage() {
                                 }
                               >
                                 {summary.adjusted_total >= 0 ? "+" : ""}
-                                {formatCurrency(
-                                  summary.adjusted_total,
-                                  locale,
-                                  selectedCurrency,
-                                )}
+                                {formatSelectedCurrency(summary.adjusted_total)}
                               </Text>
                             </Stack>
                           </Group>
@@ -1445,11 +1437,7 @@ export default function LedgerPage() {
                                             }
                                           >
                                             {log.amount >= 0 ? "+" : ""}
-                                            {formatCurrency(
-                                              log.amount,
-                                              locale,
-                                              selectedCurrency,
-                                            )}
+                                            {formatSelectedCurrency(log.amount)}
                                           </Text>
                                         </Table.Td>
                                         <Table.Td className="currency-cell">
@@ -1465,10 +1453,8 @@ export default function LedgerPage() {
                                             {adjusted_total_after >= 0
                                               ? "+"
                                               : ""}
-                                            {formatCurrency(
+                                            {formatSelectedCurrency(
                                               adjusted_total_after,
-                                              locale,
-                                              selectedCurrency,
                                             )}
                                           </Text>
                                         </Table.Td>

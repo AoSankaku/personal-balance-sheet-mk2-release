@@ -23,6 +23,15 @@ describe("currency initial setup gate", () => {
     expect(currencyPageSource).toContain("initialSetup");
   });
 
+  test("loads app data when currencies exist even if locale was not explicitly selected", () => {
+    expect(contextSource).toContain(
+      "enabledCurrenciesLoaded && enabledCurrencies.length > 0",
+    );
+    expect(contextSource).not.toContain(
+      "hasExplicitLocale && enabledCurrenciesLoaded",
+    );
+  });
+
   test("does not allow disabling the final enabled currency from the settings page", () => {
     expect(currencyPageSource).toContain("enabledCurrencies.length <= 1");
     expect(currencyPageSource).toContain("disabled={removeDisabled}");

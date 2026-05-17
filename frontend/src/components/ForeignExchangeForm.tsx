@@ -15,6 +15,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { toDateStr } from "../lib/dateUtils";
 
 interface Props {
   onSuccess?: () => void;
@@ -95,7 +96,7 @@ export function ForeignExchangeForm({ onSuccess }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const dateStr = date.toISOString().slice(0, 10);
+      const dateStr = toDateStr(date);
       const description =
         locale === "ja"
           ? `外貨両替 ${fromCurrency}→${toCurrency}`

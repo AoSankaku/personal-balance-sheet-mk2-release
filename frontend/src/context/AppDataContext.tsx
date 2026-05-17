@@ -42,6 +42,7 @@ import {
   storeCryptoIconStyle,
   type CryptoIconStyle,
 } from "../lib/cryptoCurrencyIcons";
+import { toDateStr } from "../lib/dateUtils";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
@@ -127,7 +128,7 @@ export function useAppData() {
 }
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
-  const { t, locale, hasExplicitLocale } = useLang();
+  const { t, locale } = useLang();
   const {
     prices,
     refresh: refreshCryptoPrices,
@@ -194,7 +195,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   );
   const [enabledCurrenciesLoaded, setEnabledCurrenciesLoaded] = useState(false);
   const isInitialSetupComplete =
-    hasExplicitLocale && enabledCurrenciesLoaded && enabledCurrencies.length > 0;
+    enabledCurrenciesLoaded && enabledCurrencies.length > 0;
   const [cryptoIconStyle, setCryptoIconStyleState] =
     useState<CryptoIconStyle>(getStoredCryptoIconStyle);
 
@@ -267,7 +268,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const refreshAllocatable = useCallback(async () => {
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = toDateStr(new Date());
       const currency = displayCurrencyRef.current;
       const ym = currentYearMonthRef.current;
       const [accs, summaryToday, summaryTotal] = await Promise.all([
@@ -457,7 +458,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         ccState,
         bSettings,
       ] = await Promise.all([
-        api.accounts.list(),
+        api.accounts.list(toDateStr(new Date())),
         api.journal.list(),
         api.reports.pl(),
         api.crypto.list(),
