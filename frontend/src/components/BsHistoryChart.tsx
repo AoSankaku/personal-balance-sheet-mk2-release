@@ -27,6 +27,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { lineAmountForDisplayMode } from "../lib/displayCurrencyAmounts";
 
 type Granularity = "year" | "month" | "day";
 
@@ -89,9 +90,14 @@ function formatLabel(b: string, g: Granularity) {
 interface Props {
   journal: JournalEntry[];
   accounts: Account[];
+  includeAllCurrencies?: boolean;
 }
 
-export function BsHistoryChart({ journal, accounts }: Props) {
+export function BsHistoryChart({
+  journal,
+  accounts,
+  includeAllCurrencies = false,
+}: Props) {
   const { t, locale } = useLang();
   const { displayCurrency, displayCurrencySymbol, convertCurrency } =
     useAppData();
@@ -115,7 +121,7 @@ export function BsHistoryChart({ journal, accounts }: Props) {
   const rawHistory = useMemo(() => {
     if (journal.length === 0) return [];
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = toDateStr(new Date());
     const pastJournal = journal.filter((e) => e.date.slice(0, 10) <= todayStr);
     if (pastJournal.length === 0) return [];
 
@@ -139,9 +145,29 @@ export function BsHistoryChart({ journal, accounts }: Props) {
           const type = accountTypeMap.get(line.account_id);
           const cur = balances.get(line.account_id) ?? 0;
           if (type === "asset") {
-            balances.set(line.account_id, cur + line.debit - line.credit);
+            balances.set(
+              line.account_id,
+              cur +
+                lineAmountForDisplayMode(
+                  line.debit - line.credit,
+                  line.currency,
+                  displayCurrency,
+                  convertCurrency,
+                  includeAllCurrencies,
+                ),
+            );
           } else if (type === "liability") {
-            balances.set(line.account_id, cur + line.credit - line.debit);
+            balances.set(
+              line.account_id,
+              cur +
+                lineAmountForDisplayMode(
+                  line.credit - line.debit,
+                  line.currency,
+                  displayCurrency,
+                  convertCurrency,
+                  includeAllCurrencies,
+                ),
+            );
           }
         }
         idx++;
@@ -155,35 +181,25 @@ export function BsHistoryChart({ journal, accounts }: Props) {
         const type = accountTypeMap.get(id);
         if (type === "asset") {
           totalAssets += Math.max(0, bal);
-          point[String(id)] = convertCurrency(
-            Math.max(0, bal),
-            "JPY",
-            displayCurrency,
-          );
+          point[String(id)] = Math.max(0, bal);
         } else if (type === "liability") {
           totalLiabilities += Math.max(0, bal);
-          point[String(id)] = convertCurrency(
-            Math.max(0, bal),
-            "JPY",
-            displayCurrency,
-          );
+          point[String(id)] = Math.max(0, bal);
         }
       }
 
-      point[TOTAL_ASSETS_KEY] = convertCurrency(
-        totalAssets,
-        "JPY",
-        displayCurrency,
-      );
-      point[TOTAL_LIABILITIES_KEY] = convertCurrency(
-        totalLiabilities,
-        "JPY",
-        displayCurrency,
-      );
+      point[TOTAL_ASSETS_KEY] = totalAssets;
+      point[TOTAL_LIABILITIES_KEY] = totalLiabilities;
 
       return point;
     });
-  }, [journal, accounts, convertCurrency, displayCurrency]);
+  }, [
+    journal,
+    accounts,
+    convertCurrency,
+    displayCurrency,
+    includeAllCurrencies,
+  ]);
 
   const minDataDate = useMemo(() => {
     if (rawHistory.length === 0) return null;

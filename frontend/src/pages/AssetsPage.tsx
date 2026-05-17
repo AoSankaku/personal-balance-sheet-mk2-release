@@ -12,6 +12,7 @@ import {
   SimpleGrid,
   Skeleton,
   Stack,
+  Switch,
   Text,
   ThemeIcon,
   rem,
@@ -25,13 +26,14 @@ import {
   IconCurrencyBitcoin,
   IconFileAnalytics,
   IconHandStop,
+  IconInfoCircle,
   IconPigMoney,
   IconReportMoney,
   IconScale,
   IconTrendingDown,
   IconTrendingUp,
 } from "@tabler/icons-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   isShortTermLendingCategory,
@@ -46,6 +48,11 @@ import { NetWorthChart } from "../components/NetWorthChart";
 import { ExpenseBarChart } from "../components/ExpenseBarChart";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { formatCurrency } from "../lib/numberFormat";
+import {
+  balanceMapAmountForDisplayMode,
+  lineAmountForDisplayMode,
+} from "../lib/displayCurrencyAmounts";
+import { toDateStr } from "../lib/dateUtils";
 import {
   isShortTermLoanAccountActive,
   isUnsettledOpeningEntry,
@@ -76,15 +83,31 @@ export default function AssetsPage() {
     displayCurrency,
     displayCurrencySymbol,
     convertCurrency,
+    enabledCurrencies,
   } = useAppData();
+  const [includeAllCurrencies, setIncludeAllCurrencies] = useState(false);
+  const hasMultipleCurrencies = enabledCurrencies.length > 1;
+  const selectedCurrencyBadgeLabel =
+    locale === "ja" ? `${displayCurrency}のみ` : `${displayCurrency} only`;
 
   const fmt = (amount: number) =>
     formatCurrency(
-      convertCurrency(amount, "JPY", displayCurrency),
+      amount,
       locale,
       displayCurrency,
       displayCurrencySymbol,
     );
+  const balanceInDisplayCurrency = (balances?: Record<string, number>) =>
+    balanceMapAmountForDisplayMode(
+      balances,
+      displayCurrency,
+      convertCurrency,
+      includeAllCurrencies,
+    );
+  const liveCryptoValueInDisplayCurrency = (valueJpy: number) =>
+    includeAllCurrencies || displayCurrency === "JPY"
+      ? convertCurrency(valueJpy, "JPY", displayCurrency)
+      : 0;
 
   // Exclude the 不明金 system account and depreciable assets from regular asset computations.
   // Depreciable assets are shown as a separate section (固定資産).
@@ -154,27 +177,19 @@ export default function AssetsPage() {
       assets.map((a) => ({
         ...a,
         balance: cryptoValueMap.has(a.id)
-          ? (cryptoValueMap.get(a.id) ?? 0)
-          : Object.entries(a.balances ?? {}).reduce(
-              (sum, [cur, amt]) => sum + convertCurrency(amt, cur, "JPY"),
-              0,
-            ),
+          ? liveCryptoValueInDisplayCurrency(cryptoValueMap.get(a.id) ?? 0)
+          : balanceInDisplayCurrency(a.balances),
       })),
-    [assets, cryptoValueMap, convertCurrency],
+    [assets, cryptoValueMap, displayCurrency, convertCurrency, includeAllCurrencies],
   );
 
   const depreciableAssetsTotal = useMemo(
     () =>
       depreciableAssets.reduce(
-        (s, a) =>
-          s +
-          Object.entries(a.balances ?? {}).reduce(
-            (sum, [cur, amt]) => sum + convertCurrency(amt, cur, "JPY"),
-            0,
-          ),
+        (s, a) => s + balanceInDisplayCurrency(a.balances),
         0,
       ),
-    [depreciableAssets, convertCurrency],
+    [depreciableAssets, displayCurrency, convertCurrency, includeAllCurrencies],
   );
 
   const totalAssets = assetsWithEffectiveBalance.reduce(
@@ -182,12 +197,7 @@ export default function AssetsPage() {
     0,
   );
   const totalLiabilities = liabilities.reduce(
-    (s, a) =>
-      s +
-      Object.entries(a.balances ?? {}).reduce(
-        (sum, [cur, amt]) => sum + convertCurrency(amt, cur, "JPY"),
-        0,
-      ),
+    (s, a) => s + balanceInDisplayCurrency(a.balances),
     0,
   );
 
@@ -237,10 +247,7 @@ export default function AssetsPage() {
     ];
     const totals: Record<string, number> = {};
     for (const a of liabilities) {
-      const bal = Object.entries(a.balances ?? {}).reduce(
-        (sum, [cur, amt]) => sum + convertCurrency(amt, cur, "JPY"),
-        0,
-      );
+      const bal = balanceInDisplayCurrency(a.balances);
       let key: string;
       if (a.category === "credit_card") key = "credit_card";
       else if (isShortTermBorrowingCategory(a.category))
@@ -254,7 +261,7 @@ export default function AssetsPage() {
       ...c,
       total: totals[c.key] ?? 0,
     }));
-  }, [liabilities, convertCurrency]);
+  }, [liabilities, displayCurrency, convertCurrency, includeAllCurrencies]);
   const netWorth = totalAssets - totalLiabilities;
 
   // Financial Health Indicator score
@@ -293,7 +300,13 @@ export default function AssetsPage() {
       if (ym >= currentYM) continue;
       for (const line of entry.lines) {
         if (expenseIds.has(line.account_id)) {
-          const net = line.debit - line.credit;
+          const net = lineAmountForDisplayMode(
+            line.debit - line.credit,
+            line.currency,
+            displayCurrency,
+            convertCurrency,
+            includeAllCurrencies,
+          );
           if (net > 0) monthMap.set(ym, (monthMap.get(ym) ?? 0) + net);
         }
       }
@@ -344,7 +357,16 @@ export default function AssetsPage() {
       rating,
       ratingColor,
     };
-  }, [assetsWithEffectiveBalance, totalAssets, netWorth, accounts, journal]);
+  }, [
+    assetsWithEffectiveBalance,
+    totalAssets,
+    netWorth,
+    accounts,
+    journal,
+    displayCurrency,
+    convertCurrency,
+    includeAllCurrencies,
+  ]);
 
   // Ratio for the progress bar (assets vs liabilities as % of total)
   const totalGross = totalAssets + totalLiabilities;
@@ -357,7 +379,7 @@ export default function AssetsPage() {
   const netWorthHistory = useMemo(() => {
     if (journal.length === 0) return [];
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = toDateStr(new Date());
     const pastJournal = journal.filter((e) => e.date.slice(0, 10) <= todayStr);
     if (pastJournal.length === 0) return [];
 
@@ -388,12 +410,26 @@ export default function AssetsPage() {
           if (type === "asset") {
             assetBal.set(
               line.account_id,
-              (assetBal.get(line.account_id) ?? 0) + line.debit - line.credit,
+              (assetBal.get(line.account_id) ?? 0) +
+                lineAmountForDisplayMode(
+                  line.debit - line.credit,
+                  line.currency,
+                  displayCurrency,
+                  convertCurrency,
+                  includeAllCurrencies,
+                ),
             );
           } else if (type === "liability") {
             liabBal.set(
               line.account_id,
-              (liabBal.get(line.account_id) ?? 0) + line.credit - line.debit,
+              (liabBal.get(line.account_id) ?? 0) +
+                lineAmountForDisplayMode(
+                  line.credit - line.debit,
+                  line.currency,
+                  displayCurrency,
+                  convertCurrency,
+                  includeAllCurrencies,
+                ),
             );
           }
         }
@@ -406,7 +442,7 @@ export default function AssetsPage() {
       );
       return { date, assets, liabilities, net_worth: assets - liabilities };
     });
-  }, [journal, accounts]);
+  }, [journal, accounts, displayCurrency, convertCurrency, includeAllCurrencies]);
 
   const donutData = useMemo(
     () =>
@@ -452,6 +488,23 @@ export default function AssetsPage() {
 
   return (
     <Stack gap="lg">
+      {hasMultipleCurrencies && (
+        <Group justify="flex-end">
+          <Switch
+            size="sm"
+            label={
+              locale === "ja"
+                ? "すべての通貨を含める"
+                : "Include all currencies"
+            }
+            checked={includeAllCurrencies}
+            onChange={(event) =>
+              setIncludeAllCurrencies(event.currentTarget.checked)
+            }
+          />
+        </Group>
+      )}
+
       {/* Net Worth hero card */}
       <Paper withBorder p="xl" radius="md">
         <Group
@@ -460,9 +513,21 @@ export default function AssetsPage() {
           mb={totalGross > 0 ? "lg" : 0}
         >
           <Box>
-            <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={6}>
-              {t("netWorth")}
-            </Text>
+            <Group gap={6} align="center" mb={6}>
+              <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                {t("netWorth")}
+              </Text>
+                {hasMultipleCurrencies && !includeAllCurrencies && (
+                  <Badge
+                    size="xs"
+                    variant="light"
+                    color="blue"
+                    leftSection={<IconInfoCircle size={12} />}
+                  >
+                    {selectedCurrencyBadgeLabel}
+                  </Badge>
+                )}
+            </Group>
             <Text
               fw={900}
               c={netWorth >= 0 ? "blue" : "red"}
@@ -531,9 +596,21 @@ export default function AssetsPage() {
               <IconBuildingBank size={22} />
             </ThemeIcon>
             <Box>
-              <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                {t("assets")}
-              </Text>
+              <Group gap={6} align="center">
+                <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                  {t("assets")}
+                </Text>
+                {hasMultipleCurrencies && !includeAllCurrencies && (
+                  <Badge
+                    size="xs"
+                    variant="light"
+                    color="teal"
+                    leftSection={<IconInfoCircle size={12} />}
+                  >
+                    {selectedCurrencyBadgeLabel}
+                  </Badge>
+                )}
+              </Group>
               <Text size="xl" fw={700} c="teal">
                 {fmt(totalAssets)}
               </Text>
@@ -673,9 +750,21 @@ export default function AssetsPage() {
               <IconCreditCard size={22} />
             </ThemeIcon>
             <Box>
-              <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                {t("liabilities")}
-              </Text>
+              <Group gap={6} align="center">
+                <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                  {t("liabilities")}
+                </Text>
+                {hasMultipleCurrencies && !includeAllCurrencies && (
+                  <Badge
+                    size="xs"
+                    variant="light"
+                    color="red"
+                    leftSection={<IconInfoCircle size={12} />}
+                  >
+                    {selectedCurrencyBadgeLabel}
+                  </Badge>
+                )}
+              </Group>
               <Text size="xl" fw={700} c="red">
                 {fmt(totalLiabilities)}
               </Text>
@@ -1023,12 +1112,15 @@ export default function AssetsPage() {
           data={netWorthHistory}
           displayCurrency={displayCurrency}
           displayCurrencySymbol={displayCurrencySymbol}
-          convertCurrency={convertCurrency}
         />
       )}
 
       {/* Monthly expense stacked bar chart */}
-      <ExpenseBarChart journal={journal} accounts={accounts} />
+      <ExpenseBarChart
+        journal={journal}
+        accounts={accounts}
+        includeAllCurrencies={includeAllCurrencies}
+      />
     </Stack>
   );
 }

@@ -69,14 +69,12 @@ interface Props {
   data: NetWorthSnapshot[];
   displayCurrency: string;
   displayCurrencySymbol: string;
-  convertCurrency: (amount: number, from: string, to: string) => number;
 }
 
 export function NetWorthChart({
   data,
   displayCurrency,
   displayCurrencySymbol,
-  convertCurrency,
 }: Props) {
   const { t, locale } = useLang();
 
@@ -201,17 +199,9 @@ export function NetWorthChart({
       if (!lastKnown) continue; // before any journal entry
       result.push({
         date: formatLabel(b, granularity),
-        [keyAssets]: convertCurrency(lastKnown.assets, "JPY", displayCurrency),
-        [keyLiabilities]: convertCurrency(
-          lastKnown.liabilities,
-          "JPY",
-          displayCurrency,
-        ),
-        [keyNetWorth]: convertCurrency(
-          lastKnown.net_worth,
-          "JPY",
-          displayCurrency,
-        ),
+        [keyAssets]: lastKnown.assets,
+        [keyLiabilities]: lastKnown.liabilities,
+        [keyNetWorth]: lastKnown.net_worth,
       });
     }
     return result;
@@ -222,8 +212,6 @@ export function NetWorthChart({
     keyAssets,
     keyLiabilities,
     keyNetWorth,
-    displayCurrency,
-    convertCurrency,
   ]);
 
   return (

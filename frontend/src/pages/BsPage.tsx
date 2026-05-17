@@ -1,13 +1,16 @@
 import {
   Anchor,
+  Badge,
   Group,
   Paper,
   SimpleGrid,
   Skeleton,
   Stack,
+  Switch,
   Text,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
+import { IconInfoCircle } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Account } from "@balance-sheet/shared";
@@ -18,6 +21,7 @@ import { AccountTable } from "../components/AccountTable";
 import { BsHistoryChart } from "../components/BsHistoryChart";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { formatCurrency } from "../lib/numberFormat";
+import { balanceMapAmountForDisplayMode } from "../lib/displayCurrencyAmounts";
 
 export default function BsPage() {
   const { t, locale } = useLang();
@@ -30,11 +34,16 @@ export default function BsPage() {
     displayCurrency,
     displayCurrencySymbol,
     convertCurrency,
+    enabledCurrencies,
   } = useAppData();
+  const [includeAllCurrencies, setIncludeAllCurrencies] = useState(false);
+  const hasMultipleCurrencies = enabledCurrencies.length > 1;
+  const selectedCurrencyBadgeLabel =
+    locale === "ja" ? `${displayCurrency}のみ` : `${displayCurrency} only`;
 
   const fmt = (amount: number) =>
     formatCurrency(
-      convertCurrency(amount, "JPY", displayCurrency),
+      amount,
       locale,
       displayCurrency,
       displayCurrencySymbol,
@@ -43,11 +52,22 @@ export default function BsPage() {
     amount == null
       ? "—"
       : formatCurrency(
-          convertCurrency(amount, "JPY", displayCurrency),
+          amount,
           locale,
           displayCurrency,
           displayCurrencySymbol,
         );
+  const balanceInDisplayCurrency = (balances?: Record<string, number>) =>
+    balanceMapAmountForDisplayMode(
+      balances,
+      displayCurrency,
+      convertCurrency,
+      includeAllCurrencies,
+    );
+  const liveCryptoValueInDisplayCurrency = (valueJpy: number) =>
+    includeAllCurrencies || displayCurrency === "JPY"
+      ? convertCurrency(valueJpy, "JPY", displayCurrency)
+      : 0;
 
   const [asOf, setAsOf] = useState<Date | null>(null);
   const [historicalAccounts, setHistoricalAccounts] = useState<
@@ -60,7 +80,7 @@ export default function BsPage() {
       setHistoricalAccounts(null);
       return;
     }
-    const dateStr = asOf.toISOString().slice(0, 10);
+    const dateStr = `${asOf.getFullYear()}-${String(asOf.getMonth() + 1).padStart(2, "0")}-${String(asOf.getDate()).padStart(2, "0")}`;
     setHistoricalLoading(true);
     api.accounts
       .list(dateStr)
@@ -103,25 +123,44 @@ export default function BsPage() {
         ...a,
         balance:
           !asOf && cryptoValueMap.has(a.id)
-            ? (cryptoValueMap.get(a.id) ?? 0)
-            : Object.entries(a.balances ?? {}).reduce(
-                (sum, [cur, amt]) => sum + convertCurrency(amt, cur, "JPY"),
-                0,
-              ),
+            ? liveCryptoValueInDisplayCurrency(cryptoValueMap.get(a.id) ?? 0)
+            : balanceInDisplayCurrency(a.balances),
       })),
-    [assets, cryptoValueMap, asOf, convertCurrency],
+    [
+      assets,
+      cryptoValueMap,
+      asOf,
+      displayCurrency,
+      convertCurrency,
+      includeAllCurrencies,
+    ],
   );
 
   const depreciableAssetsDisplay = useMemo(
     () =>
       depreciableAssets.map((a) => ({
         ...a,
-        balance: Object.entries(a.balances ?? {}).reduce(
-          (sum, [cur, amt]) => sum + convertCurrency(amt, cur, "JPY"),
-          0,
-        ),
+        balance: balanceInDisplayCurrency(a.balances),
       })),
-    [depreciableAssets, convertCurrency],
+    [depreciableAssets, displayCurrency, convertCurrency, includeAllCurrencies],
+  );
+
+  const liabilitiesDisplay = useMemo(
+    () =>
+      liabilities.map((a) => ({
+        ...a,
+        balance: balanceInDisplayCurrency(a.balances),
+      })),
+    [liabilities, displayCurrency, convertCurrency, includeAllCurrencies],
+  );
+
+  const equityDisplay = useMemo(
+    () =>
+      equity.map((a) => ({
+        ...a,
+        balance: balanceInDisplayCurrency(a.balances),
+      })),
+    [equity, displayCurrency, convertCurrency, includeAllCurrencies],
   );
 
   const totalDepreciableAssets = depreciableAssetsDisplay.reduce(
@@ -132,13 +171,8 @@ export default function BsPage() {
   const totalAssets =
     assetsDisplay.reduce((s, a) => s + (a.balance ?? 0), 0) +
     totalDepreciableAssets;
-  const totalLiabilities = liabilities.reduce(
-    (s, a) =>
-      s +
-      Object.entries(a.balances ?? {}).reduce(
-        (sum, [cur, amt]) => sum + convertCurrency(amt, cur, "JPY"),
-        0,
-      ),
+  const totalLiabilities = liabilitiesDisplay.reduce(
+    (s, a) => s + (a.balance ?? 0),
     0,
   );
   const netWorth = totalAssets - totalLiabilities;
@@ -170,9 +204,29 @@ export default function BsPage() {
         ← {t("navFS")}
       </Anchor>
 
-      <BsHistoryChart journal={journal} accounts={currentAccounts} />
+      <BsHistoryChart
+        journal={journal}
+        accounts={currentAccounts}
+        includeAllCurrencies={includeAllCurrencies}
+      />
 
-      <Group justify="flex-end">
+      <Group justify="space-between" align="flex-end">
+        {hasMultipleCurrencies ? (
+          <Switch
+            size="sm"
+            label={
+              locale === "ja"
+                ? "すべての通貨を含める"
+                : "Include all currencies"
+            }
+            checked={includeAllCurrencies}
+            onChange={(event) =>
+              setIncludeAllCurrencies(event.currentTarget.checked)
+            }
+          />
+        ) : (
+          <span />
+        )}
         <DatePickerInput
           label={t("asOfDate")}
           placeholder={locale === "ja" ? "空欄で現在残高" : "Blank for current"}
@@ -200,25 +254,61 @@ export default function BsPage() {
         <>
           <SimpleGrid cols={{ base: 1, sm: 3 }}>
             <Paper withBorder p="md" radius="md">
-              <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                {t("assets")}
-              </Text>
+              <Group gap={6} align="center">
+                <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                  {t("assets")}
+                </Text>
+                {hasMultipleCurrencies && !includeAllCurrencies && (
+                  <Badge
+                    size="xs"
+                    variant="light"
+                    color="teal"
+                    leftSection={<IconInfoCircle size={12} />}
+                  >
+                    {selectedCurrencyBadgeLabel}
+                  </Badge>
+                )}
+              </Group>
               <Text size="lg" fw={700} c="teal">
                 {fmt(totalAssets)}
               </Text>
             </Paper>
             <Paper withBorder p="md" radius="md">
-              <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                {t("liabilities")}
-              </Text>
+              <Group gap={6} align="center">
+                <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                  {t("liabilities")}
+                </Text>
+                {hasMultipleCurrencies && !includeAllCurrencies && (
+                  <Badge
+                    size="xs"
+                    variant="light"
+                    color="red"
+                    leftSection={<IconInfoCircle size={12} />}
+                  >
+                    {selectedCurrencyBadgeLabel}
+                  </Badge>
+                )}
+              </Group>
               <Text size="lg" fw={700} c="red">
                 {fmt(totalLiabilities)}
               </Text>
             </Paper>
             <Paper withBorder p="md" radius="md">
-              <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                {t("netWorth")}
-              </Text>
+              <Group gap={6} align="center">
+                <Text size="xs" tt="uppercase" fw={700} c="dimmed">
+                  {t("netWorth")}
+                </Text>
+                {hasMultipleCurrencies && !includeAllCurrencies && (
+                  <Badge
+                    size="xs"
+                    variant="light"
+                    color="blue"
+                    leftSection={<IconInfoCircle size={12} />}
+                  >
+                    {selectedCurrencyBadgeLabel}
+                  </Badge>
+                )}
+              </Group>
               <Text size="lg" fw={700} c={netWorth >= 0 ? "blue" : "red"}>
                 {fmt(netWorth)}
               </Text>
@@ -241,14 +331,14 @@ export default function BsPage() {
           {liabilities.length > 0 && (
             <AccountTable
               title={t("sectionLiabilities")}
-              accounts={liabilities}
+              accounts={liabilitiesDisplay}
               formatBalance={fmtBalance}
             />
           )}
           {equity.length > 0 && (
             <AccountTable
               title={t("sectionEquity")}
-              accounts={equity}
+              accounts={equityDisplay}
               formatBalance={fmtBalance}
             />
           )}

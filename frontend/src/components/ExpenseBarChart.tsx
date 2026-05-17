@@ -23,6 +23,7 @@ import {
   saveExpenseHistorySnapshot,
 } from "../lib/expenseHistoryStorage";
 import { formatCurrency } from "../lib/numberFormat";
+import { balanceMapAmountForDisplayMode } from "../lib/displayCurrencyAmounts";
 
 type Granularity = "year" | "month";
 
@@ -74,6 +75,7 @@ const CHART_COLORS = [
 interface Props {
   journal: JournalEntry[];
   accounts: Account[];
+  includeAllCurrencies?: boolean;
 }
 
 type PortalTooltipState = {
@@ -86,7 +88,11 @@ type PortalTooltipState = {
 const TOOLTIP_W = 240;
 const TOOLTIP_OFFSET = 16;
 
-export function ExpenseBarChart({ journal, accounts }: Props) {
+export function ExpenseBarChart({
+  journal,
+  accounts,
+  includeAllCurrencies = false,
+}: Props) {
   const { t, locale } = useLang();
   const { displayCurrency, displayCurrencySymbol, convertCurrency } =
     useAppData();
@@ -96,6 +102,7 @@ export function ExpenseBarChart({ journal, accounts }: Props) {
   const isMobilePinnedRef = useRef(false);
   const isTouchInteractingRef = useRef(false);
   const rafRef = useRef<number | null>(null);
+  const tooltipRenderRafRef = useRef<number | null>(null);
   const touchFallbackTimeoutRef = useRef<number | null>(null);
 
   const [tooltipState, setTooltipState] = useState<PortalTooltipState | null>(
@@ -188,6 +195,19 @@ export function ExpenseBarChart({ journal, accounts }: Props) {
     [],
   );
 
+  const updateTooltipStateAfterRender = useCallback(
+    (next: PortalTooltipState | null) => {
+      if (tooltipRenderRafRef.current != null) {
+        window.cancelAnimationFrame(tooltipRenderRafRef.current);
+      }
+      tooltipRenderRafRef.current = window.requestAnimationFrame(() => {
+        tooltipRenderRafRef.current = null;
+        setTooltipState(next);
+      });
+    },
+    [],
+  );
+
   // Recharts reports active:false after touchend, so mobile taps keep a
   // separate pinned state. Inactive chart hits still clear stale data.
   const barDataRef = useRef<PortalTooltipState | null>(null);
@@ -253,6 +273,9 @@ export function ExpenseBarChart({ journal, accounts }: Props) {
   useEffect(
     () => () => {
       if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
+      if (tooltipRenderRafRef.current != null) {
+        window.cancelAnimationFrame(tooltipRenderRafRef.current);
+      }
       if (touchFallbackTimeoutRef.current != null) {
         window.clearTimeout(touchFallbackTimeoutRef.current);
       }
@@ -268,12 +291,13 @@ export function ExpenseBarChart({ journal, accounts }: Props) {
 
   const convertTotalsToDisplay = useCallback(
     (totals: Record<string, number>) =>
-      Object.entries(totals).reduce(
-        (sum, [currency, amount]) =>
-          sum + convertCurrency(amount, currency, displayCurrency),
-        0,
+      balanceMapAmountForDisplayMode(
+        totals,
+        displayCurrency,
+        convertCurrency,
+        includeAllCurrencies,
       ),
-    [convertCurrency, displayCurrency],
+    [convertCurrency, displayCurrency, includeAllCurrencies],
   );
 
   const { chartData, series } = useMemo(() => {
@@ -496,12 +520,14 @@ export function ExpenseBarChart({ journal, accounts }: Props) {
                         }
                         isTouchInteractingRef.current = false;
                         isMobilePinnedRef.current = true;
-                        setTooltipState(nextTooltipState);
+                        updateTooltipStateAfterRender(nextTooltipState);
                       }
                     } else {
                       barDataRef.current = null;
                       isHoverActiveRef.current = false;
-                      if (!isMobilePinnedRef.current) setTooltipState(null);
+                      if (!isMobilePinnedRef.current) {
+                        updateTooltipStateAfterRender(null);
+                      }
                     }
                     return null;
                   },

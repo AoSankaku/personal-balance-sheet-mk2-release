@@ -10,6 +10,7 @@ import {
   SimpleGrid,
   Skeleton,
   Stack,
+  Switch,
   Table,
   Text,
   Tooltip,
@@ -31,6 +32,7 @@ import { ExpenseBarChart } from "../components/ExpenseBarChart";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { systemAccountTranslationKey } from "../lib/accountUtils";
 import { formatCurrency } from "../lib/numberFormat";
+import { lineAmountForDisplayMode } from "../lib/displayCurrencyAmounts";
 
 type ViewMode = "month" | "quarter" | "half" | "year";
 type SortField = "name" | "amount";
@@ -303,11 +305,14 @@ export default function PlPage() {
     displayCurrency,
     displayCurrencySymbol,
     convertCurrency,
+    enabledCurrencies,
   } = useAppData();
+  const [includeAllCurrencies, setIncludeAllCurrencies] = useState(false);
+  const hasMultipleCurrencies = enabledCurrencies.length > 1;
 
   const fmt = (amount: number) =>
     formatCurrency(
-      convertCurrency(amount, "JPY", displayCurrency),
+      amount,
       locale,
       displayCurrency,
       displayCurrencySymbol,
@@ -399,18 +404,38 @@ export default function PlPage() {
         if (type === "income") {
           map.set(
             line.account_id,
-            (map.get(line.account_id) ?? 0) + line.credit - line.debit,
+            (map.get(line.account_id) ?? 0) +
+              lineAmountForDisplayMode(
+                line.credit - line.debit,
+                line.currency,
+                displayCurrency,
+                convertCurrency,
+                includeAllCurrencies,
+              ),
           );
         } else if (type === "expense") {
           map.set(
             line.account_id,
-            (map.get(line.account_id) ?? 0) + line.debit - line.credit,
+            (map.get(line.account_id) ?? 0) +
+              lineAmountForDisplayMode(
+                line.debit - line.credit,
+                line.currency,
+                displayCurrency,
+                convertCurrency,
+                includeAllCurrencies,
+              ),
           );
         }
       }
     }
     return map;
-  }, [filteredJournal, accounts]);
+  }, [
+    filteredJournal,
+    accounts,
+    displayCurrency,
+    convertCurrency,
+    includeAllCurrencies,
+  ]);
 
   function sortRows(list: PlRow[]): PlRow[] {
     return [...list].sort((a, b) => {
@@ -538,6 +563,20 @@ export default function PlPage() {
               {t("plGoToCurrent")}
             </Button>
           </Tooltip>
+          {hasMultipleCurrencies && (
+            <Switch
+              size="sm"
+              label={
+                locale === "ja"
+                  ? "すべての通貨を含める"
+                  : "Include all currencies"
+              }
+              checked={includeAllCurrencies}
+              onChange={(event) =>
+                setIncludeAllCurrencies(event.currentTarget.checked)
+              }
+            />
+          )}
         </Group>
       </Paper>
 
@@ -677,7 +716,11 @@ export default function PlPage() {
       </SimpleGrid>
 
       {/* Expense bar chart (same as /fs) */}
-      <ExpenseBarChart journal={journal} accounts={accounts} />
+      <ExpenseBarChart
+        journal={journal}
+        accounts={accounts}
+        includeAllCurrencies={includeAllCurrencies}
+      />
 
       {/* Income table */}
       <PlTable
