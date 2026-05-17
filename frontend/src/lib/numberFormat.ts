@@ -9,7 +9,7 @@ export function formatJPY(amount: number, locale: string): string {
 }
 
 // Crypto currencies not supported natively by Intl.NumberFormat
-const CRYPTO_DECIMALS: Record<string, number> = {
+export const CRYPTO_DECIMALS: Record<string, number> = {
   BTC: 8,
   ETH: 6,
   BNB: 4,

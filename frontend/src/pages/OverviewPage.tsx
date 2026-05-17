@@ -42,6 +42,7 @@ import type {
   JournalEntry,
 } from "@balance-sheet/shared";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
+import { BalanceDisplay } from "../components/BalanceDisplay";
 import { formatCurrency } from "../lib/numberFormat";
 
 function normalizeCurrency(currency: string | null | undefined) {
@@ -647,13 +648,12 @@ export default function OverviewPage() {
                 </Text>
               )}
             </Text>
-            <Text
+            <BalanceDisplay
+              amount={expenseTotalAvailable}
+              currency={selectedCurrency}
               fw={900}
               c={expenseTotalAvailable >= 0 ? "teal" : "red"}
-              style={{ fontSize: rem(40), lineHeight: 1 }}
-            >
-              {formatCurrency(expenseTotalAvailable, locale, selectedCurrency)}
-            </Text>
+            />
             {expenseTotalBudget > 0 && (
               <Text size="xs" c="dimmed" mt={6}>
                 {formatCurrency(expenseTotalSpent, locale, selectedCurrency)} /{" "}

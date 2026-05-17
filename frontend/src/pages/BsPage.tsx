@@ -20,6 +20,7 @@ import { useAppData } from "../context/AppDataContext";
 import { AccountTable } from "../components/AccountTable";
 import { BsHistoryChart } from "../components/BsHistoryChart";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
+import { BalanceDisplay } from "../components/BalanceDisplay";
 import { formatCurrency } from "../lib/numberFormat";
 import { balanceMapAmountForDisplayMode } from "../lib/displayCurrencyAmounts";
 
@@ -41,13 +42,6 @@ export default function BsPage() {
   const selectedCurrencyBadgeLabel =
     locale === "ja" ? `${displayCurrency}のみ` : `${displayCurrency} only`;
 
-  const fmt = (amount: number) =>
-    formatCurrency(
-      amount,
-      locale,
-      displayCurrency,
-      displayCurrencySymbol,
-    );
   const fmtBalance = (amount: number | null | undefined) =>
     amount == null
       ? "—"
@@ -269,9 +263,14 @@ export default function BsPage() {
                   </Badge>
                 )}
               </Group>
-              <Text size="lg" fw={700} c="teal">
-                {fmt(totalAssets)}
-              </Text>
+              <BalanceDisplay
+                amount={totalAssets}
+                currency={displayCurrency}
+                displaySymbol={displayCurrencySymbol}
+                fw={700}
+                c="teal"
+                size="lg"
+              />
             </Paper>
             <Paper withBorder p="md" radius="md">
               <Group gap={6} align="center">
@@ -289,9 +288,14 @@ export default function BsPage() {
                   </Badge>
                 )}
               </Group>
-              <Text size="lg" fw={700} c="red">
-                {fmt(totalLiabilities)}
-              </Text>
+              <BalanceDisplay
+                amount={totalLiabilities}
+                currency={displayCurrency}
+                displaySymbol={displayCurrencySymbol}
+                fw={700}
+                c="red"
+                size="lg"
+              />
             </Paper>
             <Paper withBorder p="md" radius="md">
               <Group gap={6} align="center">
@@ -309,9 +313,14 @@ export default function BsPage() {
                   </Badge>
                 )}
               </Group>
-              <Text size="lg" fw={700} c={netWorth >= 0 ? "blue" : "red"}>
-                {fmt(netWorth)}
-              </Text>
+              <BalanceDisplay
+                amount={netWorth}
+                currency={displayCurrency}
+                displaySymbol={displayCurrencySymbol}
+                fw={700}
+                c={netWorth >= 0 ? "blue" : "red"}
+                size="lg"
+              />
             </Paper>
           </SimpleGrid>
           {assets.length > 0 && (

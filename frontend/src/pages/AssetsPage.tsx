@@ -47,6 +47,7 @@ import { useAppData } from "../context/AppDataContext";
 import { NetWorthChart } from "../components/NetWorthChart";
 import { ExpenseBarChart } from "../components/ExpenseBarChart";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
+import { BalanceDisplay } from "../components/BalanceDisplay";
 import { formatCurrency } from "../lib/numberFormat";
 import {
   balanceMapAmountForDisplayMode,
@@ -528,13 +529,13 @@ export default function AssetsPage() {
                   </Badge>
                 )}
             </Group>
-            <Text
+            <BalanceDisplay
+              amount={netWorth}
+              currency={displayCurrency}
+              displaySymbol={displayCurrencySymbol}
               fw={900}
               c={netWorth >= 0 ? "blue" : "red"}
-              style={{ fontSize: rem(40), lineHeight: 1 }}
-            >
-              {fmt(netWorth)}
-            </Text>
+            />
           </Box>
           <ThemeIcon
             size={54}
@@ -611,9 +612,14 @@ export default function AssetsPage() {
                   </Badge>
                 )}
               </Group>
-              <Text size="xl" fw={700} c="teal">
-                {fmt(totalAssets)}
-              </Text>
+              <BalanceDisplay
+                amount={totalAssets}
+                currency={displayCurrency}
+                displaySymbol={displayCurrencySymbol}
+                fw={700}
+                c="teal"
+                size="xl"
+              />
             </Box>
           </Group>
           {(assetCategories.length > 0 || depreciableAssetsTotal !== 0) && (
@@ -765,9 +771,14 @@ export default function AssetsPage() {
                   </Badge>
                 )}
               </Group>
-              <Text size="xl" fw={700} c="red">
-                {fmt(totalLiabilities)}
-              </Text>
+              <BalanceDisplay
+                amount={totalLiabilities}
+                currency={displayCurrency}
+                displaySymbol={displayCurrencySymbol}
+                fw={700}
+                c="red"
+                size="xl"
+              />
             </Box>
           </Group>
           {liabilityCategories.length > 0 && (

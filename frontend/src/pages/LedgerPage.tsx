@@ -802,7 +802,7 @@ export default function LedgerPage() {
                   setJournalPage(1);
                 }}
                 clearable
-                placeholder={locale === "ja" ? "期間を選択" : "Select range"}
+                placeholder={t("dateRangePlaceholder")}
                 valueFormat="YYYY/MM/DD"
                 style={{ flex: "1 1 160px", maxWidth: 220 }}
                 size="sm"
