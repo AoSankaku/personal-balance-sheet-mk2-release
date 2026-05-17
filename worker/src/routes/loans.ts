@@ -7,6 +7,9 @@ import {
   journalLines,
   loanSettlements,
 } from "../db/schema";
+import { resolveAsOfDate } from "../lib/appDate";
+import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
+import { fromStorageMoneyAmount } from "../lib/moneyValidation";
 
 const router = new Hono<{ Bindings: Env }>();
 
@@ -29,8 +32,10 @@ router.get("/unsettled", async (c) => {
 
   const settlerEntryIdStr = c.req.query("settler_entry_id");
   const settlerEntryId = settlerEntryIdStr ? Number(settlerEntryIdStr) : null;
+  const asOf = resolveAsOfDate(c.req.query("as_of"));
 
   const db = createDb(c.env);
+  const decimalPlacesByCurrency = await loadCurrencyDecimalPlaces(db);
 
   // Fetch account to determine type (asset = debit-normal, liability = credit-normal)
   const [acct] = await db
@@ -55,8 +60,15 @@ router.get("/unsettled", async (c) => {
     )
     .where(
       settlerEntryId != null
-        ? sql`(${loanSettlements.is_settled} = 0 OR (${loanSettlements.is_settled} = 1 AND ${loanSettlements.settled_by_journal_entry_id} = ${settlerEntryId}))`
-        : eq(loanSettlements.is_settled, 0),
+        ? sql`(${loanSettlements.is_settled} = 0
+          OR (${loanSettlements.is_settled} = 1 AND ${loanSettlements.settled_by_journal_entry_id} = ${settlerEntryId})
+          OR (${loanSettlements.is_settled} = 1
+            AND ${loanSettlements.settled_by_journal_entry_id} IS NOT NULL
+            AND (SELECT date FROM journal_entries WHERE id = ${loanSettlements.settled_by_journal_entry_id}) > ${asOf}))`
+        : sql`(${loanSettlements.is_settled} = 0
+          OR (${loanSettlements.is_settled} = 1
+            AND ${loanSettlements.settled_by_journal_entry_id} IS NOT NULL
+            AND (SELECT date FROM journal_entries WHERE id = ${loanSettlements.settled_by_journal_entry_id}) > ${asOf}))`,
     );
 
   if (settlements.length === 0) return c.json({ entries: [] });
@@ -110,12 +122,15 @@ router.get("/unsettled", async (c) => {
       for (const [key, amount] of amountByEntryCurrency) {
         const [entryIdStr, lineCurrency] = key.split(":");
         if (Number(entryIdStr) !== s.journal_entry_id || amount <= 0) continue;
+        const currency = lineCurrency ?? "JPY";
         rows.push({
           journal_entry_id: s.journal_entry_id,
           date: s.date,
           description: s.description,
-          amount,
-          currency: lineCurrency ?? "JPY",
+          amount: fromStorageMoneyAmount(amount, currency, {
+            decimalPlacesByCurrency,
+          }),
+          currency,
           already_settled_by_current:
             settlerEntryId != null &&
             s.is_settled === 1 &&

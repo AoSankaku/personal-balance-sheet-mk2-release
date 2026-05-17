@@ -43,6 +43,8 @@ import {
   toStorageMoneyAmount,
 } from "../lib/moneyValidation";
 
+type D1QueryResult<T> = { results?: T[] };
+
 const router = new Hono<{ Bindings: Env }>();
 
 function normalizeCurrency(currency: string | null | undefined): string {
@@ -603,29 +605,35 @@ router.patch("/allocations", async (c) => {
   if (body.archive_category && adjustmentType !== "reset") {
     return c.json({ error: "archive_category requires reset adjustment" }, 400);
   }
-  const { logEntry } = await db.transaction(async (tx) => {
-    const [insertedLog] = await tx
-      .insert(budgetAdjustmentLogs)
-      .values({
-        budget_category_id: body.budget_category_id,
-        year_month: body.year_month,
-        amount: toStorageMoneyAmount(body.adhoc_delta, currency, scaleOptions),
-        currency,
-        date: logDate,
-        adjustment_type: adjustmentType,
-        note: normalizeNote(body.note),
-      })
-      .returning();
+  const statements = [
+    c.env.DB.prepare(
+      `INSERT INTO budget_adjustment_logs
+        (budget_category_id, year_month, amount, currency, date, adjustment_type, note)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       RETURNING *`,
+    ).bind(
+      body.budget_category_id,
+      body.year_month,
+      toStorageMoneyAmount(body.adhoc_delta, currency, scaleOptions),
+      currency,
+      logDate,
+      adjustmentType,
+      normalizeNote(body.note),
+    ),
+  ];
 
-    if (body.archive_category) {
-      await tx
-        .update(budgetCategories)
-        .set({ is_archived: 1 })
-        .where(eq(budgetCategories.id, body.budget_category_id));
-    }
+  if (body.archive_category) {
+    statements.push(
+      c.env.DB.prepare(
+        "UPDATE budget_categories SET is_archived = 1 WHERE id = ?",
+      ).bind(body.budget_category_id),
+    );
+  }
 
-    return { logEntry: insertedLog };
-  });
+  const results = await c.env.DB.batch(statements);
+  const logEntry = (
+    results[0] as D1QueryResult<typeof budgetAdjustmentLogs.$inferSelect>
+  ).results?.[0];
 
   if (!logEntry) return c.json({ error: "insert failed" }, 500);
 

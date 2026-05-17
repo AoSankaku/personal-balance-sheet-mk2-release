@@ -20,6 +20,8 @@ import {
   type MoneyScaleOptions,
   toStorageMoneyAmount,
 } from "../lib/moneyValidation";
+import { resolveAsOfDate } from "../lib/appDate";
+import { serializeLoanSettlement } from "../lib/loanSettlement";
 
 /** Categories that are considered long-term loan/lending */
 const LONG_TERM_LOAN_CATEGORIES = new Set([
@@ -142,6 +144,7 @@ router.get("/", async (c) => {
   const db = createDb(c.env);
   const decimalPlacesByCurrency = await loadCurrencyDecimalPlaces(db);
   const scaleOptions = { decimalPlacesByCurrency };
+  const asOf = resolveAsOfDate(c.req.query("as_of"));
 
   const entries = await db
     .select()
@@ -263,17 +266,36 @@ router.get("/", async (c) => {
         .where(inArray(loanSettlements.journal_entry_id, ids)),
     ),
   );
+  const settlements = settlementChunks.flat();
+  const settledByIds = [
+    ...new Set(
+      settlements
+        .map((s) => s.settled_by_journal_entry_id)
+        .filter((id): id is number => id != null),
+    ),
+  ];
+  const settledByRows =
+    settledByIds.length > 0
+      ? await db
+          .select({ id: journalEntries.id, date: journalEntries.date })
+          .from(journalEntries)
+          .where(inArray(journalEntries.id, settledByIds))
+      : [];
+  const settledByDate = new Map(settledByRows.map((row) => [row.id, row.date]));
   const settlementByEntry = new Map(
-    settlementChunks
-      .flat()
-      .map((s) => [
-        s.journal_entry_id,
-        {
-          is_settled: s.is_settled === 1,
-          settled_by_journal_entry_id: s.settled_by_journal_entry_id ?? null,
-          settled_at: s.settled_at ?? null,
-        },
-      ]),
+    settlements.map((s) => [
+      s.journal_entry_id,
+      serializeLoanSettlement({
+        is_settled: s.is_settled,
+        settled_by_journal_entry_id: s.settled_by_journal_entry_id,
+        settled_by_entry_date:
+          s.settled_by_journal_entry_id == null
+            ? null
+            : settledByDate.get(s.settled_by_journal_entry_id),
+        settled_at: s.settled_at,
+        asOf,
+      }),
+    ]),
   );
 
   // Fetch depreciation schedule IDs for source purchase entries
@@ -705,6 +727,7 @@ router.get("/:id", async (c) => {
   const db = createDb(c.env);
   const decimalPlacesByCurrency = await loadCurrencyDecimalPlaces(db);
   const scaleOptions = { decimalPlacesByCurrency };
+  const asOf = resolveAsOfDate(c.req.query("as_of"));
 
   const [entry] = await db
     .select()
@@ -746,6 +769,13 @@ router.get("/:id", async (c) => {
     })
     .from(loanSettlements)
     .where(eq(loanSettlements.journal_entry_id, id));
+  const [settledByEntry] =
+    settlement?.settled_by_journal_entry_id == null
+      ? []
+      : await db
+          .select({ date: journalEntries.date })
+          .from(journalEntries)
+          .where(eq(journalEntries.id, settlement.settled_by_journal_entry_id));
 
   const [sourceSchedule] = await db
     .select({
@@ -790,12 +820,14 @@ router.get("/:id", async (c) => {
         ? "monthly"
         : null,
     loan_settlement: settlement
-      ? {
-          is_settled: settlement.is_settled === 1,
+      ? serializeLoanSettlement({
+          is_settled: settlement.is_settled,
           settled_by_journal_entry_id:
-            settlement.settled_by_journal_entry_id ?? null,
-          settled_at: settlement.settled_at ?? null,
-        }
+            settlement.settled_by_journal_entry_id,
+          settled_by_entry_date: settledByEntry?.date ?? null,
+          settled_at: settlement.settled_at,
+          asOf,
+        })
       : null,
   });
 });

@@ -10,6 +10,7 @@ import {
   accountCompletions,
 } from "../db/schema";
 import type { AccountBudgetRatio } from "@balance-sheet/shared";
+import { resolveAsOfDate } from "../lib/appDate";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
 import { fromStorageMoneyAmount } from "../lib/moneyValidation";
 
@@ -22,8 +23,7 @@ const router = new Hono<{ Bindings: Env }>();
 router.get("/", async (c) => {
   const db = createDb(c.env);
   const decimalPlacesByCurrency = await loadCurrencyDecimalPlaces(db);
-  const asOf = c.req.query("as_of");
-  const hasAsOf = asOf && /^\d{4}-\d{2}-\d{2}$/.test(asOf);
+  const asOf = resolveAsOfDate(c.req.query("as_of"));
 
   const rows = await db
     .select({
@@ -46,8 +46,7 @@ router.get("/", async (c) => {
     .orderBy(accounts.type, accounts.category, accounts.name);
 
   // Fetch per-currency balances for all accounts in a single query
-  const balanceResult = hasAsOf
-    ? await db.run(sql`
+  const balanceResult = await db.run(sql`
           SELECT
             jl.account_id,
             jl.currency,
@@ -60,21 +59,6 @@ router.get("/", async (c) => {
           JOIN journal_entries je ON jl.journal_entry_id = je.id
           JOIN accounts a ON a.id = jl.account_id
           WHERE je.date <= ${asOf}
-          GROUP BY jl.account_id, jl.currency
-        `)
-    : await db.run(sql`
-          SELECT
-            jl.account_id,
-            jl.currency,
-            CASE
-              WHEN a.type IN ('asset', 'expense')
-                THEN SUM(jl.debit) - SUM(jl.credit)
-              ELSE SUM(jl.credit) - SUM(jl.debit)
-            END AS balance
-          FROM journal_lines jl
-          JOIN journal_entries je ON jl.journal_entry_id = je.id
-          JOIN accounts a ON a.id = jl.account_id
-          WHERE je.date <= strftime('%Y-%m-%d', 'now')
           GROUP BY jl.account_id, jl.currency
         `);
   const balanceRows = balanceResult.results as {
