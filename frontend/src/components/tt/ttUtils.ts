@@ -58,6 +58,7 @@ export interface WorksheetRow {
 export interface DeviationRow {
   account_id: number;
   account_name: string;
+  currency?: string;
   book_value: number;
   actual_value: number;
   deviation: number; // actual - book

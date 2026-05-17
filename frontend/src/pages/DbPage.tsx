@@ -38,6 +38,7 @@ import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { api } from "../api/client";
 import { formatCurrency } from "../lib/numberFormat";
+import { toDateStr } from "../lib/dateUtils";
 import { isShortTermLoanAccountActive } from "./dbPageUtils";
 import {
   type AccountOption,
@@ -310,7 +311,7 @@ export default function DbPage() {
     if (!pendingSettle || settleCounterAccountId === null) return;
     try {
       const { entry, acct, currency } = pendingSettle;
-      const today = new Date().toISOString().slice(0, 10);
+      const today = toDateStr(new Date());
 
       let amount = 0;
       for (const l of entry.lines) {

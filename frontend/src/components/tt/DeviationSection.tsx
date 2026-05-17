@@ -35,7 +35,9 @@ import { JournalModal } from "../JournalModal";
 import { useLang } from "../../i18n";
 import { useAppData } from "../../context/AppDataContext";
 import { showFeedback } from "../../lib/feedback";
-import { formatJPY } from "../../lib/numberFormat";
+import { getEffectiveSymbol } from "../../lib/currencyUtils";
+import { formatCurrency, formatJPY } from "../../lib/numberFormat";
+import { toDateStr } from "../../lib/dateUtils";
 import {
   useAccountDisplayName,
   type DeviationRow,
@@ -58,9 +60,47 @@ export function DeviationSection({
   onJournalCreated: () => Promise<void> | void;
 }) {
   const { t, locale } = useLang();
-  const { accounts, journal, refresh } = useAppData();
+  const {
+    accounts,
+    journal,
+    refresh,
+    displayCurrency,
+    displayCurrencySymbol,
+    convertCurrency,
+    enabledCurrencies,
+  } = useAppData();
   const navigate = useNavigate();
   const getDisplayName = useAccountDisplayName();
+  const accountMap = useMemo(
+    () => new Map(accounts.map((account) => [account.id, account])),
+    [accounts],
+  );
+  const normalizeCurrency = (currency: string | null | undefined) =>
+    (currency || "JPY").toUpperCase();
+  const accountCurrency = (
+    account: ReturnType<typeof useAppData>["accounts"][number] | undefined,
+  ) =>
+    normalizeCurrency(
+      Object.keys(account?.balances ?? {}).find(
+          (currency) => Math.abs(account?.balances?.[currency] ?? 0) > 0.001,
+        ) ||
+        Object.keys(account?.balances ?? {})[0] ||
+        displayCurrency,
+    );
+  const currencySymbolFor = (currency: string | null | undefined) =>
+    getEffectiveSymbol(normalizeCurrency(currency), enabledCurrencies);
+  const formatAccountCurrency = (
+    amount: number,
+    currency: string | null | undefined,
+  ) =>
+    formatCurrency(
+      amount,
+      locale,
+      normalizeCurrency(currency),
+      currencySymbolFor(currency),
+    );
+  const formatDisplayCurrency = (amount: number) =>
+    formatCurrency(amount, locale, displayCurrency, displayCurrencySymbol);
   const [confirmOpen, { open: openConfirm, close: closeConfirm }] =
     useDisclosure(false);
   const [processing, setProcessing] = useState(false);
@@ -145,20 +185,20 @@ export function DeviationSection({
     return snapshot.general_entries.map((entry) => ({
       account_id: entry.account_id,
       account_name: entry.account_name,
+      currency: accountCurrency(accountMap.get(entry.account_id)),
       book_value: entry.book_value,
       actual_value: entry.amount,
       deviation: entry.amount - entry.book_value,
       match_key: `${entry.account_id}:summary`,
     }));
-  }, [snapshot]);
+  }, [snapshot, accountMap]);
 
   const creditCardRows = useMemo(() => {
-    const todayStr = (() => {
-      const now = new Date();
-      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    })();
+    const todayStr = toDateStr(new Date());
     return [...ccState]
       .map((entry) => {
+        const account = accountMap.get(entry.account_id);
+        const currency = accountCurrency(account);
         const setting = ccSettingsMap.get(entry.account_id);
         const meta = getCreditCardWindowMeta(
           todayStr,
@@ -183,6 +223,7 @@ export function DeviationSection({
           id: entry.id,
           account_id: entry.account_id,
           account_name: entry.account_name,
+          currency,
           amount: entry.amount,
           payment_month: entry.payment_month,
           status: meta.status as "open" | "confirmed" | "paid",
@@ -209,7 +250,7 @@ export function DeviationSection({
         if (a.status !== b.status) return order[a.status] - order[b.status];
         return a.payment_month < b.payment_month ? 1 : -1;
       });
-  }, [ccState, ccSettingsMap, journal, accounts, locale]);
+  }, [ccState, ccSettingsMap, journal, accounts, locale, accountMap]);
 
   const currentCreditCardMonth = useMemo(() => {
     const now = new Date();
@@ -236,15 +277,33 @@ export function DeviationSection({
       );
 
   const totalGeneralDeviation = generalRows.reduce(
-    (sum, row) => sum + row.deviation,
+    (sum, row) =>
+      sum +
+      convertCurrency(
+        row.deviation,
+        normalizeCurrency(row.currency),
+        displayCurrency,
+      ),
     0,
   );
   const totalCcDeviation = creditCardRows.reduce(
-    (sum, row) => sum + row.deviation,
+    (sum, row) =>
+      sum +
+      convertCurrency(
+        row.deviation,
+        normalizeCurrency(row.currency),
+        displayCurrency,
+      ),
     0,
   );
   const visibleCcWithdrawalAmount = visibleCreditCardRows.reduce(
-    (sum, row) => sum + row.withdrawal_amount,
+    (sum, row) =>
+      sum +
+      convertCurrency(
+        row.withdrawal_amount,
+        normalizeCurrency(row.currency),
+        displayCurrency,
+      ),
     0,
   );
   const totalDeviation = totalGeneralDeviation + totalCcDeviation;
@@ -300,7 +359,13 @@ export function DeviationSection({
   }, [generalRows, snapshot, accounts, journal]);
 
   const totalAdjustment = generalRows.reduce(
-    (s, r) => s + (adjustmentMap.get(r.account_id) ?? 0),
+    (s, r) =>
+      s +
+      convertCurrency(
+        adjustmentMap.get(r.account_id) ?? 0,
+        normalizeCurrency(r.currency),
+        displayCurrency,
+      ),
     0,
   );
   const adjustedTotalDeviation = totalGeneralDeviation + totalAdjustment;
@@ -473,10 +538,7 @@ export function DeviationSection({
   }
 
   const latestCleanSnapshot = useMemo(() => {
-    const todayStr = (() => {
-      const now = new Date();
-      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    })();
+    const todayStr = toDateStr(new Date());
     for (const snap of snapshots) {
       if (snap.snapshot_date > todayStr) continue;
       const totalDev = snapshotTotalDeviation(snap);
@@ -549,7 +611,7 @@ export function DeviationSection({
     }
   }
 
-  if (snapshots.length === 0) {
+  if (snapshots.length === 0 && creditCardRows.length === 0) {
     return (
       <Text c="dimmed" size="sm">
         {t("ttDeviationNoSnapshot")}
@@ -595,7 +657,7 @@ export function DeviationSection({
         )}
       </Group>
 
-      {snapshot && (
+      {(snapshot || creditCardRows.length > 0) && (
         <Paper withBorder p="md" radius="md">
           <Group gap="xl" wrap="wrap">
             <Box>
@@ -613,7 +675,7 @@ export function DeviationSection({
                 }
               >
                 {totalGeneralDeviation >= 0 ? "+" : ""}
-                {formatJPY(totalGeneralDeviation, locale)}
+                {formatDisplayCurrency(totalGeneralDeviation)}
               </Text>
             </Box>
             <Box>
@@ -631,7 +693,7 @@ export function DeviationSection({
                 }
               >
                 {totalCcDeviation >= 0 ? "+" : ""}
-                {formatJPY(totalCcDeviation, locale)}
+                {formatDisplayCurrency(totalCcDeviation)}
               </Text>
             </Box>
             <Box>
@@ -649,14 +711,14 @@ export function DeviationSection({
                 }
               >
                 {totalDeviation >= 0 ? "+" : ""}
-                {formatJPY(totalDeviation, locale)}
+                {formatDisplayCurrency(totalDeviation)}
               </Text>
             </Box>
           </Group>
         </Paper>
       )}
 
-      {!snapshot ? (
+      {!snapshot && creditCardRows.length === 0 ? (
         <Text c="dimmed" size="sm">
           {t("ttDeviationNoSnapshot")}
         </Text>
@@ -750,7 +812,10 @@ export function DeviationSection({
                                         {" · "}
                                         {match.entry.description || "-"}
                                         {" · "}
-                                        {formatJPY(match.delta, locale)}
+                                        {formatAccountCurrency(
+                                          match.delta,
+                                          row.currency,
+                                        )}
                                       </Text>
                                       <Group gap={4} wrap="nowrap">
                                         <ActionIcon
@@ -793,10 +858,13 @@ export function DeviationSection({
                             </Stack>
                           </Table.Td>
                           <Table.Td className="currency-cell">
-                            {formatJPY(row.book_value, locale)}
+                            {formatAccountCurrency(row.book_value, row.currency)}
                           </Table.Td>
                           <Table.Td className="currency-cell">
-                            {formatJPY(row.actual_value, locale)}
+                            {formatAccountCurrency(
+                              row.actual_value,
+                              row.currency,
+                            )}
                           </Table.Td>
                           <Table.Td
                             className="currency-cell"
@@ -809,14 +877,17 @@ export function DeviationSection({
                             }
                           >
                             {row.deviation >= 0 ? "+" : ""}
-                            {formatJPY(row.deviation, locale)}
+                            {formatAccountCurrency(row.deviation, row.currency)}
                           </Table.Td>
                           {hasAdjustments && (
                             <Table.Td className="currency-cell" c="blue">
                               {adjustment !== 0 ? (
                                 <>
                                   {adjustment >= 0 ? "+" : ""}
-                                  {formatJPY(adjustment, locale)}
+                                  {formatAccountCurrency(
+                                    adjustment,
+                                    row.currency,
+                                  )}
                                 </>
                               ) : (
                                 <Text c="dimmed">-</Text>
@@ -836,7 +907,10 @@ export function DeviationSection({
                               fw={600}
                             >
                               {adjustedDeviation >= 0 ? "+" : ""}
-                              {formatJPY(adjustedDeviation, locale)}
+                              {formatAccountCurrency(
+                                adjustedDeviation,
+                                row.currency,
+                              )}
                             </Table.Td>
                           )}
                         </Table.Tr>
@@ -855,12 +929,12 @@ export function DeviationSection({
                         }
                       >
                         {totalGeneralDeviation >= 0 ? "+" : ""}
-                        {formatJPY(totalGeneralDeviation, locale)}
+                        {formatDisplayCurrency(totalGeneralDeviation)}
                       </Table.Td>
                       {hasAdjustments && (
                         <Table.Td className="currency-cell" c="blue">
                           {totalAdjustment >= 0 ? "+" : ""}
-                          {formatJPY(totalAdjustment, locale)}
+                          {formatDisplayCurrency(totalAdjustment)}
                         </Table.Td>
                       )}
                       {hasAdjustments && (
@@ -875,7 +949,7 @@ export function DeviationSection({
                           }
                         >
                           {adjustedTotalDeviation >= 0 ? "+" : ""}
-                          {formatJPY(adjustedTotalDeviation, locale)}
+                          {formatDisplayCurrency(adjustedTotalDeviation)}
                         </Table.Td>
                       )}
                     </Table.Tr>
@@ -964,13 +1038,16 @@ export function DeviationSection({
                         </Table.Td>
                         <Table.Td>{row.period_label}</Table.Td>
                         <Table.Td className="currency-cell">
-                          {formatJPY(row.book_value, locale)}
+                          {formatAccountCurrency(row.book_value, row.currency)}
                         </Table.Td>
                         <Table.Td className="currency-cell">
-                          {formatJPY(row.amount, locale)}
+                          {formatAccountCurrency(row.amount, row.currency)}
                         </Table.Td>
                         <Table.Td className="currency-cell">
-                          {formatJPY(row.withdrawal_amount, locale)}
+                          {formatAccountCurrency(
+                            row.withdrawal_amount,
+                            row.currency,
+                          )}
                         </Table.Td>
                         <Table.Td
                           className="currency-cell"
@@ -983,14 +1060,14 @@ export function DeviationSection({
                           }
                         >
                           {row.deviation >= 0 ? "+" : ""}
-                          {formatJPY(row.deviation, locale)}
+                          {formatAccountCurrency(row.deviation, row.currency)}
                         </Table.Td>
                       </Table.Tr>
                     ))}
                     <Table.Tr style={{ fontWeight: 700 }}>
-                      <Table.Td colSpan={5}>{t("ttDeviationTotal")}</Table.Td>
+                      <Table.Td colSpan={6}>{t("ttDeviationTotal")}</Table.Td>
                       <Table.Td className="currency-cell">
-                        {formatJPY(visibleCcWithdrawalAmount, locale)}
+                        {formatDisplayCurrency(visibleCcWithdrawalAmount)}
                       </Table.Td>
                       <Table.Td
                         className="currency-cell"
@@ -1003,7 +1080,7 @@ export function DeviationSection({
                         }
                       >
                         {totalCcDeviation >= 0 ? "+" : ""}
-                        {formatJPY(totalCcDeviation, locale)}
+                        {formatDisplayCurrency(totalCcDeviation)}
                       </Table.Td>
                     </Table.Tr>
                   </Table.Tbody>
@@ -1107,14 +1184,16 @@ export function DeviationSection({
             </Paper>
           )}
 
-          <WorksheetEditor
-            rows={worksheetRows}
-            onChange={setWorksheetRows}
-            accountOptions={snapshot.general_entries.map((e) => ({
-              value: String(e.account_id),
-              label: getDisplayName(e.account_name),
-            }))}
-          />
+          {snapshot && (
+            <WorksheetEditor
+              rows={worksheetRows}
+              onChange={setWorksheetRows}
+              accountOptions={snapshot.general_entries.map((e) => ({
+                value: String(e.account_id),
+                label: getDisplayName(e.account_name),
+              }))}
+            />
+          )}
         </>
       )}
 

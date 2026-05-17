@@ -29,7 +29,8 @@ import { useLang } from "../../i18n";
 import { useAppData } from "../../context/AppDataContext";
 import { showFeedback } from "../../lib/feedback";
 import { CATEGORY_TRANSLATION_KEY } from "../../lib/accountUtils";
-import { formatJPY } from "../../lib/numberFormat";
+import { getEffectiveSymbol } from "../../lib/currencyUtils";
+import { formatCurrency } from "../../lib/numberFormat";
 import {
   useAccountDisplayName,
   type CreditCardDraftRow,
@@ -54,7 +55,8 @@ export function ActualInputSection({
   onCreditCardStateSaved: (entries: CreditCardStateEntry[]) => void;
 }) {
   const { t, locale } = useLang();
-  const { accounts, journal } = useAppData();
+  const { accounts, journal, displayCurrency, enabledCurrencies } =
+    useAppData();
   const getDisplayName = useAccountDisplayName();
 
   const [date, setDate] = useState<Date | null>(new Date());
@@ -101,13 +103,42 @@ export function ActualInputSection({
   const _today = new Date();
   const todayStr = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}-${String(_today.getDate()).padStart(2, "0")}`;
 
+  const normalizeCurrency = (currency: string | null | undefined) =>
+    (currency || "JPY").toUpperCase();
+  const accountCurrency = (account: Account) =>
+    normalizeCurrency(
+      Object.keys(account.balances ?? {}).find(
+          (currency) => Math.abs(account.balances?.[currency] ?? 0) > 0.001,
+        ) ||
+        Object.keys(account.balances ?? {})[0] ||
+        displayCurrency,
+    );
+  const currencySymbolFor = (currency: string | null | undefined) =>
+    getEffectiveSymbol(normalizeCurrency(currency), enabledCurrencies);
+  const formatAccountAmount = (amount: number, account: Account) =>
+    formatCurrency(
+      amount,
+      locale,
+      accountCurrency(account),
+      currencySymbolFor(accountCurrency(account)),
+    );
+
   // Compute per-account book values from local journal filtered to dateStr.
   // This re-evaluates whenever the user changes the date picker.
   const bookValueMap = useMemo(() => {
     const raw = new Map<number, number>(); // sum of (debit - credit)
+    const accountMap = new Map(accounts.map((account) => [account.id, account]));
     for (const entry of journal) {
       if (dateStr && entry.date > dateStr) continue;
       for (const line of entry.lines) {
+        const account = accountMap.get(line.account_id);
+        if (
+          account &&
+          normalizeCurrency(line.currency) !==
+            accountCurrency(account)
+        ) {
+          continue;
+        }
         raw.set(
           line.account_id,
           (raw.get(line.account_id) ?? 0) + line.debit - line.credit,
@@ -328,16 +359,16 @@ export function ActualInputSection({
                 )
               : a.category}
             {" · "}
-            {`${t("ttDeviationBookValue")}: ${formatJPY(bookValue, locale)}`}
+            {`${t("ttDeviationBookValue")}: ${formatAccountAmount(bookValue, a)}`}
           </Text>
         </Stack>
         <NumberInput
           value={value}
           onChange={(v) => setGeneralValues((prev) => ({ ...prev, [a.id]: v }))}
-          placeholder={`¥${Math.round(bookValue).toLocaleString("en-US")}`}
+          placeholder={`${currencySymbolFor(accountCurrency(a))}${Math.round(bookValue).toLocaleString("en-US")}`}
           min={0}
           thousandSeparator=","
-          prefix="¥"
+          prefix={currencySymbolFor(accountCurrency(a))}
           w={160}
           size="sm"
           hideControls
@@ -464,7 +495,7 @@ export function ActualInputSection({
               </Text>
             </Stack>
             <Text size="sm" fw={700}>
-              {formatJPY(total, locale)}
+              {formatAccountAmount(total, account)}
             </Text>
           </Group>
 
@@ -543,7 +574,7 @@ export function ActualInputSection({
                         }
                         min={0}
                         thousandSeparator=","
-                        prefix="¥"
+                        prefix={currencySymbolFor(accountCurrency(account))}
                         hideControls
                         size="md"
                         inputMode="numeric"
@@ -553,7 +584,7 @@ export function ActualInputSection({
                             `${account.id}:${row.payment_month}`,
                           );
                           return dbVal !== undefined
-                            ? `¥${Math.round(dbVal).toLocaleString("en-US")}`
+                            ? `${currencySymbolFor(accountCurrency(account))}${Math.round(dbVal).toLocaleString("en-US")}`
                             : undefined;
                         })()}
                       />
@@ -608,7 +639,7 @@ export function ActualInputSection({
                         }
                         min={0}
                         thousandSeparator=","
-                        prefix="¥"
+                        prefix={currencySymbolFor(accountCurrency(account))}
                         hideControls
                         size="md"
                         inputMode="numeric"
@@ -618,7 +649,7 @@ export function ActualInputSection({
                             `${account.id}:${row.payment_month}`,
                           );
                           return dbVal !== undefined
-                            ? `¥${Math.round(dbVal).toLocaleString("en-US")}`
+                            ? `${currencySymbolFor(accountCurrency(account))}${Math.round(dbVal).toLocaleString("en-US")}`
                             : undefined;
                         })()}
                       />
@@ -673,7 +704,7 @@ export function ActualInputSection({
                 </Text>
               )}
               <Text size="xs" c="dimmed">
-                {t("ccSlotTotal")}: {formatJPY(total, locale)}
+                {t("ccSlotTotal")}: {formatAccountAmount(total, account)}
               </Text>
             </Stack>
           </Group>
