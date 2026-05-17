@@ -63,3 +63,4 @@ scheculed_tasks.lock
 .mcp.json
 .codex
 .claude/
+worker.*.log
