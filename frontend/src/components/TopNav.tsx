@@ -31,6 +31,7 @@ import {
   isShortTermBorrowingCategory,
   isShortTermLendingCategory,
 } from "@balance-sheet/shared";
+import { VERSION } from "../lib/version";
 import { findOverdueShortTermLoanAccounts } from "../pages/dbPageUtils";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
@@ -714,11 +715,41 @@ export function TopNav({
   ];
 
   return (
-    <Group h="100%" px="sm" justify="space-between" style={{ overflow: "hidden" }}>
+    <Group h="100%" px="sm" justify="space-between">
       <Group gap="sm">
-        <Title order={4}>{t("appTitle")}</Title>
+        <style>{`
+          .title-version-row {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-end;
+            gap: 10px;
+          }
+          @media (max-width: 1100px) {
+            .title-version-row {
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 0;
+            }
+          }
+        `}</style>
+        <div className="title-version-row">
+          <Title
+            order={4}
+            style={{
+              fontSize: "clamp(0.7rem, 4vw, var(--mantine-h4-font-size))",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {t("appTitle")}
+          </Title>
+          <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap" }}>
+            v{VERSION}
+          </Text>
+        </div>
         {/* Desktop nav links */}
-        <Group gap="md" visibleFrom="sm">
+        <Group gap="md" visibleFrom="md">
           {navItems.map((item) =>
             disableNavigation ? (
               <Anchor

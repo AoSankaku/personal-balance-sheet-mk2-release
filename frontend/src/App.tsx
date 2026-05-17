@@ -38,7 +38,7 @@ export default function App() {
   return (
     <AppShell
       header={{ height: 60 }}
-      footer={{ height: { base: 64, sm: 0 } }}
+      footer={{ height: { base: 64, md: 0 } }}
       padding="md"
     >
       <AppShell.Header>
@@ -97,7 +97,7 @@ export default function App() {
         )}
       </AppShell.Main>
 
-      <AppShell.Footer hiddenFrom="sm">
+      <AppShell.Footer hiddenFrom="md">
         <BottomNav disableNavigation={inInitialSetupFlow} />
       </AppShell.Footer>
     </AppShell>
