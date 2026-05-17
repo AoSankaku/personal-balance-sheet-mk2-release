@@ -218,7 +218,7 @@ filterAccountPlaceholder: 所有账户
 filterCreatedRangeLabel: 输入时间范围
 filterClearAll: 清除
 outsideDateRangeMsg: "{n} 条分录在所选日期范围外"
-clearDateFilter: ['清除日期筛选']
+clearDateFilter: 清除日期筛选
 availableBalance: 可用余额
 carryover: 结转
 budgetResetBadge: 重置

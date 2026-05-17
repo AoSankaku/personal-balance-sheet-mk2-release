@@ -218,7 +218,7 @@ filterAccountPlaceholder: 所有帳戶
 filterCreatedRangeLabel: 輸入時間範圍
 filterClearAll: 清除
 outsideDateRangeMsg: "{n} 筆分錄在選定日期範圍外"
-clearDateFilter: ['清除日期篩選']
+clearDateFilter: 清除日期篩選
 availableBalance: 可用餘額
 carryover: 結轉
 budgetResetBadge: 重設
