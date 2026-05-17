@@ -12,7 +12,7 @@ import {
 import { useMediaQuery } from "@mantine/hooks";
 import { IconPencil, IconTrash } from "@tabler/icons-react";
 import type { Account, JournalEntry } from "@balance-sheet/shared";
-import { toIntlLocale, useLang } from "../i18n";
+import { toIntlLocale, type TranslationKey, useLang } from "../i18n";
 import { formatCurrency } from "../lib/numberFormat";
 
 interface Props {
@@ -38,39 +38,49 @@ function lineMatchesCurrency(
   return normalizeCurrency(line.currency) === normalizeCurrency(currency);
 }
 
-function isSimpleDisplayPositive(
-  debitLines: JournalEntry["lines"][number][],
-  creditLines: JournalEntry["lines"][number][],
-  accountTypeMap: Map<number, Account["type"]>,
+type JournalLine = JournalEntry["lines"][number];
+type DisplayTone = "positive" | "negative" | "neutral";
+interface NarrativeToken {
+  text: string;
+  tone?: DisplayTone;
+  nowrap?: boolean;
+  emphasis?: boolean;
+  dimmed?: boolean;
+}
+interface SimpleNarrative {
+  key: string;
+  templateKey: TranslationKey;
+  values: Record<string, string | NarrativeToken>;
+}
+
+function lineAmount(line: JournalLine) {
+  return line.debit > 0 ? line.debit : line.credit;
+}
+
+function isIncreasingLine(line: JournalLine, type?: Account["type"]) {
+  if (!type) return false;
+  if (type === "asset" || type === "expense") return line.debit > 0;
+  return line.credit > 0;
+}
+
+function accountTone(line: JournalLine, type?: Account["type"]): DisplayTone {
+  if (type === "expense") {
+    return isIncreasingLine(line, type) ? "negative" : "positive";
+  }
+  return isIncreasingLine(line, type) ? "positive" : "negative";
+}
+
+function signedAmountLabel(
+  amount: string,
+  tone: DisplayTone,
+  showSign = true,
 ) {
-  if (debitLines.some((l) => accountTypeMap.get(l.account_id) === "expense")) {
-    return false;
-  }
-  if (
-    creditLines.some((l) => {
-      const type = accountTypeMap.get(l.account_id);
-      return type === "income" || type === "equity";
-    })
-  ) {
-    return true;
-  }
-  if (debitLines.some((l) => accountTypeMap.get(l.account_id) === "asset")) {
-    return true;
-  }
-  if (creditLines.some((l) => accountTypeMap.get(l.account_id) === "asset")) {
-    return false;
-  }
-  if (
-    debitLines.some((l) => accountTypeMap.get(l.account_id) === "liability")
-  ) {
-    return false;
-  }
-  if (
-    creditLines.some((l) => accountTypeMap.get(l.account_id) === "liability")
-  ) {
-    return true;
-  }
-  return false;
+  if (!showSign || tone === "neutral") return amount;
+  return `${tone === "positive" ? "+" : "-"}${amount}`;
+}
+
+function lineId(line: JournalLine, index: number) {
+  return line.id ?? `${line.account_id}-${index}`;
 }
 
 export function JournalTable({
@@ -107,6 +117,232 @@ export function JournalTable({
         : undefined;
     return formatCurrency(amount, locale, normalized, symbol);
   };
+  const describeAmount = (line: JournalLine, tone: DisplayTone) => ({
+    text: signedAmountLabel(formatAmount(lineAmount(line), line.currency), tone),
+    tone,
+    nowrap: true,
+  });
+  const describeAccount = (line: JournalLine, tone: DisplayTone) => ({
+    text: line.account_name,
+    tone,
+  });
+
+  function buildLineNarrative(line: JournalLine, index: number): SimpleNarrative {
+    const type = accountTypeMap.get(line.account_id);
+    const tone = accountTone(line, type);
+    const amount = describeAmount(line, tone);
+    const account = describeAccount(line, tone);
+    const values = { account, amount };
+
+    if (type === "expense") {
+      if (isIncreasingLine(line, type)) {
+        return {
+          key: `expense-increase-${lineId(line, index)}`,
+          templateKey: "ledgerSimpleExpenseIncrease",
+          values,
+        };
+      }
+      return {
+        key: `expense-decrease-${lineId(line, index)}`,
+        templateKey: "ledgerSimpleExpenseIncomeDecrease",
+        values,
+      };
+    }
+
+    if (type === "income") {
+      if (isIncreasingLine(line, type)) {
+        return {
+          key: `income-increase-${lineId(line, index)}`,
+          templateKey: "ledgerSimpleIncomeIncrease",
+          values,
+        };
+      }
+      return {
+        key: `income-decrease-${lineId(line, index)}`,
+        templateKey: "ledgerSimpleExpenseIncomeDecrease",
+        values,
+      };
+    }
+
+    if (type === "asset") {
+      return {
+        key: `asset-${lineId(line, index)}`,
+        templateKey: isIncreasingLine(line, type)
+          ? "ledgerSimpleAssetIncrease"
+          : "ledgerSimpleAssetDecrease",
+        values,
+      };
+    }
+
+    if (type === "liability") {
+      return {
+        key: `liability-${lineId(line, index)}`,
+        templateKey: isIncreasingLine(line, type)
+          ? "ledgerSimpleLiabilityIncrease"
+          : "ledgerSimpleLiabilityDecrease",
+        values,
+      };
+    }
+
+    if (type === "equity") {
+      return {
+        key: `equity-${lineId(line, index)}`,
+        templateKey: "ledgerSimpleEquitySet",
+        values,
+      };
+    }
+
+    return {
+      key: `unknown-${lineId(line, index)}`,
+      templateKey: "ledgerSimpleFallback",
+      values,
+    };
+  }
+
+  function buildTransferNarrative(
+    entry: JournalEntry,
+    debitLine: JournalLine,
+    creditLine: JournalLine,
+  ): SimpleNarrative | null {
+    const debitType = accountTypeMap.get(debitLine.account_id);
+    const creditType = accountTypeMap.get(creditLine.account_id);
+    if (!debitType || debitType !== creditType) return null;
+    if (
+      normalizeCurrency(debitLine.currency) !==
+      normalizeCurrency(creditLine.currency)
+    ) {
+      return null;
+    }
+    if (Math.abs(debitLine.debit - creditLine.credit) > 0.000001) return null;
+
+    const debitIncreases = isIncreasingLine(debitLine, debitType);
+    const decreasingLine = debitIncreases ? creditLine : debitLine;
+    const increasingLine = debitIncreases ? debitLine : creditLine;
+    return {
+      key: `transfer-${entry.id}`,
+      templateKey: "ledgerSimpleTransfer",
+      values: {
+        fromAccount: describeAccount(decreasingLine, "negative"),
+        toAccount: describeAccount(increasingLine, "positive"),
+        amount: {
+          text: formatAmount(lineAmount(debitLine), debitLine.currency),
+          tone: "neutral",
+          nowrap: true,
+        },
+      },
+    };
+  }
+
+  function buildSimpleNarratives(entry: JournalEntry) {
+    const selectedLines = entry.lines.filter(
+      (line) =>
+        (line.debit > 0 || line.credit > 0) &&
+        lineMatchesCurrency(line, displayCurrency),
+    );
+    const debitLines = selectedLines.filter((line) => line.debit > 0);
+    const creditLines = selectedLines.filter((line) => line.credit > 0);
+
+    if (debitLines.length === 1 && creditLines.length === 1) {
+      const transfer = buildTransferNarrative(
+        entry,
+        debitLines[0],
+        creditLines[0],
+      );
+      if (transfer) return { narratives: [transfer], isComplex: false };
+
+      const primaryLine =
+        selectedLines.find((line) => {
+          const type = accountTypeMap.get(line.account_id);
+          return type === "expense" || type === "income";
+        }) ??
+        selectedLines.find((line) => {
+          const type = accountTypeMap.get(line.account_id);
+          return type === "liability" || type === "equity";
+        }) ??
+        selectedLines[0];
+
+      return {
+        narratives: [buildLineNarrative(primaryLine, 0)],
+        isComplex: false,
+      };
+    }
+
+    return {
+      narratives: selectedLines.map(buildLineNarrative),
+      isComplex: selectedLines.length > 2,
+    };
+  }
+
+  function renderNarrativeToken(
+    token: NarrativeToken,
+    key?: string,
+  ) {
+    const tone = token.tone;
+    return (
+      <Text
+        key={key}
+        component="span"
+        inherit
+        fw={token.emphasis === false ? undefined : 700}
+        c={
+          token.dimmed
+            ? "dimmed"
+            : tone === "positive"
+            ? "green"
+            : tone === "negative"
+              ? "red"
+              : undefined
+        }
+        style={{
+          marginInline: "0.25em",
+          overflowWrap: token.nowrap ? undefined : "anywhere",
+          whiteSpace: token.nowrap ? "nowrap" : undefined,
+        }}
+      >
+        {token.text}
+      </Text>
+    );
+  }
+
+  function renderTemplate(
+    template: string,
+    values: Record<string, string | NarrativeToken>,
+    keyPrefix: string,
+  ) {
+    const parts = template.split(/(\{[a-zA-Z0-9_]+\})/g);
+    return parts.map((part, index) => {
+      const match = /^\{([a-zA-Z0-9_]+)\}$/.exec(part);
+      if (!match) return <span key={`${keyPrefix}-text-${index}`}>{part}</span>;
+
+      const value = values[match[1]];
+      if (value == null) return null;
+      if (typeof value === "string") {
+        return <span key={`${keyPrefix}-${match[1]}-${index}`}>{value}</span>;
+      }
+      return renderNarrativeToken(value, `${keyPrefix}-${match[1]}-${index}`);
+    });
+  }
+
+  function renderNarrative(entry: JournalEntry, narrative: SimpleNarrative) {
+    const description: NarrativeToken = {
+      text: entry.description,
+      emphasis: false,
+      dimmed: true,
+    };
+    return (
+      <Text
+        key={narrative.key}
+        size="sm"
+        style={{ whiteSpace: "normal", overflowWrap: "anywhere" }}
+      >
+        {renderTemplate(
+          t(narrative.templateKey),
+          { description, ...narrative.values },
+          narrative.key,
+        )}
+      </Text>
+    );
+  }
 
   return (
     <Stack gap="xs">
@@ -118,7 +354,7 @@ export function JournalTable({
             highlightOnHover
             withTableBorder
             withColumnBorders
-            style={{ minWidth: 520 }}
+            style={{ minWidth: "min(200vw, 640px)" }}
           >
             <Table.Thead>
               <Table.Tr>
@@ -126,13 +362,6 @@ export function JournalTable({
                   {t("thDate")}
                 </Table.Th>
                 <Table.Th>{t("thDescription")}</Table.Th>
-                <Table.Th style={{ whiteSpace: "nowrap", width: "1%" }}>
-                  {t("thSource")}
-                </Table.Th>
-                <Table.Th className="currency-cell">
-                  {t("amountLabel")}
-                </Table.Th>
-                <Table.Th>{t("thAccount")}</Table.Th>
                 {showTimestamp && (
                   <Table.Th style={{ width: 140 }}>{t("thCreatedAt")}</Table.Th>
                 )}
@@ -142,7 +371,7 @@ export function JournalTable({
             <Table.Tbody>
               {entries.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={showTimestamp ? 7 : 6}>
+                  <Table.Td colSpan={showTimestamp ? 4 : 3}>
                     <Text c="dimmed" ta="center" size="sm" py="xs">
                       {t("noTransactionsYet")}
                     </Text>
@@ -150,72 +379,34 @@ export function JournalTable({
                 </Table.Tr>
               ) : (
                 entries.map((entry) => {
-                  const debitLines = entry.lines.filter(
-                    (l) =>
-                      l.debit > 0 && lineMatchesCurrency(l, displayCurrency),
-                  );
-                  const creditLines = entry.lines.filter(
-                    (l) =>
-                      l.credit > 0 && lineMatchesCurrency(l, displayCurrency),
-                  );
-                  const selectedLines = [...debitLines, ...creditLines];
-                  const isPositive = isSimpleDisplayPositive(
-                    debitLines,
-                    creditLines,
-                    accountTypeMap,
-                  );
-                  const debitAmount = debitLines.reduce(
-                    (s, l) => s + l.debit,
-                    0,
-                  );
-                  const creditAmount = creditLines.reduce(
-                    (s, l) => s + l.credit,
-                    0,
-                  );
-                  const netAmount =
-                    debitAmount > 0 ? debitAmount : creditAmount;
-                  const amountCurrency = selectedLines[0]?.currency;
-                  const accountName = (
-                    debitLines.length > 0 ? debitLines : selectedLines
-                  )
-                    .map((l) => l.account_name)
-                    .join(", ");
+                  const { narratives, isComplex } = buildSimpleNarratives(entry);
                   return (
                     <Table.Tr key={entry.id}>
                       <Table.Td style={{ whiteSpace: "nowrap" }}>
                         <Text size="sm">{entry.date}</Text>
                       </Table.Td>
                       <Table.Td>
-                        <Text size="sm" fw={500}>
-                          {entry.description}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        {entry.source === "csv_import" ? (
-                          <Badge size="xs" color="violet" variant="light">
-                            {isMobile ? "CSV" : t("journalSourceCsvImport")}
-                          </Badge>
-                        ) : (
-                          <Badge size="xs" color="gray" variant="light">
-                            {isMobile ? "手動" : t("journalSourceManual")}
-                          </Badge>
-                        )}
-                      </Table.Td>
-                      <Table.Td className="currency-cell">
-                        {isPositive ? (
-                          <Text size="sm" fw={700} c="green">
-                            +{formatAmount(netAmount, amountCurrency)}
-                          </Text>
-                        ) : (
-                          <Text size="sm">
-                            -{formatAmount(netAmount, amountCurrency)}
-                          </Text>
-                        )}
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm" c="dimmed">
-                          {accountName}
-                        </Text>
+                        <Stack gap={4}>
+                          {isComplex && (
+                            <Badge
+                              size="xs"
+                              color="violet"
+                              variant="light"
+                              w="fit-content"
+                            >
+                              {t("ledgerSimpleSameEntryBadge")}
+                            </Badge>
+                          )}
+                          {narratives.length > 0 ? (
+                            narratives.map((narrative) =>
+                              renderNarrative(entry, narrative),
+                            )
+                          ) : (
+                            <Text size="sm" fw={500}>
+                              {entry.description}
+                            </Text>
+                          )}
+                        </Stack>
                       </Table.Td>
                       {showTimestamp && (
                         <Table.Td>

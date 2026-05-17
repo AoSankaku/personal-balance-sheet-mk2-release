@@ -116,6 +116,17 @@ thCreatedAt: Input At
 showInputTimestamp: Show timestamp
 journalSourceManual: Manual
 journalSourceCsvImport: CSV Import
+ledgerSimpleSameEntryBadge: Same entry
+ledgerSimpleTransfer: '"{description}" transferred {amount} from {fromAccount} to {toAccount}'
+ledgerSimpleExpenseIncrease: '"{description}" paid {amount} with {account}'
+ledgerSimpleIncomeIncrease: '"{description}" received {amount} as income from {account}'
+ledgerSimpleExpenseIncomeDecrease: '"{description}" canceled {amount} from {account}'
+ledgerSimpleAssetIncrease: '"{description}" increased the balance of {account} by {amount}'
+ledgerSimpleAssetDecrease: '"{description}" decreased the balance of {account} by {amount}'
+ledgerSimpleLiabilityIncrease: '"{description}" borrowed {amount} as {account}'
+ledgerSimpleLiabilityDecrease: '"{description}" repaid {amount} toward {account}'
+ledgerSimpleEquitySet: '"{description}" set {account} to {amount}'
+ledgerSimpleFallback: '"{description}" recorded {amount} for {account}'
 noTransactionsYet: No transactions yet.
 deleteEntry: Delete entry
 recentTransactions: Recent Transactions

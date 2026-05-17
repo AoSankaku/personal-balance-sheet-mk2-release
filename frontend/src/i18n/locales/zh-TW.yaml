@@ -116,6 +116,17 @@ thCreatedAt: 輸入時間
 showInputTimestamp: 顯示時間戳
 journalSourceManual: 手動
 journalSourceCsvImport: CSV 匯入
+ledgerSimpleSameEntryBadge: 同一分錄
+ledgerSimpleTransfer: "「{description}」將 {amount} 從 {fromAccount} 轉到 {toAccount}"
+ledgerSimpleExpenseIncrease: "「{description}」使用 {account} 支付了 {amount}"
+ledgerSimpleIncomeIncrease: "「{description}」從 {account} 取得收入 {amount}"
+ledgerSimpleExpenseIncomeDecrease: "「{description}」取消了 {account} 的 {amount}"
+ledgerSimpleAssetIncrease: "「{description}」使 {account} 的餘額增加了 {amount}"
+ledgerSimpleAssetDecrease: "「{description}」使 {account} 的餘額減少了 {amount}"
+ledgerSimpleLiabilityIncrease: "「{description}」以 {account} 借入了 {amount}"
+ledgerSimpleLiabilityDecrease: "「{description}」償還了 {account} 的 {amount}"
+ledgerSimpleEquitySet: "「{description}」將 {account} 設為 {amount}"
+ledgerSimpleFallback: "「{description}」為 {account} 記錄了 {amount}"
 noTransactionsYet: 尚無交易。
 deleteEntry: 刪除分錄
 recentTransactions: 最近交易

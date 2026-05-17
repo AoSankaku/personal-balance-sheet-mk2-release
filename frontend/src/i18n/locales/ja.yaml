@@ -116,6 +116,17 @@ thCreatedAt: 入力日時
 showInputTimestamp: 入力日時を表示
 journalSourceManual: 手動
 journalSourceCsvImport: CSVインポート
+ledgerSimpleSameEntryBadge: 同一仕訳
+ledgerSimpleTransfer: "「{description}」として、{fromAccount}から{toAccount}に{amount}振り替えた"
+ledgerSimpleExpenseIncrease: "「{description}」として、{account}で{amount}支払った"
+ledgerSimpleIncomeIncrease: "「{description}」として、{account}の収入{amount}を得た"
+ledgerSimpleExpenseIncomeDecrease: "「{description}」として、{account}を{amount}だけ取り消した"
+ledgerSimpleAssetIncrease: "「{description}」として、{account}の残高が{amount}だけ増加した"
+ledgerSimpleAssetDecrease: "「{description}」として、{account}の残高が{amount}だけ減少した"
+ledgerSimpleLiabilityIncrease: "「{description}」として、{account}を{amount}借りた"
+ledgerSimpleLiabilityDecrease: "「{description}」として、{account}を{amount}返済した"
+ledgerSimpleEquitySet: "「{description}」として、{account}を{amount}に設定した"
+ledgerSimpleFallback: "「{description}」として、{account}に{amount}を記録した"
 noTransactionsYet: 取引がまだありません。
 deleteEntry: 仕訳を削除
 recentTransactions: 最近の取引
