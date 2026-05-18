@@ -27,9 +27,10 @@ import {
   isShortTermBorrowingCategory,
   isShortTermLendingCategory,
 } from "@balance-sheet/shared";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
+import { showFeedback } from "../lib/feedback";
 import { formatCurrency } from "../lib/numberFormat";
 import { renderAccountOption } from "./SimpleEntryForm";
 import {
@@ -344,7 +345,12 @@ export function MultiLineEntryForm({
       setUnderBudgetWarnOpen(true);
       return;
     }
-    await doSubmit(values);
+    try {
+      await doSubmit(values);
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : String(e);
+      showFeedback({ message: msg, color: "red" });
+    }
   }
 
   function handleAccountChange(i: number, v: string | null) {

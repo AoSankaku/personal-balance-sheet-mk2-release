@@ -61,6 +61,8 @@ import {
 } from "../lib/transferBudgetMovement";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
+import { showFeedback } from "../lib/feedback";
+import { ApiError } from "../api/client";
 import {
   categoryIndex,
   CATEGORY_TRANSLATION_KEY,
@@ -1330,7 +1332,13 @@ export function SimpleEntryForm({
       setUnderBudgetWarnOpen(true);
       return;
     }
-    await doSubmit(values);
+    try {
+      await doSubmit(values);
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : String(e);
+      showFeedback({ message: msg, color: "red" });
+      form.setFieldError("amount", msg);
+    }
   }
 
   function handleExpenseAccountChange(v: string | null) {
