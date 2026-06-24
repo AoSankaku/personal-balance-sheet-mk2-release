@@ -10,7 +10,9 @@
     "wrangler:remote": "bun run scripts/run-wrangler-with-d1.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "wrangler d1 migrations apply balance-sheet-db --local",
-    "db:migrate:remote": "bun run scripts/run-wrangler-with-d1.mjs d1 migrations apply balance-sheet-db --remote"
+    "db:migrate:remote": "bun run scripts/run-wrangler-with-d1.mjs d1 migrations apply balance-sheet-db --remote",
+    "db:sync:remote": "bun scripts/sync-local-d1-to-remote.mjs",
+    "db:push:remote": "bun scripts/sync-local-d1-to-remote.mjs"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

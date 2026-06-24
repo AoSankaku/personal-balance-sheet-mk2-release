@@ -188,39 +188,40 @@ server {
 
 ### 開発環境で入れたテストデータを本番 D1 に引き継ぐ
 
-テスト用にローカル D1 に入れたデータをそのまま本番に持っていく場合は、Wrangler の SQL エクスポート/インポートを使うのが推奨です。
-
-最も安全なのは、本番用に新しい空の D1 データベースを作り、アプリを一度も開く前にローカル D1 のダンプを流し込む方法です。ローカル D1 のエクスポートにはスキーマも含まれるため、この方法では先に `db:migrate:remote` を実行しないでください。既に本番 DB にデータがある場合、この手順は衝突や重複を起こす可能性があります。
-
-1. ローカル D1 から SQL ダンプを作ります。
+次の1コマンドで、ローカル D1 の全アプリデータをリモート D1 へ同期できます。
 
 ```powershell
 cd worker
-bunx wrangler d1 export balance-sheet-db --local --output ../local-d1-export.sql
+bun run db:sync:remote
 ```
 
-2. 本番 D1 にインポートします。
+この処理はリモート D1 のアプリデータを置き換えます。確認プロンプトで `yes` と入力すると、次を順番に実行します。
+
+1. `balance-sheet-db` が未作成なら作成
+2. リモート migration を適用
+3. 同期前のリモートバックアップを `.tmp/d1-sync/` に保存
+4. ローカル D1 を data-only で UTF-8 エクスポート
+5. リモートの既存アプリデータを外部キーの逆順で削除
+6. テーブル単位・外部キー順でインポート
+7. ローカル/リモートの全テーブル件数と外部キー整合性を検証
+
+認証には `wrangler login`、または `CLOUDFLARE_API_TOKEN` を使用します。D1 ID は `wrangler d1 list` から取得するため、この同期コマンドではコードや設定ファイルへの ID の直書きは不要です。
 
 ```powershell
-cd worker
-bun run wrangler:remote d1 execute balance-sheet-db --remote --file ../local-d1-export.sql
+# 確認なしで実行
+bun run db:sync:remote -- --yes
+
+# 変更せず実行計画だけ確認
+bun run db:sync:remote -- --dry-run
+
+# バックアップを省略（非推奨）
+bun run db:sync:remote -- --yes --skip-backup
+
+# データを変更せず件数と外部キーだけ検証
+bun run db:sync:remote -- --verify-only
 ```
 
-3. 本番 Worker をデプロイまたは再デプロイします。
-
-```powershell
-cd worker
-bun run deploy
-```
-
-4. 本番 URL を開き、科目、仕訳、予算カテゴリ、残高が引き継がれていることを確認します。
-
-補足:
-
-- `設定 > エクスポート` から SQLite ファイルをダウンロードできます。これはバックアップや確認には便利ですが、D1 へそのまま投入する標準手順ではありません。D1 への移行には上記の SQL ダンプを使ってください。
-- ローカル D1 の実体は `worker/.wrangler/state/.../*.sqlite` にありますが、このパスは Wrangler の内部実装です。通常は直接コピーせず、`wrangler d1 export` を使ってください。
-- 既に本番 DB にデータを入れてしまった場合は、新しい D1 を作り、Cloudflare のビルド用 Secret `D1_DATABASE_ID` を新しい値に更新するのが一番単純です。
-- テストデータを引き継がず空の本番 DB から始める場合は、上の「本番 D1 にマイグレーションを適用する」の手順を使ってください。
+バックアップ、ローカルエクスポート、テーブル別SQLは `.tmp/d1-sync/` に保存され、Git管理対象外です。途中で migration、バックアップ、削除、インポート、検証のいずれかが失敗した場合は exit code 1 で停止し、インポート失敗時は対象テーブル名を表示します。
 
 ### よく使うコマンド
 
@@ -248,6 +249,10 @@ bun run db:migrate
 # Apply remote D1 migrations
 cd worker
 bun run db:migrate:remote
+
+# Sync local D1 data to remote D1
+cd worker
+bun run db:sync:remote
 
 # Deploy Worker
 cd worker
@@ -436,39 +441,40 @@ If you call the Worker directly from a different origin, add the production fron
 
 ### Carry Local Test Data Into Production D1
 
-To keep the data you entered in local development and move it into production D1, use Wrangler SQL export/import.
-
-The safest path is to create a new empty production D1 database and import the local dump before opening the production app for the first time. The local D1 export includes the schema, so do not run `db:migrate:remote` first when using this path. If the production DB already contains data, this can cause primary-key conflicts or duplicates.
-
-1. Export the local D1 database to SQL.
+Use one command to synchronize all application data from local D1 to remote D1:
 
 ```powershell
 cd worker
-bunx wrangler d1 export balance-sheet-db --local --output ../local-d1-export.sql
+bun run db:sync:remote
 ```
 
-2. Import it into remote D1.
+This replaces the remote D1 application data. After you type `yes` at the confirmation prompt, the command:
+
+1. Creates `balance-sheet-db` if it does not exist
+2. Applies remote migrations
+3. Saves a pre-sync remote backup under `.tmp/d1-sync/`
+4. Exports local D1 data only, preserving UTF-8
+5. Deletes existing remote application data in reverse dependency order
+6. Imports one table at a time in foreign-key order
+7. Verifies every table count and runs `PRAGMA foreign_key_check`
+
+Authenticate with `wrangler login` or `CLOUDFLARE_API_TOKEN`. The command resolves the D1 ID through `wrangler d1 list`, so no database ID needs to be hardcoded in source or configuration.
 
 ```powershell
-cd worker
-bun run wrangler:remote d1 execute balance-sheet-db --remote --file ../local-d1-export.sql
+# Run without an interactive confirmation
+bun run db:sync:remote -- --yes
+
+# Show the plan without changing remote data
+bun run db:sync:remote -- --dry-run
+
+# Skip the remote backup (not recommended)
+bun run db:sync:remote -- --yes --skip-backup
+
+# Verify counts and foreign keys without changing data
+bun run db:sync:remote -- --verify-only
 ```
 
-3. Deploy or redeploy the Worker.
-
-```powershell
-cd worker
-bun run deploy
-```
-
-4. Open the production URL and confirm that accounts, journal entries, budget categories, and balances were carried over.
-
-Notes:
-
-- You can download a SQLite backup from `Settings > Export`. That is useful for backup and inspection, but it is not the standard import format for D1. Use the SQL dump flow above for D1 migration.
-- The local D1 SQLite file lives under `worker/.wrangler/state/.../*.sqlite`, but that path is Wrangler internals. Prefer `wrangler d1 export` instead of copying the file directly.
-- If the production DB already has unwanted test or seed data, the simplest clean path is often to create a fresh D1 database and update the Cloudflare build secret `D1_DATABASE_ID`.
-- If you do not want to carry local test data forward, use the production migration step above and start with an empty production database.
+Backups, local exports, and per-table import files are retained under `.tmp/d1-sync/` and ignored by Git. Migration, backup, deletion, import, or verification failures stop with exit code 1. Import errors identify the table that failed.
 
 ### Common Commands
 
@@ -496,6 +502,10 @@ bun run db:migrate
 # Apply remote D1 migrations
 cd worker
 bun run db:migrate:remote
+
+# Sync local D1 data to remote D1
+cd worker
+bun run db:sync:remote
 
 # Deploy Worker
 cd worker

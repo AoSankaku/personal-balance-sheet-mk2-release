@@ -21,6 +21,14 @@ worker/**/*.js
 *.local
 .wrangler/
 **/.wrangler.deploy.toml
+.tmp/
+_d1_table_imports/
+count-all.sql
+count-all-separate.sql
+local-d1-data*.sql
+local-d1-export*.sql
+remote-before-sync*.sql
+remote-wipe-data.sql
 
 # Local financial data, imports, exports, and backups
 *.csv
