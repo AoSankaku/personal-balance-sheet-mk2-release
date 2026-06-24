@@ -13,5 +13,5 @@
     "build:worker": "bun --cwd worker run build",
     "install:all": "bun install"
   },
-  "packageManager": "bun@1.1.0"
+  "packageManager": "bun@1.3.14"
 }
