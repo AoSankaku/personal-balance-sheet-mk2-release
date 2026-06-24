@@ -107,9 +107,25 @@ bunx wrangler login
 bunx wrangler d1 create balance-sheet-db
 ```
 
-出力された `database_id` を `worker/wrangler.toml` の `database_id` に設定します。
+出力された `database_id` は、Cloudflare ダッシュボードの Worker にビルド用 Secret として保存します。
 
-公開用リポジトリでは `worker/wrangler.toml` の `database_id` はプレースホルダーにしています。`db:migrate:remote` や Worker デプロイを行う前に、自分の D1 の `database_id` にローカルで差し替えてください。fork や公開リポジトリに戻すときは、実際の `database_id` をコミットしないでください。
+1. `Workers & Pages > 対象 Worker > Settings > Build` を開きます。
+2. `Build variables and secrets` に Secret `D1_DATABASE_ID` を追加し、値に D1 の `database_id` を設定します。
+3. Git 連携ビルドでは Root directory を `worker`、Build command を `bun run build`、Deploy command を `bun run deploy`、Non-production branch deploy command を `bun run deploy:preview` に設定します。
+
+`D1_DATABASE_ID` は Worker の実行時 Secret ではなく、Wrangler 設定を生成するためのビルド用 Secret です。リポジトリ内の `worker/wrangler.toml` を編集する必要はありません。ビルド、リモートマイグレーション、デプロイ時だけ `worker/.wrangler.deploy.toml` を生成し、コマンド終了後に削除します。このファイルは `.gitignore` の対象です。
+
+ローカル端末からリモート操作を行う場合は、同じ値を現在のシェルに設定します。
+
+```powershell
+$env:D1_DATABASE_ID="<your-d1-database-id>"
+```
+
+macOS/Linux:
+
+```bash
+export D1_DATABASE_ID="<your-d1-database-id>"
+```
 
 #### 2. 本番 D1 にマイグレーションを適用する
 
@@ -187,7 +203,7 @@ bunx wrangler d1 export balance-sheet-db --local --output ../local-d1-export.sql
 
 ```powershell
 cd worker
-bunx wrangler d1 execute balance-sheet-db --remote --file ../local-d1-export.sql
+bun run wrangler:remote d1 execute balance-sheet-db --remote --file ../local-d1-export.sql
 ```
 
 3. 本番 Worker をデプロイまたは再デプロイします。
@@ -203,7 +219,7 @@ bun run deploy
 
 - `設定 > エクスポート` から SQLite ファイルをダウンロードできます。これはバックアップや確認には便利ですが、D1 へそのまま投入する標準手順ではありません。D1 への移行には上記の SQL ダンプを使ってください。
 - ローカル D1 の実体は `worker/.wrangler/state/.../*.sqlite` にありますが、このパスは Wrangler の内部実装です。通常は直接コピーせず、`wrangler d1 export` を使ってください。
-- 既に本番 DB にデータを入れてしまった場合は、新しい D1 を作り直して `database_id` を差し替えるのが一番単純です。
+- 既に本番 DB にデータを入れてしまった場合は、新しい D1 を作り、Cloudflare のビルド用 Secret `D1_DATABASE_ID` を新しい値に更新するのが一番単純です。
 - テストデータを引き継がず空の本番 DB から始める場合は、上の「本番 D1 にマイグレーションを適用する」の手順を使ってください。
 
 ### よく使うコマンド
@@ -339,9 +355,25 @@ bunx wrangler login
 bunx wrangler d1 create balance-sheet-db
 ```
 
-Copy the generated `database_id` into `worker/wrangler.toml`.
+Store the generated `database_id` as a build secret on the Worker in the Cloudflare dashboard.
 
-This public repo keeps `database_id` in `worker/wrangler.toml` as a placeholder. Before running `db:migrate:remote` or deploying the Worker, replace it locally with your own D1 `database_id`. Do not commit a real personal `database_id` back to a fork or public repository.
+1. Open `Workers & Pages > your Worker > Settings > Build`.
+2. Under `Build variables and secrets`, add a secret named `D1_DATABASE_ID` and use the D1 `database_id` as its value.
+3. For Git-integrated builds, set Root directory to `worker`, Build command to `bun run build`, Deploy command to `bun run deploy`, and Non-production branch deploy command to `bun run deploy:preview`.
+
+`D1_DATABASE_ID` is a build secret used to generate Wrangler configuration, not a Worker runtime secret. You do not need to edit `worker/wrangler.toml`. Builds, remote migrations, and deployments create `worker/.wrangler.deploy.toml` only for the duration of the command and remove it afterward. The file is covered by `.gitignore`.
+
+For remote operations from a local terminal, set the same value in the current shell:
+
+```powershell
+$env:D1_DATABASE_ID="<your-d1-database-id>"
+```
+
+macOS/Linux:
+
+```bash
+export D1_DATABASE_ID="<your-d1-database-id>"
+```
 
 #### 2. Apply Migrations to Remote D1
 
@@ -419,7 +451,7 @@ bunx wrangler d1 export balance-sheet-db --local --output ../local-d1-export.sql
 
 ```powershell
 cd worker
-bunx wrangler d1 execute balance-sheet-db --remote --file ../local-d1-export.sql
+bun run wrangler:remote d1 execute balance-sheet-db --remote --file ../local-d1-export.sql
 ```
 
 3. Deploy or redeploy the Worker.
@@ -435,7 +467,7 @@ Notes:
 
 - You can download a SQLite backup from `Settings > Export`. That is useful for backup and inspection, but it is not the standard import format for D1. Use the SQL dump flow above for D1 migration.
 - The local D1 SQLite file lives under `worker/.wrangler/state/.../*.sqlite`, but that path is Wrangler internals. Prefer `wrangler d1 export` instead of copying the file directly.
-- If the production DB already has unwanted test or seed data, the simplest clean path is often to create a fresh D1 database and update `database_id` in `worker/wrangler.toml`.
+- If the production DB already has unwanted test or seed data, the simplest clean path is often to create a fresh D1 database and update the Cloudflare build secret `D1_DATABASE_ID`.
 - If you do not want to carry local test data forward, use the production migration step above and start with an empty production database.
 
 ### Common Commands

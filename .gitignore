@@ -20,6 +20,7 @@ worker/**/*.js
 !**/.dev.vars.example
 *.local
 .wrangler/
+**/.wrangler.deploy.toml
 
 # Local financial data, imports, exports, and backups
 *.csv

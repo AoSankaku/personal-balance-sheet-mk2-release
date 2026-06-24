@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev --ip 0.0.0.0",
-    "build": "wrangler deploy --dry-run",
-    "deploy": "wrangler deploy",
+    "build": "bun run scripts/run-wrangler-with-d1.mjs deploy --dry-run",
+    "deploy": "bun run scripts/run-wrangler-with-d1.mjs deploy",
+    "deploy:preview": "bun run scripts/run-wrangler-with-d1.mjs versions upload",
+    "wrangler:remote": "bun run scripts/run-wrangler-with-d1.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "wrangler d1 migrations apply balance-sheet-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply balance-sheet-db"
+    "db:migrate:remote": "bun run scripts/run-wrangler-with-d1.mjs d1 migrations apply balance-sheet-db --remote"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

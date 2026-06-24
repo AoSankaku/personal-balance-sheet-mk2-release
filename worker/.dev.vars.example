@@ -1,6 +1,6 @@
-# Cloudflare Workers local secrets example.
-# D1 is configured through worker/wrangler.toml, so no local secret is
-# required for the current default setup.
+# Cloudflare Workers local runtime secrets example.
+# D1_DATABASE_ID is a build/deploy secret, not a Worker runtime secret.
+# Set it in the shell when running remote builds, migrations, or deploys.
 #
 # Keep real values in worker/.dev.vars only; it is ignored by git.
 # Do not put Binance API keys or personal finance data in this example.

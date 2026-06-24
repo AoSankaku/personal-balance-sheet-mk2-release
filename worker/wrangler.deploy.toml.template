@@ -6,7 +6,5 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "balance-sheet-db"
-# Local-only placeholder. Remote commands use wrangler.deploy.toml.template
-# and inject D1_DATABASE_ID from the build environment.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "__D1_DATABASE_ID__"
 migrations_dir = "drizzle"
