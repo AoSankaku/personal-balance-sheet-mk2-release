@@ -7,10 +7,11 @@
     "shared"
   ],
   "scripts": {
-    "dev:frontend": "bun --cwd frontend run dev",
-    "dev:worker": "bun --cwd worker run dev",
-    "build:frontend": "bun --cwd frontend run build",
-    "build:worker": "bun --cwd worker run build",
+    "dev:frontend": "bun run --cwd frontend dev",
+    "dev:worker": "bun run --cwd worker dev",
+    "dev:fullstack": "bun run build:frontend && bun run --cwd worker dev:fullstack",
+    "build:frontend": "bun run --cwd frontend build",
+    "build:worker": "bun run --cwd worker build",
     "install:all": "bun install"
   },
   "packageManager": "bun@1.3.14"

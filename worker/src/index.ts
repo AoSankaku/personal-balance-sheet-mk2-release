@@ -70,6 +70,8 @@ app.route("/api/loans", loansRouter);
 app.route("/api/currencies", currenciesRouter);
 app.route("/api/long-term-loan-plans", longTermLoanPlansRouter);
 
-app.get("/", (c) => c.json({ status: "ok", service: "balance-sheet-worker" }));
+app.get("/api/health", (c) =>
+  c.json({ status: "ok", service: "balance-sheet-worker" }),
+);
 
 export default app;

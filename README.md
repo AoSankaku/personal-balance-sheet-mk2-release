@@ -1,5 +1,11 @@
 # Personal Balance Sheet MK2
 
+## Cloudflare deployment
+
+See [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md) for the canonical
+Cloudflare Workers Static Assets build, deploy, and local full-stack
+verification commands.
+
 > [!CAUTION]
 > このプロジェクトは、ほとんどClaude CodeとCodexで実装しました。
 

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev --ip 0.0.0.0",
+    "dev:fullstack": "bun run scripts/run-fullstack-dev.mjs",
     "build": "bun run scripts/run-wrangler-with-d1.mjs deploy --dry-run",
     "deploy": "bun run scripts/run-wrangler-with-d1.mjs deploy",
     "deploy:preview": "bun run scripts/run-wrangler-with-d1.mjs versions upload",

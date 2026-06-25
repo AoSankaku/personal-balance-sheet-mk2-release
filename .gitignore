@@ -21,6 +21,7 @@ worker/**/*.js
 *.local
 .wrangler/
 **/.wrangler.deploy.toml
+**/.wrangler.fullstack.toml
 .tmp/
 _d1_table_imports/
 count-all.sql
