@@ -30,6 +30,7 @@ transactionAdded: Transaction added
 transactionDeleted: Transaction deleted
 statusLabel: Status
 statusDismiss: OK
+pwaInstallButton: Install as PWA
 total: "Total:"
 thAccount: Account
 thCategory: Category

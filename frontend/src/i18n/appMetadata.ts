@@ -25,4 +25,7 @@ export function applyAppMetadata(
   target
     .querySelector<HTMLLinkElement>('link[rel="manifest"]')
     ?.setAttribute("href", metadata.manifestHref);
+  target
+    .querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]')
+    ?.setAttribute("content", metadata.title);
 }

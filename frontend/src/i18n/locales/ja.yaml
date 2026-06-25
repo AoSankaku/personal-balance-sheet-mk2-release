@@ -30,6 +30,7 @@ transactionAdded: 取引を追加しました
 transactionDeleted: 取引を削除しました
 statusLabel: 状態
 statusDismiss: 閉じる
+pwaInstallButton: PWAとしてインストール
 total: "合計:"
 thAccount: 勘定科目
 thCategory: カテゴリー
