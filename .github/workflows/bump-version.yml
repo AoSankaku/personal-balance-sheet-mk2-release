@@ -1,0 +1,37 @@
+name: Bump application version
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bump-version-main
+  cancel-in-progress: false
+
+jobs:
+  bump-version:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Increment version
+        id: bump
+        run: node scripts/bump-version.mjs
+
+      - name: Commit version
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/lib/version.ts
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.version }}"
+          git push origin HEAD:main
