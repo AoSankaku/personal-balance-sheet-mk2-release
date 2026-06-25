@@ -42,8 +42,10 @@ import type {
   UpsertLongTermLoanPlanRowInput,
   LongTermLoanComparisonRow,
 } from "@balance-sheet/shared";
+import { createInFlightRequestDeduper } from "./inFlightRequest";
 
 const BASE = "/api";
+const dedupeBudgetSummaryRequest = createInFlightRequestDeduper();
 
 export class ApiError extends Error {
   constructor(
@@ -236,7 +238,10 @@ export const api = {
       const q = new URLSearchParams({ year_month: yearMonth });
       if (asOf) q.set("as_of", asOf);
       if (currency) q.set("currency", currency);
-      return request<BudgetSummary>(`/budget/summary?${q.toString()}`);
+      const path = `/budget/summary?${q.toString()}`;
+      return dedupeBudgetSummaryRequest(path, () =>
+        request<BudgetSummary>(path),
+      );
     },
     patchAdhocAllocation: (input: {
       budget_category_id: number;

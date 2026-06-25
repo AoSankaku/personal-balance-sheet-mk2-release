@@ -262,32 +262,45 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [budgetSummaryTotal, setBudgetSummaryTotal] =
     useState<BudgetSummary | null>(null);
   const displayCurrencyRef = useRef(normalizeCurrency(displayCurrency));
+  const refreshAllocatableRequestRef = useRef<{
+    key: string;
+    promise: Promise<void>;
+  } | null>(null);
   useEffect(() => {
     displayCurrencyRef.current = normalizeCurrency(displayCurrency);
   }, [displayCurrency]);
 
-  const refreshAllocatable = useCallback(async () => {
-    try {
-      const today = toDateStr(new Date());
-      const currency = displayCurrencyRef.current;
-      const ym = currentYearMonthRef.current;
-      const [accs, summaryToday, summaryTotal] = await Promise.all([
-        api.accounts.list(today),
-        api.budget.summary(ym, today, currency),
-        api.budget.summary(ym, undefined, currency),
-      ]);
-      setAccountsToday(accs);
-      setBudgetSummaryToday(summaryToday);
-      setBudgetSummaryTotal(summaryTotal);
-    } catch {
-      // silently ignore
+  const refreshAllocatable = useCallback(() => {
+    const today = toDateStr(new Date());
+    const currency = displayCurrencyRef.current;
+    const ym = currentYearMonthRef.current;
+    const key = `${ym}|${today}|${currency}`;
+    if (refreshAllocatableRequestRef.current?.key === key) {
+      return refreshAllocatableRequestRef.current.promise;
     }
-  }, []);
 
-  useEffect(() => {
-    if (!isInitialSetupComplete) return;
-    void refreshAllocatable();
-  }, [refreshAllocatable, isInitialSetupComplete]);
+    const pending = (async () => {
+      try {
+        const [accs, summaryToday, summaryTotal] = await Promise.all([
+          api.accounts.list(today),
+          api.budget.summary(ym, today, currency),
+          api.budget.summary(ym, undefined, currency),
+        ]);
+        setAccountsToday(accs);
+        setBudgetSummaryToday(summaryToday);
+        setBudgetSummaryTotal(summaryTotal);
+      } catch {
+        // silently ignore
+      }
+    })().finally(() => {
+      if (refreshAllocatableRequestRef.current?.promise === pending) {
+        refreshAllocatableRequestRef.current = null;
+      }
+    });
+
+    refreshAllocatableRequestRef.current = { key, promise: pending };
+    return pending;
+  }, []);
 
   const assetBalanceToday = useMemo(
     () =>
@@ -425,11 +438,19 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []); // stable — reads ym via ref
 
-  // Re-fetch budget summary when currentYearMonth changes
+  // Re-fetch only the summary when month/currency changes. Categories and
+  // filters are not month-specific and are refreshed by refreshBudget().
   useEffect(() => {
     if (!isInitialSetupComplete) return;
-    void refreshBudget();
-  }, [currentYearMonth, displayCurrency, refreshBudget, isInitialSetupComplete]);
+    void api.budget
+      .summary(
+        currentYearMonthRef.current,
+        undefined,
+        displayCurrencyRef.current,
+      )
+      .then(setBudgetSummary)
+      .catch(() => {});
+  }, [currentYearMonth, displayCurrency, isInitialSetupComplete]);
 
   useEffect(() => {
     if (!isInitialSetupComplete) return;

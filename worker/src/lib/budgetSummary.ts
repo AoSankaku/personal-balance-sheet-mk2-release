@@ -125,6 +125,32 @@ export interface BudgetEntryAllocationForSpent {
   amount: number;
 }
 
+export interface BudgetEntryAllocationForPeriod
+  extends BudgetEntryAllocationForSpent {
+  date: string;
+  created_at: string;
+}
+
+export function groupBudgetEntryAllocationsByMonth<
+  T extends BudgetEntryAllocationForPeriod,
+>(
+  rows: T[],
+  dateRangesByYearMonth: Map<string, DateRange>,
+): Map<string, T[]> {
+  const grouped = new Map(
+    [...dateRangesByYearMonth.keys()].map((yearMonth) => [yearMonth, [] as T[]]),
+  );
+
+  for (const row of rows) {
+    const yearMonth = row.date.slice(0, 7);
+    const range = dateRangesByYearMonth.get(yearMonth);
+    if (!range || row.date < range.start || row.date > range.end) continue;
+    grouped.get(yearMonth)?.push(row);
+  }
+
+  return grouped;
+}
+
 export function calculateSpentFromBudgetAllocations(
   budgetCategoryId: number,
   entryAllocs: BudgetEntryAllocationForSpent[],

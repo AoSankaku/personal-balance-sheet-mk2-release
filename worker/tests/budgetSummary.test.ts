@@ -5,10 +5,64 @@ import {
   calculateNextCarryover,
   calculateSpentFromBudgetAllocations,
   findLatestResetDateForPeriod,
+  groupBudgetEntryAllocationsByMonth,
   isAfterBudgetResetPoint,
   sumBudgetAdjustmentLogsAfterResetsByPeriod,
   sumBudgetAdjustmentLogsByPeriod,
 } from "../src/lib/budgetSummary";
+
+describe("groupBudgetEntryAllocationsByMonth", () => {
+  test("groups one range-query result into every requested month", () => {
+    const rows = [
+      {
+        journal_entry_id: 1,
+        budget_category_id: 10,
+        amount: -1_000,
+        date: "2026-03-31",
+        created_at: "2026-03-31 12:00:00",
+      },
+      {
+        journal_entry_id: 2,
+        budget_category_id: 10,
+        amount: -2_000,
+        date: "2026-05-02",
+        created_at: "2026-05-02 12:00:00",
+      },
+    ];
+
+    const grouped = groupBudgetEntryAllocationsByMonth(
+      rows,
+      new Map([
+        ["2026-03", { start: "2026-03-01", end: "2026-03-31" }],
+        ["2026-04", { start: "2026-04-01", end: "2026-04-30" }],
+        ["2026-05", { start: "2026-05-01", end: "2026-05-02" }],
+      ]),
+    );
+
+    expect(grouped.get("2026-03")).toEqual([rows[0]]);
+    expect(grouped.get("2026-04")).toEqual([]);
+    expect(grouped.get("2026-05")).toEqual([rows[1]]);
+  });
+
+  test("excludes rows after the current as-of date", () => {
+    const grouped = groupBudgetEntryAllocationsByMonth(
+      [
+        {
+          journal_entry_id: 3,
+          budget_category_id: 10,
+          amount: -3_000,
+          date: "2026-05-03",
+          created_at: "2026-05-03 12:00:00",
+        },
+      ],
+      new Map([
+        ["2026-05", { start: "2026-05-01", end: "2026-05-02" }],
+      ]),
+    );
+
+    expect(grouped.get("2026-05")).toEqual([]);
+  });
+});
 
 describe("sumBudgetAdjustmentLogsByPeriod", () => {
   test("includes same-day budget adjustments in an as-of summary", () => {

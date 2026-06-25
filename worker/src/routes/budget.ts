@@ -29,6 +29,7 @@ import {
   calculateNextCarryover,
   findLatestResetDateForPeriod,
   findLatestResetPointForPeriod,
+  groupBudgetEntryAllocationsByMonth,
   isAfterBudgetResetPoint,
   shouldShowCarryoverForPeriod,
   sumBudgetAdjustmentLogsAfterResetsByPeriod,
@@ -1236,11 +1237,25 @@ router.get("/summary", async (c) => {
     );
   }
 
-  // 5. Fetch explicit entry budget allocations for all months.
-  const monthEntryAllocsAll = await Promise.all(
-    monthDateRanges.map(({ start, end }) =>
-      fetchEntryAllocsForPeriod(db, start, end, currency, scaleOptions),
-    ),
+  // 5. Fetch explicit entry budget allocations for the complete range once,
+  // then partition them by month in memory. This avoids one D1 query per
+  // historical month.
+  const entryAllocsForRange =
+    monthDateRanges.length > 0
+      ? await fetchEntryAllocsForPeriod(
+          db,
+          monthDateRanges[0]!.start,
+          monthDateRanges.at(-1)!.end,
+          currency,
+          scaleOptions,
+        )
+      : [];
+  const entryAllocsByMonth = groupBudgetEntryAllocationsByMonth(
+    entryAllocsForRange,
+    monthDateRangeMap,
+  );
+  const monthEntryAllocsAll = monthsList.map(
+    (yearMonth) => entryAllocsByMonth.get(yearMonth) ?? [],
   );
 
   // 6. Per category: N-level carryover
