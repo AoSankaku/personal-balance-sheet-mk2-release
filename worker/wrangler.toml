@@ -1,6 +1,6 @@
 name = "balance-sheet-worker"
 main = "src/index.ts"
-compatibility_date = "2024-11-01"
+compatibility_date = "2026-06-25"
 compatibility_flags = ["nodejs_compat"]
 
 [[d1_databases]]
