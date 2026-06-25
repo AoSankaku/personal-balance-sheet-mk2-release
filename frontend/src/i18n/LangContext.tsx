@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { applyAppMetadata, getAppMetadata } from "./appMetadata";
 import { toHtmlLang } from "./localeUtils";
 import { tForLocale } from "./translate";
 import type { Locale, TranslationKey } from "./translations";
@@ -79,7 +80,8 @@ export function LangProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    document.documentElement.lang = toHtmlLang(locale);
+    const metadata = getAppMetadata(locale, tForLocale("appTitle", locale));
+    applyAppMetadata(document, metadata, toHtmlLang(locale));
   }, [locale]);
 
   return <LangContext.Provider value={value}>{children}</LangContext.Provider>;

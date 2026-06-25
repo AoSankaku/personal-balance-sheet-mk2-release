@@ -22,28 +22,7 @@ export default defineConfig({
     i18nYamlHmrPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
-      manifest: {
-        name: '収支管理',
-        short_name: '収支管理',
-        description: 'Personal Balance Sheet',
-        theme_color: '#228be6',
-        background_color: '#ffffff',
-        display: 'standalone',
-        start_url: '/',
-        icons: [
-          {
-            src: '/icons/icon-192.svg',
-            sizes: '192x192',
-            type: 'image/svg+xml',
-          },
-          {
-            src: '/icons/icon-512.svg',
-            sizes: '512x512',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
-          },
-        ],
-      },
+      manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
