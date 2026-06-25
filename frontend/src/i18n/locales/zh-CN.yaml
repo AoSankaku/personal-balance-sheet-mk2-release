@@ -30,6 +30,7 @@ transactionAdded: 交易已添加
 transactionDeleted: 交易已删除
 statusLabel: 状态
 statusDismiss: 确定
+pwaInstallButton: 安装为 PWA
 total: 合计：
 thAccount: 账户
 thCategory: 类别

@@ -30,6 +30,7 @@ transactionAdded: 交易已新增
 transactionDeleted: 交易已刪除
 statusLabel: 狀態
 statusDismiss: 確定
+pwaInstallButton: 安裝為 PWA
 total: 合計：
 thAccount: 帳戶
 thCategory: 類別

@@ -48,6 +48,7 @@ import {
 import { AccountTable } from "../components/AccountTable";
 import { AddAccountModal } from "../components/AddAccountModal";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
+import { PwaInstallSetting } from "../components/PwaInstallSetting";
 import type { Account, CreateAccountInput } from "@balance-sheet/shared";
 import type { CreditCardSettingsInput } from "../components/AddAccountModal";
 import { showFeedback } from "../lib/feedback";
@@ -674,6 +675,10 @@ export default function SettingsPage() {
           );
         })()}
       </Stack>
+
+      <Divider />
+
+      <PwaInstallSetting />
 
       <AddAccountModal
         opened={addAccountOpened}

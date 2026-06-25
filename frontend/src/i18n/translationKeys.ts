@@ -31,6 +31,7 @@ export const translationKeys = [
   "transactionDeleted",
   "statusLabel",
   "statusDismiss",
+  "pwaInstallButton",
   "total",
   "thAccount",
   "thCategory",
