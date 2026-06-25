@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "*.md"
+      - ".github/workflows/bump-version.yml"
+      - "scripts/bump-version*.mjs"
 
 permissions:
   contents: write
