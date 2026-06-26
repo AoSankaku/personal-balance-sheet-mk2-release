@@ -369,6 +369,13 @@ export interface BudgetSummary {
   total_available: number;
 }
 
+export interface BudgetHistoryResponse {
+  from: string;
+  to: string;
+  currency: string;
+  summaries: BudgetSummary[];
+}
+
 export type BudgetFilterStepType = "fixed" | "capped" | "remainder";
 
 export interface BudgetFilterStepAllocation {

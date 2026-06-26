@@ -200,12 +200,10 @@ export default function SvPage() {
       months.push(now.subtract(i, "month").format("YYYY-MM"));
     }
 
-    Promise.all(
-      months.map((ym) => api.budget.summary(ym, undefined, selectedCurrency)),
-    ).then(
-      (summaries) => {
+    api.budget.history(months[0]!, months.at(-1)!, selectedCurrency).then(
+      (history) => {
         if (!cancelled) {
-          setHistoricalSummaries(summaries);
+          setHistoricalSummaries(history.summaries);
           setChartLoading(false);
         }
       },

@@ -19,6 +19,7 @@ import {
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
 import type {
   BudgetCategory,
+  BudgetHistoryResponse,
   BudgetCategorySummary,
   BudgetSummary,
   BudgetFilter,
@@ -33,6 +34,7 @@ import {
   isAfterBudgetResetPoint,
   shouldShowCarryoverForPeriod,
   sumBudgetAdjustmentLogsAfterResetsByPeriod,
+  type DateRange,
 } from "../lib/budgetSummary";
 import { filterBudgetCategoriesForVisibility } from "../lib/budgetCategoryArchive";
 import {
@@ -1073,44 +1075,48 @@ function monthEndDate(ym: string): string {
 }
 
 // GET /api/budget/summary?year_month=YYYY-MM[&as_of=YYYY-MM-DD] — compute full budget summary
-router.get("/summary", async (c) => {
-  const ym = c.req.query("year_month");
-  if (!ym || !/^\d{4}-\d{2}$/.test(ym)) {
-    return c.json({ error: "year_month must be YYYY-MM" }, 400);
-  }
-  const currency = normalizeCurrency(c.req.query("currency"));
-
-  const db = createDb(c.env);
-  const scaleOptions = await loadMoneyScaleOptions(db);
-
+function yearMonthIndex(ym: string): number {
   const [year, month] = ym.split("-").map(Number) as [number, number];
-  const monthStart = `${ym}-01`;
-  const monthEnd = monthEndDate(ym);
+  return year * 12 + month;
+}
 
-  // Optional as_of date: clamp to [monthStart, monthEnd]
-  const asOfRaw = c.req.query("as_of");
-  const effectiveEnd =
-    asOfRaw &&
-    /^\d{4}-\d{2}-\d{2}$/.test(asOfRaw) &&
-    asOfRaw >= monthStart &&
-    asOfRaw <= monthEnd
-      ? asOfRaw
-      : monthEnd;
+function listYearMonths(from: string, to: string): string[] {
+  const months: string[] = [];
+  const [fromYear, fromMonth] = from.split("-").map(Number) as [number, number];
+  const [toYear, toMonth] = to.split("-").map(Number) as [number, number];
+  const totalMonths = (toYear - fromYear) * 12 + (toMonth - fromMonth);
 
-  // 1. Fetch categories + links first to determine per-category rollover depths
-  const allCats = await db
-    .select()
-    .from(budgetCategories)
-    .orderBy(budgetCategories.sort_order, budgetCategories.name);
-  const cats = filterBudgetCategoriesForVisibility(allCats);
+  for (let i = 0; i <= totalMonths; i++) {
+    months.push(subtractMonths(fromYear, fromMonth + i, 0));
+  }
+  return months;
+}
 
-  const links = await db.select().from(budgetCategoryAccounts);
-  const targetMap = buildTargetAccountMap(
-    await fetchBudgetCategoryTargetRows(db),
-  );
+type BudgetSummaryTarget = {
+  yearMonth: string;
+  effectiveEnd?: string;
+};
 
-  const [oldestBudgetLog, oldestEntryAlloc] =
+async function computeBudgetSummaries(
+  db: ReturnType<typeof createDb>,
+  currency: string,
+  scaleOptions: MoneyScaleOptions,
+  targets: BudgetSummaryTarget[],
+): Promise<BudgetSummary[]> {
+  if (targets.length === 0) return [];
+
+  const targetMonths = [...targets.map((target) => target.yearMonth)].sort();
+  const firstTargetYm = targetMonths[0]!;
+  const lastTargetYm = targetMonths.at(-1)!;
+
+  const [allCats, links, targetRows, oldestBudgetLog, oldestEntryAlloc] =
     await Promise.all([
+      db
+        .select()
+        .from(budgetCategories)
+        .orderBy(budgetCategories.sort_order, budgetCategories.name),
+      db.select().from(budgetCategoryAccounts),
+      fetchBudgetCategoryTargetRows(db),
       db
         .select({
           min_ym: sql<string>`MIN(${budgetAdjustmentLogs.year_month})`,
@@ -1129,47 +1135,32 @@ router.get("/summary", async (c) => {
         .where(eq(journalEntryBudgetAllocations.currency, currency)),
     ]);
 
+  const cats = filterBudgetCategoriesForVisibility(allCats);
+  const targetMap = buildTargetAccountMap(targetRows);
   const oldestYm = [
     oldestBudgetLog[0]?.min_ym,
     oldestEntryAlloc[0]?.min_ym,
   ]
     .filter((value): value is string => Boolean(value))
     .sort()[0];
-  const maxRolloverMonths =
-    oldestYm && oldestYm < ym
-      ? (() => {
-          const [oy, om] = oldestYm.split("-").map(Number) as [number, number];
-          return (year - oy) * 12 + (month - om);
-        })()
-      : 0;
+  const calculationStartYm =
+    oldestYm && oldestYm < firstTargetYm ? oldestYm : firstTargetYm;
 
-  // Build list of all year-months: index 0 = oldest (maxRolloverMonths ago), last = current
-  const monthsList: string[] = [];
-  for (let i = maxRolloverMonths; i >= 0; i--) {
-    monthsList.push(subtractMonths(year, month, i));
-  }
-  // monthsList[maxRolloverMonths] === ym
-
-  // Compute date ranges per month
-  const monthDateRanges = monthsList.map((mym, idx) => {
-    const start = `${mym}-01`;
-    const end = monthEndDate(mym);
-    // For current month, use effectiveEnd
-    return { start, end: idx === maxRolloverMonths ? effectiveEnd : end };
-  });
-  const monthDateRangeMap = new Map(
-    monthsList.map((mym, idx) => [mym, monthDateRanges[idx]!]),
+  const allMonths = listYearMonths(calculationStartYm, lastTargetYm);
+  const fullMonthDateRangeMap = new Map<string, DateRange>(
+    allMonths.map((yearMonth) => [
+      yearMonth,
+      { start: `${yearMonth}-01`, end: monthEndDate(yearMonth) },
+    ]),
   );
 
-  // 2. Batch fetch budget adjustment logs for all months (includes income-linked and manual)
-  // Note: adhoc is the single source of truth for budget "income"
   const adhocLogRows =
-    monthsList.length > 0
+    allMonths.length > 0
       ? await db
           .select({
             budget_category_id: budgetAdjustmentLogs.budget_category_id,
             year_month: budgetAdjustmentLogs.year_month,
-          amount: budgetAdjustmentLogs.amount,
+            amount: budgetAdjustmentLogs.amount,
             date: budgetAdjustmentLogs.date,
             adjustment_type: budgetAdjustmentLogs.adjustment_type,
             created_at: budgetAdjustmentLogs.created_at,
@@ -1177,7 +1168,7 @@ router.get("/summary", async (c) => {
           .from(budgetAdjustmentLogs)
           .where(
             and(
-              inArray(budgetAdjustmentLogs.year_month, monthsList),
+              inArray(budgetAdjustmentLogs.year_month, allMonths),
               eq(budgetAdjustmentLogs.currency, currency),
             ),
           )
@@ -1187,34 +1178,21 @@ router.get("/summary", async (c) => {
     amount: fromStorageMoneyAmount(row.amount, currency, scaleOptions),
   }));
 
-  // Build map: `${catId}:${yearMonth}` → totalAmount
-  const adhocSumMap = sumBudgetAdjustmentLogsAfterResetsByPeriod(
-    decodedAdhocLogRows,
-    monthDateRangeMap,
-  );
-
-  function adhocFor(catId: number, yearMonthKey: string): number {
-    return adhocSumMap.get(`${catId}:${yearMonthKey}`) ?? 0;
-  }
-
-  function resetPointFor(catId: number, yearMonthKey: string) {
-    const range = monthDateRangeMap.get(yearMonthKey);
-    if (!range) return null;
-    return findLatestResetPointForPeriod(decodedAdhocLogRows, catId, range);
-  }
-
-  // 4. Compute monthly income (current month only)
   const incomeAccountRows = await db
     .select({ id: accounts.id })
     .from(accounts)
     .where(eq(accounts.type, "income"));
-
-  const incomeAccountIds = incomeAccountRows.map((r) => r.id);
-
-  let monthlyIncome = 0;
+  const incomeAccountIds = incomeAccountRows.map((row) => row.id);
+  let incomeRowsForRange: {
+    year_month: string;
+    date: string;
+    total: number;
+  }[] = [];
   if (incomeAccountIds.length > 0) {
-    const incomeRows = await db
+    incomeRowsForRange = await db
       .select({
+        year_month: sql<string>`substr(${journalEntries.date}, 1, 7)`,
+        date: journalEntries.date,
         total: sql<number>`COALESCE(SUM(${journalLines.credit} - ${journalLines.debit}), 0)`,
       })
       .from(journalLines)
@@ -1225,138 +1203,242 @@ router.get("/summary", async (c) => {
       .where(
         and(
           inArray(journalLines.account_id, incomeAccountIds),
-          sql`${journalEntries.date} >= ${monthStart}`,
-          sql`${journalEntries.date} <= ${effectiveEnd}`,
+          sql`${journalEntries.date} >= ${firstTargetYm + "-01"}`,
+          sql`${journalEntries.date} <= ${monthEndDate(lastTargetYm)}`,
           eq(journalLines.currency, currency),
         ),
-      );
-    monthlyIncome = fromStorageMoneyAmount(
-      incomeRows[0]?.total ?? 0,
-      currency,
-      scaleOptions,
-    );
+      )
+      .groupBy(sql`substr(${journalEntries.date}, 1, 7)`, journalEntries.date);
   }
 
-  // 5. Fetch explicit entry budget allocations for the complete range once,
-  // then partition them by month in memory. This avoids one D1 query per
-  // historical month.
+  const firstRange = fullMonthDateRangeMap.get(calculationStartYm);
+  const lastRange = fullMonthDateRangeMap.get(lastTargetYm);
   const entryAllocsForRange =
-    monthDateRanges.length > 0
+    firstRange && lastRange
       ? await fetchEntryAllocsForPeriod(
           db,
-          monthDateRanges[0]!.start,
-          monthDateRanges.at(-1)!.end,
+          firstRange.start,
+          lastRange.end,
           currency,
           scaleOptions,
         )
       : [];
   const entryAllocsByMonth = groupBudgetEntryAllocationsByMonth(
     entryAllocsForRange,
-    monthDateRangeMap,
-  );
-  const monthEntryAllocsAll = monthsList.map(
-    (yearMonth) => entryAllocsByMonth.get(yearMonth) ?? [],
+    fullMonthDateRangeMap,
   );
 
-  // 6. Per category: N-level carryover
-  const categorySummaries: BudgetCategorySummary[] = [];
+  return targets.map((target) => {
+    const ym = target.yearMonth;
+    const targetIndex = allMonths.indexOf(ym);
+    const monthsForTarget = allMonths.slice(0, targetIndex + 1);
+    const monthDateRangeMap = new Map<string, DateRange>();
+    for (const monthKey of monthsForTarget) {
+      const range = fullMonthDateRangeMap.get(monthKey)!;
+      monthDateRangeMap.set(
+        monthKey,
+        monthKey === ym && target.effectiveEnd
+          ? { start: range.start, end: target.effectiveEnd }
+          : range,
+      );
+    }
 
-  for (const cat of cats) {
-    const accountIds = links
-      .filter((l) => l.budget_category_id === cat.id)
-      .map((l) => l.account_id);
-
-    // Current month (index maxRolloverMonths)
-    const currentResetPoint = resetPointFor(cat.id, ym);
-    const budgetBase = adhocFor(cat.id, ym);
-
-    const spent = calculateSpentFromBudgetAllocations(
-      cat.id,
-      monthEntryAllocsAll[maxRolloverMonths].filter((entryAlloc) =>
-        isAfterBudgetResetPoint(entryAlloc, currentResetPoint),
-      ),
+    const adhocSumMap = sumBudgetAdjustmentLogsAfterResetsByPeriod(
+      decodedAdhocLogRows,
+      monthDateRangeMap,
     );
 
-    let carryover = 0;
-    for (let i = 0; i < maxRolloverMonths; i++) {
-      const mym = monthsList[i];
-      const resetPoint = resetPointFor(cat.id, mym);
-      const base = adhocFor(cat.id, mym);
-      const mSpent = calculateSpentFromBudgetAllocations(
+    function adhocFor(catId: number, yearMonthKey: string): number {
+      return adhocSumMap.get(`${catId}:${yearMonthKey}`) ?? 0;
+    }
+
+    function resetPointFor(catId: number, yearMonthKey: string) {
+      const range = monthDateRangeMap.get(yearMonthKey);
+      if (!range) return null;
+      return findLatestResetPointForPeriod(decodedAdhocLogRows, catId, range);
+    }
+
+    function entryAllocsForMonth(yearMonthKey: string) {
+      const range = monthDateRangeMap.get(yearMonthKey);
+      if (!range) return [];
+      return (entryAllocsByMonth.get(yearMonthKey) ?? []).filter(
+        (entryAlloc) =>
+          entryAlloc.date >= range.start && entryAlloc.date <= range.end,
+      );
+    }
+
+    function monthlyIncomeForTarget(): number {
+      const range = monthDateRangeMap.get(ym);
+      if (!range) return 0;
+      const total = incomeRowsForRange
+        .filter(
+          (row) =>
+            row.year_month === ym &&
+            row.date >= range.start &&
+            row.date <= range.end,
+        )
+        .reduce((sum, row) => sum + (row.total ?? 0), 0);
+      return fromStorageMoneyAmount(total, currency, scaleOptions);
+    }
+
+    const categorySummaries: BudgetCategorySummary[] = [];
+    for (const cat of cats) {
+      const accountIds = links
+        .filter((link) => link.budget_category_id === cat.id)
+        .map((link) => link.account_id);
+      const currentRange = monthDateRangeMap.get(ym)!;
+      const currentResetPoint = resetPointFor(cat.id, ym);
+      const budgetBase = adhocFor(cat.id, ym);
+      const spent = calculateSpentFromBudgetAllocations(
         cat.id,
-        monthEntryAllocsAll[i].filter((entryAlloc) =>
-          isAfterBudgetResetPoint(entryAlloc, resetPoint),
+        entryAllocsForMonth(ym).filter((entryAlloc) =>
+          isAfterBudgetResetPoint(entryAlloc, currentResetPoint),
         ),
       );
-      carryover = calculateNextCarryover({
-        budgetBase: base,
-        carryover: resetPoint ? 0 : carryover,
-        spent: mSpent,
-        isInPositiveRolloverWindow: true,
+
+      let carryover = 0;
+      for (const monthKey of monthsForTarget.slice(0, -1)) {
+        const resetPoint = resetPointFor(cat.id, monthKey);
+        const base = adhocFor(cat.id, monthKey);
+        const monthlySpent = calculateSpentFromBudgetAllocations(
+          cat.id,
+          entryAllocsForMonth(monthKey).filter((entryAlloc) =>
+            isAfterBudgetResetPoint(entryAlloc, resetPoint),
+          ),
+        );
+        carryover = calculateNextCarryover({
+          budgetBase: base,
+          carryover: resetPoint ? 0 : carryover,
+          spent: monthlySpent,
+          isInPositiveRolloverWindow: true,
+        });
+      }
+
+      const visibleCarryover = currentResetPoint ? 0 : carryover;
+      const totalBudget = budgetBase + visibleCarryover;
+      let monthsWithContributions = 0;
+      for (const monthKey of monthsForTarget.slice(0, -1)) {
+        if (adhocFor(cat.id, monthKey) !== 0) monthsWithContributions++;
+      }
+      if (budgetBase !== 0) monthsWithContributions++;
+
+      categorySummaries.push({
+        category: {
+          id: cat.id,
+          name: cat.name,
+          sort_order: cat.sort_order,
+          rollover_months: cat.rollover_months,
+          budget_group: cat.budget_group,
+          goal_balance: cat.goal_balance ?? null,
+          balance_cap: cat.balance_cap ?? null,
+          overflow_budget_category_id: cat.overflow_budget_category_id ?? null,
+          is_archived: cat.is_archived === 1,
+          account_ids: accountIds,
+          target_accounts: targetMap.get(cat.id) ?? [],
+          created_at: cat.created_at,
+        },
+        budget_base: budgetBase,
+        carryover: visibleCarryover,
+        show_carryover: shouldShowCarryoverForPeriod(
+          decodedAdhocLogRows,
+          cat.id,
+          currentRange,
+        ),
+        reset_date: findLatestResetDateForPeriod(
+          decodedAdhocLogRows,
+          cat.id,
+          currentRange,
+        ),
+        total_budget: totalBudget,
+        spent,
+        available: totalBudget - spent,
+        months_with_contributions: monthsWithContributions,
       });
     }
 
-    const visibleCarryover = currentResetPoint ? 0 : carryover;
-    const totalBudget = budgetBase + visibleCarryover;
+    applyBudgetBalanceCaps(categorySummaries);
 
-    // Count distinct months with non-zero contributions (for goal prediction)
-    let monthsWithContributions = 0;
-    for (let i = 0; i < maxRolloverMonths; i++) {
-      const mym = monthsList[i];
-      if (adhocFor(cat.id, mym) !== 0) monthsWithContributions++;
-    }
-    if (budgetBase !== 0) monthsWithContributions++;
+    return {
+      year_month: ym,
+      currency,
+      monthly_income: monthlyIncomeForTarget(),
+      categories: categorySummaries,
+      total_budget: categorySummaries.reduce((s, c) => s + c.total_budget, 0),
+      total_spent: categorySummaries.reduce((s, c) => s + c.spent, 0),
+      total_available: categorySummaries.reduce((s, c) => s + c.available, 0),
+    };
+  });
+}
 
-    categorySummaries.push({
-      category: {
-        id: cat.id,
-        name: cat.name,
-        sort_order: cat.sort_order,
-        rollover_months: cat.rollover_months,
-        budget_group: cat.budget_group,
-        goal_balance: cat.goal_balance ?? null,
-        balance_cap: cat.balance_cap ?? null,
-        overflow_budget_category_id: cat.overflow_budget_category_id ?? null,
-        is_archived: cat.is_archived === 1,
-        account_ids: accountIds,
-        target_accounts: targetMap.get(cat.id) ?? [],
-        created_at: cat.created_at,
-      },
-      budget_base: budgetBase,
-      carryover: visibleCarryover,
-      show_carryover: shouldShowCarryoverForPeriod(
-        decodedAdhocLogRows,
-        cat.id,
-        monthDateRanges[maxRolloverMonths]!,
-      ),
-      reset_date: findLatestResetDateForPeriod(
-        decodedAdhocLogRows,
-        cat.id,
-        monthDateRanges[maxRolloverMonths]!,
-      ),
-      total_budget: totalBudget,
-      spent,
-      available: totalBudget - spent,
-      months_with_contributions: monthsWithContributions,
-    });
+router.get("/summary", async (c) => {
+  const ym = c.req.query("year_month");
+  if (!ym || !/^\d{4}-\d{2}$/.test(ym)) {
+    return c.json({ error: "year_month must be YYYY-MM" }, 400);
   }
+  const currency = normalizeCurrency(c.req.query("currency"));
 
-  applyBudgetBalanceCaps(categorySummaries);
+  const db = createDb(c.env);
+  const scaleOptions = await loadMoneyScaleOptions(db);
 
-  const summary: BudgetSummary = {
-    year_month: ym,
+  const monthStart = `${ym}-01`;
+  const monthEnd = monthEndDate(ym);
+
+  // Optional as_of date: clamp to [monthStart, monthEnd]
+  const asOfRaw = c.req.query("as_of");
+  const effectiveEnd =
+    asOfRaw &&
+    /^\d{4}-\d{2}-\d{2}$/.test(asOfRaw) &&
+    asOfRaw >= monthStart &&
+    asOfRaw <= monthEnd
+      ? asOfRaw
+      : monthEnd;
+
+  const computedSummaries = await computeBudgetSummaries(
+    db,
     currency,
-    monthly_income: monthlyIncome,
-    categories: categorySummaries,
-    total_budget: categorySummaries.reduce((s, c) => s + c.total_budget, 0),
-    total_spent: categorySummaries.reduce((s, c) => s + c.spent, 0),
-    total_available: categorySummaries.reduce((s, c) => s + c.available, 0),
-  };
+    scaleOptions,
+    [{ yearMonth: ym, effectiveEnd }],
+  );
 
-  return c.json(summary);
+  return c.json(computedSummaries[0]);
 });
 
-// ── Helper: build BudgetFilter response object from DB rows ──────────────────
+// GET /api/budget/history?from=YYYY-MM&to=YYYY-MM[&currency=JPY]
+router.get("/history", async (c) => {
+  const from = c.req.query("from");
+  const to = c.req.query("to");
+  if (
+    !from ||
+    !to ||
+    !/^\d{4}-\d{2}$/.test(from) ||
+    !/^\d{4}-\d{2}$/.test(to)
+  ) {
+    return c.json({ error: "from and to must be YYYY-MM" }, 400);
+  }
+  if (yearMonthIndex(from) > yearMonthIndex(to)) {
+    return c.json({ error: "from must be before or equal to to" }, 400);
+  }
+
+  const currency = normalizeCurrency(c.req.query("currency"));
+  const db = createDb(c.env);
+  const scaleOptions = await loadMoneyScaleOptions(db);
+  const summaries = await computeBudgetSummaries(
+    db,
+    currency,
+    scaleOptions,
+    listYearMonths(from, to).map((yearMonth) => ({ yearMonth })),
+  );
+
+  const response: BudgetHistoryResponse = {
+    from,
+    to,
+    currency,
+    summaries,
+  };
+  return c.json(response);
+});
+
+// Helper: build BudgetFilter response object from DB rows
 async function fetchFilterWithSteps(
   db: ReturnType<typeof createDb>,
   filterId: number,

@@ -18,6 +18,7 @@ import type {
   BudgetAllocation,
   UpsertBudgetAllocationInput,
   BudgetSummary,
+  BudgetHistoryResponse,
   BudgetFilter,
   CreateBudgetFilterInput,
   BudgetAdjustmentLog,
@@ -46,6 +47,8 @@ import { createInFlightRequestDeduper } from "./inFlightRequest";
 
 const BASE = "/api";
 const dedupeBudgetSummaryRequest = createInFlightRequestDeduper();
+const dedupeCachedRequest = createInFlightRequestDeduper();
+const sessionResponseCache = new Map<string, unknown>();
 
 export class ApiError extends Error {
   constructor(
@@ -76,19 +79,58 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+function cachedRequest<T>(path: string): Promise<T> {
+  if (sessionResponseCache.has(path)) {
+    return Promise.resolve(sessionResponseCache.get(path) as T);
+  }
+  return dedupeCachedRequest(path, async () => {
+    const result = await request<T>(path);
+    sessionResponseCache.set(path, result);
+    return result;
+  });
+}
+
+function invalidateSessionCache(
+  predicate: (path: string) => boolean = () => true,
+) {
+  for (const key of [...sessionResponseCache.keys()]) {
+    if (predicate(key)) sessionResponseCache.delete(key);
+  }
+}
+
+function invalidatePrefixes(prefixes: string[]) {
+  invalidateSessionCache((path) =>
+    prefixes.some((prefix) => path.startsWith(prefix)),
+  );
+}
+
+async function mutationRequest<T>(
+  path: string,
+  init: RequestInit,
+  invalidate: string[],
+): Promise<T> {
+  const result = await request<T>(path, init);
+  invalidatePrefixes(invalidate);
+  return result;
+}
+
+const DERIVED_ACCOUNT_PREFIXES = ["/accounts", "/budget", "/reports"];
+const DERIVED_JOURNAL_PREFIXES = ["/accounts", "/budget", "/reports"];
+const BUDGET_PREFIXES = ["/budget"];
+
 export const api = {
   accounts: {
     list: (asOf?: string) => {
       const path = asOf
         ? `/accounts?as_of=${encodeURIComponent(asOf)}`
         : "/accounts";
-      return request<Account[]>(path);
+      return cachedRequest<Account[]>(path);
     },
     create: (input: CreateAccountInput) =>
-      request<Account>("/accounts", {
+      mutationRequest<Account>("/accounts", {
         method: "POST",
         body: JSON.stringify(input),
-      }),
+      }, DERIVED_ACCOUNT_PREFIXES),
     update: (
       id: number,
       input: {
@@ -100,60 +142,68 @@ export const api = {
         budget_ratios?: AccountBudgetRatio[];
       },
     ) =>
-      request<Account>(`/accounts/${id}`, {
+      mutationRequest<Account>(`/accounts/${id}`, {
         method: "PATCH",
         body: JSON.stringify(input),
-      }),
+      }, DERIVED_ACCOUNT_PREFIXES),
     delete: (id: number) =>
-      request<{ success: boolean }>(`/accounts/${id}`, { method: "DELETE" }),
+      mutationRequest<{ success: boolean }>(
+        `/accounts/${id}`,
+        { method: "DELETE" },
+        DERIVED_ACCOUNT_PREFIXES,
+      ),
     replaceAccount: (id: number, replaceWithId: number) =>
-      request<{ success: boolean }>(`/accounts/${id}/replace`, {
+      mutationRequest<{ success: boolean }>(`/accounts/${id}/replace`, {
         method: "POST",
         body: JSON.stringify({ replace_with_id: replaceWithId }),
-      }),
+      }, DERIVED_ACCOUNT_PREFIXES),
     forceComplete: (id: number) =>
-      request<{ success: boolean }>(`/accounts/${id}/complete`, {
+      mutationRequest<{ success: boolean }>(`/accounts/${id}/complete`, {
         method: "POST",
-      }),
+      }, DERIVED_ACCOUNT_PREFIXES),
     forceUncomplete: (id: number) =>
-      request<{ success: boolean }>(`/accounts/${id}/complete`, {
+      mutationRequest<{ success: boolean }>(`/accounts/${id}/complete`, {
         method: "DELETE",
-      }),
+      }, DERIVED_ACCOUNT_PREFIXES),
   },
   journal: {
     list: () => request<JournalEntry[]>("/journal"),
     get: (id: number) => request<JournalEntry>(`/journal/${id}`),
     create: (input: CreateJournalInput) =>
-      request<JournalEntry>("/journal", {
+      mutationRequest<JournalEntry>("/journal", {
         method: "POST",
         body: JSON.stringify(input),
-      }),
+      }, DERIVED_JOURNAL_PREFIXES),
     batchCreate: (input: BatchCreateJournalInput) =>
-      request<JournalEntry[]>("/journal/batch", {
+      mutationRequest<JournalEntry[]>("/journal/batch", {
         method: "POST",
         body: JSON.stringify(input),
-      }),
+      }, DERIVED_JOURNAL_PREFIXES),
     update: (id: number, input: CreateJournalInput) =>
-      request<JournalEntry>(`/journal/${id}`, {
+      mutationRequest<JournalEntry>(`/journal/${id}`, {
         method: "PUT",
         body: JSON.stringify(input),
-      }),
+      }, DERIVED_JOURNAL_PREFIXES),
     delete: (id: number) =>
-      request<{ success: boolean }>(`/journal/${id}`, { method: "DELETE" }),
+      mutationRequest<{ success: boolean }>(
+        `/journal/${id}`,
+        { method: "DELETE" },
+        DERIVED_JOURNAL_PREFIXES,
+      ),
     bulkReplace: (input: {
       from_account_id: number;
       to_account_id: number;
       dry_run?: boolean;
       entry_ids?: number[];
     }) =>
-      request<{
+      mutationRequest<{
         affected_lines: number;
         dry_run?: boolean;
         entries?: JournalEntry[];
       }>("/journal/bulk-replace", {
         method: "POST",
         body: JSON.stringify(input),
-      }),
+      }, DERIVED_JOURNAL_PREFIXES),
     bulkDelete: (input: {
       account_id?: number;
       date_from?: string;
@@ -162,14 +212,14 @@ export const api = {
       dry_run?: boolean;
       entry_ids?: number[];
     }) =>
-      request<{
+      mutationRequest<{
         deleted_entries: number;
         dry_run?: boolean;
         entries?: JournalEntry[];
       }>("/journal/bulk-delete", {
         method: "POST",
         body: JSON.stringify(input),
-      }),
+      }, DERIVED_JOURNAL_PREFIXES),
   },
   reports: {
     pl: (params?: { from?: string; to?: string }) => {
@@ -177,7 +227,7 @@ export const api = {
       if (params?.from) q.set("from", params.from);
       if (params?.to) q.set("to", params.to);
       const qs = q.toString();
-      return request<PLReport>(`/reports/pl${qs ? `?${qs}` : ""}`);
+      return cachedRequest<PLReport>(`/reports/pl${qs ? `?${qs}` : ""}`);
     },
   },
   crypto: {
@@ -211,36 +261,41 @@ export const api = {
       const q = new URLSearchParams();
       if (options?.includeArchived) q.set("include_archived", "1");
       const qs = q.toString();
-      return request<BudgetCategory[]>(
+      return cachedRequest<BudgetCategory[]>(
         `/budget/categories${qs ? `?${qs}` : ""}`,
       );
     },
     createCategory: (input: CreateBudgetCategoryInput) =>
-      request<BudgetCategory>("/budget/categories", {
+      mutationRequest<BudgetCategory>("/budget/categories", {
         method: "POST",
         body: JSON.stringify(input),
-      }),
+      }, BUDGET_PREFIXES),
     updateCategory: (id: number, input: UpdateBudgetCategoryInput) =>
-      request<BudgetCategory>(`/budget/categories/${id}`, {
+      mutationRequest<BudgetCategory>(`/budget/categories/${id}`, {
         method: "PATCH",
         body: JSON.stringify(input),
-      }),
+      }, BUDGET_PREFIXES),
     deleteCategory: (id: number) =>
-      request<{ success: boolean }>(`/budget/categories/${id}`, {
+      mutationRequest<{ success: boolean }>(`/budget/categories/${id}`, {
         method: "DELETE",
-      }),
+      }, BUDGET_PREFIXES),
     upsertAllocation: (input: UpsertBudgetAllocationInput) =>
-      request<BudgetAllocation>("/budget/allocations", {
+      mutationRequest<BudgetAllocation>("/budget/allocations", {
         method: "POST",
         body: JSON.stringify(input),
-      }),
+      }, BUDGET_PREFIXES),
     summary: (yearMonth: string, asOf?: string, currency?: string) => {
       const q = new URLSearchParams({ year_month: yearMonth });
       if (asOf) q.set("as_of", asOf);
       if (currency) q.set("currency", currency);
       const path = `/budget/summary?${q.toString()}`;
-      return dedupeBudgetSummaryRequest(path, () =>
-        request<BudgetSummary>(path),
+      return dedupeBudgetSummaryRequest(path, () => cachedRequest<BudgetSummary>(path));
+    },
+    history: (from: string, to: string, currency?: string) => {
+      const q = new URLSearchParams({ from, to });
+      if (currency) q.set("currency", currency);
+      return cachedRequest<BudgetHistoryResponse>(
+        `/budget/history?${q.toString()}`,
       );
     },
     patchAdhocAllocation: (input: {
@@ -253,10 +308,10 @@ export const api = {
       adjustment_type?: "allocation" | "reset";
       archive_category?: boolean;
     }) =>
-      request<BudgetAdjustmentLog>("/budget/allocations", {
+      mutationRequest<BudgetAdjustmentLog>("/budget/allocations", {
         method: "PATCH",
         body: JSON.stringify(input),
-      }),
+      }, BUDGET_PREFIXES),
     listAdjustmentLogs: (params?: {
       from?: string;
       to?: string;
@@ -267,11 +322,11 @@ export const api = {
       if (params?.to) q.set("to", params.to);
       if (params?.currency) q.set("currency", params.currency);
       const qs = q.toString();
-      return request<BudgetAdjustmentLog[]>(
+      return cachedRequest<BudgetAdjustmentLog[]>(
         `/budget/adjustment-logs${qs ? `?${qs}` : ""}`,
       );
     },
-    getSettings: () => request<BudgetSettings>("/budget/settings"),
+    getSettings: () => cachedRequest<BudgetSettings>("/budget/settings"),
     updateSettings: (input: {
       preferred_payment_account_ids?: number[];
       preferred_filter_ids?: number[];
@@ -280,28 +335,28 @@ export const api = {
       business_loss_account_id?: number | null;
       business_advance_budget_category_id?: number | null;
     }) =>
-      request<BudgetSettings>("/budget/settings", {
+      mutationRequest<BudgetSettings>("/budget/settings", {
         method: "PATCH",
         body: JSON.stringify(input),
-      }),
+      }, BUDGET_PREFIXES),
     deleteAdjustmentLog: (id: number) =>
-      request<{ ok: boolean }>(`/budget/adjustment-logs/${id}`, {
+      mutationRequest<{ ok: boolean }>(`/budget/adjustment-logs/${id}`, {
         method: "DELETE",
-      }),
+      }, BUDGET_PREFIXES),
     updateAdjustmentLog: (
       id: number,
       input: { amount?: number; date?: string; note?: string | null },
     ) =>
-      request<BudgetAdjustmentLog>(`/budget/adjustment-logs/${id}`, {
+      mutationRequest<BudgetAdjustmentLog>(`/budget/adjustment-logs/${id}`, {
         method: "PATCH",
         body: JSON.stringify(input),
-      }),
-    listFilters: () => request<BudgetFilter[]>("/budget/filters"),
+      }, BUDGET_PREFIXES),
+    listFilters: () => cachedRequest<BudgetFilter[]>("/budget/filters"),
     createFilter: (input: CreateBudgetFilterInput) =>
-      request<BudgetFilter>("/budget/filters", {
+      mutationRequest<BudgetFilter>("/budget/filters", {
         method: "POST",
         body: JSON.stringify(input),
-      }),
+      }, BUDGET_PREFIXES),
     updateFilter: (
       id: number,
       input: {
@@ -311,16 +366,20 @@ export const api = {
         steps?: CreateBudgetFilterInput["steps"];
       },
     ) =>
-      request<BudgetFilter>(`/budget/filters/${id}`, {
+      mutationRequest<BudgetFilter>(`/budget/filters/${id}`, {
         method: "PATCH",
         body: JSON.stringify(input),
-      }),
+      }, BUDGET_PREFIXES),
     deleteFilter: (id: number) =>
-      request<{ success: boolean }>(`/budget/filters/${id}`, {
+      mutationRequest<{ success: boolean }>(`/budget/filters/${id}`, {
         method: "DELETE",
-      }),
+      }, BUDGET_PREFIXES),
     copyFilter: (id: number) =>
-      request<BudgetFilter>(`/budget/filters/${id}/copy`, { method: "POST" }),
+      mutationRequest<BudgetFilter>(
+        `/budget/filters/${id}/copy`,
+        { method: "POST" },
+        BUDGET_PREFIXES,
+      ),
   },
   storeMappings: {
     list: () => request<StoreAccountMapping[]>("/store-mappings"),
@@ -473,7 +532,7 @@ export const api = {
       ),
   },
   currencies: {
-    list: () => request<EnabledCurrency[]>("/currencies"),
+    list: () => cachedRequest<EnabledCurrency[]>("/currencies"),
     toggle: (
       code: string,
       enabled: boolean,
@@ -481,7 +540,7 @@ export const api = {
       decimal_places?: number,
       custom_icon?: string,
     ) =>
-      request<EnabledCurrency[]>("/currencies", {
+      mutationRequest<EnabledCurrency[]>("/currencies", {
         method: "POST",
         body: JSON.stringify({
           code,
@@ -490,16 +549,19 @@ export const api = {
           decimal_places,
           custom_icon,
         }),
-      }),
+      }, ["/currencies", "/budget"]),
     setPriority: (code: string, symbol_priority: number) =>
-      request<EnabledCurrency[]>(`/currencies/${encodeURIComponent(code)}`, {
+      mutationRequest<EnabledCurrency[]>(`/currencies/${encodeURIComponent(code)}`, {
         method: "PATCH",
         body: JSON.stringify({ symbol_priority }),
-      }),
+      }, ["/currencies"]),
     reorder: (codes: string[]) =>
-      request<EnabledCurrency[]>("/currencies/reorder", {
+      mutationRequest<EnabledCurrency[]>("/currencies/reorder", {
         method: "POST",
         body: JSON.stringify({ codes }),
-      }),
+      }, ["/currencies"]),
+  },
+  __testing: {
+    clearSessionCache: () => invalidateSessionCache(),
   },
 };
