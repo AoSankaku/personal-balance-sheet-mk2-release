@@ -30,6 +30,28 @@ type HonoRequest = (
 ) => Response | Promise<Response>;
 
 describe("money validation at API boundaries", () => {
+  test("rejects invalid budget history query before DB reads", async () => {
+    const invalidFormat = await budgetRouter.request(
+      "/history?from=2026-5&to=2026-06",
+      {},
+      env,
+    );
+    expect(invalidFormat.status).toBe(400);
+    expect(await invalidFormat.json()).toMatchObject({
+      error: "from and to must be YYYY-MM",
+    });
+
+    const reversedRange = await budgetRouter.request(
+      "/history?from=2026-07&to=2026-06",
+      {},
+      env,
+    );
+    expect(reversedRange.status).toBe(400);
+    expect(await reversedRange.json()).toMatchObject({
+      error: "from must be before or equal to to",
+    });
+  });
+
   test("rejects fractional journal line amounts before DB writes", async () => {
     const response = await postJson(journalRouter, "/", {
       date: "2026-05-07",

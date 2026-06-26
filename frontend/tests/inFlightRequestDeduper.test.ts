@@ -75,4 +75,86 @@ describe("budget summary API request deduplication", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  test("serves sequential identical summary calls from session cache", async () => {
+    api.__testing.clearSessionCache();
+    const originalFetch = globalThis.fetch;
+    let fetchCount = 0;
+    globalThis.fetch = (async () => {
+      fetchCount++;
+      return new Response(
+        JSON.stringify({
+          year_month: "2026-05",
+          currency: "JPY",
+          monthly_income: 0,
+          categories: [],
+          total_budget: 0,
+          total_spent: 0,
+          total_available: 0,
+        }),
+        { headers: { "Content-Type": "application/json" } },
+      );
+    }) as typeof fetch;
+
+    try {
+      await api.budget.summary("2026-05", undefined, "JPY");
+      await api.budget.summary("2026-05", undefined, "JPY");
+
+      expect(fetchCount).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+      api.__testing.clearSessionCache();
+    }
+  });
+
+  test("invalidates cached derived reads after a journal mutation succeeds", async () => {
+    api.__testing.clearSessionCache();
+    const originalFetch = globalThis.fetch;
+    const fetchedPaths: string[] = [];
+    globalThis.fetch = (async (input, init) => {
+      const path = String(input).replace(/^\/api/, "");
+      fetchedPaths.push(path);
+      if (init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            id: 1,
+            date: "2026-05-01",
+            description: "income",
+            created_at: "2026-05-01 00:00:00",
+            lines: [],
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          year_month: "2026-05",
+          currency: "JPY",
+          monthly_income: 0,
+          categories: [],
+          total_budget: 0,
+          total_spent: 0,
+          total_available: 0,
+        }),
+        { headers: { "Content-Type": "application/json" } },
+      );
+    }) as typeof fetch;
+
+    try {
+      await api.budget.summary("2026-05", undefined, "JPY");
+      await api.journal.create({
+        date: "2026-05-01",
+        description: "income",
+        lines: [],
+      });
+      await api.budget.summary("2026-05", undefined, "JPY");
+
+      expect(
+        fetchedPaths.filter((path) => path.startsWith("/budget/summary")),
+      ).toHaveLength(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+      api.__testing.clearSessionCache();
+    }
+  });
 });
