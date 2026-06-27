@@ -13,6 +13,13 @@ addTransactionBtn: + 取引を追加
 balanceSheetTitle: 貸借対照表
 plTitle: 損益計算書
 settingsSectionGeneral: 一般
+privacyModeToggle: プライバシーモード
+privacyModeToggleHint: 金額の数字を隠し、オフにするまで編集を止めます。
+privacyMaskAccountsToggle: 勘定科目名をマスク
+privacyMaskAccountsToggleHint: 勘定科目を「資産01」「収益01」のように表示します。
+privacySettingsLockedMessage: プライバシーモードがONです。他の設定はロックされ、ここからの切替と使い方ガイドだけ利用できます。
+privacyModeBlockedTitle: プライバシーモードがONです
+privacyModeBlockedMessage: この画面はプライバシーモード中は使用できません。編集するには、設定 > 一般でオフにしてください。
 settingsSectionAccounts: 勘定科目
 sectionAssets: 資産
 sectionDepreciableAssets: 固定資産（減価償却対象）

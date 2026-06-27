@@ -66,6 +66,7 @@ import {
 } from "../lib/budgetAdjustmentLogSort";
 import { summarizeBudgetAdjustmentLogsByCategory } from "../lib/budgetAdjustmentCategorySummary";
 import { refreshAfterBudgetAdjustment } from "../lib/budgetAdjustmentRefresh";
+import { usePrivacy } from "../context/PrivacyContext";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
@@ -132,6 +133,7 @@ function parseDateInputValue(value: string): Date | null {
 
 export default function LedgerPage() {
   const { t, locale } = useLang();
+  const { privacyMode } = usePrivacy();
   const {
     accounts,
     journal,
@@ -298,6 +300,7 @@ export default function LedgerPage() {
   }, [selectedCurrency]);
 
   async function doDeleteJournal(id: number) {
+    if (privacyMode) return;
     await api.journal.delete(id);
     showFeedback({ message: t("transactionDeleted"), color: "orange" });
     refresh();
@@ -307,6 +310,7 @@ export default function LedgerPage() {
   }
 
   function handleDeleteJournal(id: number) {
+    if (privacyMode) return;
     const suppressUntil = Number(sessionStorage.getItem(SUPPRESS_KEY) ?? 0);
     if (suppressUntil > Date.now()) {
       void doDeleteJournal(id);
@@ -328,6 +332,7 @@ export default function LedgerPage() {
   }
 
   function handleEditJournal(entry: JournalEntry) {
+    if (privacyMode) return;
     setEditingEntry(entry);
     openJournalEdit();
   }
@@ -336,6 +341,7 @@ export default function LedgerPage() {
     values: CreateJournalInput,
     meta?: import("../components/SimpleEntryForm").SimpleEntryMeta,
   ) {
+    if (privacyMode) return;
     if (!editingEntry) return;
     if (meta?.depreciationUpdate) {
       await api.depreciation.update(
@@ -359,6 +365,7 @@ export default function LedgerPage() {
   }
 
   async function handleEditLogJournalEntry(log: BudgetAdjustmentLog) {
+    if (privacyMode) return;
     if (!log.journal_entry_id) return;
     setLogJournalLoading(log.id);
     try {
@@ -371,6 +378,7 @@ export default function LedgerPage() {
   }
 
   function handleEditLog(log: BudgetAdjustmentLog) {
+    if (privacyMode) return;
     setEditingLog(log);
     setEditAmount(log.amount);
     setEditDate(log.date);
@@ -379,6 +387,7 @@ export default function LedgerPage() {
   }
 
   async function handleSaveEdit() {
+    if (privacyMode) return;
     if (!editingLog) return;
     try {
       await api.budget.updateAdjustmentLog(editingLog.id, {
@@ -397,11 +406,13 @@ export default function LedgerPage() {
   }
 
   function handleDeleteLog(log: BudgetAdjustmentLog) {
+    if (privacyMode) return;
     setLogToDelete(log);
     openDeleteLogConfirm();
   }
 
   async function confirmDeleteLog() {
+    if (privacyMode) return;
     if (!logToDelete) return;
     try {
       await api.budget.deleteAdjustmentLog(logToDelete.id);
@@ -417,6 +428,7 @@ export default function LedgerPage() {
   }
 
   function handleDeleteChunk(log: BudgetAdjustmentLog) {
+    if (privacyMode) return;
     if (!log.journal_entry_id) return;
     const linked = sortedLogs.filter(
       (l) => l.journal_entry_id === log.journal_entry_id,
@@ -426,6 +438,7 @@ export default function LedgerPage() {
   }
 
   async function confirmDeleteChunk() {
+    if (privacyMode) return;
     if (!chunkToDelete) return;
     try {
       for (const l of chunkToDelete.logs) {
@@ -664,6 +677,7 @@ export default function LedgerPage() {
   }
 
   function renderBudgetLogActions(log: BudgetAdjustmentLog) {
+    if (privacyMode) return null;
     return (
       <Group gap={4} wrap="nowrap">
         {(log.type === "manual" || log.type === "reset") && (
@@ -844,9 +858,11 @@ export default function LedgerPage() {
                 value={viewMode}
                 onChange={(v) => setViewMode(v as "simple" | "double")}
               />
-              <Button component={Link} to="/input" variant="default" size="sm">
-                {t("addTransactionBtn")}
-              </Button>
+              {!privacyMode && (
+                <Button component={Link} to="/input" variant="default" size="sm">
+                  {t("addTransactionBtn")}
+                </Button>
+              )}
             </Group>
           </Group>
 
@@ -1066,7 +1082,8 @@ export default function LedgerPage() {
             entries={pagedJournal}
             accounts={accounts}
             onDelete={handleDeleteJournal}
-            onEdit={handleEditJournal}
+            onEdit={privacyMode ? undefined : handleEditJournal}
+            readOnly={privacyMode}
             view={viewMode}
             showTimestamp={showTimestamp}
             displayCurrency={selectedCurrency}

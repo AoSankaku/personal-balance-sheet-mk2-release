@@ -24,6 +24,7 @@ import {
 } from "../lib/expenseHistoryStorage";
 import { formatCurrency } from "../lib/numberFormat";
 import { balanceMapAmountForDisplayMode } from "../lib/displayCurrencyAmounts";
+import { privacyChartAmount } from "../lib/privacy";
 
 type Granularity = "year" | "month";
 
@@ -354,7 +355,7 @@ export function ExpenseBarChart({
         date: formatLabel(b, granularity),
       };
       for (const name of activeAccounts) {
-        point[name] = row[name] ?? 0;
+        point[name] = privacyChartAmount(row[name] ?? 0);
       }
       return point;
     });

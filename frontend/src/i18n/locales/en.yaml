@@ -13,6 +13,13 @@ addTransactionBtn: + Add Transaction
 balanceSheetTitle: Balance Sheet
 plTitle: P&L
 settingsSectionGeneral: General
+privacyModeToggle: Privacy mode
+privacyModeToggleHint: Hide monetary digits and disable editing until turned off.
+privacyMaskAccountsToggle: Mask account names
+privacyMaskAccountsToggleHint: Show accounts as Asset01, Income01, and similar labels.
+privacySettingsLockedMessage: Privacy mode is on. Other settings are locked; only this section and the guide are available.
+privacyModeBlockedTitle: Privacy mode is on
+privacyModeBlockedMessage: This page cannot be used while privacy mode is on. Turn it off from Settings > General to edit data.
 settingsSectionAccounts: Accounts
 sectionAssets: Assets
 sectionDepreciableAssets: Fixed Assets (Depreciable)

@@ -29,10 +29,13 @@ import { HardReloadPrompt } from "./components/HardReloadPrompt";
 import { useAppData } from "./context/AppDataContext";
 import { useVersionUpdateMonitor } from "./hooks/useVersionUpdateMonitor";
 import { useLang } from "./i18n";
+import { usePrivacy } from "./context/PrivacyContext";
+import { PrivacyModeBlocked } from "./components/PrivacyModeBlocked";
 export default function App() {
   useVersionUpdateMonitor();
   const { enabledCurrencies, enabledCurrenciesLoaded } = useAppData();
   const { hasExplicitLocale } = useLang();
+  const { privacyMode } = usePrivacy();
   const needsCurrencySetup =
     enabledCurrenciesLoaded && enabledCurrencies.length === 0;
   const needsLanguageSetup = needsCurrencySetup && !hasExplicitLocale;
@@ -61,41 +64,89 @@ export default function App() {
         ) : (
           <Routes>
             <Route path="/" element={<OverviewPage />} />
-            <Route path="/input" element={<InputPage />} />
+            <Route
+              path="/input"
+              element={privacyMode ? <PrivacyModeBlocked /> : <InputPage />}
+            />
             <Route path="/fs" element={<AssetsPage />} />
             <Route path="/fs/bs" element={<BsPage />} />
             <Route path="/fs/pl" element={<PlPage />} />
             <Route path="/fs/crypto" element={<CryptoPage />} />
-            <Route path="/fs/tt" element={<TtPage />} />
-            <Route path="/fs/db" element={<DbPage />} />
+            <Route
+              path="/fs/tt"
+              element={privacyMode ? <PrivacyModeBlocked /> : <TtPage />}
+            />
+            <Route
+              path="/fs/db"
+              element={privacyMode ? <PrivacyModeBlocked /> : <DbPage />}
+            />
             <Route
               path="/fs/db/long-term-loan/:id"
-              element={<LongTermLoanDetailPage kind="loan" />}
+              element={
+                privacyMode ? (
+                  <PrivacyModeBlocked />
+                ) : (
+                  <LongTermLoanDetailPage kind="loan" />
+                )
+              }
             />
             <Route
               path="/fs/db/long-term-lend/:id"
-              element={<LongTermLoanDetailPage kind="lend" />}
+              element={
+                privacyMode ? (
+                  <PrivacyModeBlocked />
+                ) : (
+                  <LongTermLoanDetailPage kind="lend" />
+                )
+              }
             />
             <Route path="/fs/sv" element={<SvPage />} />
             <Route path="/ledger" element={<LedgerPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/settings/budget" element={<BudgetSettingsPage />} />
-            <Route path="/settings/bulk_edit" element={<BulkEditPage />} />
+            <Route
+              path="/settings/budget"
+              element={
+                privacyMode ? <PrivacyModeBlocked /> : <BudgetSettingsPage />
+              }
+            />
+            <Route
+              path="/settings/bulk_edit"
+              element={privacyMode ? <PrivacyModeBlocked /> : <BulkEditPage />}
+            />
             <Route
               path="/settings/initial_balance"
-              element={<InitialBalancePage />}
+              element={
+                privacyMode ? <PrivacyModeBlocked /> : <InitialBalancePage />
+              }
             />
-            <Route path="/settings/csv" element={<CsvSettingsPage />} />
+            <Route
+              path="/settings/csv"
+              element={
+                privacyMode ? <PrivacyModeBlocked /> : <CsvSettingsPage />
+              }
+            />
             <Route
               path="/settings/business"
-              element={<BusinessSettingsPage />}
+              element={
+                privacyMode ? <PrivacyModeBlocked /> : <BusinessSettingsPage />
+              }
             />
-            <Route path="/settings/danger" element={<DangerZonePage />} />
+            <Route
+              path="/settings/danger"
+              element={
+                privacyMode ? <PrivacyModeBlocked /> : <DangerZonePage />
+              }
+            />
             <Route path="/settings/guides" element={<GuidesPage />} />
-            <Route path="/settings/export" element={<ExportPage />} />
+            <Route
+              path="/settings/export"
+              element={privacyMode ? <PrivacyModeBlocked /> : <ExportPage />}
+            />
             <Route
               path="/settings/currencies"
-              element={<CurrencySettingsPage />}
+              element={
+                privacyMode ? <PrivacyModeBlocked /> : <CurrencySettingsPage />
+              }
             />
           </Routes>
         )}

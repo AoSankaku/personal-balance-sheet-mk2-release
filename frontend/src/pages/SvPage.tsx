@@ -30,6 +30,7 @@ import type {
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { formatCurrency } from "../lib/numberFormat";
 import { shouldShowCarryoverBadge } from "../lib/budgetCategoryDisplay";
+import { privacyChartAmount } from "../lib/privacy";
 
 function formatYearMonth(ym: string, locale: string): string {
   const [y, m] = ym.split("-").map(Number) as [number, number];
@@ -240,7 +241,7 @@ export default function SvPage() {
         const catSummary = summary.categories.find(
           (s) => s.category.id === cat.id,
         );
-        row[cat.name] = catSummary?.available ?? 0;
+        row[cat.name] = privacyChartAmount(catSummary?.available ?? 0);
       }
       return row;
     });
@@ -289,7 +290,7 @@ export default function SvPage() {
       if (idx !== chartData.length - 1) return row;
       const bridged: Record<string, string | number | null> = { ...row };
       for (const info of catInfo) {
-        bridged[`${info.name}_pred`] = info.currentBalance;
+        bridged[`${info.name}_pred`] = privacyChartAmount(info.currentBalance);
       }
       return bridged;
     });
@@ -316,14 +317,14 @@ export default function SvPage() {
       let allGoalsReached = catInfo.some((c) => c.goal !== null);
       for (const info of catInfo) {
         if (info.avgMonthly <= 0) {
-          row[`${info.name}_pred`] = info.currentBalance;
+          row[`${info.name}_pred`] = privacyChartAmount(info.currentBalance);
           continue;
         }
         const projected = info.currentBalance + info.avgMonthly * i;
         if (info.goal !== null && projected >= info.goal) {
-          row[`${info.name}_pred`] = info.goal;
+          row[`${info.name}_pred`] = privacyChartAmount(info.goal);
         } else {
-          row[`${info.name}_pred`] = Math.round(projected);
+          row[`${info.name}_pred`] = privacyChartAmount(Math.round(projected));
           allGoalsReached = false;
         }
       }

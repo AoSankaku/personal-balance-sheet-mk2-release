@@ -20,6 +20,7 @@ import type { NetWorthSnapshot } from "@balance-sheet/shared";
 import { useLang } from "../i18n";
 import { pad, toDateStr } from "../lib/dateUtils";
 import { formatCurrency } from "../lib/numberFormat";
+import { privacyChartAmount } from "../lib/privacy";
 
 type Granularity = "year" | "month" | "day";
 type ViewMode = "all" | "assets_liabilities" | "net_worth";
@@ -199,9 +200,9 @@ export function NetWorthChart({
       if (!lastKnown) continue; // before any journal entry
       result.push({
         date: formatLabel(b, granularity),
-        [keyAssets]: lastKnown.assets,
-        [keyLiabilities]: lastKnown.liabilities,
-        [keyNetWorth]: lastKnown.net_worth,
+        [keyAssets]: privacyChartAmount(lastKnown.assets),
+        [keyLiabilities]: privacyChartAmount(lastKnown.liabilities),
+        [keyNetWorth]: privacyChartAmount(lastKnown.net_worth),
       });
     }
     return result;

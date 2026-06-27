@@ -10,6 +10,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { LangProvider } from "./i18n";
 import { AppDataProvider } from "./context/AppDataContext";
+import { PrivacyProvider } from "./context/PrivacyContext";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Root element not found");
@@ -19,9 +20,11 @@ createRoot(root).render(
     <LangProvider>
       <MantineProvider defaultColorScheme="auto">
         <BrowserRouter>
-          <AppDataProvider>
-            <App />
-          </AppDataProvider>
+          <PrivacyProvider>
+            <AppDataProvider>
+              <App />
+            </AppDataProvider>
+          </PrivacyProvider>
         </BrowserRouter>
       </MantineProvider>
     </LangProvider>

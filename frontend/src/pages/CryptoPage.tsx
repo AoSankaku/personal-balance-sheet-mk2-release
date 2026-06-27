@@ -23,6 +23,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { toIntlLocale, useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
+import { usePrivacy } from "../context/PrivacyContext";
 import { CryptoWatchModal } from "../components/CryptoWatchModal";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { showFeedback } from "../lib/feedback";
@@ -35,6 +36,7 @@ function truncateAddress(addr: string) {
 
 export default function CryptoPage() {
   const { t, locale } = useLang();
+  const { privacyMode } = usePrivacy();
   const {
     accounts,
     cryptoWallets,
@@ -65,6 +67,7 @@ export default function CryptoPage() {
   );
 
   async function handleDeleteWallet(id: number) {
+    if (privacyMode) return;
     await api.crypto.delete(id);
     showFeedback({ message: t("deleteWallet"), color: "orange" });
     refresh();
@@ -130,9 +133,11 @@ export default function CryptoPage() {
               <IconCurrencyDollar size={16} />
             </ActionIcon>
           </Tooltip>
-          <Button size="sm" onClick={openCryptoModal}>
-            {t("addWallet")}
-          </Button>
+          {!privacyMode && (
+            <Button size="sm" onClick={openCryptoModal}>
+              {t("addWallet")}
+            </Button>
+          )}
         </Group>
       </Group>
 
@@ -229,13 +234,13 @@ export default function CryptoPage() {
             <Table.Th className="currency-cell">
               {t("thEstValue")}
             </Table.Th>
-            <Table.Th style={{ width: 50 }} />
+            {!privacyMode && <Table.Th style={{ width: 50 }} />}
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
           {cryptoWallets.length === 0 ? (
             <Table.Tr>
-              <Table.Td colSpan={6}>
+              <Table.Td colSpan={privacyMode ? 5 : 6}>
                 <Text c="dimmed" ta="center" size="sm" py="xs">
                   {t("noWalletsYet")}
                 </Text>
@@ -292,18 +297,20 @@ export default function CryptoPage() {
                       {value !== undefined ? formatJPY(value, locale) : "—"}
                     </Text>
                   </Table.Td>
-                  <Table.Td>
-                    <Tooltip label={t("deleteWallet")}>
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        size="sm"
-                        onClick={() => void handleDeleteWallet(w.id)}
-                      >
-                        <IconTrash size={14} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Table.Td>
+                  {!privacyMode && (
+                    <Table.Td>
+                      <Tooltip label={t("deleteWallet")}>
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          size="sm"
+                          onClick={() => void handleDeleteWallet(w.id)}
+                        >
+                          <IconTrash size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Table.Td>
+                  )}
                 </Table.Tr>
               );
             })
@@ -311,13 +318,15 @@ export default function CryptoPage() {
         </Table.Tbody>
       </Table>
 
-      <CryptoWatchModal
-        opened={cryptoModalOpened}
-        onClose={closeCryptoModal}
-        onAdded={handleWalletAdded}
-        assetAccounts={assets}
-        linkedAccountIds={linkedAccountIds}
-      />
+      {!privacyMode && (
+        <CryptoWatchModal
+          opened={cryptoModalOpened}
+          onClose={closeCryptoModal}
+          onAdded={handleWalletAdded}
+          assetAccounts={assets}
+          linkedAccountIds={linkedAccountIds}
+        />
+      )}
     </Stack>
   );
 }

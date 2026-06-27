@@ -50,6 +50,7 @@ import {
   toAccountSelectOption,
 } from "../lib/accountUtils";
 import { formatCurrency } from "../lib/numberFormat";
+import { usePrivacy } from "../context/PrivacyContext";
 
 interface Props {
   title: string;
@@ -116,6 +117,14 @@ const CATEGORY_KEY: Record<AccountCategory, TranslationKey> = {
   other: "catOther",
 };
 
+const TYPE_KEY: Record<Account["type"], TranslationKey> = {
+  asset: "typeAsset",
+  liability: "typeLiability",
+  equity: "typeEquity",
+  income: "typeIncome",
+  expense: "typeExpense",
+};
+
 function balanceInCurrency(account: Account, currency: string) {
   if (account.balances) return account.balances[currency] ?? 0;
   return currency === "JPY" ? (account.balance ?? 0) : 0;
@@ -142,6 +151,7 @@ export function AccountTable({
   formatBalance,
 }: Props) {
   const { t, locale } = useLang();
+  const { privacyMode, maskAccountNames } = usePrivacy();
   const { displayCurrency, displayCurrencySymbol } = useAppData();
   const accountBalance = (account: Account) =>
     formatBalance
@@ -256,6 +266,12 @@ export function AccountTable({
                     ? systemAccountTranslationKey(account.name)
                     : null;
                   const displayName = sysKey ? t(sysKey) : account.name;
+                  const categoryLabel =
+                    privacyMode && maskAccountNames
+                      ? t(TYPE_KEY[account.type])
+                      : catKey
+                        ? t(catKey)
+                        : account.category;
                   const displayBalance = accountBalance(account);
                   return (
                     <Table.Tr key={account.id}>
@@ -288,7 +304,7 @@ export function AccountTable({
                           variant="light"
                           leftSection={CATEGORY_ICON[account.category]}
                         >
-                          {catKey ? t(catKey) : account.category}
+                          {categoryLabel}
                         </Badge>
                       </Table.Td>
                       <Table.Td className="currency-cell">

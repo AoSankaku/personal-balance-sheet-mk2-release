@@ -39,6 +39,8 @@ import { ForeignExchangeForm } from "../components/ForeignExchangeForm";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { showFeedback } from "../lib/feedback";
 import { refreshAfterBudgetAdjustment } from "../lib/budgetAdjustmentRefresh";
+import { usePrivacy } from "../context/PrivacyContext";
+import { PrivacyModeBlocked } from "../components/PrivacyModeBlocked";
 import {
   savedTab,
   setSavedTab,
@@ -52,6 +54,7 @@ import {
 
 export default function InputPage() {
   const { t } = useLang();
+  const { privacyMode } = usePrivacy();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const locationState = location.state as {
@@ -145,6 +148,10 @@ export default function InputPage() {
     refresh();
     void refreshBudget();
     void refreshAllocatable();
+  }
+
+  if (privacyMode) {
+    return <PrivacyModeBlocked />;
   }
 
   if (loading) {

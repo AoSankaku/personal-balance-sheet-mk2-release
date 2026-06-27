@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Alert,
   Anchor,
   Button,
   Collapse,
@@ -32,6 +33,7 @@ import {
   IconSettings,
   IconStar,
   IconCurrencyDollar,
+  IconLock,
 } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import { useDisclosure } from "@mantine/hooks";
@@ -53,6 +55,7 @@ import type { Account, CreateAccountInput } from "@balance-sheet/shared";
 import type { CreditCardSettingsInput } from "../components/AddAccountModal";
 import { showFeedback } from "../lib/feedback";
 import * as Flags from "country-flag-icons/react/1x1";
+import { usePrivacy } from "../context/PrivacyContext";
 
 const localeToCountry: Record<Locale, string> = {
   en: "US",
@@ -77,6 +80,12 @@ function Flag({ locale }: { locale: Locale }) {
 
 export default function SettingsPage() {
   const { t, locale, setLocale } = useLang();
+  const {
+    privacyMode,
+    maskAccountNames,
+    setPrivacyMode,
+    setMaskAccountNames,
+  } = usePrivacy();
   const {
     accounts,
     budgetCategories,
@@ -173,6 +182,7 @@ export default function SettingsPage() {
     values: CreateAccountInput,
     ccSettings?: CreditCardSettingsInput,
   ) {
+    if (privacyMode) return;
     let accountId: number;
     if (editingAccount) {
       const updated = await api.accounts.update(editingAccount.id, {
@@ -203,11 +213,13 @@ export default function SettingsPage() {
   }
 
   function handleEditAccount(account: Account) {
+    if (privacyMode) return;
     setEditingAccount(account);
     openAddAccount();
   }
 
   async function savePreferredIds(ids: number[]) {
+    if (privacyMode) return;
     await api.budget.updateSettings({ preferred_payment_account_ids: ids });
     void refreshBudgetSettings();
   }
@@ -242,6 +254,7 @@ export default function SettingsPage() {
   }
 
   function handleDeleteAccount(_id: number) {
+    if (privacyMode) return;
     showFeedback({ message: t("accountDeleted"), color: "orange" });
     refresh();
   }
@@ -350,6 +363,7 @@ export default function SettingsPage() {
             w={140}
             value={locale}
             onChange={(v) => v && setLocale(v as Locale)}
+            disabled={privacyMode}
             data={[
               { value: "ja", label: "日本語" },
               { value: "en", label: "English" },
@@ -369,7 +383,49 @@ export default function SettingsPage() {
             )}
           />
         </Group>
+        <Stack gap={4} mt="xs">
+          <Switch
+            label={t("privacyModeToggle")}
+            checked={privacyMode}
+            onChange={(e) => setPrivacyMode(e.currentTarget.checked)}
+          />
+          <Text size="xs" c="dimmed" ml={46}>
+            {t("privacyModeToggleHint")}
+          </Text>
+        </Stack>
+        <Stack gap={4}>
+          <Switch
+            label={t("privacyMaskAccountsToggle")}
+            checked={maskAccountNames}
+            onChange={(e) => setMaskAccountNames(e.currentTarget.checked)}
+          />
+          <Text size="xs" c="dimmed" ml={46}>
+            {t("privacyMaskAccountsToggleHint")}
+          </Text>
+        </Stack>
       </Stack>
+
+      {privacyMode && (
+        <>
+          <Alert color="gray" variant="light" icon={<IconLock size={16} />}>
+            <Stack gap="xs">
+              <Text size="sm">{t("privacySettingsLockedMessage")}</Text>
+              <Button
+                component={Link}
+                to="/settings/guides"
+                variant="default"
+                size="xs"
+                style={{ alignSelf: "flex-start" }}
+              >
+                {t("settingsNavGuidesTitle")}
+              </Button>
+            </Stack>
+          </Alert>
+        </>
+      )}
+
+      {privacyMode ? null : (
+        <>
 
       <Divider />
 
@@ -679,9 +735,11 @@ export default function SettingsPage() {
       <Divider />
 
       <PwaInstallSetting />
+        </>
+      )}
 
       <AddAccountModal
-        opened={addAccountOpened}
+        opened={privacyMode ? false : addAccountOpened}
         onClose={() => {
           closeAddAccount();
           setEditingAccount(undefined);

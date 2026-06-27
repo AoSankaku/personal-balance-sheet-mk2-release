@@ -1,11 +1,15 @@
 import { toIntlLocale } from "../i18n";
+import { isPrivacyModeEnabled, maskFormattedAmountDigits } from "./privacy";
 
 export function formatJPY(amount: number, locale: string): string {
-  return new Intl.NumberFormat(toIntlLocale(locale), {
+  const formatted = new Intl.NumberFormat(toIntlLocale(locale), {
     style: "currency",
     currency: "JPY",
     maximumFractionDigits: 0,
   }).format(amount);
+  return isPrivacyModeEnabled()
+    ? maskFormattedAmountDigits(formatted)
+    : formatted;
 }
 
 // Crypto currencies not supported natively by Intl.NumberFormat
@@ -43,33 +47,41 @@ export function formatCurrency(
 ): string {
   const intlLocale = toIntlLocale(locale);
   const cryptoDecimals = CRYPTO_DECIMALS[currency];
+  let formatted: string;
   if (cryptoDecimals !== undefined) {
-    return (
+    formatted =
       amount.toLocaleString(intlLocale, {
         minimumFractionDigits: 0,
         maximumFractionDigits: cryptoDecimals,
       }) +
       "\u00a0" +
-      currency
-    );
+      currency;
+    return isPrivacyModeEnabled()
+      ? maskFormattedAmountDigits(formatted)
+      : formatted;
   }
   if (displaySymbol && displaySymbol !== getCurrencySymbol(currency)) {
-    return (
+    formatted =
       displaySymbol +
       "\u00a0" +
       amount.toLocaleString(intlLocale, {
         minimumFractionDigits: 0,
         maximumFractionDigits: currency === "JPY" || currency === "KRW" ? 0 : 2,
-      })
-    );
+      });
+    return isPrivacyModeEnabled()
+      ? maskFormattedAmountDigits(formatted)
+      : formatted;
   }
   try {
-    return new Intl.NumberFormat(intlLocale, {
+    formatted = new Intl.NumberFormat(intlLocale, {
       style: "currency",
       currency,
       maximumFractionDigits: currency === "JPY" || currency === "KRW" ? 0 : 2,
     }).format(amount);
   } catch {
-    return amount.toFixed(2) + "\u00a0" + currency;
+    formatted = amount.toFixed(2) + "\u00a0" + currency;
   }
+  return isPrivacyModeEnabled()
+    ? maskFormattedAmountDigits(formatted)
+    : formatted;
 }
