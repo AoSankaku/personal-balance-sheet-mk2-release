@@ -27,27 +27,40 @@ export function PrivacyProvider({ children }: { children: ReactNode }) {
     readStoredBoolean(PRIVACY_MODE_KEY, false),
   );
   const [maskAccountNames, setMaskAccountNamesState] = useState(() =>
+    readStoredBoolean(PRIVACY_MODE_KEY, false) &&
     readStoredBoolean(PRIVACY_MASK_ACCOUNT_NAMES_KEY, false),
   );
 
   const setPrivacyMode = useCallback((enabled: boolean) => {
     setPrivacyModeState(enabled);
     writeStoredBoolean(PRIVACY_MODE_KEY, enabled);
+    if (!enabled) {
+      setMaskAccountNamesState(false);
+      writeStoredBoolean(PRIVACY_MASK_ACCOUNT_NAMES_KEY, false);
+    }
   }, []);
 
   const setMaskAccountNames = useCallback((enabled: boolean) => {
+    if (!privacyMode && enabled) return;
     setMaskAccountNamesState(enabled);
     writeStoredBoolean(PRIVACY_MASK_ACCOUNT_NAMES_KEY, enabled);
-  }, []);
+  }, [privacyMode]);
+
+  const effectiveMaskAccountNames = privacyMode && maskAccountNames;
 
   const value = useMemo(
     () => ({
       privacyMode,
-      maskAccountNames,
+      maskAccountNames: effectiveMaskAccountNames,
       setPrivacyMode,
       setMaskAccountNames,
     }),
-    [privacyMode, maskAccountNames, setPrivacyMode, setMaskAccountNames],
+    [
+      privacyMode,
+      effectiveMaskAccountNames,
+      setPrivacyMode,
+      setMaskAccountNames,
+    ],
   );
 
   return (

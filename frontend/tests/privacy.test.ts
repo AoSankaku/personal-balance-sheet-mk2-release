@@ -97,4 +97,23 @@ describe("privacy formatting", () => {
     expect(source).toContain("if (privacyMode) return");
     expect(source).toContain("{!privacyMode && (");
   });
+
+  test("allows account-name masking only while privacy mode is on", () => {
+    const settingsSource = readFileSync(
+      new URL("../src/pages/SettingsPage.tsx", import.meta.url),
+      "utf8",
+    );
+    const contextSource = readFileSync(
+      new URL("../src/context/PrivacyContext.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(settingsSource).toContain("checked={privacyMode && maskAccountNames}");
+    expect(settingsSource).toContain("disabled={!privacyMode}");
+    expect(contextSource).toContain("if (!privacyMode && enabled) return");
+    expect(contextSource).toContain("setMaskAccountNamesState(false)");
+    expect(contextSource).toContain(
+      "writeStoredBoolean(PRIVACY_MASK_ACCOUNT_NAMES_KEY, false)",
+    );
+  });
 });

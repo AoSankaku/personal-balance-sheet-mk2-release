@@ -463,7 +463,8 @@ export default function SettingsPage() {
         <Stack gap={4}>
           <Switch
             label={t("privacyMaskAccountsToggle")}
-            checked={maskAccountNames}
+            checked={privacyMode && maskAccountNames}
+            disabled={!privacyMode}
             onChange={(e) => setMaskAccountNames(e.currentTarget.checked)}
           />
           <Text size="xs" c="dimmed" ml={46}>
