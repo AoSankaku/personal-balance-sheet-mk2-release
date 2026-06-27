@@ -18,12 +18,13 @@ import { formatCurrency } from "../lib/numberFormat";
 interface Props {
   entries: JournalEntry[];
   accounts: Account[];
-  onDelete: (id: number) => void;
+  onDelete?: (id: number) => void;
   onEdit?: (entry: JournalEntry) => void;
   view?: "simple" | "double";
   showTimestamp?: boolean;
   displayCurrency?: string;
   displayCurrencySymbol?: string;
+  readOnly?: boolean;
 }
 
 function normalizeCurrency(currency: string | null | undefined) {
@@ -64,10 +65,13 @@ function isIncreasingLine(line: JournalLine, type?: Account["type"]) {
 }
 
 function accountTone(line: JournalLine, type?: Account["type"]): DisplayTone {
-  if (type === "expense") {
-    return isIncreasingLine(line, type) ? "negative" : "positive";
-  }
-  return isIncreasingLine(line, type) ? "positive" : "negative";
+  return isSimpleDisplayPositive(line, type) ? "positive" : "negative";
+}
+
+function isSimpleDisplayPositive(line: JournalLine, type?: Account["type"]) {
+  if (!type) return false;
+  if (type === "expense") return !isIncreasingLine(line, type);
+  return isIncreasingLine(line, type);
 }
 
 function signedAmountLabel(
@@ -92,6 +96,7 @@ export function JournalTable({
   showTimestamp = false,
   displayCurrency,
   displayCurrencySymbol,
+  readOnly = false,
 }: Props) {
   const { t, locale } = useLang();
   const isMobile = useMediaQuery("(max-width: 48em)");
@@ -259,6 +264,9 @@ export function JournalTable({
           const type = accountTypeMap.get(line.account_id);
           return type === "liability" || type === "equity";
         }) ??
+        selectedLines.find(
+          (l) => accountTypeMap.get(l.account_id) === "asset",
+        ) ??
         selectedLines[0];
 
       return {
@@ -417,7 +425,7 @@ export function JournalTable({
                       )}
                       <Table.Td>
                         <Group gap={4} wrap="nowrap">
-                          {onEdit && (
+                          {!readOnly && onEdit && (
                             <Tooltip label={t("editLabel")}>
                               <ActionIcon
                                 variant="subtle"
@@ -428,16 +436,18 @@ export function JournalTable({
                               </ActionIcon>
                             </Tooltip>
                           )}
-                          <Tooltip label={t("deleteEntry")}>
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              size="sm"
-                              onClick={() => onDelete(entry.id)}
-                            >
-                              <IconTrash size={14} />
-                            </ActionIcon>
-                          </Tooltip>
+                          {!readOnly && onDelete && (
+                            <Tooltip label={t("deleteEntry")}>
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                size="sm"
+                                onClick={() => onDelete(entry.id)}
+                              >
+                                <IconTrash size={14} />
+                              </ActionIcon>
+                            </Tooltip>
+                          )}
                         </Group>
                       </Table.Td>
                     </Table.Tr>
@@ -561,7 +571,7 @@ export function JournalTable({
                       )}
                       <Table.Td>
                         <Group gap={4} wrap="nowrap">
-                          {onEdit && (
+                          {!readOnly && onEdit && (
                             <Tooltip label={t("editLabel")}>
                               <ActionIcon
                                 variant="subtle"
@@ -572,16 +582,18 @@ export function JournalTable({
                               </ActionIcon>
                             </Tooltip>
                           )}
-                          <Tooltip label={t("deleteEntry")}>
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              size="sm"
-                              onClick={() => onDelete(entry.id)}
-                            >
-                              <IconTrash size={14} />
-                            </ActionIcon>
-                          </Tooltip>
+                          {!readOnly && onDelete && (
+                            <Tooltip label={t("deleteEntry")}>
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                size="sm"
+                                onClick={() => onDelete(entry.id)}
+                              >
+                                <IconTrash size={14} />
+                              </ActionIcon>
+                            </Tooltip>
+                          )}
                         </Group>
                       </Table.Td>
                     </Table.Tr>

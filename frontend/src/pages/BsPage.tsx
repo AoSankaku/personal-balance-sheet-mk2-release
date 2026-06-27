@@ -11,7 +11,7 @@ import {
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import { IconInfoCircle } from "@tabler/icons-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Account } from "@balance-sheet/shared";
 import { api } from "../api/client";
@@ -23,9 +23,12 @@ import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { BalanceDisplay } from "../components/BalanceDisplay";
 import { formatCurrency } from "../lib/numberFormat";
 import { balanceMapAmountForDisplayMode } from "../lib/displayCurrencyAmounts";
+import { usePrivacy } from "../context/PrivacyContext";
+import { applyPrivateAccountNames } from "../lib/privacy";
 
 export default function BsPage() {
   const { t, locale } = useLang();
+  const { privacyMode, maskAccountNames } = usePrivacy();
   const {
     accounts: currentAccounts,
     journal,
@@ -83,7 +86,38 @@ export default function BsPage() {
       .finally(() => setHistoricalLoading(false));
   }, [asOf]);
 
-  const accounts = historicalAccounts ?? currentAccounts;
+  const accountTypeLabel = useCallback(
+    (type: Account["type"]) => {
+      const labels = {
+        asset: t("typeAsset"),
+        liability: t("typeLiability"),
+        equity: t("typeEquity"),
+        income: t("typeIncome"),
+        expense: t("typeExpense"),
+      } satisfies Record<Account["type"], string>;
+      return labels[type];
+    },
+    [t, locale],
+  );
+
+  const accounts = useMemo(
+    () =>
+      historicalAccounts
+        ? applyPrivateAccountNames(
+            historicalAccounts,
+            privacyMode,
+            maskAccountNames,
+            accountTypeLabel,
+          )
+        : currentAccounts,
+    [
+      historicalAccounts,
+      privacyMode,
+      maskAccountNames,
+      currentAccounts,
+      accountTypeLabel,
+    ],
+  );
 
   // Exclude the 不明金 system account and explicitly separate depreciable assets (固定資産).
   const assets = useMemo(

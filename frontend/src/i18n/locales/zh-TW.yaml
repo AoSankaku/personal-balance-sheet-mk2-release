@@ -1,5 +1,9 @@
 appTitle: 個人資產負債表
 toggleColorScheme: 切換主題
+colorThemeLabel: 顏色主題
+colorThemeAuto: 跟隨系統
+colorThemeLight: 淺色
+colorThemeDark: 深色
 assets: 資產
 liabilities: 負債
 netWorth: 淨資產
@@ -13,6 +17,13 @@ addTransactionBtn: + 新增交易
 balanceSheetTitle: 資產負債表
 plTitle: 損益表
 settingsSectionGeneral: 一般
+privacyModeToggle: 隱私模式
+privacyModeToggleHint: 隱藏金額數字，並在關閉前禁止編輯。
+privacyMaskAccountsToggle: 遮蔽帳戶名稱
+privacyMaskAccountsToggleHint: 將帳戶顯示為「資產01」「收入01」等標籤。
+privacySettingsLockedMessage: 隱私模式已開啟。其他設定已鎖定；只能使用本區的開關和使用指南。
+privacyModeBlockedTitle: 隱私模式已開啟
+privacyModeBlockedMessage: 隱私模式開啟時不能使用此頁面。如需編輯，請在設定 > 一般中關閉。
 settingsSectionAccounts: 帳戶
 sectionAssets: 資產
 sectionDepreciableAssets: 可折舊固定資產

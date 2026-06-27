@@ -1,5 +1,9 @@
 appTitle: 个人资产负债表
 toggleColorScheme: 切换主题
+colorThemeLabel: 颜色主题
+colorThemeAuto: 跟随系统
+colorThemeLight: 浅色
+colorThemeDark: 深色
 assets: 资产
 liabilities: 负债
 netWorth: 净资产
@@ -13,6 +17,13 @@ addTransactionBtn: + 添加交易
 balanceSheetTitle: 资产负债表
 plTitle: 损益表
 settingsSectionGeneral: 常规
+privacyModeToggle: 隐私模式
+privacyModeToggleHint: 隐藏金额数字，并在关闭前禁止编辑。
+privacyMaskAccountsToggle: 掩蔽账户名称
+privacyMaskAccountsToggleHint: 将账户显示为“资产01”“收入01”等标签。
+privacySettingsLockedMessage: 隐私模式已开启。其他设置已锁定；只能使用本区的开关和使用指南。
+privacyModeBlockedTitle: 隐私模式已开启
+privacyModeBlockedMessage: 隐私模式开启时不能使用此页面。如需编辑，请在设置 > 常规中关闭。
 settingsSectionAccounts: 账户
 sectionAssets: 资产
 sectionDepreciableAssets: 可折旧固定资产

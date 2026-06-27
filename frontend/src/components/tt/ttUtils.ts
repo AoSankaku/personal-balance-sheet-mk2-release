@@ -15,6 +15,7 @@ import type {
 } from "@balance-sheet/shared";
 import { useLang } from "../../i18n";
 import { systemAccountTranslationKey } from "../../lib/accountUtils";
+import { formatJPY } from "../../lib/numberFormat";
 
 // ──────────────────────────────────────────────
 // Hook
@@ -144,11 +145,11 @@ export function getSuspiciousReasons(
     if (hasExplicitExpenseAllocations) {
       const totalAllocated = totalExpenseAllocated;
       if (Math.abs(totalExpenseAllocated - totalExpense) > 1) {
-        const fmt = (n: number) => Math.round(n).toLocaleString();
+        const fmt = (n: number) => formatJPY(Math.round(n), locale);
         reasons.push(
           locale === "ja"
-            ? `費用額と予算配分の差異: 実際¥${fmt(totalExpense)} / 配分¥${fmt(totalAllocated)}`
-            : `Expense vs allocation gap: actual ¥${fmt(totalExpense)} / allocated ¥${fmt(totalAllocated)}`,
+            ? `費用額と予算配分の差異: 実際${fmt(totalExpense)} / 配分${fmt(totalAllocated)}`
+            : `Expense vs allocation gap: actual ${fmt(totalExpense)} / allocated ${fmt(totalAllocated)}`,
         );
       }
     }
@@ -160,11 +161,11 @@ export function getSuspiciousReasons(
     if (incomeAllocs.length > 0) {
       const totalDistributed = totalIncomeAllocated;
       if (Math.abs(totalDistributed - totalIncomeLine) > 1) {
-        const fmt = (n: number) => Math.round(n).toLocaleString();
+        const fmt = (n: number) => formatJPY(Math.round(n), locale);
         reasons.push(
           locale === "ja"
-            ? `収入額と予算分配の差異: 実際¥${fmt(totalIncomeLine)} / 分配¥${fmt(totalDistributed)}`
-            : `Income vs distribution gap: actual ¥${fmt(totalIncomeLine)} / distributed ¥${fmt(totalDistributed)}`,
+            ? `収入額と予算分配の差異: 実際${fmt(totalIncomeLine)} / 分配${fmt(totalDistributed)}`
+            : `Income vs distribution gap: actual ${fmt(totalIncomeLine)} / distributed ${fmt(totalDistributed)}`,
         );
       }
     }

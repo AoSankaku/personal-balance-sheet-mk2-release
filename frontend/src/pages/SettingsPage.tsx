@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Alert,
   Anchor,
   Button,
   Collapse,
@@ -14,6 +15,7 @@ import {
   Text,
   ThemeIcon,
   Title,
+  useMantineColorScheme,
   rem,
 } from "@mantine/core";
 import {
@@ -25,6 +27,7 @@ import {
   IconBriefcase,
   IconChartPie,
   IconDatabaseImport,
+  IconDeviceDesktop,
   IconFileDownload,
   IconFileSpreadsheet,
   IconHelp,
@@ -32,6 +35,9 @@ import {
   IconSettings,
   IconStar,
   IconCurrencyDollar,
+  IconLock,
+  IconMoon,
+  IconSun,
 } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import { useDisclosure } from "@mantine/hooks";
@@ -53,6 +59,7 @@ import type { Account, CreateAccountInput } from "@balance-sheet/shared";
 import type { CreditCardSettingsInput } from "../components/AddAccountModal";
 import { showFeedback } from "../lib/feedback";
 import * as Flags from "country-flag-icons/react/1x1";
+import { usePrivacy } from "../context/PrivacyContext";
 
 const localeToCountry: Record<Locale, string> = {
   en: "US",
@@ -75,8 +82,19 @@ function Flag({ locale }: { locale: Locale }) {
   return <Svg style={{ width: 18, height: 18, display: "block" }} />;
 }
 
+const settingsSwitchClassNames = {
+  root: "settings-inline-control",
+};
+
 export default function SettingsPage() {
   const { t, locale, setLocale } = useLang();
+  const { colorScheme, setColorScheme } = useMantineColorScheme();
+  const {
+    privacyMode,
+    maskAccountNames,
+    setPrivacyMode,
+    setMaskAccountNames,
+  } = usePrivacy();
   const {
     accounts,
     budgetCategories,
@@ -173,6 +191,7 @@ export default function SettingsPage() {
     values: CreateAccountInput,
     ccSettings?: CreditCardSettingsInput,
   ) {
+    if (privacyMode) return;
     let accountId: number;
     if (editingAccount) {
       const updated = await api.accounts.update(editingAccount.id, {
@@ -203,11 +222,13 @@ export default function SettingsPage() {
   }
 
   function handleEditAccount(account: Account) {
+    if (privacyMode) return;
     setEditingAccount(account);
     openAddAccount();
   }
 
   async function savePreferredIds(ids: number[]) {
+    if (privacyMode) return;
     await api.budget.updateSettings({ preferred_payment_account_ids: ids });
     void refreshBudgetSettings();
   }
@@ -242,6 +263,7 @@ export default function SettingsPage() {
   }
 
   function handleDeleteAccount(_id: number) {
+    if (privacyMode) return;
     showFeedback({ message: t("accountDeleted"), color: "orange" });
     refresh();
   }
@@ -333,43 +355,151 @@ export default function SettingsPage() {
     },
   ] as const;
 
+  const colorSchemeIcon =
+    colorScheme === "auto" ? (
+      <IconDeviceDesktop size={16} />
+    ) : colorScheme === "dark" ? (
+      <IconMoon size={16} />
+    ) : (
+      <IconSun size={16} />
+    );
+
   return (
     <Stack gap="xl">
       {/* General */}
-      <Stack gap="sm">
+      <Stack gap="xs">
         <Group gap="xs">
           <IconSettings size={18} />
           <Title order={4}>{t("settingsSectionGeneral")}</Title>
         </Group>
-        <Group>
-          <Text size="sm" c="dimmed">
-            {t("languageLabel")}
-          </Text>
-          <Select
-            size="xs"
-            w={140}
-            value={locale}
-            onChange={(v) => v && setLocale(v as Locale)}
-            data={[
+        <Stack gap="sm">
+          <Group gap="xs" align="center" wrap="nowrap">
+            <Text
+              size="sm"
+              c="dimmed"
+              w={120}
+              style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+            >
+              {t("colorThemeLabel")}
+            </Text>
+            <Select
+              aria-label={t("colorThemeLabel")}
+              size="xs"
+              flex={1}
+              maw={220}
+              style={{ minWidth: 0 }}
+              value={colorScheme}
+              onChange={(v) => {
+                if (v === "light" || v === "dark" || v === "auto") {
+                  setColorScheme(v);
+                }
+              }}
+              data={[
+                { value: "auto", label: t("colorThemeAuto") },
+                { value: "light", label: t("colorThemeLight") },
+                { value: "dark", label: t("colorThemeDark") },
+              ]}
+              allowDeselect={false}
+              checkIconPosition="right"
+              leftSection={colorSchemeIcon}
+              renderOption={({ option }) => (
+                <Group gap="xs" wrap="nowrap">
+                  {option.value === "auto" ? (
+                    <IconDeviceDesktop size={16} />
+                  ) : option.value === "dark" ? (
+                    <IconMoon size={16} />
+                  ) : (
+                    <IconSun size={16} />
+                  )}
+                  <span>{option.label}</span>
+                </Group>
+              )}
+            />
+          </Group>
+          <Group gap="xs" align="center" wrap="nowrap">
+            <Text
+              size="sm"
+              c="dimmed"
+              w={120}
+              style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+            >
+              {t("languageLabel")}
+            </Text>
+            <Select
+              aria-label={t("languageLabel")}
+              size="xs"
+              flex={1}
+              maw={220}
+              style={{ minWidth: 0 }}
+              value={locale}
+              onChange={(v) => v && setLocale(v as Locale)}
+              disabled={privacyMode}
+              data={[
               { value: "ja", label: "日本語" },
               { value: "en", label: "English" },
               { value: "fr", label: "Français" },
               { value: "es", label: "Español" },
               { value: "zh-CN", label: "简体中文" },
               { value: "zh-TW", label: "繁體中文" },
-            ]}
-            allowDeselect={false}
-            checkIconPosition="right"
-            leftSection={<Flag locale={locale} />}
-            renderOption={({ option }) => (
-              <Group gap="xs" wrap="nowrap">
-                <Flag locale={option.value as Locale} />
-                <span>{option.label}</span>
-              </Group>
-            )}
+              ]}
+              allowDeselect={false}
+              checkIconPosition="right"
+              leftSection={<Flag locale={locale} />}
+              renderOption={({ option }) => (
+                <Group gap="xs" wrap="nowrap">
+                  <Flag locale={option.value as Locale} />
+                  <span>{option.label}</span>
+                </Group>
+              )}
+            />
+          </Group>
+        </Stack>
+        <Stack gap={4} mt="xs">
+          <Switch
+            classNames={settingsSwitchClassNames}
+            label={t("privacyModeToggle")}
+            checked={privacyMode}
+            onChange={(e) => setPrivacyMode(e.currentTarget.checked)}
           />
-        </Group>
+          <Text size="xs" c="dimmed" ml={46}>
+            {t("privacyModeToggleHint")}
+          </Text>
+        </Stack>
+        <Stack gap={4}>
+          <Switch
+            classNames={settingsSwitchClassNames}
+            label={t("privacyMaskAccountsToggle")}
+            checked={privacyMode && maskAccountNames}
+            disabled={!privacyMode}
+            onChange={(e) => setMaskAccountNames(e.currentTarget.checked)}
+          />
+          <Text size="xs" c="dimmed" ml={46}>
+            {t("privacyMaskAccountsToggleHint")}
+          </Text>
+        </Stack>
       </Stack>
+
+      {privacyMode && (
+        <>
+          <Alert color="gray" variant="light" icon={<IconLock size={16} />}>
+            <Stack gap="xs">
+              <Text size="sm">{t("privacySettingsLockedMessage")}</Text>
+              <Button
+                component={Link}
+                to="/settings/guides"
+                variant="default"
+                size="xs"
+                style={{ alignSelf: "flex-start" }}
+              >
+                {t("settingsNavGuidesTitle")}
+              </Button>
+            </Stack>
+          </Alert>
+        </>
+      )}
+
+      {privacyMode ? null : (
+        <>
 
       <Divider />
 
@@ -382,6 +512,7 @@ export default function SettingsPage() {
         <Stack gap="md" mt={4}>
           <Stack gap={2}>
             <Switch
+              classNames={settingsSwitchClassNames}
               label={t("taskPaydayToggle")}
               checked={taskPayday}
               onChange={(e) => {
@@ -396,6 +527,7 @@ export default function SettingsPage() {
           </Stack>
           <Stack gap={2}>
             <Switch
+              classNames={settingsSwitchClassNames}
               label={t("taskCreditCardToggle")}
               checked={taskCreditCard}
               onChange={(e) => {
@@ -410,6 +542,7 @@ export default function SettingsPage() {
           </Stack>
           <Stack gap={2}>
             <Switch
+              classNames={settingsSwitchClassNames}
               label={t("taskCreditCardWithdrawalRiskToggle")}
               checked={taskCreditCardWithdrawalRisk}
               onChange={(e) => {
@@ -427,6 +560,7 @@ export default function SettingsPage() {
           </Stack>
           <Stack gap={2}>
             <Switch
+              classNames={settingsSwitchClassNames}
               label={t("taskBudgetNegativeToggle")}
               checked={taskBudgetNegative}
               onChange={(e) => {
@@ -441,6 +575,7 @@ export default function SettingsPage() {
           </Stack>
           <Stack gap={2}>
             <Switch
+              classNames={settingsSwitchClassNames}
               label={t("taskLoanOverdueToggle")}
               checked={taskLoanOverdue}
               onChange={(e) => {
@@ -471,6 +606,7 @@ export default function SettingsPage() {
           </Stack>
           <Stack gap={2}>
             <Switch
+              classNames={settingsSwitchClassNames}
               label={t("taskAccountNegativeToggle")}
               checked={taskAccountNegative}
               onChange={(e) => {
@@ -679,9 +815,11 @@ export default function SettingsPage() {
       <Divider />
 
       <PwaInstallSetting />
+        </>
+      )}
 
       <AddAccountModal
-        opened={addAccountOpened}
+        opened={privacyMode ? false : addAccountOpened}
         onClose={() => {
           closeAddAccount();
           setEditingAccount(undefined);

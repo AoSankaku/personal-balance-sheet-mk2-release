@@ -28,6 +28,7 @@ import {
   toAccountSelectOption,
 } from "../lib/accountUtils";
 import { lineAmountForDisplayMode } from "../lib/displayCurrencyAmounts";
+import { privacyChartAmount } from "../lib/privacy";
 
 type Granularity = "year" | "month" | "day";
 
@@ -315,7 +316,7 @@ export function BsHistoryChart({
         date: formatLabel(b, granularity),
       };
       for (const s of series) {
-        point[s.name] = (lastKnown[s.dataKey] as number) ?? 0;
+        point[s.name] = privacyChartAmount((lastKnown[s.dataKey] as number) ?? 0);
       }
       result.push(point);
     }

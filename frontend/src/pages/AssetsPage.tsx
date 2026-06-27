@@ -58,6 +58,8 @@ import {
   isShortTermLoanAccountActive,
   isUnsettledOpeningEntry,
 } from "./dbPageUtils";
+import { privateIndexedLabel, privacyChartAmount } from "../lib/privacy";
+import { usePrivacy } from "../context/PrivacyContext";
 
 // Distinct colors cycling through account items in the donut
 const DONUT_COLORS = [
@@ -75,6 +77,7 @@ const DONUT_COLORS = [
 
 export default function AssetsPage() {
   const { t, locale } = useLang();
+  const { privacyMode, maskAccountNames } = usePrivacy();
   const {
     accounts,
     journal,
@@ -88,6 +91,7 @@ export default function AssetsPage() {
   } = useAppData();
   const [includeAllCurrencies, setIncludeAllCurrencies] = useState(false);
   const hasMultipleCurrencies = enabledCurrencies.length > 1;
+  const maskFinancialLabels = privacyMode && maskAccountNames;
   const selectedCurrencyBadgeLabel =
     locale === "ja" ? `${displayCurrency}のみ` : `${displayCurrency} only`;
 
@@ -98,6 +102,15 @@ export default function AssetsPage() {
       displayCurrency,
       displayCurrencySymbol,
     );
+  const assetBreakdownLabel = (labelKey: Parameters<typeof t>[0], index: number) =>
+    maskFinancialLabels ? privateIndexedLabel(t("typeAsset"), index) : t(labelKey);
+  const liabilityBreakdownLabel = (
+    labelKey: Parameters<typeof t>[0],
+    index: number,
+  ) =>
+    maskFinancialLabels
+      ? privateIndexedLabel(t("typeLiability"), index)
+      : t(labelKey);
   const balanceInDisplayCurrency = (balances?: Record<string, number>) =>
     balanceMapAmountForDisplayMode(
       balances,
@@ -452,7 +465,7 @@ export default function AssetsPage() {
         .sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0))
         .map((a, i) => ({
           name: a.name,
-          value: a.balance ?? 0,
+          value: privacyChartAmount(a.balance ?? 0),
           color: DONUT_COLORS[i % DONUT_COLORS.length],
         })),
     [assetsWithEffectiveBalance],
@@ -626,7 +639,7 @@ export default function AssetsPage() {
             <>
               <Divider mt="sm" mb="sm" />
               <Stack gap={4}>
-                {assetCategories.map((c) => (
+                {assetCategories.map((c, index) => (
                   <Group key={c.key} justify="space-between">
                     <Group gap={4}>
                       {c.key === "lending" && (
@@ -636,7 +649,10 @@ export default function AssetsPage() {
                         />
                       )}
                       <Text size="xs" c="dimmed">
-                        {t(c.labelKey as Parameters<typeof t>[0])}
+                        {assetBreakdownLabel(
+                          c.labelKey as Parameters<typeof t>[0],
+                          index,
+                        )}
                       </Text>
                     </Group>
                     <Text size="xs" fw={600} c="teal">
@@ -662,7 +678,12 @@ export default function AssetsPage() {
                     />
                     <Group justify="space-between">
                       <Text size="xs" c="dimmed" fs="italic">
-                        {t("sectionDepreciableAssets")}
+                        {maskFinancialLabels
+                          ? privateIndexedLabel(
+                              t("typeAsset"),
+                              assetCategories.length,
+                            )
+                          : t("sectionDepreciableAssets")}
                       </Text>
                       <Text size="xs" c="dimmed">
                         {fmt(depreciableAssetsTotal)}
@@ -785,10 +806,13 @@ export default function AssetsPage() {
             <>
               <Divider mb="sm" />
               <Stack gap={4}>
-                {liabilityCategories.map((c) => (
+                {liabilityCategories.map((c, index) => (
                   <Group key={c.key} justify="space-between">
                     <Text size="xs" c="dimmed">
-                      {t(c.labelKey as Parameters<typeof t>[0])}
+                      {liabilityBreakdownLabel(
+                        c.labelKey as Parameters<typeof t>[0],
+                        index,
+                      )}
                     </Text>
                     <Text size="xs" fw={600} c="red">
                       {fmt(c.total)}

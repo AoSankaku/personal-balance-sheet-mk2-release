@@ -151,8 +151,8 @@ export function UnknownFundsSection() {
                   {entry.lines.map((l) => (
                     <Text key={l.id} size="xs" c="dimmed">
                       {l.debit > 0
-                        ? `DR ${getDisplayName(l.account_name)} ¥${l.debit.toLocaleString()}`
-                        : `CR ${getDisplayName(l.account_name)} ¥${l.credit.toLocaleString()}`}
+                        ? `DR ${getDisplayName(l.account_name)} ${formatJPY(l.debit, locale)}`
+                        : `CR ${getDisplayName(l.account_name)} ${formatJPY(l.credit, locale)}`}
                     </Text>
                   ))}
                 </Box>

@@ -10,18 +10,15 @@ import {
   Title,
   UnstyledButton,
   useComputedColorScheme,
-  useMantineColorScheme,
 } from "@mantine/core";
 import {
   IconBook,
   IconCurrencyDollar,
   IconLayoutDashboard,
   IconListCheck,
-  IconMoon,
   IconPencil,
   IconReportMoney,
   IconSettings,
-  IconSun,
 } from "@tabler/icons-react";
 import { useMediaQuery } from "@mantine/hooks";
 import * as Flags from "country-flag-icons/react/3x2";
@@ -120,23 +117,6 @@ function CurrencyOptionIcon({
 
   if (!Flag) return <IconCurrencyDollar size={16} />;
   return <Flag style={{ width: 18, height: "auto", display: "block" }} />;
-}
-
-function ColorSchemeToggle() {
-  const { setColorScheme } = useMantineColorScheme();
-  const computed = useComputedColorScheme("light");
-  const { t } = useLang();
-  return (
-    <ActionIcon
-      variant="default"
-      size="md"
-      onClick={() => setColorScheme(computed === "light" ? "dark" : "light")}
-      aria-label={t("toggleColorScheme")}
-      title={t("toggleColorScheme")}
-    >
-      {computed === "light" ? <IconMoon size={16} /> : <IconSun size={16} />}
-    </ActionIcon>
-  );
 }
 
 interface AppTask {
@@ -801,7 +781,6 @@ export function TopNav({
       <Group gap="xs">
         <CurrencySwitcher />
         <TaskMenu disabled={disableTasks} />
-        <ColorSchemeToggle />
       </Group>
     </Group>
   );

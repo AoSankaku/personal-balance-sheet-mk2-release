@@ -2,6 +2,7 @@ import { Box, Text, type MantineSize } from "@mantine/core";
 import { useLang } from "../i18n";
 import { formatCurrency, CRYPTO_DECIMALS } from "../lib/numberFormat";
 import { toIntlLocale } from "../i18n";
+import { isPrivacyModeEnabled } from "../lib/privacy";
 
 interface BalanceDisplayProps {
   amount: number;
@@ -29,6 +30,26 @@ export function BalanceDisplay({
   const isLongUnit = displayUnit.trim().length >= 3;
 
   const heroFont = "clamp(2.5rem, 8vw, 2.5rem)";
+
+  if (isPrivacyModeEnabled()) {
+    const formatted = formatCurrency(amount, locale, currency, displaySymbol);
+    return (
+      <Text
+        component="span"
+        fw={fw}
+        c={c}
+        size={size}
+        style={{
+          fontSize: size == null ? heroFont : undefined,
+          lineHeight: 1,
+          whiteSpace: "nowrap",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {formatted}
+      </Text>
+    );
+  }
 
   if (isLongUnit) {
     const decimals = CRYPTO_DECIMALS[currency] ?? 2;

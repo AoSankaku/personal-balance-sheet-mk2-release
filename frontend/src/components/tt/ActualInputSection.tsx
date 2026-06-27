@@ -365,7 +365,7 @@ export function ActualInputSection({
         <NumberInput
           value={value}
           onChange={(v) => setGeneralValues((prev) => ({ ...prev, [a.id]: v }))}
-          placeholder={`${currencySymbolFor(accountCurrency(a))}${Math.round(bookValue).toLocaleString("en-US")}`}
+          placeholder={formatAccountAmount(Math.round(bookValue), a)}
           min={0}
           thousandSeparator=","
           prefix={currencySymbolFor(accountCurrency(a))}
@@ -584,7 +584,7 @@ export function ActualInputSection({
                             `${account.id}:${row.payment_month}`,
                           );
                           return dbVal !== undefined
-                            ? `${currencySymbolFor(accountCurrency(account))}${Math.round(dbVal).toLocaleString("en-US")}`
+                            ? formatAccountAmount(Math.round(dbVal), account)
                             : undefined;
                         })()}
                       />
@@ -649,7 +649,7 @@ export function ActualInputSection({
                             `${account.id}:${row.payment_month}`,
                           );
                           return dbVal !== undefined
-                            ? `${currencySymbolFor(accountCurrency(account))}${Math.round(dbVal).toLocaleString("en-US")}`
+                            ? formatAccountAmount(Math.round(dbVal), account)
                             : undefined;
                         })()}
                       />

@@ -43,6 +43,11 @@ import {
   type CryptoIconStyle,
 } from "../lib/cryptoCurrencyIcons";
 import { toDateStr } from "../lib/dateUtils";
+import { usePrivacy } from "./PrivacyContext";
+import {
+  applyPrivateAccountNames,
+  buildPrivateAccountNameMap,
+} from "../lib/privacy";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
@@ -129,6 +134,7 @@ export function useAppData() {
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const { t, locale } = useLang();
+  const { privacyMode, maskAccountNames } = usePrivacy();
   const {
     prices,
     refresh: refreshCryptoPrices,
@@ -583,13 +589,73 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     return map;
   }, [cryptoWallets, cryptoBalances, prices]);
 
+  const privateAccountNameMap = useMemo(() => {
+    if (!privacyMode || !maskAccountNames) return new Map<number, string>();
+    return buildPrivateAccountNameMap(accounts, (type) => {
+      const labels = {
+        asset: t("typeAsset"),
+        liability: t("typeLiability"),
+        equity: t("typeEquity"),
+        income: t("typeIncome"),
+        expense: t("typeExpense"),
+      } satisfies Record<Account["type"], string>;
+      return labels[type];
+    });
+  }, [accounts, privacyMode, maskAccountNames, t, locale]);
+
+  const accountTypeLabel = useCallback(
+    (type: Account["type"]) => {
+      const labels = {
+        asset: t("typeAsset"),
+        liability: t("typeLiability"),
+        equity: t("typeEquity"),
+        income: t("typeIncome"),
+        expense: t("typeExpense"),
+      } satisfies Record<Account["type"], string>;
+      return labels[type];
+    },
+    [t, locale],
+  );
+
+  const displayedAccounts = useMemo(
+    () =>
+      applyPrivateAccountNames(
+        accounts,
+        privacyMode,
+        maskAccountNames,
+        accountTypeLabel,
+      ),
+    [accounts, privacyMode, maskAccountNames, accountTypeLabel],
+  );
+
+  const displayedJournal = useMemo(() => {
+    if (privateAccountNameMap.size === 0) return journal;
+    return journal.map((entry) => ({
+      ...entry,
+      lines: entry.lines.map((line) => ({
+        ...line,
+        account_name:
+          privateAccountNameMap.get(line.account_id) ?? line.account_name,
+      })),
+    }));
+  }, [journal, privateAccountNameMap]);
+
+  const displayedCryptoWallets = useMemo(() => {
+    if (privateAccountNameMap.size === 0) return cryptoWallets;
+    return cryptoWallets.map((wallet) => ({
+      ...wallet,
+      account_name:
+        privateAccountNameMap.get(wallet.account_id) ?? wallet.account_name,
+    }));
+  }, [cryptoWallets, privateAccountNameMap]);
+
   return (
     <AppDataContext.Provider
       value={{
-        accounts,
-        journal,
+        accounts: displayedAccounts,
+        journal: displayedJournal,
         pl,
-        cryptoWallets,
+        cryptoWallets: displayedCryptoWallets,
         exchangeCredentials,
         cryptoBalances,
         cryptoValueMap,
