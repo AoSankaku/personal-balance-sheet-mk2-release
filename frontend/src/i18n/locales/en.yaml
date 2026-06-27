@@ -23,6 +23,11 @@ sectionExpenses: Expenses
 failedToLoadData: Failed to load data
 errorTitle: Error
 reload: Reload
+hardReloadAction: Reload now
+hardReloadAccessTitle: Session expired
+hardReloadAccessMessage: Cloudflare Access is asking you to sign in again. Hard reload this page, then complete the Access login if prompted.
+hardReloadVersionTitle: New version available
+hardReloadVersionMessage: A newer version has been deployed. Hard reload this page to use the latest app.
 internalServerError: Internal Server Error
 accountAdded: Account added
 accountDeleted: Account deleted

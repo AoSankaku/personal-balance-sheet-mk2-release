@@ -25,9 +25,12 @@ import SvPage from "./pages/SvPage";
 import LongTermLoanDetailPage from "./pages/LongTermLoanDetailPage";
 import LanguageSetupPage from "./pages/LanguageSetupPage";
 import { FeedbackHost } from "./components/FeedbackHost";
+import { HardReloadPrompt } from "./components/HardReloadPrompt";
 import { useAppData } from "./context/AppDataContext";
+import { useVersionUpdateMonitor } from "./hooks/useVersionUpdateMonitor";
 import { useLang } from "./i18n";
 export default function App() {
+  useVersionUpdateMonitor();
   const { enabledCurrencies, enabledCurrenciesLoaded } = useAppData();
   const { hasExplicitLocale } = useLang();
   const needsCurrencySetup =
@@ -50,6 +53,7 @@ export default function App() {
 
       <AppShell.Main>
         <FeedbackHost />
+        <HardReloadPrompt />
         {!enabledCurrenciesLoaded ? null : needsLanguageSetup ? (
           <LanguageSetupPage />
         ) : needsCurrencySetup ? (
