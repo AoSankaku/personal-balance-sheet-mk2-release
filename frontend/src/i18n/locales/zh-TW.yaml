@@ -1,5 +1,9 @@
 appTitle: 個人資產負債表
 toggleColorScheme: 切換主題
+colorThemeLabel: 顏色主題
+colorThemeAuto: 跟隨系統
+colorThemeLight: 淺色
+colorThemeDark: 深色
 assets: 資產
 liabilities: 負債
 netWorth: 淨資產

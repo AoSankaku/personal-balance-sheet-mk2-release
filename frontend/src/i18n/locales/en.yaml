@@ -1,5 +1,9 @@
 appTitle: Personal Balance Sheet
 toggleColorScheme: Toggle color scheme
+colorThemeLabel: Color theme
+colorThemeAuto: System setting
+colorThemeLight: Light
+colorThemeDark: Dark
 assets: Assets
 liabilities: Liabilities
 netWorth: Net Worth

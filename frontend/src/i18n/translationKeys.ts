@@ -1,6 +1,10 @@
 export const translationKeys = [
   "appTitle",
   "toggleColorScheme",
+  "colorThemeLabel",
+  "colorThemeAuto",
+  "colorThemeLight",
+  "colorThemeDark",
   "assets",
   "liabilities",
   "netWorth",

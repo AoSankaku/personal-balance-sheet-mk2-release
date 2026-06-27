@@ -1,5 +1,9 @@
 appTitle: 個人バランスシート
 toggleColorScheme: カラーテーマ切替
+colorThemeLabel: カラーテーマ
+colorThemeAuto: システム設定
+colorThemeLight: ライト
+colorThemeDark: ダーク
 assets: 資産
 liabilities: 負債
 netWorth: 純資産

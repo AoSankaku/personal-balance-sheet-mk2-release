@@ -1,5 +1,9 @@
 appTitle: 个人资产负债表
 toggleColorScheme: 切换主题
+colorThemeLabel: 颜色主题
+colorThemeAuto: 跟随系统
+colorThemeLight: 浅色
+colorThemeDark: 深色
 assets: 资产
 liabilities: 负债
 netWorth: 净资产

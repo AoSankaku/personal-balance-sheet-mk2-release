@@ -15,6 +15,7 @@ import {
   Text,
   ThemeIcon,
   Title,
+  useMantineColorScheme,
   rem,
 } from "@mantine/core";
 import {
@@ -26,6 +27,7 @@ import {
   IconBriefcase,
   IconChartPie,
   IconDatabaseImport,
+  IconDeviceDesktop,
   IconFileDownload,
   IconFileSpreadsheet,
   IconHelp,
@@ -34,6 +36,8 @@ import {
   IconStar,
   IconCurrencyDollar,
   IconLock,
+  IconMoon,
+  IconSun,
 } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import { useDisclosure } from "@mantine/hooks";
@@ -80,6 +84,7 @@ function Flag({ locale }: { locale: Locale }) {
 
 export default function SettingsPage() {
   const { t, locale, setLocale } = useLang();
+  const { colorScheme, setColorScheme } = useMantineColorScheme();
   const {
     privacyMode,
     maskAccountNames,
@@ -346,43 +351,105 @@ export default function SettingsPage() {
     },
   ] as const;
 
+  const colorSchemeIcon =
+    colorScheme === "auto" ? (
+      <IconDeviceDesktop size={16} />
+    ) : colorScheme === "dark" ? (
+      <IconMoon size={16} />
+    ) : (
+      <IconSun size={16} />
+    );
+
   return (
     <Stack gap="xl">
       {/* General */}
-      <Stack gap="sm">
+      <Stack gap="xs">
         <Group gap="xs">
           <IconSettings size={18} />
           <Title order={4}>{t("settingsSectionGeneral")}</Title>
         </Group>
-        <Group>
-          <Text size="sm" c="dimmed">
-            {t("languageLabel")}
-          </Text>
-          <Select
-            size="xs"
-            w={140}
-            value={locale}
-            onChange={(v) => v && setLocale(v as Locale)}
-            disabled={privacyMode}
-            data={[
+        <Stack gap="sm">
+          <Group gap="xs" align="center" wrap="nowrap">
+            <Text
+              size="sm"
+              c="dimmed"
+              w={120}
+              style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+            >
+              {t("colorThemeLabel")}
+            </Text>
+            <Select
+              aria-label={t("colorThemeLabel")}
+              size="xs"
+              flex={1}
+              maw={220}
+              style={{ minWidth: 0 }}
+              value={colorScheme}
+              onChange={(v) => {
+                if (v === "light" || v === "dark" || v === "auto") {
+                  setColorScheme(v);
+                }
+              }}
+              data={[
+                { value: "auto", label: t("colorThemeAuto") },
+                { value: "light", label: t("colorThemeLight") },
+                { value: "dark", label: t("colorThemeDark") },
+              ]}
+              allowDeselect={false}
+              checkIconPosition="right"
+              leftSection={colorSchemeIcon}
+              renderOption={({ option }) => (
+                <Group gap="xs" wrap="nowrap">
+                  {option.value === "auto" ? (
+                    <IconDeviceDesktop size={16} />
+                  ) : option.value === "dark" ? (
+                    <IconMoon size={16} />
+                  ) : (
+                    <IconSun size={16} />
+                  )}
+                  <span>{option.label}</span>
+                </Group>
+              )}
+            />
+          </Group>
+          <Group gap="xs" align="center" wrap="nowrap">
+            <Text
+              size="sm"
+              c="dimmed"
+              w={120}
+              style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+            >
+              {t("languageLabel")}
+            </Text>
+            <Select
+              aria-label={t("languageLabel")}
+              size="xs"
+              flex={1}
+              maw={220}
+              style={{ minWidth: 0 }}
+              value={locale}
+              onChange={(v) => v && setLocale(v as Locale)}
+              disabled={privacyMode}
+              data={[
               { value: "ja", label: "日本語" },
               { value: "en", label: "English" },
               { value: "fr", label: "Français" },
               { value: "es", label: "Español" },
               { value: "zh-CN", label: "简体中文" },
               { value: "zh-TW", label: "繁體中文" },
-            ]}
-            allowDeselect={false}
-            checkIconPosition="right"
-            leftSection={<Flag locale={locale} />}
-            renderOption={({ option }) => (
-              <Group gap="xs" wrap="nowrap">
-                <Flag locale={option.value as Locale} />
-                <span>{option.label}</span>
-              </Group>
-            )}
-          />
-        </Group>
+              ]}
+              allowDeselect={false}
+              checkIconPosition="right"
+              leftSection={<Flag locale={locale} />}
+              renderOption={({ option }) => (
+                <Group gap="xs" wrap="nowrap">
+                  <Flag locale={option.value as Locale} />
+                  <span>{option.label}</span>
+                </Group>
+              )}
+            />
+          </Group>
+        </Stack>
         <Stack gap={4} mt="xs">
           <Switch
             label={t("privacyModeToggle")}
