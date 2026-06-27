@@ -44,6 +44,10 @@ import type {
   LongTermLoanComparisonRow,
 } from "@balance-sheet/shared";
 import { createInFlightRequestDeduper } from "./inFlightRequest";
+import {
+  isLikelyCloudflareAccessResponse,
+} from "../lib/appVersion";
+import { showReloadPrompt } from "../lib/reloadPrompt";
 
 const BASE = "/api";
 const dedupeBudgetSummaryRequest = createInFlightRequestDeduper();
@@ -66,6 +70,31 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().includes("application/json")) {
+    const bodyText = await res.text().catch(() => "");
+    if (
+      isLikelyCloudflareAccessResponse({
+        status: res.status,
+        redirected: res.redirected,
+        url: res.url,
+        contentType,
+        bodyText,
+      })
+    ) {
+      showReloadPrompt({ reason: "cloudflare-access-session" });
+      throw new ApiError("cloudflare_access_session_expired", 401, {
+        error: "cloudflare_access_session_expired",
+      });
+    }
+
+    throw new ApiError(
+      res.ok ? "unexpected_api_response" : res.statusText,
+      res.status,
+      { error: res.ok ? "unexpected_api_response" : res.statusText },
+    );
+  }
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new ApiError(
@@ -406,6 +435,28 @@ export const api = {
       ),
     exportDb: async (): Promise<Blob> => {
       const res = await fetch(`${BASE}/admin/export-db`);
+      const contentType = res.headers.get("content-type") ?? "";
+      if (
+        contentType.toLowerCase().includes("text/html") ||
+        res.url.toLowerCase().includes("/cdn-cgi/access/")
+      ) {
+        const bodyText = await res.clone().text().catch(() => "");
+        if (
+          isLikelyCloudflareAccessResponse({
+            status: res.status,
+            redirected: res.redirected,
+            url: res.url,
+            contentType,
+            bodyText,
+          })
+        ) {
+          showReloadPrompt({ reason: "cloudflare-access-session" });
+          throw new ApiError("cloudflare_access_session_expired", 401, {
+            error: "cloudflare_access_session_expired",
+          });
+        }
+      }
+
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: res.statusText }));
         throw new ApiError(
