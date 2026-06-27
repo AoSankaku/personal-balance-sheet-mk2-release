@@ -47,7 +47,7 @@ export default function App() {
       <AppShell.Header>
         <TopNav
           disableNavigation={inInitialSetupFlow}
-          disableNotifications={inInitialSetupFlow}
+          disableTasks={inInitialSetupFlow}
         />
       </AppShell.Header>
 

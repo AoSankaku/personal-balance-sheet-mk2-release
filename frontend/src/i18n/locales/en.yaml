@@ -378,30 +378,30 @@ editTransactionTitle: Edit Transaction
 save: Save
 refreshPrices: Refresh prices
 paydayLabel: Payday (day of month)
-paydayHint: A notification will appear if no income is recorded by this day each month.
-noNotifications: No notifications
-notificationPaydayUnrecorded: Payday not yet recorded
-notifications: Notifications
-settingsSectionNotifications: Notifications
-notifPaydayToggle: Payday reminder
-notifPaydayToggleHint: Show a bell alert when payday income hasn't been recorded yet.
-notifCreditCardToggle: Credit card import reminder
-notifCreditCardToggleHint: Show a banner on the overview page when a credit card statement is ready to import.
-notifCreditCardWithdrawalRiskToggle: Credit card withdrawal balance alert
-notifCreditCardWithdrawalRiskToggleHint: Show a bell alert from 14 days before withdrawal when linked bank balance may go negative after credit card payments.
-notifBudgetNegativeToggle: Budget over-allocation alert
-notifBudgetNegativeToggleHint: Show a bell alert when total budget allocations exceed your actual assets, making your budget unreliable.
-notificationBudgetNegative: Your budget allocations exceed your total assets. This may be caused by a duplicate or forgotten entry — your budget figures are no longer reliable until this is corrected.
-notifLoanOverdueToggle: Overdue short-term loan/debt alert
-notifLoanOverdueToggleHint: Show a bell alert when no repayment/collection has occurred for the specified number of days.
-notifLoanOverdueDaysLabel: Threshold (days)
-notifAccountNegativeToggle: Negative account balance alert
-notifAccountNegativeToggleHint: Show a bell alert when an account balance goes negative (excludes unknown funds).
-notificationLoanOverdueSection: Overdue loans / debts
-notificationLoanOverdueDays: "{days} days ago"
-notificationAccountNegativeSection: Negative account balances
-notificationCreditCardWithdrawalRiskSection: Credit card withdrawals may overdraw
-notificationCreditCardWithdrawalRiskDetail: "{date} from {account}: {amount}"
+paydayHint: A task will appear if no income is recorded by this day each month.
+noTasks: No tasks
+taskPaydayUnrecorded: Payday not yet recorded
+tasks: Tasks
+settingsSectionTasks: Tasks
+taskPaydayToggle: Payday task
+taskPaydayToggleHint: Show a task when payday income hasn't been recorded yet.
+taskCreditCardToggle: Credit card import task
+taskCreditCardToggleHint: Show a banner on the overview page when a credit card statement is ready to import.
+taskCreditCardWithdrawalRiskToggle: Credit card withdrawal balance task
+taskCreditCardWithdrawalRiskToggleHint: Show a task from 14 days before withdrawal when linked bank balance may go negative after credit card payments.
+taskBudgetNegativeToggle: Budget over-allocation task
+taskBudgetNegativeToggleHint: Show a task when total budget allocations exceed your actual assets, making your budget unreliable.
+taskBudgetNegative: Your budget allocations exceed your total assets. This may be caused by a duplicate or forgotten entry — your budget figures are no longer reliable until this is corrected.
+taskLoanOverdueToggle: Overdue short-term loan/debt task
+taskLoanOverdueToggleHint: Show a task when no repayment/collection has occurred for the specified number of days.
+taskLoanOverdueDaysLabel: Threshold (days)
+taskAccountNegativeToggle: Negative account balance task
+taskAccountNegativeToggleHint: Show a task when an account balance goes negative (excludes unknown funds).
+taskLoanOverdueSection: Overdue loans / debts
+taskLoanOverdueDays: "{days} days ago"
+taskAccountNegativeSection: Negative account balances
+taskCreditCardWithdrawalRiskSection: Credit card withdrawals may overdraw
+taskCreditCardWithdrawalRiskDetail: "{date} from {account}: {amount}"
 accountInUse: Account in use
 accountInUseMsg: This account is used in journal entries or has a linked wallet. Select a replacement account of the same type.
 replaceWith: Replace with
