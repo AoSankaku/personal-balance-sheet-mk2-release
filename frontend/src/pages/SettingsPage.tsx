@@ -82,6 +82,10 @@ function Flag({ locale }: { locale: Locale }) {
   return <Svg style={{ width: 18, height: 18, display: "block" }} />;
 }
 
+const settingsSwitchClassNames = {
+  root: "settings-inline-control",
+};
+
 export default function SettingsPage() {
   const { t, locale, setLocale } = useLang();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
@@ -452,6 +456,7 @@ export default function SettingsPage() {
         </Stack>
         <Stack gap={4} mt="xs">
           <Switch
+            classNames={settingsSwitchClassNames}
             label={t("privacyModeToggle")}
             checked={privacyMode}
             onChange={(e) => setPrivacyMode(e.currentTarget.checked)}
@@ -462,6 +467,7 @@ export default function SettingsPage() {
         </Stack>
         <Stack gap={4}>
           <Switch
+            classNames={settingsSwitchClassNames}
             label={t("privacyMaskAccountsToggle")}
             checked={privacyMode && maskAccountNames}
             disabled={!privacyMode}
@@ -506,6 +512,7 @@ export default function SettingsPage() {
         <Stack gap="md" mt={4}>
           <Stack gap={2}>
             <Switch
+              classNames={settingsSwitchClassNames}
               label={t("taskPaydayToggle")}
               checked={taskPayday}
               onChange={(e) => {
@@ -520,6 +527,7 @@ export default function SettingsPage() {
           </Stack>
           <Stack gap={2}>
             <Switch
+              classNames={settingsSwitchClassNames}
               label={t("taskCreditCardToggle")}
               checked={taskCreditCard}
               onChange={(e) => {
@@ -534,6 +542,7 @@ export default function SettingsPage() {
           </Stack>
           <Stack gap={2}>
             <Switch
+              classNames={settingsSwitchClassNames}
               label={t("taskCreditCardWithdrawalRiskToggle")}
               checked={taskCreditCardWithdrawalRisk}
               onChange={(e) => {
@@ -551,6 +560,7 @@ export default function SettingsPage() {
           </Stack>
           <Stack gap={2}>
             <Switch
+              classNames={settingsSwitchClassNames}
               label={t("taskBudgetNegativeToggle")}
               checked={taskBudgetNegative}
               onChange={(e) => {
@@ -565,6 +575,7 @@ export default function SettingsPage() {
           </Stack>
           <Stack gap={2}>
             <Switch
+              classNames={settingsSwitchClassNames}
               label={t("taskLoanOverdueToggle")}
               checked={taskLoanOverdue}
               onChange={(e) => {
@@ -595,6 +606,7 @@ export default function SettingsPage() {
           </Stack>
           <Stack gap={2}>
             <Switch
+              classNames={settingsSwitchClassNames}
               label={t("taskAccountNegativeToggle")}
               checked={taskAccountNegative}
               onChange={(e) => {

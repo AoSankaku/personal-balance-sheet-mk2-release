@@ -13,3 +13,8 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+
+.settings-inline-control {
+  width: fit-content;
+  max-width: 100%;
+}
