@@ -7,7 +7,7 @@ import type {
 
 const WITHDRAWAL_RISK_LOOKAHEAD_DAYS = 14;
 
-export interface CreditCardWithdrawalRiskNotification {
+export interface CreditCardWithdrawalRiskTask {
   id: string;
   creditCardAccountId: number;
   creditCardName: string;
@@ -65,12 +65,12 @@ function getUpcomingPaymentMonths(today: Date): string[] {
   return [monthKey(today), monthKey(addMonths(today, 1))];
 }
 
-export function computeCreditCardWithdrawalRiskNotifications({
+export function computeCreditCardWithdrawalRiskTasks({
   today,
   accounts,
   creditCardSettings,
   creditCardState,
-}: ComputeInput): CreditCardWithdrawalRiskNotification[] {
+}: ComputeInput): CreditCardWithdrawalRiskTask[] {
   const enabledStates = new Map<string, CreditCardStateEntry>();
   for (const state of creditCardState) {
     if (state.status === "paid") continue;

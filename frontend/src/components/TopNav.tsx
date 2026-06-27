@@ -13,10 +13,10 @@ import {
   useMantineColorScheme,
 } from "@mantine/core";
 import {
-  IconBell,
   IconBook,
   IconCurrencyDollar,
   IconLayoutDashboard,
+  IconListCheck,
   IconMoon,
   IconPencil,
   IconReportMoney,
@@ -41,8 +41,8 @@ import { CryptoCurrencyIcon } from "./CryptoCurrencyIcon";
 import { CustomCurrencyIcon } from "./CustomCurrencyIcon";
 import type { CryptoIconStyle } from "../lib/cryptoCurrencyIcons";
 import {
-  computeCreditCardWithdrawalRiskNotifications,
-  type CreditCardWithdrawalRiskNotification,
+  computeCreditCardWithdrawalRiskTasks,
+  type CreditCardWithdrawalRiskTask,
 } from "../lib/creditCardWithdrawalRisk";
 
 const CURRENCY_TO_COUNTRY: Record<string, string> = {
@@ -139,12 +139,12 @@ function ColorSchemeToggle() {
   );
 }
 
-interface AppNotification {
+interface AppTask {
   id: string;
   message: string;
 }
 
-function usePaydayNotifications(): AppNotification[] {
+function usePaydayTasks(): AppTask[] {
   const { accounts, journal } = useAppData();
 
   if (localStorage.getItem("notif:payday") === "false") return [];
@@ -153,7 +153,7 @@ function usePaydayNotifications(): AppNotification[] {
   const todayDay = now.getDate();
   const thisYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  const notifications: AppNotification[] = [];
+  const tasks: AppTask[] = [];
 
   for (const account of accounts) {
     if (account.type !== "income") continue;
@@ -170,17 +170,17 @@ function usePaydayNotifications(): AppNotification[] {
     );
 
     if (!hasEntry) {
-      notifications.push({
+      tasks.push({
         id: `payday-${account.id}`,
         message: account.name,
       });
     }
   }
 
-  return notifications;
+  return tasks;
 }
 
-function useBudgetNegativeNotification(): {
+function useBudgetNegativeTask(): {
   show: boolean;
   allocatableToday: number;
   allocatableTotal: number;
@@ -194,11 +194,11 @@ function useBudgetNegativeNotification(): {
   };
 }
 
-interface OverdueLoanNotification extends AppNotification {
+interface OverdueLoanTask extends AppTask {
   daysDiff: number;
 }
 
-function useOverdueLoanNotifications(): OverdueLoanNotification[] {
+function useOverdueLoanTasks(): OverdueLoanTask[] {
   const { accounts, journal } = useAppData();
 
   if (localStorage.getItem("notif:loanOverdue") === "false") return [];
@@ -245,13 +245,13 @@ function useOverdueLoanNotifications(): OverdueLoanNotification[] {
   }));
 }
 
-function useNegativeAccountNotifications(): AppNotification[] {
+function useNegativeAccountTasks(): AppTask[] {
   const { accounts } = useAppData();
   const { t } = useLang();
 
   if (localStorage.getItem("notif:accountNegative") === "false") return [];
 
-  const notifications: AppNotification[] = [];
+  const tasks: AppTask[] = [];
 
   for (const account of accounts) {
     if (account.name === "__system:unknown_funds__") continue;
@@ -265,23 +265,23 @@ function useNegativeAccountNotifications(): AppNotification[] {
       return account.name;
     })();
 
-    notifications.push({
+    tasks.push({
       id: `account-negative-${account.id}`,
       message: label,
     });
   }
 
-  return notifications;
+  return tasks;
 }
 
-function useCreditCardWithdrawalRiskNotifications(): CreditCardWithdrawalRiskNotification[] {
+function useCreditCardWithdrawalRiskTasks(): CreditCardWithdrawalRiskTask[] {
   const { accounts, creditCardSettings, creditCardState } = useAppData();
 
   if (localStorage.getItem("notif:creditCardWithdrawalRisk") === "false") {
     return [];
   }
 
-  return computeCreditCardWithdrawalRiskNotifications({
+  return computeCreditCardWithdrawalRiskTasks({
     today: new Date(),
     accounts,
     creditCardSettings,
@@ -289,22 +289,21 @@ function useCreditCardWithdrawalRiskNotifications(): CreditCardWithdrawalRiskNot
   });
 }
 
-function NotificationBell({ disabled = false }: { disabled?: boolean }) {
+function TaskMenu({ disabled = false }: { disabled?: boolean }) {
   const { t, locale } = useLang();
   const navigate = useNavigate();
   const [opened, setOpened] = useState(false);
-  const paydayNotifications = usePaydayNotifications();
-  const budgetNotif = useBudgetNegativeNotification();
-  const overdueLoanNotifications = useOverdueLoanNotifications();
-  const negativeAccountNotifications = useNegativeAccountNotifications();
-  const creditCardWithdrawalRiskNotifications =
-    useCreditCardWithdrawalRiskNotifications();
+  const paydayTasks = usePaydayTasks();
+  const budgetTask = useBudgetNegativeTask();
+  const overdueLoanTasks = useOverdueLoanTasks();
+  const negativeAccountTasks = useNegativeAccountTasks();
+  const creditCardWithdrawalRiskTasks = useCreditCardWithdrawalRiskTasks();
   const totalCount =
-    paydayNotifications.length +
-    (budgetNotif.show ? 1 : 0) +
-    (overdueLoanNotifications.length > 0 ? 1 : 0) +
-    (negativeAccountNotifications.length > 0 ? 1 : 0) +
-    (creditCardWithdrawalRiskNotifications.length > 0 ? 1 : 0);
+    paydayTasks.length +
+    (budgetTask.show ? 1 : 0) +
+    (overdueLoanTasks.length > 0 ? 1 : 0) +
+    (negativeAccountTasks.length > 0 ? 1 : 0) +
+    (creditCardWithdrawalRiskTasks.length > 0 ? 1 : 0);
   const effectiveCount = disabled ? 0 : totalCount;
 
   useEffect(() => {
@@ -339,6 +338,7 @@ function NotificationBell({ disabled = false }: { disabled?: boolean }) {
             size={16}
             label={effectiveCount > 0 ? String(effectiveCount) : undefined}
             offset={4}
+            styles={{ indicator: { pointerEvents: "none" } }}
           >
             <ActionIcon
               variant="default"
@@ -348,10 +348,10 @@ function NotificationBell({ disabled = false }: { disabled?: boolean }) {
                 if (disabled) return;
                 setOpened((o) => !o);
               }}
-              aria-label={t("notifications")}
-              title={t("notifications")}
+              aria-label={t("tasks")}
+              title={t("tasks")}
             >
-              <IconBell size={16} />
+              <IconListCheck size={16} />
             </ActionIcon>
           </Indicator>
         </Popover.Target>
@@ -364,11 +364,11 @@ function NotificationBell({ disabled = false }: { disabled?: boolean }) {
         >
           {totalCount === 0 ? (
             <Text size="sm" c="dimmed" px={4} py={2}>
-              {t("noNotifications")}
+              {t("noTasks")}
             </Text>
           ) : (
             <Stack gap={8}>
-              {budgetNotif.show && (
+              {budgetTask.show && (
                 <UnstyledButton
                   px={4}
                   py={6}
@@ -380,16 +380,16 @@ function NotificationBell({ disabled = false }: { disabled?: boolean }) {
                 >
                   <Stack gap={4}>
                     <Text size="sm" c="red">
-                      {t("notificationBudgetNegative")}
+                      {t("taskBudgetNegative")}
                     </Text>
                     <Text size="xs" c="dimmed">
                       {t("assignableMoneyTodayLabel")}:{" "}
                       <Text
                         span
                         fw={600}
-                        c={budgetNotif.allocatableToday >= 0 ? "teal" : "red"}
+                        c={budgetTask.allocatableToday >= 0 ? "teal" : "red"}
                       >
-                        {formatJPY(budgetNotif.allocatableToday, locale)}
+                        {formatJPY(budgetTask.allocatableToday, locale)}
                       </Text>
                     </Text>
                     <Text size="xs" c="dimmed">
@@ -397,20 +397,20 @@ function NotificationBell({ disabled = false }: { disabled?: boolean }) {
                       <Text
                         span
                         fw={600}
-                        c={budgetNotif.allocatableTotal >= 0 ? "teal" : "red"}
+                        c={budgetTask.allocatableTotal >= 0 ? "teal" : "red"}
                       >
-                        {formatJPY(budgetNotif.allocatableTotal, locale)}
+                        {formatJPY(budgetTask.allocatableTotal, locale)}
                       </Text>
                     </Text>
                   </Stack>
                 </UnstyledButton>
               )}
-              {paydayNotifications.length > 0 && (
+              {paydayTasks.length > 0 && (
                 <Stack gap={4}>
                   <Text size="xs" c="dimmed" fw={600} px={4}>
-                    {t("notificationPaydayUnrecorded")}
+                    {t("taskPaydayUnrecorded")}
                   </Text>
-                  {paydayNotifications.map((n) => (
+                  {paydayTasks.map((n) => (
                     <UnstyledButton
                       key={n.id}
                       px={4}
@@ -426,12 +426,12 @@ function NotificationBell({ disabled = false }: { disabled?: boolean }) {
                   ))}
                 </Stack>
               )}
-              {creditCardWithdrawalRiskNotifications.length > 0 && (
+              {creditCardWithdrawalRiskTasks.length > 0 && (
                 <Stack gap={4}>
                   <Text size="xs" c="dimmed" fw={600} px={4}>
-                    {t("notificationCreditCardWithdrawalRiskSection")}
+                    {t("taskCreditCardWithdrawalRiskSection")}
                   </Text>
-                  {creditCardWithdrawalRiskNotifications.map((n) => (
+                  {creditCardWithdrawalRiskTasks.map((n) => (
                     <UnstyledButton
                       key={n.id}
                       px={4}
@@ -452,7 +452,7 @@ function NotificationBell({ disabled = false }: { disabled?: boolean }) {
                           </Text>
                         </Group>
                         <Text size="xs" c="dimmed">
-                          {t("notificationCreditCardWithdrawalRiskDetail")
+                          {t("taskCreditCardWithdrawalRiskDetail")
                             .replace("{date}", n.withdrawalDate)
                             .replace("{account}", n.withdrawalAccountName)
                             .replace(
@@ -465,12 +465,12 @@ function NotificationBell({ disabled = false }: { disabled?: boolean }) {
                   ))}
                 </Stack>
               )}
-              {overdueLoanNotifications.length > 0 && (
+              {overdueLoanTasks.length > 0 && (
                 <Stack gap={4}>
                   <Text size="xs" c="dimmed" fw={600} px={4}>
-                    {t("notificationLoanOverdueSection")}
+                    {t("taskLoanOverdueSection")}
                   </Text>
-                  {overdueLoanNotifications.map((n) => (
+                  {overdueLoanTasks.map((n) => (
                     <UnstyledButton
                       key={n.id}
                       px={4}
@@ -486,7 +486,7 @@ function NotificationBell({ disabled = false }: { disabled?: boolean }) {
                           {n.message}
                         </Text>
                         <Text size="xs" c="orange">
-                          {t("notificationLoanOverdueDays").replace(
+                          {t("taskLoanOverdueDays").replace(
                             "{days}",
                             String(n.daysDiff),
                           )}
@@ -496,12 +496,12 @@ function NotificationBell({ disabled = false }: { disabled?: boolean }) {
                   ))}
                 </Stack>
               )}
-              {negativeAccountNotifications.length > 0 && (
+              {negativeAccountTasks.length > 0 && (
                 <Stack gap={4}>
                   <Text size="xs" c="dimmed" fw={600} px={4}>
-                    {t("notificationAccountNegativeSection")}
+                    {t("taskAccountNegativeSection")}
                   </Text>
-                  {negativeAccountNotifications.map((n) => (
+                  {negativeAccountTasks.map((n) => (
                     <UnstyledButton
                       key={n.id}
                       px={4}
@@ -687,12 +687,12 @@ interface NavLinkItem {
 
 interface TopNavProps {
   disableNavigation?: boolean;
-  disableNotifications?: boolean;
+  disableTasks?: boolean;
 }
 
 export function TopNav({
   disableNavigation = false,
-  disableNotifications = false,
+  disableTasks = false,
 }: TopNavProps) {
   const { t } = useLang();
   const computed = useComputedColorScheme("light");
@@ -800,7 +800,7 @@ export function TopNav({
       </Group>
       <Group gap="xs">
         <CurrencySwitcher />
-        <NotificationBell disabled={disableNotifications} />
+        <TaskMenu disabled={disableTasks} />
         <ColorSchemeToggle />
       </Group>
     </Group>

@@ -378,30 +378,30 @@ editTransactionTitle: 編輯交易
 save: 儲存
 refreshPrices: 重新整理價格
 paydayLabel: 發薪日（每月日期）
-paydayHint: 如果每月到這一天仍未記錄收入，就會顯示通知。
-noNotifications: 沒有通知
-notificationPaydayUnrecorded: 發薪日收入尚未記錄
-notifications: 通知
-settingsSectionNotifications: 通知
-notifPaydayToggle: 發薪日提醒
-notifPaydayToggleHint: 當發薪日收入尚未記錄時顯示提醒。
-notifCreditCardToggle: 信用卡匯入提醒
-notifCreditCardToggleHint: 當信用卡帳單可以匯入時，在概覽頁顯示提示。
-notifCreditCardWithdrawalRiskToggle: 信用卡扣款餘額提醒
-notifCreditCardWithdrawalRiskToggleHint: 如果信用卡付款後關聯銀行帳戶可能為負數，從扣款日前 14 天開始提醒。
-notifBudgetNegativeToggle: 預算超額分配提醒
-notifBudgetNegativeToggleHint: 當預算分配總額超過實際資產、預算資料不再可靠時顯示提醒。
-notificationBudgetNegative: 預算分配總額超過了總資產。這可能是重複輸入或遺漏輸入造成的。
-notifLoanOverdueToggle: 短期借貸逾期提醒
-notifLoanOverdueToggleHint: 在指定天數內沒有還款或收款時顯示提醒。
-notifLoanOverdueDaysLabel: 門檻（天）
-notifAccountNegativeToggle: 帳戶餘額為負提醒
-notifAccountNegativeToggleHint: 當帳戶餘額變為負數時顯示提醒（不包括不明資金）。
-notificationLoanOverdueSection: 逾期借貸
-notificationLoanOverdueDays: "{days} 天前"
-notificationAccountNegativeSection: 負數帳戶餘額
-notificationCreditCardWithdrawalRiskSection: 信用卡扣款可能導致透支
-notificationCreditCardWithdrawalRiskDetail: "付款後的預計餘額為 {balance}。"
+paydayHint: 如果每月到這一天仍未記錄收入，就會顯示任務。
+noTasks: 沒有任務
+taskPaydayUnrecorded: 發薪日收入尚未記錄
+tasks: 任務
+settingsSectionTasks: 任務
+taskPaydayToggle: 發薪日任務
+taskPaydayToggleHint: 當發薪日收入尚未記錄時顯示任務。
+taskCreditCardToggle: 信用卡匯入任務
+taskCreditCardToggleHint: 當信用卡帳單可以匯入時，在概覽頁顯示提示。
+taskCreditCardWithdrawalRiskToggle: 信用卡扣款餘額任務
+taskCreditCardWithdrawalRiskToggleHint: 如果信用卡付款後關聯銀行帳戶可能為負數，從扣款日前 14 天開始顯示任務。
+taskBudgetNegativeToggle: 預算超額分配任務
+taskBudgetNegativeToggleHint: 當預算分配總額超過實際資產、預算資料不再可靠時顯示任務。
+taskBudgetNegative: 預算分配總額超過了總資產。這可能是重複輸入或遺漏輸入造成的。
+taskLoanOverdueToggle: 短期借貸逾期任務
+taskLoanOverdueToggleHint: 在指定天數內沒有還款或收款時顯示任務。
+taskLoanOverdueDaysLabel: 門檻（天）
+taskAccountNegativeToggle: 帳戶餘額為負任務
+taskAccountNegativeToggleHint: 當帳戶餘額變為負數時顯示任務（不包括不明資金）。
+taskLoanOverdueSection: 逾期借貸
+taskLoanOverdueDays: "{days} 天前"
+taskAccountNegativeSection: 負數帳戶餘額
+taskCreditCardWithdrawalRiskSection: 信用卡扣款可能導致透支
+taskCreditCardWithdrawalRiskDetail: "{date} 從 {account}: {amount}"
 accountInUse: 帳戶正在使用中
 accountInUseMsg: 此帳戶已在分錄中使用或有關聯的錢包。請選擇相同類型的替換帳戶。
 replaceWith: 取代為

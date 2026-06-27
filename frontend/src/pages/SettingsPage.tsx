@@ -21,7 +21,6 @@ import {
   IconArrowDown,
   IconArrowUp,
   IconArrowsExchange,
-  IconBell,
   IconBook,
   IconBriefcase,
   IconChartPie,
@@ -29,6 +28,7 @@ import {
   IconFileDownload,
   IconFileSpreadsheet,
   IconHelp,
+  IconListCheck,
   IconSettings,
   IconStar,
   IconCurrencyDollar,
@@ -91,30 +91,30 @@ export default function SettingsPage() {
 
   const [completedAccountsOpen, setCompletedAccountsOpen] = useState(false);
 
-  const [notifPayday, setNotifPayday] = useState(
+  const [taskPayday, setTaskPayday] = useState(
     () => localStorage.getItem("notif:payday") !== "false",
   );
-  const [notifCreditCard, setNotifCreditCard] = useState(
+  const [taskCreditCard, setTaskCreditCard] = useState(
     () => localStorage.getItem("notif:creditCard") !== "false",
   );
-  const [notifCreditCardWithdrawalRisk, setNotifCreditCardWithdrawalRisk] =
+  const [taskCreditCardWithdrawalRisk, setTaskCreditCardWithdrawalRisk] =
     useState(
       () => localStorage.getItem("notif:creditCardWithdrawalRisk") !== "false",
     );
-  const [notifBudgetNegative, setNotifBudgetNegative] = useState(
+  const [taskBudgetNegative, setTaskBudgetNegative] = useState(
     () => localStorage.getItem("notif:budgetNegative") !== "false",
   );
-  const [notifLoanOverdue, setNotifLoanOverdue] = useState(
+  const [taskLoanOverdue, setTaskLoanOverdue] = useState(
     () => localStorage.getItem("notif:loanOverdue") !== "false",
   );
-  const [notifLoanOverdueDays, setNotifLoanOverdueDays] = useState<number>(
+  const [taskLoanOverdueDays, setTaskLoanOverdueDays] = useState<number>(
     () => {
       const raw = localStorage.getItem("notif:loanOverdueDays");
       const parsed = raw !== null ? parseInt(raw, 10) : 30;
       return isNaN(parsed) || parsed <= 0 ? 30 : parsed;
     },
   );
-  const [notifAccountNegative, setNotifAccountNegative] = useState(
+  const [taskAccountNegative, setTaskAccountNegative] = useState(
     () => localStorage.getItem("notif:accountNegative") !== "false",
   );
 
@@ -373,48 +373,48 @@ export default function SettingsPage() {
 
       <Divider />
 
-      {/* Notifications */}
+      {/* Tasks */}
       <Stack gap="xs">
         <Group gap="xs">
-          <IconBell size={18} />
-          <Title order={4}>{t("settingsSectionNotifications")}</Title>
+          <IconListCheck size={18} />
+          <Title order={4}>{t("settingsSectionTasks")}</Title>
         </Group>
         <Stack gap="md" mt={4}>
           <Stack gap={2}>
             <Switch
-              label={t("notifPaydayToggle")}
-              checked={notifPayday}
+              label={t("taskPaydayToggle")}
+              checked={taskPayday}
               onChange={(e) => {
                 const v = e.currentTarget.checked;
-                setNotifPayday(v);
+                setTaskPayday(v);
                 localStorage.setItem("notif:payday", String(v));
               }}
             />
             <Text size="xs" c="dimmed" ml={46}>
-              {t("notifPaydayToggleHint")}
+              {t("taskPaydayToggleHint")}
             </Text>
           </Stack>
           <Stack gap={2}>
             <Switch
-              label={t("notifCreditCardToggle")}
-              checked={notifCreditCard}
+              label={t("taskCreditCardToggle")}
+              checked={taskCreditCard}
               onChange={(e) => {
                 const v = e.currentTarget.checked;
-                setNotifCreditCard(v);
+                setTaskCreditCard(v);
                 localStorage.setItem("notif:creditCard", String(v));
               }}
             />
             <Text size="xs" c="dimmed" ml={46}>
-              {t("notifCreditCardToggleHint")}
+              {t("taskCreditCardToggleHint")}
             </Text>
           </Stack>
           <Stack gap={2}>
             <Switch
-              label={t("notifCreditCardWithdrawalRiskToggle")}
-              checked={notifCreditCardWithdrawalRisk}
+              label={t("taskCreditCardWithdrawalRiskToggle")}
+              checked={taskCreditCardWithdrawalRisk}
               onChange={(e) => {
                 const v = e.currentTarget.checked;
-                setNotifCreditCardWithdrawalRisk(v);
+                setTaskCreditCardWithdrawalRisk(v);
                 localStorage.setItem(
                   "notif:creditCardWithdrawalRisk",
                   String(v),
@@ -422,40 +422,40 @@ export default function SettingsPage() {
               }}
             />
             <Text size="xs" c="dimmed" ml={46}>
-              {t("notifCreditCardWithdrawalRiskToggleHint")}
+              {t("taskCreditCardWithdrawalRiskToggleHint")}
             </Text>
           </Stack>
           <Stack gap={2}>
             <Switch
-              label={t("notifBudgetNegativeToggle")}
-              checked={notifBudgetNegative}
+              label={t("taskBudgetNegativeToggle")}
+              checked={taskBudgetNegative}
               onChange={(e) => {
                 const v = e.currentTarget.checked;
-                setNotifBudgetNegative(v);
+                setTaskBudgetNegative(v);
                 localStorage.setItem("notif:budgetNegative", String(v));
               }}
             />
             <Text size="xs" c="dimmed" ml={46}>
-              {t("notifBudgetNegativeToggleHint")}
+              {t("taskBudgetNegativeToggleHint")}
             </Text>
           </Stack>
           <Stack gap={2}>
             <Switch
-              label={t("notifLoanOverdueToggle")}
-              checked={notifLoanOverdue}
+              label={t("taskLoanOverdueToggle")}
+              checked={taskLoanOverdue}
               onChange={(e) => {
                 const v = e.currentTarget.checked;
-                setNotifLoanOverdue(v);
+                setTaskLoanOverdue(v);
                 localStorage.setItem("notif:loanOverdue", String(v));
               }}
             />
             <Text size="xs" c="dimmed" ml={46}>
-              {t("notifLoanOverdueToggleHint")}
+              {t("taskLoanOverdueToggleHint")}
             </Text>
-            {notifLoanOverdue && (
+            {taskLoanOverdue && (
               <NumberInput
-                label={t("notifLoanOverdueDaysLabel")}
-                value={notifLoanOverdueDays}
+                label={t("taskLoanOverdueDaysLabel")}
+                value={taskLoanOverdueDays}
                 min={1}
                 max={3650}
                 ml={46}
@@ -463,7 +463,7 @@ export default function SettingsPage() {
                 mt={4}
                 onChange={(v) => {
                   const n = typeof v === "number" && v > 0 ? v : 30;
-                  setNotifLoanOverdueDays(n);
+                  setTaskLoanOverdueDays(n);
                   localStorage.setItem("notif:loanOverdueDays", String(n));
                 }}
               />
@@ -471,16 +471,16 @@ export default function SettingsPage() {
           </Stack>
           <Stack gap={2}>
             <Switch
-              label={t("notifAccountNegativeToggle")}
-              checked={notifAccountNegative}
+              label={t("taskAccountNegativeToggle")}
+              checked={taskAccountNegative}
               onChange={(e) => {
                 const v = e.currentTarget.checked;
-                setNotifAccountNegative(v);
+                setTaskAccountNegative(v);
                 localStorage.setItem("notif:accountNegative", String(v));
               }}
             />
             <Text size="xs" c="dimmed" ml={46}>
-              {t("notifAccountNegativeToggleHint")}
+              {t("taskAccountNegativeToggleHint")}
             </Text>
           </Stack>
         </Stack>
