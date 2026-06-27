@@ -47,6 +47,10 @@ import {
   type BulkRow,
   type BillingRow,
 } from "../utils/inputDrafts";
+import {
+  BULK_COPY_LAST_DATE_STORAGE_KEY,
+  shouldCopyLastDateByDefault,
+} from "../utils/bulkExpensePreferences";
 
 export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
   const { t } = useLang();
@@ -85,7 +89,10 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
   );
   const [posting, setPosting] = useState(false);
   const [copyLastDate, setCopyLastDate] = useState(
-    () => localStorage.getItem("bulkCopyLastDate") === "true",
+    () =>
+      shouldCopyLastDateByDefault(
+        localStorage.getItem(BULK_COPY_LAST_DATE_STORAGE_KEY),
+      ),
   );
   const [
     skipConfirmOpened,
@@ -571,7 +578,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
           onChange={(e) => {
             const v = e.currentTarget.checked;
             setCopyLastDate(v);
-            localStorage.setItem("bulkCopyLastDate", String(v));
+            localStorage.setItem(BULK_COPY_LAST_DATE_STORAGE_KEY, String(v));
           }}
         />
       </Group>
