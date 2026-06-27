@@ -53,6 +53,7 @@ const BASE = "/api";
 const dedupeBudgetSummaryRequest = createInFlightRequestDeduper();
 const dedupeCachedRequest = createInFlightRequestDeduper();
 const sessionResponseCache = new Map<string, unknown>();
+const NETWORK_OFFLINE_ERROR = "network_offline";
 
 export class ApiError extends Error {
   constructor(
@@ -65,8 +66,33 @@ export class ApiError extends Error {
   }
 }
 
+function createOfflineApiError() {
+  return new ApiError(NETWORK_OFFLINE_ERROR, 0, {
+    error: NETWORK_OFFLINE_ERROR,
+  });
+}
+
+function isBrowserOffline() {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+function isLikelyNetworkFailure(error: unknown) {
+  return error instanceof TypeError || isBrowserOffline();
+}
+
+async function apiFetch(input: RequestInfo | URL, init?: RequestInit) {
+  if (isBrowserOffline()) throw createOfflineApiError();
+
+  try {
+    return await fetch(input, init);
+  } catch (error) {
+    if (isLikelyNetworkFailure(error)) throw createOfflineApiError();
+    throw error;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await apiFetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
@@ -434,7 +460,7 @@ export const api = {
         { method: "POST", body: JSON.stringify({ locale }) },
       ),
     exportDb: async (): Promise<Blob> => {
-      const res = await fetch(`${BASE}/admin/export-db`);
+      const res = await apiFetch(`${BASE}/admin/export-db`);
       const contentType = res.headers.get("content-type") ?? "";
       if (
         contentType.toLowerCase().includes("text/html") ||

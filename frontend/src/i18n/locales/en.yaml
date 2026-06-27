@@ -28,6 +28,7 @@ hardReloadAccessTitle: Session expired
 hardReloadAccessMessage: Cloudflare Access is asking you to sign in again. Hard reload this page, then complete the Access login if prompted.
 hardReloadVersionTitle: New version available
 hardReloadVersionMessage: A newer version has been deployed. Hard reload this page to use the latest app.
+networkOfflineError: You appear to be offline. Check your network connection and try again.
 internalServerError: Internal Server Error
 accountAdded: Account added
 accountDeleted: Account deleted
