@@ -172,7 +172,9 @@ api.budget.{
 
 ### i18n (`frontend/src/i18n/`)
 
-`useLang()` hook returns `{ t, locale, setLocale }`. `LangProvider` wraps the app. Supports `en` and `ja`.
+`useLang()` hook returns `{ t, locale, setLocale }`. `LangProvider` wraps the app. Supports `en`, `ja`, `fr`, `es`, `zh-CN`, and `zh-TW`.
+
+When adding or changing user-facing copy, update every supported locale file in `frontend/src/i18n/locales/`, not only English and Japanese. Extra locales should not rely on the English fallback for new UI strings.
 
 ### Crypto Asset Watch
 

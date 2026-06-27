@@ -19,6 +19,9 @@ function multilingual(key: TranslationKey, locale: Locale) {
 function formatErrorMessage(error: string, locale: Locale) {
   const normalized = error.trim().toLowerCase();
   const internalServerError = tForLocale("internalServerError", "en").toLowerCase();
+  if (normalized === "network_offline") {
+    return multilingual("networkOfflineError", locale);
+  }
   if (normalized === internalServerError) {
     return multilingual("internalServerError", locale);
   }

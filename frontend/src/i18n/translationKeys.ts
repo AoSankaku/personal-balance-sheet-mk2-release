@@ -29,6 +29,7 @@ export const translationKeys = [
   "hardReloadAccessMessage",
   "hardReloadVersionTitle",
   "hardReloadVersionMessage",
+  "networkOfflineError",
   "internalServerError",
   "accountAdded",
   "accountDeleted",
