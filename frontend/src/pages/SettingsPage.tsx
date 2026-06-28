@@ -812,9 +812,8 @@ export default function SettingsPage() {
         })()}
       </Stack>
 
-      <Divider />
-
       <PwaInstallSetting />
+
         </>
       )}
 

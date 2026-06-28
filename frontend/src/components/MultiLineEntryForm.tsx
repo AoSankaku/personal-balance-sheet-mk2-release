@@ -273,6 +273,7 @@ export function MultiLineEntryForm({
 
   const totalDebit = form.values.rows.reduce((s, r) => s + (r.debit ?? 0), 0);
   const totalCredit = form.values.rows.reduce((s, r) => s + (r.credit ?? 0), 0);
+  const totalDifference = Math.abs(totalDebit - totalCredit);
   const isBalanced =
     Math.abs(totalDebit - totalCredit) < 0.001 && totalDebit > 0;
   const totalBudgetAlloc = Object.values(budgetAllocs).reduce(
@@ -555,6 +556,12 @@ export function MultiLineEntryForm({
               {t("totalCredit")}{" "}
               <Text span fw={600} c={isBalanced ? "teal" : "red"}>
                 {totalCredit.toLocaleString()}
+              </Text>
+            </Text>
+            <Text size="sm">
+              {t("totalDifference")}{" "}
+              <Text span fw={600} c={isBalanced ? "teal" : "red"}>
+                {totalDifference.toLocaleString()}
               </Text>
             </Text>
             {!isBalanced && (

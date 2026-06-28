@@ -64,6 +64,7 @@ import {
   type CsvRowState,
   type BulkExpenseRow,
 } from "../utils/inputDrafts";
+import { countMissingCounterAccountWarnings } from "../utils/csvImportWarnings";
 import {
   isUserSelectableAccount,
   toAccountSelectOption,
@@ -475,10 +476,14 @@ export function CsvImportTab({
   const handleImportClick = useCallback(() => {
     if (!accountId) return;
 
-    const emptyRows = transactions.filter(
-      (tx, i) =>
-        !isAmazonTransaction(tx.store) && !rowStates[i]?.counterAccountId,
-    ).length;
+    const emptyRows = countMissingCounterAccountWarnings(
+      transactions.map((tx, i) => ({
+        isAmazon: isAmazonTransaction(tx.store),
+        isSalaryPending: isSalaryPendingRow(tx, rowStates[i]),
+        hasCounterAccount: Boolean(rowStates[i]?.counterAccountId),
+        isPossibleDuplicate: duplicateMatches.has(i),
+      })),
+    );
 
     const dupRows: number[] = [];
     transactions.forEach((tx, i) => {

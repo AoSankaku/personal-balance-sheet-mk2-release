@@ -74,13 +74,11 @@ function isSimpleDisplayPositive(line: JournalLine, type?: Account["type"]) {
   return isIncreasingLine(line, type);
 }
 
-function signedAmountLabel(
+export function formatNarrativeAmountLabel(
   amount: string,
-  tone: DisplayTone,
-  showSign = true,
+  _tone: DisplayTone,
 ) {
-  if (!showSign || tone === "neutral") return amount;
-  return `${tone === "positive" ? "+" : "-"}${amount}`;
+  return amount;
 }
 
 function lineId(line: JournalLine, index: number) {
@@ -123,7 +121,10 @@ export function JournalTable({
     return formatCurrency(amount, locale, normalized, symbol);
   };
   const describeAmount = (line: JournalLine, tone: DisplayTone) => ({
-    text: signedAmountLabel(formatAmount(lineAmount(line), line.currency), tone),
+    text: formatNarrativeAmountLabel(
+      formatAmount(lineAmount(line), line.currency),
+      tone,
+    ),
     tone,
     nowrap: true,
   });

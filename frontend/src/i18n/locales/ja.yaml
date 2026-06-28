@@ -116,6 +116,7 @@ creditColHeader: 貸方
 addRow: 行を追加
 totalDebit: "借方合計:"
 totalCredit: "貸方合計:"
+totalDifference: "差額:"
 unbalanced: ⚠ 貸借不一致
 add: 追加
 descriptionIsRequired: 摘要は必須です
@@ -135,16 +136,16 @@ showInputTimestamp: 入力日時を表示
 journalSourceManual: 手動
 journalSourceCsvImport: CSVインポート
 ledgerSimpleSameEntryBadge: 同一仕訳
-ledgerSimpleTransfer: "「{description}」として、{fromAccount}から{toAccount}に{amount}振り替えた"
-ledgerSimpleExpenseIncrease: "「{description}」として、{account}で{amount}支払った"
-ledgerSimpleIncomeIncrease: "「{description}」として、{account}の収入{amount}を得た"
-ledgerSimpleExpenseIncomeDecrease: "「{description}」として、{account}を{amount}だけ取り消した"
-ledgerSimpleAssetIncrease: "「{description}」として、{account}の残高が{amount}だけ増加した"
-ledgerSimpleAssetDecrease: "「{description}」として、{account}の残高が{amount}だけ減少した"
-ledgerSimpleLiabilityIncrease: "「{description}」として、{account}を{amount}借りた"
-ledgerSimpleLiabilityDecrease: "「{description}」として、{account}を{amount}返済した"
-ledgerSimpleEquitySet: "「{description}」として、{account}を{amount}に設定した"
-ledgerSimpleFallback: "「{description}」として、{account}に{amount}を記録した"
+ledgerSimpleTransfer: "「{description}」として、{fromAccount}から{toAccount}へ振替 {amount}"
+ledgerSimpleExpenseIncrease: "「{description}」として、{account}: 支払い {amount}"
+ledgerSimpleIncomeIncrease: "「{description}」として、{account}: 収入 {amount}"
+ledgerSimpleExpenseIncomeDecrease: "「{description}」として、{account}: 取消 {amount}"
+ledgerSimpleAssetIncrease: "「{description}」として、{account}: 残高増加 {amount}"
+ledgerSimpleAssetDecrease: "「{description}」として、{account}: 残高減少 {amount}"
+ledgerSimpleLiabilityIncrease: "「{description}」として、{account}: 借入 {amount}"
+ledgerSimpleLiabilityDecrease: "「{description}」として、{account}: 返済 {amount}"
+ledgerSimpleEquitySet: "「{description}」として、{account}: 設定 {amount}"
+ledgerSimpleFallback: "「{description}」として、{account}: 記録 {amount}"
 noTransactionsYet: 取引がまだありません。
 deleteEntry: 仕訳を削除
 recentTransactions: 最近の取引

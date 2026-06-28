@@ -75,4 +75,40 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 900,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'react-vendor',
+              test: /node_modules[\\/](react|react-dom|react-router-dom)[\\/]/,
+              priority: 30,
+            },
+            {
+              name: 'mantine-vendor',
+              test: /node_modules[\\/]@mantine[\\/]/,
+              priority: 25,
+            },
+            {
+              name: 'charts-vendor',
+              test: /node_modules[\\/](recharts|d3-|victory-vendor)[\\/]/,
+              priority: 20,
+            },
+            {
+              name: 'markdown-vendor',
+              test: /node_modules[\\/](react-markdown|remark-|micromark|mdast-|hast-|unified|unist-|vfile)[\\/]/,
+              priority: 15,
+            },
+            {
+              name: 'utility-vendor',
+              test: /node_modules[\\/](dayjs|yaml|country-flag-icons|@tabler|react-icons)[\\/]/,
+              priority: 10,
+            },
+          ],
+        },
+      },
+    },
+  },
 });

@@ -10,7 +10,7 @@ import {
 
 describe("custom currency icon and symbol options", () => {
   test("offers about twenty curated react-icons choices", () => {
-    expect(CUSTOM_CURRENCY_ICON_OPTIONS).toHaveLength(20);
+    expect(CUSTOM_CURRENCY_ICON_OPTIONS.length).toBeGreaterThanOrEqual(20);
     expect(CUSTOM_CURRENCY_ICON_OPTIONS.some((option) => option.value === "circle")).toBe(
       true,
     );

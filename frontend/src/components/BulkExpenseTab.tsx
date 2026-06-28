@@ -19,7 +19,12 @@ import {
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
-import { IconDeviceFloppy, IconPlus, IconTrash } from "@tabler/icons-react";
+import {
+  IconCheck,
+  IconDeviceFloppy,
+  IconPlus,
+  IconTrash,
+} from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useEffect, useRef, useState } from "react";
 import type { CreateJournalInput } from "@balance-sheet/shared";
@@ -47,6 +52,10 @@ import {
   type BulkRow,
   type BillingRow,
 } from "../utils/inputDrafts";
+import {
+  BULK_COPY_LAST_DATE_STORAGE_KEY,
+  shouldCopyLastDateByDefault,
+} from "../utils/bulkExpensePreferences";
 
 export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
   const { t } = useLang();
@@ -85,7 +94,10 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
   );
   const [posting, setPosting] = useState(false);
   const [copyLastDate, setCopyLastDate] = useState(
-    () => localStorage.getItem("bulkCopyLastDate") === "true",
+    () =>
+      shouldCopyLastDateByDefault(
+        localStorage.getItem(BULK_COPY_LAST_DATE_STORAGE_KEY),
+      ),
   );
   const [
     skipConfirmOpened,
@@ -571,7 +583,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
           onChange={(e) => {
             const v = e.currentTarget.checked;
             setCopyLastDate(v);
-            localStorage.setItem("bulkCopyLastDate", String(v));
+            localStorage.setItem(BULK_COPY_LAST_DATE_STORAGE_KEY, String(v));
           }}
         />
       </Group>
@@ -587,62 +599,85 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
             </Text>
           </Group>
           <Divider />
-          {billingRows.map((br, i) => (
-            <Group key={i} gap="xs" align="center">
-              <Checkbox
-                size="xs"
-                checked={billingChecked[i] ?? false}
-                onChange={(e) =>
-                  setBillingChecked((prev) => {
-                    const next = [...prev];
-                    next[i] = e.currentTarget.checked;
-                    return next;
-                  })
-                }
-              />
-              <TextInput
-                size="xs"
-                flex={1}
-                placeholder={t("bulkExpenseBillingLabel")}
-                value={br.label}
-                onChange={(e) =>
-                  setBillingRows((prev) =>
-                    prev.map((r, j) =>
-                      j === i ? { ...r, label: e.currentTarget.value } : r,
-                    ),
-                  )
-                }
-              />
-              <NumberInput
-                size="xs"
-                w={120}
-                prefix={currencySymbol}
-                thousandSeparator=","
-                value={br.amount}
-                onChange={(v) =>
-                  setBillingRows((prev) =>
-                    prev.map((r, j) =>
-                      j === i ? { ...r, amount: String(v) } : r,
-                    ),
-                  )
-                }
-                hideControls
-                placeholder="0"
-              />
-              <ActionIcon
-                size="xs"
-                variant="subtle"
-                color="gray"
-                onClick={() => {
-                  setBillingRows((prev) => prev.filter((_, j) => j !== i));
-                  setBillingChecked((prev) => prev.filter((_, j) => j !== i));
-                }}
-                disabled={billingRows.length === 1}
-              >
-                <IconTrash size={12} />
-              </ActionIcon>
-            </Group>
-          ))}
+          {billingRows.map((br, i) => {
+            const checked = billingChecked[i] ?? false;
+
+            return (
+              <Group key={i} gap="xs" align="center">
+                <Checkbox
+                  size="xs"
+                  checked={checked}
+                  onChange={(e) =>
+                    setBillingChecked((prev) => {
+                      const next = [...prev];
+                      next[i] = e.currentTarget.checked;
+                      return next;
+                    })
+                  }
+                />
+                <TextInput
+                  size="xs"
+                  flex={1}
+                  placeholder={t("bulkExpenseBillingLabel")}
+                  value={br.label}
+                  onChange={(e) =>
+                    setBillingRows((prev) =>
+                      prev.map((r, j) =>
+                        j === i ? { ...r, label: e.currentTarget.value } : r,
+                      ),
+                    )
+                  }
+                />
+                <NumberInput
+                  size="xs"
+                  w={120}
+                  prefix={currencySymbol}
+                  thousandSeparator=","
+                  value={br.amount}
+                  onChange={(v) =>
+                    setBillingRows((prev) =>
+                      prev.map((r, j) =>
+                        j === i ? { ...r, amount: String(v) } : r,
+                      ),
+                    )
+                  }
+                  hideControls
+                  placeholder="0"
+                  rightSection={
+                    checked ? (
+                      <IconCheck
+                        size={14}
+                        color="var(--mantine-color-teal-7)"
+                      />
+                    ) : null
+                  }
+                  rightSectionWidth={26}
+                  styles={{
+                    input: checked
+                      ? {
+                          color: "var(--mantine-color-teal-7)",
+                          fontWeight: 700,
+                        }
+                      : undefined,
+                  }}
+                />
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  color="gray"
+                  onClick={() => {
+                    setBillingRows((prev) => prev.filter((_, j) => j !== i));
+                    setBillingChecked((prev) =>
+                      prev.filter((_, j) => j !== i),
+                    );
+                  }}
+                  disabled={billingRows.length === 1}
+                >
+                  <IconTrash size={12} />
+                </ActionIcon>
+              </Group>
+            );
+          })}
           <Button
             variant="subtle"
             size="xs"
