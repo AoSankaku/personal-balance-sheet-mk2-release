@@ -64,6 +64,10 @@ import {
   sortBudgetAdjustmentLogs,
   type BudgetAdjustmentLogSortKey,
 } from "../lib/budgetAdjustmentLogSort";
+import {
+  budgetAdjustmentLogKey,
+  buildBudgetAdjustmentLogBalanceMap,
+} from "../lib/budgetAdjustmentLogBalances";
 import { summarizeBudgetAdjustmentLogsByCategory } from "../lib/budgetAdjustmentCategorySummary";
 import { refreshAfterBudgetAdjustment } from "../lib/budgetAdjustmentRefresh";
 import { usePrivacy } from "../context/PrivacyContext";
@@ -563,6 +567,10 @@ export default function LedgerPage() {
       budgetCategories.map((category) => category.id),
     );
   }, [adjustmentLogs, budgetSort, budgetCategories]);
+  const budgetLogBalanceByKey = useMemo(
+    () => buildBudgetAdjustmentLogBalanceMap(adjustmentLogs),
+    [adjustmentLogs],
+  );
   const budgetAvailableByCategoryId = useMemo(
     () =>
       new Map(
@@ -1248,7 +1256,7 @@ export default function LedgerPage() {
               </Group>
               <Paper withBorder radius="md">
                 <ScrollArea>
-                  <Table striped highlightOnHover style={{ minWidth: 680 }}>
+                  <Table striped highlightOnHover style={{ minWidth: 780 }}>
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>
@@ -1285,6 +1293,9 @@ export default function LedgerPage() {
                             </Group>
                           </UnstyledButton>
                         </Table.Th>
+                        <Table.Th className="currency-cell">
+                          {t("budgetHistoryAdjustedTotal")}
+                        </Table.Th>
                         <Table.Th>{t("budgetHistoryNoteCol")}</Table.Th>
                         <Table.Th />
                       </Table.Tr>
@@ -1309,6 +1320,24 @@ export default function LedgerPage() {
                                 >
                                   {displayAmount >= 0 ? "+" : ""}
                                   {formatSelectedCurrency(displayAmount)}
+                                </Text>
+                              );
+                            })()}
+                          </Table.Td>
+                          <Table.Td className="currency-cell">
+                            {(() => {
+                              const balanceAfter =
+                                budgetLogBalanceByKey.get(
+                                  budgetAdjustmentLogKey(log),
+                                ) ?? log.amount;
+                              return (
+                                <Text
+                                  size="sm"
+                                  fw={700}
+                                  c={balanceAfter >= 0 ? "teal" : "red"}
+                                >
+                                  {balanceAfter >= 0 ? "+" : ""}
+                                  {formatSelectedCurrency(balanceAfter)}
                                 </Text>
                               );
                             })()}
