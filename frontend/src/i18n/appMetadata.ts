@@ -20,8 +20,16 @@ export function applyAppMetadata(
   metadata: AppMetadata,
   htmlLang: string,
 ): void {
-  target.documentElement.lang = htmlLang;
+  applyAppChromeMetadata(target, metadata, htmlLang);
   target.title = metadata.title;
+}
+
+export function applyAppChromeMetadata(
+  target: Document,
+  metadata: AppMetadata,
+  htmlLang: string,
+): void {
+  target.documentElement.lang = htmlLang;
   target
     .querySelector<HTMLLinkElement>('link[rel="manifest"]')
     ?.setAttribute("href", metadata.manifestHref);

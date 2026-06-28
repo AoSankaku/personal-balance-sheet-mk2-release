@@ -4,9 +4,15 @@ import { join } from "path";
 import { parse } from "yaml";
 import sharp from "sharp";
 import {
+  applyAppChromeMetadata,
   applyAppMetadata,
   getAppMetadata,
 } from "../src/i18n/appMetadata";
+import {
+  formatDocumentTitle,
+  pageTitleKeyForPathname,
+} from "../src/i18n/documentTitle";
+import { tForLocale } from "../src/i18n/translate";
 import type { Locale } from "../src/i18n/translations";
 
 const frontendRoot = join(import.meta.dir, "..");
@@ -69,6 +75,65 @@ describe("localized application metadata", () => {
     expect(
       attributes.get('meta[name="apple-mobile-web-app-title"]:content'),
     ).toBe("Bilan personnel");
+  });
+
+  test("applies localized chrome metadata without overwriting the active page title", () => {
+    const attributes = new Map<string, string>();
+    const target = {
+      title: "Overview | Personal Balance Sheet",
+      documentElement: { lang: "" },
+      querySelector: (selector: string) =>
+        selector === 'link[rel="manifest"]' ||
+        selector === 'meta[name="apple-mobile-web-app-title"]'
+          ? {
+              setAttribute: (name: string, value: string) => {
+                attributes.set(`${selector}:${name}`, value);
+              },
+            }
+          : null,
+    } as unknown as Document;
+
+    applyAppChromeMetadata(
+      target,
+      getAppMetadata("en", "Personal Balance Sheet"),
+      "en-US",
+    );
+
+    expect(target.title).toBe("Overview | Personal Balance Sheet");
+    expect(target.documentElement.lang).toBe("en-US");
+    expect(attributes.get('link[rel="manifest"]:href')).toBe(
+      "/manifest-en.webmanifest",
+    );
+    expect(
+      attributes.get('meta[name="apple-mobile-web-app-title"]:content'),
+    ).toBe("Personal Balance Sheet");
+  });
+
+  test("resolves localized document titles from route page names", () => {
+    const overviewKey = pageTitleKeyForPathname("/");
+    const financialsKey = pageTitleKeyForPathname("/fs");
+    const budgetKey = pageTitleKeyForPathname("/settings/budget/");
+    const loanDetailKey = pageTitleKeyForPathname(
+      "/fs/db/long-term-loan/42?tab=plan",
+    );
+
+    expect(overviewKey).toBe("navOverview");
+    expect(financialsKey).toBe("navFS");
+    expect(budgetKey).toBe("budgetSettingsTitle");
+    expect(loanDetailKey).toBe("loanDetailTitle");
+
+    expect(
+      formatDocumentTitle(
+        tForLocale("appTitle", "ja"),
+        overviewKey ? tForLocale(overviewKey, "ja") : null,
+      ),
+    ).toBe("概要 | 個人バランスシート");
+    expect(
+      formatDocumentTitle(
+        tForLocale("appTitle", "en"),
+        budgetKey ? tForLocale(budgetKey, "en") : null,
+      ),
+    ).toBe("Budget Settings | Personal Balance Sheet");
   });
 
   test("provides a valid PWA manifest for every supported locale", () => {

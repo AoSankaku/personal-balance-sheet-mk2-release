@@ -26,6 +26,7 @@ import LongTermLoanDetailPage from "./pages/LongTermLoanDetailPage";
 import LanguageSetupPage from "./pages/LanguageSetupPage";
 import { FeedbackHost } from "./components/FeedbackHost";
 import { HardReloadPrompt } from "./components/HardReloadPrompt";
+import { PageTitle } from "./components/PageTitle";
 import { useAppData } from "./context/AppDataContext";
 import { useVersionUpdateMonitor } from "./hooks/useVersionUpdateMonitor";
 import { useLang } from "./i18n";
@@ -40,6 +41,11 @@ export default function App() {
     enabledCurrenciesLoaded && enabledCurrencies.length === 0;
   const needsLanguageSetup = needsCurrencySetup && !hasExplicitLocale;
   const inInitialSetupFlow = needsLanguageSetup || needsCurrencySetup;
+  const overrideTitleKey = needsLanguageSetup
+    ? "languageLabel"
+    : needsCurrencySetup
+      ? "currencySettingsInitialSetupTitle"
+      : null;
 
   return (
     <AppShell
@@ -55,6 +61,7 @@ export default function App() {
       </AppShell.Header>
 
       <AppShell.Main>
+        <PageTitle overrideTitleKey={overrideTitleKey} />
         <FeedbackHost />
         <HardReloadPrompt />
         {!enabledCurrenciesLoaded ? null : needsLanguageSetup ? (
