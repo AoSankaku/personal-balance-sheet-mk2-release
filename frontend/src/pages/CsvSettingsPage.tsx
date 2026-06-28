@@ -17,6 +17,7 @@ import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { showFeedback } from "../lib/feedback";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
+import { accountDisplayNameFromName } from "../lib/accountUtils";
 
 export default function CsvSettingsPage() {
   const { t } = useLang();
@@ -79,8 +80,11 @@ export default function CsvSettingsPage() {
           <Stack gap={6}>
             {mappings.map((m) => {
               const accName =
-                m.account_name ??
-                accounts.find((a) => a.id === m.account_id)?.name ??
+                accountDisplayNameFromName(m.account_name, t) ||
+                accountDisplayNameFromName(
+                  accounts.find((a) => a.id === m.account_id)?.name,
+                  t,
+                ) ||
                 String(m.account_id);
               return (
                 <Group key={m.id} justify="space-between" wrap="nowrap">

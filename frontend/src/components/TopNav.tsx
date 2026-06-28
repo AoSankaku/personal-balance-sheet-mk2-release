@@ -33,7 +33,7 @@ import { findOverdueShortTermLoanAccounts } from "../pages/dbPageUtils";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
 import { formatJPY } from "../lib/numberFormat";
-import { systemAccountTranslationKey } from "../lib/accountUtils";
+import { accountDisplayNameFromName } from "../lib/accountUtils";
 import { CryptoCurrencyIcon } from "./CryptoCurrencyIcon";
 import { CustomCurrencyIcon } from "./CustomCurrencyIcon";
 import type { CryptoIconStyle } from "../lib/cryptoCurrencyIcons";
@@ -126,6 +126,7 @@ interface AppTask {
 
 function usePaydayTasks(): AppTask[] {
   const { accounts, journal } = useAppData();
+  const { t } = useLang();
 
   if (localStorage.getItem("notif:payday") === "false") return [];
 
@@ -152,7 +153,7 @@ function usePaydayTasks(): AppTask[] {
     if (!hasEntry) {
       tasks.push({
         id: `payday-${account.id}`,
-        message: account.name,
+        message: accountDisplayNameFromName(account.name, t),
       });
     }
   }
@@ -180,6 +181,7 @@ interface OverdueLoanTask extends AppTask {
 
 function useOverdueLoanTasks(): OverdueLoanTask[] {
   const { accounts, journal } = useAppData();
+  const { t } = useLang();
 
   if (localStorage.getItem("notif:loanOverdue") === "false") return [];
 
@@ -220,7 +222,7 @@ function useOverdueLoanTasks(): OverdueLoanTask[] {
     today,
   ).map(({ account, daysDiff }) => ({
     id: `loan-overdue-${account.id}`,
-    message: account.name,
+    message: accountDisplayNameFromName(account.name, t),
     daysDiff,
   }));
 }
@@ -237,13 +239,7 @@ function useNegativeAccountTasks(): AppTask[] {
     if (account.name === "__system:unknown_funds__") continue;
     if ((account.balance ?? 0) >= -0.001) continue;
 
-    const label = (() => {
-      if (account.is_system) {
-        const k = systemAccountTranslationKey(account.name);
-        if (k) return t(k);
-      }
-      return account.name;
-    })();
+    const label = accountDisplayNameFromName(account.name, t);
 
     tasks.push({
       id: `account-negative-${account.id}`,
@@ -425,7 +421,7 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
                       <Stack gap={2}>
                         <Group gap={8} wrap="nowrap">
                           <Text size="sm" style={{ flex: 1 }}>
-                            {n.creditCardName}
+                            {accountDisplayNameFromName(n.creditCardName, t)}
                           </Text>
                           <Text size="xs" c="red">
                             {formatJPY(n.combinedProjectedBalance, locale)}
@@ -434,7 +430,13 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
                         <Text size="xs" c="dimmed">
                           {t("taskCreditCardWithdrawalRiskDetail")
                             .replace("{date}", n.withdrawalDate)
-                            .replace("{account}", n.withdrawalAccountName)
+                            .replace(
+                              "{account}",
+                              accountDisplayNameFromName(
+                                n.withdrawalAccountName,
+                                t,
+                              ),
+                            )
                             .replace(
                               "{amount}",
                               formatJPY(n.combinedAmount, locale),

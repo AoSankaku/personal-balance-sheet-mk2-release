@@ -356,8 +356,8 @@ export default function ExportPage() {
         schedules: deprRows.map((row) => ({
           id: row.id,
           description: row.description,
-          asset_account_name: row.asset_account_name,
-          expense_account_name: row.expense_account_name,
+          asset_account_name: accountDisplayName(row.asset_account_name),
+          expense_account_name: accountDisplayName(row.expense_account_name),
           start_date: row.start_date,
           total_amount: row.total_amount,
           months: row.months,
@@ -422,8 +422,8 @@ export default function ExportPage() {
     const deprList = deprRows.map((row) => ({
       id: row.id,
       description: row.description,
-      asset_account_name: row.asset_account_name,
-      expense_account_name: row.expense_account_name,
+      asset_account_name: accountDisplayName(row.asset_account_name),
+      expense_account_name: accountDisplayName(row.expense_account_name),
       start_date: row.start_date,
       total_amount: row.total_amount,
       months: row.months,
@@ -539,7 +539,7 @@ export default function ExportPage() {
     ${deprRows
       .map(
         (row) => `<tr>
-      <td><strong>${row.description}</strong><br><span style="font-size:10px;color:#888;">${row.asset_account_name}</span></td>
+      <td><strong>${row.description}</strong><br><span style="font-size:10px;color:#888;">${accountDisplayName(row.asset_account_name)}</span></td>
       <td class="num">${f(row.total_amount)}</td>
       <td style="text-align:center;">${row.start_date}<br><span style="font-size:10px;color:#888;">${row.months}ヶ月</span></td>
       <td class="num">${f(row.accumulated)}</td>
@@ -1088,7 +1088,7 @@ ${deprSection}
                                 {row.description}
                               </Text>
                               <Text size="xs" c="dimmed">
-                                {row.asset_account_name}
+                                {accountDisplayName(row.asset_account_name)}
                               </Text>
                             </Table.Td>
                             <Table.Td className="currency-cell">

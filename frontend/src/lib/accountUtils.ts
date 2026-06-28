@@ -1,37 +1,29 @@
 import type { AccountCategory, AccountType } from "@balance-sheet/shared";
 import type { TranslationKey } from "../i18n";
 
+const SYSTEM_ACCOUNT_TRANSLATION_KEYS = {
+  "__system:unknown_funds__": "sysUnknownFunds",
+  "__system:misc_expense__": "sysMiscExpense",
+  "__system:misc_income__": "sysMiscIncome",
+  "__system:securities_gain__": "sysSecuritiesGain",
+  "__system:securities_loss__": "sysSecuritiesLoss",
+  "__system:crypto_gain__": "sysCryptoGain",
+  "__system:crypto_loss__": "sysCryptoLoss",
+  "__system:property_gain__": "sysPropertyGain",
+  "__system:property_loss__": "sysPropertyLoss",
+  "__system:opening_balance__": "sysOpeningBalance",
+  "__system:bad_debt_loss__": "sysBadDebtLoss",
+} as const satisfies Record<string, TranslationKey>;
+
 /** Maps a system account internal name to its translation key. Returns null if not a known system key. */
 export function systemAccountTranslationKey(
   name: string,
 ): TranslationKey | null {
-  switch (name) {
-    case "__system:unknown_funds__":
-      return "sysUnknownFunds";
-    case "__system:misc_expense__":
-      return "sysMiscExpense";
-    case "__system:misc_income__":
-      return "sysMiscIncome";
-    case "__system:securities_gain__":
-      return "sysSecuritiesGain";
-    case "__system:securities_loss__":
-      return "sysSecuritiesLoss";
-    case "__system:crypto_gain__":
-      return "sysCryptoGain";
-    case "__system:crypto_loss__":
-      return "sysCryptoLoss";
-    case "__system:property_gain__":
-      return "sysPropertyGain";
-    case "__system:property_loss__":
-      return "sysPropertyLoss";
-    case "__system:opening_balance__":
-      return "sysOpeningBalance";
-    case "__system:bad_debt_loss__":
-      return "sysBadDebtLoss";
-    // Loan system accounts use plain names (already human-readable)
-    default:
-      return null;
-  }
+  const key = (SYSTEM_ACCOUNT_TRANSLATION_KEYS as Record<
+    string,
+    TranslationKey | undefined
+  >)[name];
+  return key ?? null;
 }
 
 type AccountDisplayLike = {
@@ -50,15 +42,31 @@ export function isUserSelectableAccount(account: {
   return !isSystemAccount(account);
 }
 
+export function accountDisplayNameFromName(
+  name: string | null | undefined,
+  t?: (key: TranslationKey) => string,
+): string {
+  if (!name) return "";
+  const key = systemAccountTranslationKey(name);
+  return key ? (t ? t(key) : key) : name;
+}
+
+export function displaySystemAccountNamesInText(
+  text: string,
+  t?: (key: TranslationKey) => string,
+): string {
+  let next = text;
+  for (const [rawName, key] of Object.entries(SYSTEM_ACCOUNT_TRANSLATION_KEYS)) {
+    next = next.replaceAll(rawName, t ? t(key) : key);
+  }
+  return next;
+}
+
 export function accountDisplayName(
   account: AccountDisplayLike,
   t?: (key: TranslationKey) => string,
 ): string {
-  if (isSystemAccount(account)) {
-    const key = systemAccountTranslationKey(account.name);
-    if (key) return t ? t(key) : key;
-  }
-  return account.name;
+  return accountDisplayNameFromName(account.name, t);
 }
 
 export function toAccountSelectOption(

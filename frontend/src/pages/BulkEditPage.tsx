@@ -32,6 +32,7 @@ import {
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
 import {
+  accountDisplayNameFromName,
   categoryIndex,
   systemAccountTranslationKey,
 } from "../lib/accountUtils";
@@ -165,7 +166,10 @@ function EntryList({
                                 c={isHighlighted ? "orange.7" : undefined}
                                 fw={isHighlighted ? 700 : undefined}
                               >
-                                {line.account_name ?? String(line.account_id)}
+                                {accountDisplayNameFromName(
+                                  line.account_name,
+                                  t,
+                                ) || String(line.account_id)}
                               </Table.Td>
                               <Table.Td
                                 className="currency-cell"
@@ -665,8 +669,11 @@ export default function BulkEditPage() {
           <Alert color="orange" variant="light">
             <Text size="sm">
               {t("bulkReplaceConfirmBody")
-                .replace("{from}", fromAccount?.name ?? "")
-                .replace("{to}", toAccount?.name ?? "")}
+                .replace(
+                  "{from}",
+                  accountDisplayNameFromName(fromAccount?.name, t),
+                )
+                .replace("{to}", accountDisplayNameFromName(toAccount?.name, t))}
             </Text>
             <Text size="sm" mt={4} fw={600}>
               {t("bulkSelectedCount")

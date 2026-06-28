@@ -43,6 +43,7 @@ import type {
 } from "@balance-sheet/shared";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { BalanceDisplay } from "../components/BalanceDisplay";
+import { accountDisplayNameFromName } from "../lib/accountUtils";
 import { formatCurrency } from "../lib/numberFormat";
 
 function normalizeCurrency(currency: string | null | undefined) {
@@ -239,6 +240,7 @@ function RecentTransactionRow({
   locale: string;
   displayCurrency: string;
 }) {
+  const { t } = useLang();
   const debitLines = entry.lines.filter(
     (l) => l.debit > 0 && lineMatchesCurrency(l, displayCurrency),
   );
@@ -268,7 +270,9 @@ function RecentTransactionRow({
   const formattedAmount = formatCurrency(amount, locale, displayCurrency);
 
   const allAccountNames = [
-    ...new Set(selectedLines.map((l) => l.account_name)),
+    ...new Set(
+      selectedLines.map((l) => accountDisplayNameFromName(l.account_name, t)),
+    ),
   ].join(" · ");
 
   const allocations = [
@@ -431,10 +435,10 @@ export default function OverviewPage() {
       if (hasTrialBalanceEntry) continue;
 
       const acct = accounts.find((a) => a.id === cc.account_id);
-      if (acct) reminders.push(acct.name);
+      if (acct) reminders.push(accountDisplayNameFromName(acct.name, t));
     }
     setImportReminders(reminders);
-  }, [creditCardSettings, ccState, journal, accounts]);
+  }, [creditCardSettings, ccState, journal, accounts, t]);
 
   // Single date state drives both month context and as-of filter
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());

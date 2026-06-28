@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   accountDisplayName,
+  accountDisplayNameFromName,
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../src/lib/accountUtils";
@@ -34,6 +35,17 @@ describe("account select option helpers", () => {
         t,
       ),
     ).toEqual({ value: "1", label: "translated:sysMiscExpense" });
+  });
+
+  test("translates raw system names carried by denormalized journal rows", () => {
+    const t = (key: string) => `translated:${key}`;
+
+    expect(accountDisplayNameFromName("__system:crypto_loss__", t)).toBe(
+      "translated:sysCryptoLoss",
+    );
+    expect(accountDisplayNameFromName("Everyday cash", t)).toBe(
+      "Everyday cash",
+    );
   });
 
   test("shared CSV account option builders omit system accounts", () => {
