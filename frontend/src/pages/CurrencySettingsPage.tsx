@@ -27,7 +27,6 @@ import {
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
-import * as Flags from "country-flag-icons/react/3x2";
 import { Link } from "react-router-dom";
 import type { EnabledCurrency } from "@balance-sheet/shared";
 import { useAppData } from "../context/AppDataContext";
@@ -47,6 +46,7 @@ import { formatCurrency } from "../lib/numberFormat";
 import { CURRENCY_SYMBOLS, getEffectiveSymbol } from "../lib/currencyUtils";
 import { CryptoCurrencyIcon } from "../components/CryptoCurrencyIcon";
 import { CustomCurrencyIcon } from "../components/CustomCurrencyIcon";
+import { CurrencyOptionIcon } from "../components/CurrencyOptionIcon";
 import type { CryptoIconStyle } from "../lib/cryptoCurrencyIcons";
 import {
   CUSTOM_CURRENCY_ICON_OPTIONS,
@@ -101,50 +101,7 @@ function formatAmount(amount: number, code: string, sym: string): string {
     : `${sign}${numStr} ${sym}`;
 }
 
-// ── Flag / Crypto icon helpers ───────────────────────────────────────────────
-
-const CURRENCY_TO_COUNTRY: Record<string, string> = {
-  JPY: "JP",
-  USD: "US",
-  EUR: "EU",
-  GBP: "GB",
-  AUD: "AU",
-  CAD: "CA",
-  CHF: "CH",
-  CNY: "CN",
-  HKD: "HK",
-  KRW: "KR",
-  SGD: "SG",
-  THB: "TH",
-  IDR: "ID",
-  MYR: "MY",
-  PHP: "PH",
-  INR: "IN",
-  SEK: "SE",
-  NOK: "NO",
-  DKK: "DK",
-  NZD: "NZ",
-  MXN: "MX",
-  BRL: "BR",
-  ZAR: "ZA",
-  TRY: "TR",
-  PLN: "PL",
-  CZK: "CZ",
-  HUF: "HU",
-};
-
-function FlagIcon({ code }: { code: string }) {
-  const country = CURRENCY_TO_COUNTRY[code];
-  if (!country) return <span style={{ width: 22, display: "inline-block" }} />;
-  const Flag = (
-    Flags as unknown as Record<
-      string,
-      React.ComponentType<{ style?: React.CSSProperties }>
-    >
-  )[country];
-  if (!Flag) return <span style={{ width: 22, display: "inline-block" }} />;
-  return <Flag style={{ width: 22, height: "auto", display: "block" }} />;
-}
+// ── Crypto icon helpers ──────────────────────────────────────────────────────
 
 function CryptoIcon({ symbol }: { symbol: string }) {
   return (
@@ -572,20 +529,16 @@ export default function CurrencySettingsPage({
   }
 
   function getCurrencyIcon(code: string) {
-    if (CRYPTO_CODE_SET.has(code)) {
-      return (
-        <CryptoCurrencyIcon
-          code={code}
-          styleMode={cryptoIconStyle}
-          size={22}
-        />
-      );
-    }
-    if (FIAT_CURRENCIES.some((currency) => currency.code === code)) {
-      return <FlagIcon code={code} />;
-    }
     const custom = enabledCurrencies.find((currency) => currency.code === code);
-    return <CustomCurrencyIcon icon={custom?.custom_icon} size={22} />;
+    return (
+      <CurrencyOptionIcon
+        code={code}
+        cryptoIconStyle={cryptoIconStyle}
+        customIcon={custom?.custom_icon}
+        size={22}
+        symbol={getEffectiveSymbol(code, enabledCurrencies)}
+      />
+    );
   }
 
   async function reorderCurrencies(codes: string[]) {
@@ -1040,7 +993,14 @@ export default function CurrencySettingsPage({
               <CurrencyCheckbox
                 key={c.code}
                 code={c.code}
-                icon={<FlagIcon code={c.code} />}
+                icon={
+                  <CurrencyOptionIcon
+                    code={c.code}
+                    cryptoIconStyle={cryptoIconStyle}
+                    size={22}
+                    symbol={CURRENCY_SYMBOLS[c.code]}
+                  />
+                }
                 label={locale === "ja" ? `${c.nameJa} / ${c.name}` : c.name}
               />
             ))}
