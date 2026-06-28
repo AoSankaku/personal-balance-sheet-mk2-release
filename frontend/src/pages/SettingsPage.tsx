@@ -477,7 +477,6 @@ export default function SettingsPage() {
             {t("privacyMaskAccountsToggleHint")}
           </Text>
         </Stack>
-        <PwaInstallSetting />
       </Stack>
 
       {privacyMode && (
@@ -812,6 +811,8 @@ export default function SettingsPage() {
           );
         })()}
       </Stack>
+
+      <PwaInstallSetting />
 
         </>
       )}

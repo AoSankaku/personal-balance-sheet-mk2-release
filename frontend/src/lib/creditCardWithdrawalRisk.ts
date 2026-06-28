@@ -157,3 +157,6 @@ export function computeCreditCardWithdrawalRiskTasks({
     });
   });
 }
+
+export const computeCreditCardWithdrawalRiskNotifications =
+  computeCreditCardWithdrawalRiskTasks;

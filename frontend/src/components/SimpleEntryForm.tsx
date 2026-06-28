@@ -62,7 +62,7 @@ import {
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { showFeedback } from "../lib/feedback";
-import { ApiError } from "../api/client";
+import { api, ApiError } from "../api/client";
 import {
   categoryIndex,
   CATEGORY_TRANSLATION_KEY,
@@ -749,10 +749,8 @@ export function SimpleEntryForm({
       return;
     }
     setIsLoadingUnsettled(true);
-    import("../api/client")
-      .then(({ api }) =>
-        api.loans.unsettled(loanAccountId, editEntryId, selectedCurrency),
-      )
+    api.loans
+      .unsettled(loanAccountId, editEntryId, selectedCurrency)
       .then(({ entries }) => {
         setUnsettledEntries(entries);
         // Pre-select entries already settled by the entry being edited
