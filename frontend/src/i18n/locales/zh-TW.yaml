@@ -136,16 +136,16 @@ showInputTimestamp: 顯示時間戳
 journalSourceManual: 手動
 journalSourceCsvImport: CSV 匯入
 ledgerSimpleSameEntryBadge: 同一分錄
-ledgerSimpleTransfer: "「{description}」將 {amount} 從 {fromAccount} 轉到 {toAccount}"
-ledgerSimpleExpenseIncrease: "「{description}」使用 {account} 支付了 {amount}"
-ledgerSimpleIncomeIncrease: "「{description}」從 {account} 取得收入 {amount}"
-ledgerSimpleExpenseIncomeDecrease: "「{description}」取消了 {account} 的 {amount}"
-ledgerSimpleAssetIncrease: "「{description}」使 {account} 的餘額增加了 {amount}"
-ledgerSimpleAssetDecrease: "「{description}」使 {account} 的餘額減少了 {amount}"
-ledgerSimpleLiabilityIncrease: "「{description}」以 {account} 借入了 {amount}"
-ledgerSimpleLiabilityDecrease: "「{description}」償還了 {account} 的 {amount}"
-ledgerSimpleEquitySet: "「{description}」將 {account} 設為 {amount}"
-ledgerSimpleFallback: "「{description}」為 {account} 記錄了 {amount}"
+ledgerSimpleTransfer: "「{description}」從 {fromAccount} 到 {toAccount}: 轉帳 {amount}"
+ledgerSimpleExpenseIncrease: "「{description}」{account}: 支付 {amount}"
+ledgerSimpleIncomeIncrease: "「{description}」{account}: 收入 {amount}"
+ledgerSimpleExpenseIncomeDecrease: "「{description}」{account}: 取消 {amount}"
+ledgerSimpleAssetIncrease: "「{description}」{account}: 餘額增加 {amount}"
+ledgerSimpleAssetDecrease: "「{description}」{account}: 餘額減少 {amount}"
+ledgerSimpleLiabilityIncrease: "「{description}」{account}: 借入 {amount}"
+ledgerSimpleLiabilityDecrease: "「{description}」{account}: 償還 {amount}"
+ledgerSimpleEquitySet: "「{description}」{account}: 設定 {amount}"
+ledgerSimpleFallback: "「{description}」{account}: 記錄 {amount}"
 noTransactionsYet: 尚無交易。
 deleteEntry: 刪除分錄
 recentTransactions: 最近交易

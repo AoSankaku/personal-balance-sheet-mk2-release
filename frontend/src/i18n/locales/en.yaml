@@ -136,13 +136,13 @@ showInputTimestamp: Show timestamp
 journalSourceManual: Manual
 journalSourceCsvImport: CSV Import
 ledgerSimpleSameEntryBadge: Same entry
-ledgerSimpleTransfer: '"{description}" transferred {amount} from {fromAccount} to {toAccount}'
-ledgerSimpleExpenseIncrease: '"{description}" paid {amount} with {account}'
-ledgerSimpleIncomeIncrease: '"{description}" received {amount} as income from {account}'
-ledgerSimpleExpenseIncomeDecrease: '"{description}" canceled {amount} from {account}'
-ledgerSimpleAssetIncrease: '"{description}" increased the balance of {account} by {amount}'
-ledgerSimpleAssetDecrease: '"{description}" decreased the balance of {account} by {amount}'
-ledgerSimpleLiabilityIncrease: '"{description}" borrowed {amount} as {account}'
+ledgerSimpleTransfer: '"{description}" transfer {amount} from {fromAccount} to {toAccount}'
+ledgerSimpleExpenseIncrease: '"{description}" payment {amount} with {account}'
+ledgerSimpleIncomeIncrease: '"{description}" income {amount} from {account}'
+ledgerSimpleExpenseIncomeDecrease: '"{description}" cancellation {amount} from {account}'
+ledgerSimpleAssetIncrease: '"{description}" balance increase {amount} for {account}'
+ledgerSimpleAssetDecrease: '"{description}" balance decrease {amount} for {account}'
+ledgerSimpleLiabilityIncrease: '"{description}" borrowing {amount} as {account}'
 ledgerSimpleLiabilityDecrease: '"{description}" repaid {amount} toward {account}'
 ledgerSimpleEquitySet: '"{description}" set {account} to {amount}'
 ledgerSimpleFallback: '"{description}" recorded {amount} for {account}'
