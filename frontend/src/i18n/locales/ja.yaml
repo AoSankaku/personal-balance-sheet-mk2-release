@@ -116,6 +116,7 @@ creditColHeader: 貸方
 addRow: 行を追加
 totalDebit: "借方合計:"
 totalCredit: "貸方合計:"
+totalDifference: "差額:"
 unbalanced: ⚠ 貸借不一致
 add: 追加
 descriptionIsRequired: 摘要は必須です

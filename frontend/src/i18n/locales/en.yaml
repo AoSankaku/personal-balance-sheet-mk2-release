@@ -116,6 +116,7 @@ creditColHeader: Credit
 addRow: Add row
 totalDebit: "Total debit:"
 totalCredit: "Total credit:"
+totalDifference: "Difference:"
 unbalanced: ⚠ Unbalanced
 add: Add
 descriptionIsRequired: Description is required

@@ -117,6 +117,7 @@ export const translationKeys = [
   "addRow",
   "totalDebit",
   "totalCredit",
+  "totalDifference",
   "unbalanced",
   "add",
   "descriptionIsRequired",

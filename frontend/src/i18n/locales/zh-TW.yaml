@@ -116,6 +116,7 @@ creditColHeader: 貸方
 addRow: 新增行
 totalDebit: 借方合計：
 totalCredit: 貸方合計：
+totalDifference: 差額：
 unbalanced: ⚠ 借貸不平
 add: 新增
 descriptionIsRequired: 描述為必填項目
