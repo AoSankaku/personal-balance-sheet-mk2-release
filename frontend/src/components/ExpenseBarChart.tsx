@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { BarChart, ChartTooltip } from "@mantine/charts";
 import { MonthPickerInput, YearPickerInput } from "@mantine/dates";
@@ -102,6 +110,7 @@ export function ExpenseBarChart({
   const tooltipDivRef = useRef<HTMLDivElement>(null);
   const isMobilePinnedRef = useRef(false);
   const isTouchInteractingRef = useRef(false);
+  const isTooltipPointerOverRef = useRef(false);
   const rafRef = useRef<number | null>(null);
   const tooltipRenderRafRef = useRef<number | null>(null);
   const touchFallbackTimeoutRef = useRef<number | null>(null);
@@ -203,6 +212,7 @@ export function ExpenseBarChart({
       }
       tooltipRenderRafRef.current = window.requestAnimationFrame(() => {
         tooltipRenderRafRef.current = null;
+        if (next === null && isTooltipPointerOverRef.current) return;
         setTooltipState(next);
       });
     },
@@ -245,9 +255,40 @@ export function ExpenseBarChart({
     });
   }, []);
 
-  const handleChartMouseLeave = useCallback(() => {
-    if (!isMobilePinnedRef.current) setTooltipState(null);
+  const handleChartMouseLeave = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      const nextTarget = event.relatedTarget;
+      if (
+        nextTarget instanceof Node &&
+        tooltipDivRef.current?.contains(nextTarget)
+      ) {
+        return;
+      }
+
+      if (!isMobilePinnedRef.current) setTooltipState(null);
+    },
+    [],
+  );
+
+  const handleTooltipPointerEnter = useCallback(() => {
+    isTooltipPointerOverRef.current = true;
   }, []);
+
+  const handleTooltipPointerLeave = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      isTooltipPointerOverRef.current = false;
+      const nextTarget = event.relatedTarget;
+      if (
+        nextTarget instanceof Node &&
+        chartContainerRef.current?.contains(nextTarget)
+      ) {
+        return;
+      }
+
+      if (!isMobilePinnedRef.current) setTooltipState(null);
+    },
+    [],
+  );
 
   useEffect(() => {
     const handleOutsidePointer = (e: PointerEvent) => {
@@ -387,6 +428,8 @@ export function ExpenseBarChart({
         createPortal(
           <div
             ref={tooltipDivRef}
+            onPointerEnter={handleTooltipPointerEnter}
+            onPointerLeave={handleTooltipPointerLeave}
             style={{
               position: "fixed",
               left: tooltipState.left,
@@ -395,6 +438,7 @@ export function ExpenseBarChart({
               maxWidth: TOOLTIP_W,
               maxHeight: tooltipMaxH,
               overflowY: "auto",
+              pointerEvents: "auto",
             }}
           >
             <ChartTooltip
@@ -523,7 +567,7 @@ export function ExpenseBarChart({
                         isMobilePinnedRef.current = true;
                         updateTooltipStateAfterRender(nextTooltipState);
                       }
-                    } else {
+                    } else if (!isTooltipPointerOverRef.current) {
                       barDataRef.current = null;
                       isHoverActiveRef.current = false;
                       if (!isMobilePinnedRef.current) {
