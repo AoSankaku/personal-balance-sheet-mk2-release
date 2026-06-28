@@ -26,16 +26,20 @@ import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 // Main page
 // ──────────────────────────────────────────────
 
-type Segment = "actual" | "deviation" | "budget" | "unknown";
+const SEGMENTS = ["actual", "deviation", "budget", "unknown"] as const;
+type Segment = (typeof SEGMENTS)[number];
+
+function getSegmentParam(searchParams: URLSearchParams): Segment {
+  const segment = searchParams.get("segment");
+  return SEGMENTS.includes(segment as Segment) ? (segment as Segment) : "actual";
+}
 
 export default function TtPage() {
   const { t } = useLang();
   const { loading, error } = useAppData();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const initialSegment =
-    (searchParams.get("segment") as Segment | null) ?? "actual";
-  const [segment, setSegment] = useState<Segment>(initialSegment);
+  const segment = getSegmentParam(searchParams);
   const [snapshots, setSnapshots] = useState<ActualBalanceSnapshot[] | null>(
     null,
   );
@@ -78,18 +82,24 @@ export default function TtPage() {
     }
   }
 
-  // Load snapshots on mount if starting on deviation or unknown tab
+  function updateSegment(seg: Segment) {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("segment", seg);
+    setSearchParams(nextParams, { replace: true });
+  }
+
+  // Load snapshots when the URL opens a tab that needs them.
   useEffect(() => {
-    if (initialSegment === "deviation" || initialSegment === "unknown") {
+    if (segment === "deviation" || segment === "unknown") {
       loadSnapshots();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [segment]);
 
   // Load snapshots when switching to deviation tab
   function handleSegmentChange(val: string) {
     const seg = val as Segment;
-    setSegment(seg);
+    updateSegment(seg);
     if (seg === "deviation" || seg === "unknown") {
       loadSnapshots();
     }
@@ -98,7 +108,7 @@ export default function TtPage() {
   function handleSnapshotSaved(snapshot: ActualBalanceSnapshot) {
     setSnapshots((prev) => (prev ? [snapshot, ...prev] : [snapshot]));
     setSnapshotsLoaded(true);
-    setSegment("deviation");
+    updateSegment("deviation");
   }
 
   if (loading) {
