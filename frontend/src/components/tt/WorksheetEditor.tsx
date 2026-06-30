@@ -15,6 +15,7 @@ import { IconPlus, IconX } from "@tabler/icons-react";
 import type { Account, JournalEntry } from "@balance-sheet/shared";
 import { useLang } from "../../i18n";
 import type { WorksheetRow } from "./ttUtils";
+import { renderAccountOption, type AccountOption } from "../../lib/accountSelect";
 
 export function signedAccountImpact(entry: JournalEntry, account: Account): number {
   const raw = entry.lines
@@ -31,7 +32,7 @@ export function WorksheetEditor({
 }: {
   rows: WorksheetRow[];
   onChange: (rows: WorksheetRow[]) => void;
-  accountOptions: { value: string; label: string }[];
+  accountOptions: AccountOption[];
 }) {
   const { t } = useLang();
 
@@ -86,6 +87,7 @@ export function WorksheetEditor({
                       <Select
                         size="xs"
                         data={accountOptions}
+                        renderOption={renderAccountOption as never}
                         value={
                           row.account_id !== null
                             ? String(row.account_id)

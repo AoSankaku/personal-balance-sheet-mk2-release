@@ -51,6 +51,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 import { AccountTable } from "../components/AccountTable";
 import { AddAccountModal } from "../components/AddAccountModal";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
@@ -784,6 +785,7 @@ export default function SettingsPage() {
                     value={id != null ? String(id) : null}
                     onChange={(v) => handlePreferredPaymentChange(i, v)}
                     data={accountOptions}
+                    renderOption={renderAccountOption as never}
                   />
                   {id != null && (
                     <Group gap={2}>

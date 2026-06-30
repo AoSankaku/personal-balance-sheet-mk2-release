@@ -70,6 +70,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 
 type SortCol = "date" | "store";
 type SortDir = "asc" | "desc";
@@ -796,6 +797,7 @@ export function CsvImportTab({
               <Select
                 label={t("importSelectBankAccount")}
                 data={bankOptions}
+                renderOption={renderAccountOption as never}
                 value={selectedAccountId}
                 onChange={setSelectedAccountId}
                 required
@@ -805,6 +807,7 @@ export function CsvImportTab({
               <Select
                 label={t("importSelectCard")}
                 data={cardOptions}
+                renderOption={renderAccountOption as never}
                 value={selectedAccountId}
                 onChange={setSelectedAccountId}
                 required
@@ -1062,6 +1065,7 @@ export function CsvImportTab({
                                 <Select
                                   size="xs"
                                   data={counterOptions}
+                                  renderOption={renderAccountOption as never}
                                   value={rs?.counterAccountId ?? null}
                                   onChange={(v) => setRowCounter(i, v)}
                                   searchable={false}

@@ -23,6 +23,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 import { formatJPY } from "../lib/numberFormat";
 
 /** Auto-detect chain from address format.
@@ -262,6 +263,7 @@ export function CryptoWatchModal({
           label={t("linkAccount")}
           placeholder={t("selectAccount")}
           data={availableAccounts.map((a) => toAccountSelectOption(a, t))}
+          renderOption={renderAccountOption as never}
           value={accountId}
           onChange={setAccountId}
         />

@@ -22,6 +22,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 import { showFeedback } from "../lib/feedback";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import type { Account } from "@balance-sheet/shared";
@@ -150,6 +151,7 @@ export default function InitialBalancePage() {
             label={t("initialAssetAccountLabel")}
             placeholder={t("selectAccount")}
             data={assets.map((a) => toAccountSelectOption(a, t))}
+            renderOption={renderAccountOption as never}
             searchable
             required
             value={initialAssetId}

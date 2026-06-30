@@ -16,9 +16,8 @@ import { IconAlertTriangle, IconRefresh } from "@tabler/icons-react";
 import type { BudgetCategory } from "@balance-sheet/shared";
 import { useLang } from "../../i18n";
 import { useAppData } from "../../context/AppDataContext";
+import { renderAccountOption, type AccountOption } from "../../lib/accountSelect";
 import {
-  renderAccountOption,
-  type AccountOption,
   type HouseholdForm,
   type StepPreview,
 } from "../SimpleEntryForm";

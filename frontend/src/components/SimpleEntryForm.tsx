@@ -12,28 +12,6 @@ import {
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
-import {
-  IconBolt,
-  IconBriefcase,
-  IconBuilding,
-  IconBuildingBank,
-  IconCar,
-  IconCreditCard,
-  IconCurrencyBitcoin,
-  IconDeviceGamepad2,
-  IconDoor,
-  IconDots,
-  IconHandStop,
-  IconHome,
-  IconLock,
-  IconReceipt,
-  IconSalad,
-  IconScale,
-  IconShoppingCart,
-  IconTrendingDown,
-  IconTrendingUp,
-  IconUsers,
-} from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMediaQuery } from "@mantine/hooks";
 import dayjs from "dayjs";
@@ -64,10 +42,15 @@ import { useAppData } from "../context/AppDataContext";
 import { showFeedback } from "../lib/feedback";
 import { api, ApiError } from "../api/client";
 import {
+  accountDisplayName,
   categoryIndex,
   CATEGORY_TRANSLATION_KEY,
-  systemAccountTranslationKey,
 } from "../lib/accountUtils";
+import {
+  renderAccountOption,
+  toAccountOption,
+  type AccountOption,
+} from "../lib/accountSelect";
 import { ExpenseSection } from "./entry/ExpenseSection";
 import { IncomeSection } from "./entry/IncomeSection";
 import { LoanSection } from "./entry/LoanSection";
@@ -165,85 +148,6 @@ interface Props {
 }
 
 export type { StepPreview };
-
-export function getAccountIcon(
-  category: string | undefined,
-  isSystem?: boolean,
-) {
-  const size = 14;
-  if (isSystem) return <IconLock size={size} />;
-  switch (category) {
-    case "cash":
-      return <IconBuildingBank size={size} />;
-    case "lending":
-    case "short_term_lending":
-    case "short_term_loan":
-      return <IconHandStop size={size} />;
-    case "long_term_lending":
-    case "loan":
-    case "long_term_loan":
-      return <IconReceipt size={size} />;
-    case "business_advance":
-      return <IconBriefcase size={size} />;
-    case "investment":
-      return <IconTrendingUp size={size} />;
-    case "crypto":
-      return <IconCurrencyBitcoin size={size} />;
-    case "property":
-      return <IconHome size={size} />;
-    case "credit_card":
-      return <IconCreditCard size={size} />;
-    case "opening_balance":
-      return <IconScale size={size} />;
-    case "salary":
-      return <IconBriefcase size={size} />;
-    case "business":
-      return <IconBuilding size={size} />;
-    case "food":
-      return <IconSalad size={size} />;
-    case "rent":
-      return <IconDoor size={size} />;
-    case "transport":
-      return <IconCar size={size} />;
-    case "utilities":
-      return <IconBolt size={size} />;
-    case "entertainment":
-      return <IconDeviceGamepad2 size={size} />;
-    case "daily_goods":
-      return <IconShoppingCart size={size} />;
-    case "social":
-      return <IconUsers size={size} />;
-    case "investment_loss":
-      return <IconTrendingDown size={size} />;
-    default:
-      return <IconDots size={size} />;
-  }
-}
-
-export type AccountOption = {
-  value: string;
-  label: string;
-  category?: string;
-  is_system?: boolean;
-};
-
-export function renderAccountOption({
-  option,
-}: {
-  option: AccountOption;
-  checked?: boolean;
-}) {
-  return (
-    <Group gap={6} wrap="nowrap">
-      <Text c="dimmed" style={{ flexShrink: 0, lineHeight: 1 }}>
-        {getAccountIcon(option.category, option.is_system)}
-      </Text>
-      <Text size="sm" truncate>
-        {option.label}
-      </Text>
-    </Group>
-  );
-}
 
 export function SimpleEntryForm({
   accounts,
@@ -379,23 +283,9 @@ export function SimpleEntryForm({
     setFilterStepPreview([]);
   }, [budgetFilters, selectedCurrency, selectedFilterId]);
 
-  // Helper: resolve human-readable display name for an account (translates __system:*__ names)
-  function resolveLabel(a: { name: string; is_system?: boolean }): string {
-    if (a.is_system) {
-      const key = systemAccountTranslationKey(a.name);
-      if (key) return t(key);
-    }
-    return a.name;
-  }
-
   // Convert an Account to an AccountOption (includes category/is_system for renderOption icons)
   function toOpt(a: Account): AccountOption {
-    return {
-      value: String(a.id),
-      label: resolveLabel(a),
-      category: a.category,
-      is_system: a.is_system ?? false,
-    };
+    return toAccountOption(a, t);
   }
 
   // Reusable sort comparator by canonical category order
@@ -415,7 +305,9 @@ export function SimpleEntryForm({
   ) {
     const ai = categoryIndex(a.type, a.category, a.is_system ?? false);
     const bi = categoryIndex(b.type, b.category, b.is_system ?? false);
-    return ai !== bi ? ai - bi : a.name.localeCompare(b.name, "ja");
+    return ai !== bi
+      ? ai - bi
+      : accountDisplayName(a, t).localeCompare(accountDisplayName(b, t), "ja");
   }
 
   const assetOptions = [...accounts.filter((a) => a.type === "asset")]

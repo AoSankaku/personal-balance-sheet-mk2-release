@@ -26,15 +26,16 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import {
-  type AccountOption,
   renderAccountOption,
-} from "../components/SimpleEntryForm";
+  toAccountOption,
+  type AccountOption,
+} from "../lib/accountSelect";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
 import {
+  accountDisplayName,
   accountDisplayNameFromName,
   categoryIndex,
-  systemAccountTranslationKey,
 } from "../lib/accountUtils";
 import { showFeedback } from "../lib/feedback";
 import { formatJPY } from "../lib/numberFormat";
@@ -231,21 +232,6 @@ export default function BulkEditPage() {
     expense: "sectionExpenses",
   } as const satisfies Record<Account["type"], Parameters<typeof t>[0]>;
 
-  const resolveAccountLabel = (account: Account) => {
-    if (account.is_system) {
-      const key = systemAccountTranslationKey(account.name);
-      if (key) return t(key);
-    }
-    return account.name;
-  };
-
-  const toAccountOption = (account: Account): AccountOption => ({
-    value: String(account.id),
-    label: resolveAccountLabel(account),
-    category: account.category,
-    is_system: account.is_system ?? false,
-  });
-
   const sortAccounts = (a: Account, b: Account) => {
     if (a.type !== b.type) {
       return typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type);
@@ -254,14 +240,14 @@ export default function BulkEditPage() {
     const bi = categoryIndex(b.type, b.category, b.is_system ?? false);
     return ai !== bi
       ? ai - bi
-      : resolveAccountLabel(a).localeCompare(resolveAccountLabel(b), "ja");
+      : accountDisplayName(a, t).localeCompare(accountDisplayName(b, t), "ja");
   };
 
   const buildAccountGroups = (source: Account[]): SelectData[] => {
     const groups = new Map<Account["type"], AccountOption[]>();
     for (const account of [...source].sort(sortAccounts)) {
       const items = groups.get(account.type) ?? [];
-      items.push(toAccountOption(account));
+      items.push(toAccountOption(account, t));
       groups.set(account.type, items);
     }
     return typeOrder.flatMap((type) => {

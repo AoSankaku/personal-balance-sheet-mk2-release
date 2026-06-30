@@ -41,16 +41,11 @@ import { formatCurrency } from "../lib/numberFormat";
 import { toDateStr } from "../lib/dateUtils";
 import { isShortTermLoanAccountActive } from "./dbPageUtils";
 import {
-  type AccountOption,
+  buildAccountOptionsByCategory,
   renderAccountOption,
-} from "../components/SimpleEntryForm";
+} from "../lib/accountSelect";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
-import {
-  CATEGORY_TRANSLATION_KEY,
-  categoryIndex,
-  isUserSelectableAccount,
-  systemAccountTranslationKey,
-} from "../lib/accountUtils";
+import { isUserSelectableAccount } from "../lib/accountUtils";
 
 interface LoanSection {
   titleKey:
@@ -222,49 +217,12 @@ export default function DbPage() {
     });
   }, [accounts, journal, selectedCurrency, showAllCurrencies]);
 
-  // Grouped account options for the write-off modal (mirrors SimpleEntryForm pattern)
   const counterAccountOptions = useMemo(() => {
-    const buildGrouped = (type: "expense" | "income") => {
-      const sorted = [
-        ...accounts.filter(
-          (a) => a.type === type && isUserSelectableAccount(a),
-        ),
-      ].sort((a, b) => {
-        const ai = categoryIndex(a.type, a.category, a.is_system ?? false);
-        const bi = categoryIndex(b.type, b.category, b.is_system ?? false);
-        return ai !== bi ? ai - bi : a.name.localeCompare(b.name, "ja");
-      });
-      const groups = new Map<
-        string,
-        { group: string; items: AccountOption[] }
-      >();
-      for (const a of sorted) {
-        const catKey = a.is_system
-          ? "sysAccountBadge"
-          : (CATEGORY_TRANSLATION_KEY[a.category] ?? "catOther");
-        const groupLabel = a.is_system
-          ? t("sysAccountBadge")
-          : t(catKey as Parameters<typeof t>[0]);
-        const groupId = a.is_system ? "__system__" : a.category;
-        if (!groups.has(groupId)) {
-          groups.set(groupId, { group: groupLabel, items: [] });
-        }
-        const label = (() => {
-          if (a.is_system) {
-            const k = systemAccountTranslationKey(a.name);
-            if (k) return t(k);
-          }
-          return a.name;
-        })();
-        groups.get(groupId)!.items.push({
-          value: String(a.id),
-          label,
-          category: a.category,
-          is_system: a.is_system ?? false,
-        });
-      }
-      return [...groups.values()];
-    };
+    const buildGrouped = (type: "expense" | "income") =>
+      buildAccountOptionsByCategory(
+        accounts.filter((a) => a.type === type && isUserSelectableAccount(a)),
+        t,
+      );
     return { expense: buildGrouped("expense"), income: buildGrouped("income") };
   }, [accounts, t]);
 

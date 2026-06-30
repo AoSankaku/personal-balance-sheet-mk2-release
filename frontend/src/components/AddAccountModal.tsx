@@ -26,6 +26,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 
 const CLOSING_DAY_BASE_OPTIONS = Array.from({ length: 31 }, (_, i) => ({
   value: String(i + 1),
@@ -450,6 +451,7 @@ export function AddAccountModal({
                     description={t("withdrawalAccountHint")}
                     placeholder={t("withdrawalAccountPlaceholder")}
                     data={withdrawalAccountSelectOptions}
+                    renderOption={renderAccountOption as never}
                     value={form.values.withdrawal_account_id}
                     onChange={(v) =>
                       form.setFieldValue("withdrawal_account_id", v)

@@ -29,6 +29,8 @@ export function systemAccountTranslationKey(
 type AccountDisplayLike = {
   id?: number | string;
   name: string;
+  category?: AccountCategory;
+  type?: AccountType;
   is_system?: boolean | number;
 };
 
@@ -76,6 +78,9 @@ export function toAccountSelectOption(
   return {
     value: String(account.id),
     label: accountDisplayName(account, t),
+    category: account.category,
+    type: account.type,
+    is_system: isSystemAccount(account),
   };
 }
 
