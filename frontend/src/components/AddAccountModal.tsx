@@ -32,6 +32,7 @@ const CLOSING_DAY_BASE_OPTIONS = Array.from({ length: 31 }, (_, i) => ({
   value: String(i + 1),
   label: String(i + 1),
 }));
+const PAYDAY_OPTIONS = CLOSING_DAY_BASE_OPTIONS;
 
 /**
  * CATEGORIES_BY_TYPE defines both the available categories and their display order.
@@ -97,7 +98,7 @@ interface AccountFormValues {
   name: string;
   type: AccountType;
   category: AccountCategory;
-  payday: number | string;
+  payday: string | null;
   is_depreciable: boolean;
   include_in_allocatable: boolean;
   budget_ratios: { budget_category_id: number; ratio: number | string }[];
@@ -148,7 +149,7 @@ export function AddAccountModal({
       name: "",
       type: "asset",
       category: "cash",
-      payday: "",
+      payday: null,
       is_depreciable: false,
       include_in_allocatable: true,
       budget_ratios: [],
@@ -180,7 +181,10 @@ export function AddAccountModal({
         name: editAccount.name,
         type: editAccount.type,
         category: editAccount.category,
-        payday: editAccount.payday ?? "",
+        payday:
+          editAccount.payday !== null && editAccount.payday !== undefined
+            ? String(editAccount.payday)
+            : null,
         is_depreciable: editAccount.is_depreciable ?? false,
         include_in_allocatable: editAccount.include_in_allocatable ?? true,
         budget_ratios: buildInitialRatios(editAccount.budget_ratios),
@@ -202,7 +206,7 @@ export function AddAccountModal({
         name: "",
         type: "asset",
         category: "cash",
-        payday: "",
+        payday: null,
         is_depreciable: false,
         include_in_allocatable: true,
         budget_ratios: buildInitialRatios(),
@@ -238,8 +242,12 @@ export function AddAccountModal({
     };
 
     if (values.type === "income") {
-      const day = Number(values.payday);
-      input.payday = day >= 1 && day <= 31 ? day : null;
+      const day =
+        values.payday !== null && values.payday !== ""
+          ? Number(values.payday)
+          : NaN;
+      input.payday =
+        Number.isInteger(day) && day >= 0 && day <= 31 ? day : null;
     }
 
     if (values.type === "asset") {
@@ -360,15 +368,17 @@ export function AddAccountModal({
             {...form.getInputProps("category")}
           />
           {selectedType === "income" && (
-            <NumberInput
+            <Select
               label={t("paydayLabel")}
               description={t("paydayHint")}
               placeholder="25"
-              min={1}
-              max={31}
-              allowDecimal={false}
+              data={[
+                { value: "0", label: t("closingDayEndOfMonth") },
+                ...PAYDAY_OPTIONS,
+              ]}
               value={form.values.payday}
               onChange={(v) => form.setFieldValue("payday", v)}
+              clearable
             />
           )}
 

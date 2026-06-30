@@ -25,6 +25,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   isShortTermBorrowingCategory,
   isShortTermLendingCategory,
+  resolveMonthlyPayday,
 } from "@balance-sheet/shared";
 import { VERSION } from "../lib/version";
 import { findOverdueShortTermLoanAccounts } from "../pages/dbPageUtils";
@@ -59,8 +60,9 @@ function usePaydayTasks(): AppTask[] {
 
   for (const account of accounts) {
     if (account.type !== "income") continue;
-    if (!account.payday) continue;
-    if (todayDay < account.payday) continue;
+    if (account.payday === null || account.payday === undefined) continue;
+    const payday = resolveMonthlyPayday(thisYM, account.payday);
+    if (todayDay < payday) continue;
 
     // Check if any journal entry this month credits this income account
     const hasEntry = journal.some(

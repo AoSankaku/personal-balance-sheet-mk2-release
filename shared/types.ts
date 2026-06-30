@@ -88,7 +88,7 @@ export interface Account {
   balance?: number | null;
   /** Per-currency balances: { "JPY": 10000, "USD": 500 }. Populated on GET /api/accounts. */
   balances?: Record<string, number>;
-  /** Day of month (1-31) when salary/income is expected; only for income accounts */
+  /** Day of month (0=end of month, 1-31) when salary/income is expected; only for income accounts */
   payday?: number | null;
   /** Budget distribution ratios (only populated for expense-type accounts) */
   budget_ratios?: AccountBudgetRatio[];
@@ -106,7 +106,7 @@ export interface CreateAccountInput {
   name: string;
   type: AccountType;
   category: AccountCategory;
-  /** Day of month (1-31) for income accounts; omit or null for no payday */
+  /** Day of month (0=end of month, 1-31) for income accounts; omit or null for no payday */
   payday?: number | null;
   /** Budget distribution ratios — only relevant for expense-type accounts */
   budget_ratios?: AccountBudgetRatio[];
@@ -632,6 +632,12 @@ export function lastDayOfCreditCardMonth(month: string): number {
   const match = month.match(/^(\d{4})-(\d{2})$/);
   if (!match) return 31;
   return new Date(Number(match[1]), Number(match[2]), 0).getDate();
+}
+
+export function resolveMonthlyPayday(month: string, payday: number): number {
+  const lastDay = lastDayOfCreditCardMonth(month);
+  if (payday === 0) return lastDay;
+  return Math.min(Math.max(payday, 1), lastDay);
 }
 
 export function resolveCreditCardMonthDay(
