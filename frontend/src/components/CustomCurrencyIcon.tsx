@@ -35,6 +35,10 @@ import {
   DEFAULT_CUSTOM_CURRENCY_ICON,
   type CustomCurrencyIconKey,
 } from "../lib/customCurrencySymbols";
+import {
+  getReadableTextColor,
+  normalizeCurrencyBackgroundColor,
+} from "../lib/currencyIconDisplay";
 
 const ICONS: Record<CustomCurrencyIconKey, IconType> = {
   circle: FaCircle,
@@ -70,21 +74,26 @@ const ICONS: Record<CustomCurrencyIconKey, IconType> = {
 
 interface CustomCurrencyIconProps {
   icon: string | null | undefined;
+  backgroundColor?: string | null;
   size?: number;
 }
 
 function CustomCurrencyIconComponent({
+  backgroundColor,
   icon,
   size = 22,
 }: CustomCurrencyIconProps) {
   const key = (icon || DEFAULT_CUSTOM_CURRENCY_ICON) as CustomCurrencyIconKey;
   const Icon = ICONS[key] ?? ICONS[DEFAULT_CUSTOM_CURRENCY_ICON];
+  const normalizedBackground = normalizeCurrencyBackgroundColor(backgroundColor);
   const style: CSSProperties = {
     alignItems: "center",
-    background: "#111827",
+    background: normalizedBackground ?? "#111827",
     border: "1px solid rgba(255, 255, 255, 0.22)",
     borderRadius: 999,
-    color: "#fff",
+    color: normalizedBackground
+      ? getReadableTextColor(normalizedBackground)
+      : "#fff",
     display: "inline-flex",
     flexShrink: 0,
     height: size,

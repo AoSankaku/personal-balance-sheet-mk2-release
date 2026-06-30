@@ -3,12 +3,15 @@ import type { CryptoIconStyle } from "../lib/cryptoCurrencyIcons";
 import {
   getCurrencyBadgeText,
   getDefaultCurrencyBadgeSymbol,
+  getReadableTextColor,
   isCryptoCurrencyIconCode,
+  normalizeCurrencyBackgroundColor,
 } from "../lib/currencyIconDisplay";
 import { CryptoCurrencyIcon } from "./CryptoCurrencyIcon";
 import { CustomCurrencyIcon } from "./CustomCurrencyIcon";
 
 interface CurrencyOptionIconProps {
+  backgroundColor?: string | null;
   code: string;
   cryptoIconStyle: CryptoIconStyle;
   customIcon?: string | null;
@@ -23,6 +26,7 @@ function fontSizeForBadge(text: string, size: number): number {
 }
 
 function CurrencyOptionIconComponent({
+  backgroundColor,
   code,
   cryptoIconStyle,
   customIcon,
@@ -42,9 +46,16 @@ function CurrencyOptionIconComponent({
   }
 
   if (customIcon && !getDefaultCurrencyBadgeSymbol(normalizedCode)) {
-    return <CustomCurrencyIcon icon={customIcon} size={size} />;
+    return (
+      <CustomCurrencyIcon
+        backgroundColor={backgroundColor}
+        icon={customIcon}
+        size={size}
+      />
+    );
   }
 
+  const normalizedBackground = normalizeCurrencyBackgroundColor(backgroundColor);
   const text = getCurrencyBadgeText(
     normalizedCode,
     symbol ?? getDefaultCurrencyBadgeSymbol(normalizedCode),
@@ -52,12 +63,15 @@ function CurrencyOptionIconComponent({
   const style: CSSProperties = {
     alignItems: "center",
     background:
+      normalizedBackground ??
       "light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))",
-    border:
-      "1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4))",
+    border: normalizedBackground
+      ? "1px solid rgba(255, 255, 255, 0.28)"
+      : "1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4))",
     borderRadius: 999,
-    color:
-      "light-dark(var(--mantine-color-gray-8), var(--mantine-color-gray-1))",
+    color: normalizedBackground
+      ? getReadableTextColor(normalizedBackground)
+      : "light-dark(var(--mantine-color-gray-8), var(--mantine-color-gray-1))",
     display: "inline-flex",
     flexShrink: 0,
     fontFamily: "var(--mantine-font-family-monospace)",

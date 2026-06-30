@@ -755,6 +755,7 @@ export interface EnabledCurrency {
   symbol_priority: number;
   custom_symbol: string | null;
   custom_icon: string | null;
+  background_color: string | null;
   decimal_places: number;
   created_at: string;
 }

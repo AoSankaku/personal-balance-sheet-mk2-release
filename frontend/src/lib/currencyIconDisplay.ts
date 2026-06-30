@@ -43,3 +43,22 @@ export function getCurrencyBadgeText(
 export function getDefaultCurrencyBadgeSymbol(code: string): string | undefined {
   return CURRENCY_SYMBOLS[code.trim().toUpperCase()];
 }
+
+export function normalizeCurrencyBackgroundColor(
+  color: string | null | undefined,
+): string | undefined {
+  const trimmed = color?.trim();
+  if (!trimmed || !/^#[0-9a-fA-F]{6}$/.test(trimmed)) return undefined;
+  return trimmed.toUpperCase();
+}
+
+export function getReadableTextColor(backgroundColor: string): "#111827" | "#FFFFFF" {
+  const normalized = normalizeCurrencyBackgroundColor(backgroundColor);
+  if (!normalized) return "#111827";
+
+  const red = Number.parseInt(normalized.slice(1, 3), 16);
+  const green = Number.parseInt(normalized.slice(3, 5), 16);
+  const blue = Number.parseInt(normalized.slice(5, 7), 16);
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+  return luminance > 0.62 ? "#111827" : "#FFFFFF";
+}

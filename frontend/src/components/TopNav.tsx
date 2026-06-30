@@ -436,7 +436,12 @@ function CompactCurrencyMenu({
   cryptoIconStyle,
   onSelect,
 }: {
-  options: { value: string; customIcon?: string | null; symbol?: string }[];
+  options: {
+    value: string;
+    backgroundColor?: string | null;
+    customIcon?: string | null;
+    symbol?: string;
+  }[];
   displayCurrency: string;
   cryptoIconStyle: CryptoIconStyle;
   onSelect: (value: string) => void;
@@ -480,6 +485,7 @@ function CompactCurrencyMenu({
             onClick={() => setOpened((o) => !o)}
           >
             <CurrencyOptionIcon
+              backgroundColor={selectedOption?.backgroundColor}
               code={displayCurrency}
               cryptoIconStyle={cryptoIconStyle}
               size={20}
@@ -503,6 +509,7 @@ function CompactCurrencyMenu({
               >
                 <Group gap={8} wrap="nowrap">
                   <CurrencyOptionIcon
+                    backgroundColor={opt.backgroundColor}
                     code={opt.value}
                     cryptoIconStyle={cryptoIconStyle}
                     size={20}
@@ -534,6 +541,7 @@ function CurrencySwitcher() {
   const options = enabledCurrencies.map((c) => ({
     value: c.code,
     label: c.code,
+    backgroundColor: c.background_color,
     customIcon: c.custom_icon,
     symbol: getEffectiveSymbol(c.code, enabledCurrencies),
   }));
@@ -560,6 +568,7 @@ function CurrencySwitcher() {
       allowDeselect={false}
       leftSection={
         <CurrencyOptionIcon
+          backgroundColor={selectedOption?.backgroundColor}
           code={displayCurrency}
           cryptoIconStyle={cryptoIconStyle}
           symbol={selectedOption?.symbol}
@@ -570,6 +579,10 @@ function CurrencySwitcher() {
       renderOption={({ option }) => (
         <Group gap={8} wrap="nowrap">
           <CurrencyOptionIcon
+            backgroundColor={
+              options.find((currency) => currency.value === option.value)
+                ?.backgroundColor
+            }
             code={option.value}
             cryptoIconStyle={cryptoIconStyle}
             symbol={

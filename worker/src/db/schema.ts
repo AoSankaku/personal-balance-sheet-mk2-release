@@ -560,6 +560,7 @@ export const enabledCurrencies = sqliteTable("enabled_currencies", {
   symbol_priority: integer("symbol_priority").notNull().default(0),
   custom_symbol: text("custom_symbol"),
   custom_icon: text("custom_icon"),
+  background_color: text("background_color"),
   decimal_places: integer("decimal_places").notNull().default(2),
   created_at: text("created_at")
     .notNull()

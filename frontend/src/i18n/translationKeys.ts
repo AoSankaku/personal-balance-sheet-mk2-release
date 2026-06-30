@@ -1049,6 +1049,8 @@ export const translationKeys = [
   "currencySettingsSelectIcon",
   "currencySettingsSymbol",
   "currencySettingsDecimalPlaces",
+  "currencySettingsBackgroundColor",
+  "currencySettingsDefaultColor",
   "currencySettingsDisableBalance",
   "currencySettingsDisableLast",
   "tabFxExchange",

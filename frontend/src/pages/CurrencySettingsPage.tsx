@@ -3,6 +3,7 @@ import type React from "react";
 import {
   Badge,
   Code,
+  ColorInput,
   Divider,
   Group,
   NumberInput,
@@ -44,6 +45,7 @@ import {
 } from "../hooks/useExchangeRates";
 import { formatCurrency } from "../lib/numberFormat";
 import { CURRENCY_SYMBOLS, getEffectiveSymbol } from "../lib/currencyUtils";
+import { normalizeCurrencyBackgroundColor } from "../lib/currencyIconDisplay";
 import { CryptoCurrencyIcon } from "../components/CryptoCurrencyIcon";
 import { CustomCurrencyIcon } from "../components/CustomCurrencyIcon";
 import { CurrencyOptionIcon } from "../components/CurrencyOptionIcon";
@@ -183,6 +185,19 @@ const KNOWN_CODES = new Set([
 ]);
 
 const CRYPTO_CODE_SET = new Set(CRYPTO_CURRENCIES.map((c) => c.code));
+
+const CURRENCY_COLOR_SWATCHES = [
+  "#111827",
+  "#495057",
+  "#E03131",
+  "#F08C00",
+  "#2F9E44",
+  "#0C8599",
+  "#1971C2",
+  "#5F3DC4",
+  "#C2255C",
+  "#F8F9FA",
+];
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -508,6 +523,27 @@ export default function CurrencySettingsPage({
     await refreshEnabledCurrencies();
   }
 
+  async function saveCurrencyBackgroundColor(code: string, color: string) {
+    const normalized = normalizeCurrencyBackgroundColor(color);
+    const nextColor = normalized ?? (color.trim() ? undefined : null);
+    if (nextColor === undefined) return;
+
+    const currentColor =
+      enabledCurrencies.find((currency) => currency.code === code)
+        ?.background_color ?? null;
+    if (nextColor === currentColor) return;
+
+    setLoading(`color-${code}`);
+    try {
+      await api.currencies.update(code, { background_color: nextColor });
+      await refreshEnabledCurrencies();
+    } catch {
+      // ignore
+    } finally {
+      setLoading(null);
+    }
+  }
+
   const isLastEnabled = enabledCurrencies.length <= 1;
 
   const disabledReasonBalance = t("currencySettingsDisableBalance");
@@ -532,6 +568,7 @@ export default function CurrencySettingsPage({
     const custom = enabledCurrencies.find((currency) => currency.code === code);
     return (
       <CurrencyOptionIcon
+        backgroundColor={custom?.background_color}
         code={code}
         cryptoIconStyle={cryptoIconStyle}
         customIcon={custom?.custom_icon}
@@ -575,14 +612,22 @@ export default function CurrencySettingsPage({
     const effectiveSym = getEffectiveSymbol(code, enabledCurrencies);
     const netAssets = netAssetsByCurrency[code] ?? 0;
     const amountLabel = formatAmount(netAssets, code, effectiveSym);
+    const canCustomizeBackground = !CRYPTO_CODE_SET.has(code);
+    const [backgroundColorDraft, setBackgroundColorDraft] = useState(
+      currency.background_color ?? "",
+    );
     const tooltipLabel = hasBalance
       ? disabledReasonBalance
       : isLastEnabled
         ? disabledReasonLast
         : null;
 
+    useEffect(() => {
+      setBackgroundColorDraft(currency.background_color ?? "");
+    }, [currency.background_color]);
+
     return (
-      <Group key={code} justify="space-between" gap="xs" wrap="nowrap">
+      <Group key={code} justify="space-between" gap="xs" wrap="wrap">
         <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
           <Group gap={2} wrap="nowrap">
             <ActionIcon
@@ -629,23 +674,45 @@ export default function CurrencySettingsPage({
             {getCurrencyLabel(code)}
           </Text>
         </Group>
-        <Tooltip
-          label={tooltipLabel ?? ""}
-          disabled={!tooltipLabel}
-          withArrow
-          withinPortal
-        >
-          <ActionIcon
-            size="sm"
-            variant="subtle"
-            color="red"
-            disabled={removeDisabled}
-            onClick={() => void toggle(code, false)}
-            aria-label={`Remove ${code}`}
+        <Group gap="xs" wrap="nowrap">
+          {canCustomizeBackground && (
+            <ColorInput
+              aria-label={`${code} ${t("currencySettingsBackgroundColor")}`}
+              disabled={loading !== null}
+              format="hex"
+              onBlur={() =>
+                void saveCurrencyBackgroundColor(code, backgroundColorDraft)
+              }
+              onChange={setBackgroundColorDraft}
+              onChangeEnd={(value) =>
+                void saveCurrencyBackgroundColor(code, value)
+              }
+              placeholder={t("currencySettingsDefaultColor")}
+              popoverProps={{ withinPortal: true }}
+              size="xs"
+              swatches={CURRENCY_COLOR_SWATCHES}
+              value={backgroundColorDraft}
+              w={142}
+            />
+          )}
+          <Tooltip
+            label={tooltipLabel ?? ""}
+            disabled={!tooltipLabel}
+            withArrow
+            withinPortal
           >
-            <IconTrash size={14} />
-          </ActionIcon>
-        </Tooltip>
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              color="red"
+              disabled={removeDisabled}
+              onClick={() => void toggle(code, false)}
+              aria-label={`Remove ${code}`}
+            >
+              <IconTrash size={14} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
       </Group>
     );
   }
@@ -871,7 +938,10 @@ export default function CurrencySettingsPage({
                 return (
                   <Group key={code} gap="xs" align="flex-end" wrap="nowrap">
                     <Group gap={6} wrap="nowrap" style={{ minWidth: 88 }}>
-                      <CustomCurrencyIcon icon={currency.custom_icon} />
+                      <CustomCurrencyIcon
+                        backgroundColor={currency.background_color}
+                        icon={currency.custom_icon}
+                      />
                       <Text size="sm" fw={700}>
                         {code}
                       </Text>

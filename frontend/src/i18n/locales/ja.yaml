@@ -1048,6 +1048,8 @@ currencySettingsDisplayIcon: 表示アイコン
 currencySettingsSelectIcon: アイコンを選択
 currencySettingsSymbol: 通貨記号
 currencySettingsDecimalPlaces: 小数桁数
+currencySettingsBackgroundColor: 背景色
+currencySettingsDefaultColor: 既定
 currencySettingsDisableBalance: 残高があるため無効化できません
 currencySettingsDisableLast: 最後の通貨は削除できません（最低1つ必要です）
 tabFxExchange: 外貨両替

@@ -1048,6 +1048,8 @@ currencySettingsDisplayIcon: Display icon
 currencySettingsSelectIcon: Select an icon
 currencySettingsSymbol: Currency symbol
 currencySettingsDecimalPlaces: Decimal places
+currencySettingsBackgroundColor: Background color
+currencySettingsDefaultColor: Default
 currencySettingsDisableBalance: "Cannot disable: has non-zero balance"
 currencySettingsDisableLast: Cannot disable the last currency — at least one is required
 tabFxExchange: FX Exchange

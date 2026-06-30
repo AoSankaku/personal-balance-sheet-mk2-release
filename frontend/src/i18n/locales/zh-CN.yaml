@@ -1048,6 +1048,8 @@ currencySettingsDisplayIcon: 显示图标
 currencySettingsSelectIcon: 选择图标
 currencySettingsSymbol: 货币符号
 currencySettingsDecimalPlaces: 小数位数
+currencySettingsBackgroundColor: 背景色
+currencySettingsDefaultColor: 默认
 currencySettingsDisableBalance: 无法禁用：余额不为零
 currencySettingsDisableLast: 无法禁用最后一个货币 — 至少需要一个
 tabFxExchange: 外汇兑换

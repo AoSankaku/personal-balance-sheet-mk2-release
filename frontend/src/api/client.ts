@@ -616,6 +616,7 @@ export const api = {
       custom_symbol?: string,
       decimal_places?: number,
       custom_icon?: string,
+      background_color?: string | null,
     ) =>
       mutationRequest<EnabledCurrency[]>("/currencies", {
         method: "POST",
@@ -625,6 +626,7 @@ export const api = {
           custom_symbol,
           decimal_places,
           custom_icon,
+          background_color,
         }),
       }, ["/currencies", "/budget"]),
     setPriority: (code: string, symbol_priority: number) =>
@@ -632,6 +634,22 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ symbol_priority }),
       }, ["/currencies"]),
+    update: (
+      code: string,
+      input: {
+        symbol_priority?: number;
+        decimal_places?: number;
+        background_color?: string | null;
+      },
+    ) =>
+      mutationRequest<EnabledCurrency[]>(
+        `/currencies/${encodeURIComponent(code)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(input),
+        },
+        ["/currencies", "/budget"],
+      ),
     reorder: (codes: string[]) =>
       mutationRequest<EnabledCurrency[]>("/currencies/reorder", {
         method: "POST",

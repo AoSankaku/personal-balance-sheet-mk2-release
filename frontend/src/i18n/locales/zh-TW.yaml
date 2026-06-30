@@ -1048,6 +1048,8 @@ currencySettingsDisplayIcon: 顯示圖示
 currencySettingsSelectIcon: 選擇圖示
 currencySettingsSymbol: 貨幣符號
 currencySettingsDecimalPlaces: 小數位數
+currencySettingsBackgroundColor: 背景色
+currencySettingsDefaultColor: 預設
 currencySettingsDisableBalance: 無法停用：餘額不為零
 currencySettingsDisableLast: 無法停用最後一個貨幣 — 至少需要一個
 tabFxExchange: 外匯兌換
