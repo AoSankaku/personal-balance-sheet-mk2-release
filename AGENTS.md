@@ -32,7 +32,9 @@ cd worker && bun run db:migrate:remote
 ### Migration system — important quirks
 
 `db:migrate` = `wrangler d1 migrations apply balance-sheet-db --local`
-**Wrangler** (not drizzle-kit) applies migrations. This repo intentionally keeps the local D1 schema in one canonical file: `worker/drizzle/0000_init.sql`.
+**Wrangler** (not drizzle-kit) applies migrations. D1 records applied migration filenames in `d1_migrations`, so already-applied SQL files are not re-run just because their contents changed.
+
+**Never edit a migration file that may already have been applied to local or remote D1.** Add a new numbered SQL file instead, for example `worker/drizzle/0002_add_example.sql`. This is especially important for remote D1: changing `0000_init.sql` after it has run will not update production.
 
 **Do NOT rely on `db:generate`** — the drizzle-kit snapshot (`worker/drizzle/meta/`) is stale and out of sync with manually-applied migrations. Running `db:generate` opens an interactive prompt and may produce incorrect output. Always write migration SQL files by hand.
 
@@ -47,6 +49,7 @@ cd worker && bun run db:migrate:remote
 | `journal_lines` | id, journal_entry_id, account_id, debit, credit, created_at | Must balance per entry |
 | `crypto_wallets` | id, account_id (UNIQUE), address, chain, created_at | chain: eth/btc/sol/skr/binance |
 | `exchange_credentials` | id, exchange (UNIQUE), api_key, api_secret, created_at | Binance credentials |
+| `product_api_credentials` | id, provider (UNIQUE), api_key, api_secret, partner_tag, application_id, updated_at | Product metadata API credentials configured from Settings > General |
 | `budget_categories` | id, name, sort_order, rollover_months, budget_group, goal_balance, balance_cap, overflow_budget_category_id, created_at | Virtual budget buckets. All balances roll over in full; caps can overflow to another category |
 | `budget_category_accounts` | id, budget_category_id, account_id, ratio | Links expense accounts to categories for spending allocation |
 | `budget_category_account_targets` | id, budget_category_id, account_id, ratio | Links budget categories to cash/bank target holding accounts for budget placement guidance |
@@ -58,15 +61,31 @@ cd worker && bun run db:migrate:remote
 | `budget_filter_step_allocations` | id, step_id, budget_category_id, amount, ratio, created_at | Per-step category allocations |
 | `budget_filter_applications` | id, filter_id, year_month, total_income, created_at | Application log (UNIQUE: filter_id, year_month) |
 | `budget_filter_application_allocations` | id, application_id, budget_category_id, amount, created_at | Results of each application |
+| `planned_expense_categories` | id, kind, name, estimated_amount, currency, sort_order | User-defined groups for shopping list, wishlist, and scheduled payment items. Shopping lists primarily use category-level estimates |
+| `planned_expenses` | id, kind, category_id, name, estimated_amount, currency, expense_account_id, target_date, recurrence_type, next_due_date, status | Upcoming spending items. `kind` separates shopping list, wishlist, and scheduled payments; `expense_account_id` stores the expense account to use when turning the item into an entry |
+| `product_metadata_cache` | id, normalized_url, source_site, source_product_id, name, price_amount, availability_status, expires_at | 8-hour cache for product API/OGP metadata used by planned expenses |
 
-Migrations are consolidated into a single canonical file: `worker/drizzle/0000_init.sql`.
+Migration files live in `worker/drizzle/` and must be append-only once applied. `0000_init.sql` is the initial baseline; all later schema changes belong in new numbered files such as `0001_*.sql`, `0002_*.sql`, etc. `0001_planned_expenses.sql` may already exist remotely; post-0001 planned-expense extensions are consolidated in `0002_planned_expense_extensions.sql` until that file is applied remotely.
+
+### Product metadata API settings
+
+Wishlist product metadata uses official APIs when credentials are configured in Settings > General, and caches product name/price/availability plus OGP metadata in `product_metadata_cache` for 8 hours. Worker secrets/environment variables remain supported as fallback:
+- `RAKUTEN_APPLICATION_ID`
+- `RAKUTEN_ACCESS_KEY`
+- `YAHOO_SHOPPING_APP_ID`
+- `AMAZON_ACCESS_KEY`
+- `AMAZON_SECRET_KEY`
+- `AMAZON_PARTNER_TAG`
+
+Amazon product lookup should use Amazon Associates APIs, not seller-facing SP-API. The legacy Product Advertising API was deprecated on 2026-05-15, so Amazon integration may need migration to the current Associates/Creators API surface.
 
 ### Adding a new table — checklist
 1. Add the table definition to `worker/src/db/schema.ts`
-2. Update `worker/drizzle/0000_init.sql` with the canonical `CREATE TABLE IF NOT EXISTS` statement
+2. Add a new numbered migration SQL file under `worker/drizzle/` with the `CREATE TABLE` / index statements
 3. Export the new inferred types at the bottom of `schema.ts`
 4. Add shared TypeScript types to `shared/types.ts`
 5. Run `cd worker && bun run db:migrate` to apply locally
+6. For production, run `cd worker && bun run db:migrate:remote` before deploying Worker code that depends on the new schema
 
 ## Architecture Overview
 
@@ -94,6 +113,8 @@ Budget reset is represented as a `budget_adjustment_logs` row with `adjustment_t
 | `/api/reports/pl` | `reports.ts` | GET |
 | `/api/crypto` | `crypto.ts` | GET, POST, DELETE :id, GET balance, GET resolve |
 | `/api/exchange-credentials` | `exchangeCredentials.ts` | GET, POST (upsert), DELETE :id |
+| `/api/product-api-credentials` | `productApiCredentials.ts` | GET, POST :provider (upsert), DELETE :provider |
+| `/api/planned-expenses` | `plannedExpenses.ts` | GET, POST, PATCH :id, DELETE :id, POST metadata, POST :id/refresh-metadata, GET/POST/PATCH/DELETE categories |
 | `/api/budget/categories` | `budget.ts` | GET, POST, PATCH :id, DELETE :id |
 | `/api/budget/allocations` | `budget.ts` | POST (upsert), PATCH (delta adhoc/reset/comment) |
 | `/api/budget/adjustment-logs` | `budget.ts` | GET, PATCH :id, DELETE :id |
@@ -133,6 +154,16 @@ Account deletion safety: `DELETE /api/accounts/:id` returns 409 `{error:'in_use'
 | `NetWorthChart.tsx` | Net worth chart component |
 | `CryptoWatchModal.tsx` | Add/edit crypto wallet with chain selector (auto/ETH/BTC/SOL/SKR/Binance) |
 | `ExchangeCredentialModal.tsx` | Configure Binance API key + secret |
+
+### Account Select UI
+
+When rendering an account in a Mantine `Select` or `MultiSelect`, do not build raw options with `label: account.name` and do not import option rendering from a feature component such as `SimpleEntryForm`.
+
+Use the shared helpers in `frontend/src/lib/accountSelect.tsx`:
+- `toAccountOption(account, t)` or `buildAccountOptions(...)` / `buildAccountOptionsByCategory(...)` for option data
+- `renderAccountOption` for `renderOption`
+
+These helpers translate system account names and show the account-category icon. If a select uses `toAccountSelectOption(...)` from `accountUtils`, it still needs `renderOption={renderAccountOption as never}` unless the UI intentionally renders plain text outside a select dropdown.
 
 ### State Management (`frontend/src/context/AppDataContext.tsx`)
 
