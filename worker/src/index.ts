@@ -16,6 +16,8 @@ import { trialBalanceRouter } from "./routes/trialBalance";
 import { loansRouter } from "./routes/loans";
 import { currenciesRouter } from "./routes/currencies";
 import { longTermLoanPlansRouter } from "./routes/longTermLoanPlans";
+import { plannedExpensesRouter } from "./routes/plannedExpenses";
+import { productApiCredentialsRouter } from "./routes/productApiCredentials";
 import {
   databaseNotInitializedResponse,
   isMissingD1TableError,
@@ -69,6 +71,8 @@ app.route("/api/trial-balance", trialBalanceRouter);
 app.route("/api/loans", loansRouter);
 app.route("/api/currencies", currenciesRouter);
 app.route("/api/long-term-loan-plans", longTermLoanPlansRouter);
+app.route("/api/planned-expenses", plannedExpensesRouter);
+app.route("/api/product-api-credentials", productApiCredentialsRouter);
 
 app.get("/api/health", (c) =>
   c.json({ status: "ok", service: "balance-sheet-worker" }),

@@ -266,6 +266,27 @@ export interface CreateExchangeCredentialInput {
   api_secret: string;
 }
 
+export type ProductApiProvider = "rakuten" | "yahoo" | "amazon";
+
+export interface ProductApiCredentialStatus {
+  provider: ProductApiProvider;
+  has_api_key: boolean;
+  has_api_secret: boolean;
+  has_partner_tag: boolean;
+  has_application_id: boolean;
+  api_key_last4: string | null;
+  partner_tag_last4: string | null;
+  application_id_last4: string | null;
+  updated_at: string | null;
+}
+
+export interface UpsertProductApiCredentialInput {
+  api_key?: string;
+  api_secret?: string;
+  partner_tag?: string;
+  application_id?: string;
+}
+
 export interface CryptoPrices {
   bitcoin: number;
   ethereum: number;
@@ -455,6 +476,165 @@ export interface BudgetSettings {
   business_loss_account_id?: number | null;
   /** Budget category to deduct business advance amounts from (事業立替金の予算元) */
   business_advance_budget_category_id?: number | null;
+}
+
+export type PlannedExpenseKind =
+  | "shopping_list"
+  | "wishlist"
+  | "scheduled_payment";
+export type PlannedExpenseStatus = "open" | "completed" | "cancelled";
+export type PlannedExpenseRecurrenceType = "one_time" | "recurring";
+export type ShoppingPlanType = "one_time" | "routine";
+export type ProductSourceSite = "amazon" | "rakuten" | "yahoo" | "other";
+export type ProductAvailabilityStatus =
+  | "in_stock"
+  | "out_of_stock"
+  | "unavailable"
+  | "unknown"
+  | "api_credentials_missing"
+  | "unsupported"
+  | "error";
+
+export interface ProductMetadata {
+  id: number;
+  normalized_url: string;
+  source_site: ProductSourceSite;
+  source_product_id: string | null;
+  name: string | null;
+  price_amount: number | null;
+  currency: string;
+  availability_status: ProductAvailabilityStatus;
+  availability_label: string | null;
+  og_title: string | null;
+  og_description: string | null;
+  og_image_url: string | null;
+  og_site_name: string | null;
+  fetched_at: string;
+  expires_at: string;
+  error_code: string | null;
+  error_message: string | null;
+}
+
+export interface ProductMetadataLookupInput {
+  url: string;
+  force?: boolean;
+}
+
+export interface PlannedExpenseCategory {
+  id: number;
+  kind: PlannedExpenseKind;
+  name: string;
+  estimated_amount: number;
+  currency: string;
+  default_expense_account_id: number | null;
+  target_date: string | null;
+  shopping_plan_type: ShoppingPlanType;
+  archived_at: string | null;
+  last_checked_out_date: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePlannedExpenseCategoryInput {
+  kind: PlannedExpenseKind;
+  name: string;
+  estimated_amount?: number;
+  currency?: string;
+  default_expense_account_id?: number | null;
+  target_date?: string | null;
+  shopping_plan_type?: ShoppingPlanType;
+  sort_order?: number;
+}
+
+export interface UpdatePlannedExpenseCategoryInput {
+  name?: string;
+  estimated_amount?: number;
+  currency?: string;
+  default_expense_account_id?: number | null;
+  target_date?: string | null;
+  shopping_plan_type?: ShoppingPlanType;
+  archived_at?: string | null;
+  last_checked_out_date?: string | null;
+  sort_order?: number;
+}
+
+export interface PlannedExpense {
+  id: number;
+  kind: PlannedExpenseKind;
+  category_id: number | null;
+  category_name?: string | null;
+  category_estimated_amount?: number | null;
+  category_currency?: string | null;
+  category_default_expense_account_id?: number | null;
+  category_target_date?: string | null;
+  category_shopping_plan_type?: ShoppingPlanType | null;
+  category_archived_at?: string | null;
+  name: string;
+  estimated_amount: number;
+  currency: string;
+  budget_category_id: number | null;
+  budget_category_name?: string | null;
+  expense_account_id: number | null;
+  expense_account_name?: string | null;
+  target_date: string | null;
+  recurrence_type: PlannedExpenseRecurrenceType;
+  recurrence_interval_months: number | null;
+  recurrence_day: number | null;
+  next_due_date: string | null;
+  end_date: string | null;
+  priority: number;
+  status: PlannedExpenseStatus;
+  keep_on_routine_clear: boolean;
+  note: string | null;
+  url: string | null;
+  product_metadata_cache_id?: number | null;
+  product_metadata?: ProductMetadata | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePlannedExpenseInput {
+  kind: PlannedExpenseKind;
+  category_id?: number | null;
+  name: string;
+  estimated_amount: number;
+  currency?: string;
+  budget_category_id?: number | null;
+  expense_account_id?: number | null;
+  target_date?: string | null;
+  recurrence_type?: PlannedExpenseRecurrenceType;
+  recurrence_interval_months?: number | null;
+  recurrence_day?: number | null;
+  next_due_date?: string | null;
+  end_date?: string | null;
+  priority?: number;
+  status?: PlannedExpenseStatus;
+  keep_on_routine_clear?: boolean;
+  note?: string | null;
+  url?: string | null;
+  product_metadata_cache_id?: number | null;
+}
+
+export interface UpdatePlannedExpenseInput {
+  category_id?: number | null;
+  name?: string;
+  estimated_amount?: number;
+  currency?: string;
+  budget_category_id?: number | null;
+  expense_account_id?: number | null;
+  target_date?: string | null;
+  recurrence_type?: PlannedExpenseRecurrenceType;
+  recurrence_interval_months?: number | null;
+  recurrence_day?: number | null;
+  next_due_date?: string | null;
+  end_date?: string | null;
+  priority?: number;
+  status?: PlannedExpenseStatus;
+  keep_on_routine_clear?: boolean;
+  note?: string | null;
+  url?: string | null;
+  product_metadata_cache_id?: number | null;
 }
 
 export interface DepreciationSchedule {

@@ -31,6 +31,7 @@ import {
   IconFileDownload,
   IconFileSpreadsheet,
   IconHelp,
+  IconKey,
   IconListCheck,
   IconSettings,
   IconStar,
@@ -56,7 +57,10 @@ import { AccountTable } from "../components/AccountTable";
 import { AddAccountModal } from "../components/AddAccountModal";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { PwaInstallSetting } from "../components/PwaInstallSetting";
-import type { Account, CreateAccountInput } from "@balance-sheet/shared";
+import type {
+  Account,
+  CreateAccountInput,
+} from "@balance-sheet/shared";
 import type { CreditCardSettingsInput } from "../components/AddAccountModal";
 import { showFeedback } from "../lib/feedback";
 import * as Flags from "country-flag-icons/react/1x1";
@@ -325,6 +329,13 @@ export default function SettingsPage() {
       label: t("settingsNavCurrencyTitle"),
       desc: t("settingsNavCurrencyDesc"),
       color: "yellow",
+    },
+    {
+      to: "/settings/product-api",
+      Icon: IconKey,
+      label: t("productApiSettingsTitle"),
+      desc: t("settingsNavProductApiDesc"),
+      color: "lime",
     },
     {
       to: "/settings/business",

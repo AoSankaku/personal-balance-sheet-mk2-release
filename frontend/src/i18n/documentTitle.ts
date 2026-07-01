@@ -21,6 +21,10 @@ const EXACT_PAGE_TITLE_KEYS: Record<string, TranslationKey> = {
   "/settings/guides": "guidesPageTitle",
   "/settings/export": "settingsNavExportTitle",
   "/settings/currencies": "currencySettingsTitle",
+  "/settings/product-api": "productApiSettingsTitle",
+  "/shopping-list": "shoppingListTitle",
+  "/wishlist": "wishlistTitle",
+  "/scheduled-payments": "scheduledPaymentsTitle",
 };
 
 const DYNAMIC_PAGE_TITLE_KEYS: {

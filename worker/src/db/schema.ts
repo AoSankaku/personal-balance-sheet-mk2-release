@@ -133,6 +133,23 @@ export const exchangeCredentials = sqliteTable("exchange_credentials", {
     .default(sql`(datetime('now'))`),
 });
 
+export const productApiCredentials = sqliteTable("product_api_credentials", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  provider: text("provider", {
+    enum: ["rakuten", "yahoo", "amazon"],
+  }).notNull().unique(),
+  api_key: text("api_key"),
+  api_secret: text("api_secret"),
+  partner_tag: text("partner_tag"),
+  application_id: text("application_id"),
+  created_at: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updated_at: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 export const budgetCategories = sqliteTable("budget_categories", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
@@ -340,6 +357,168 @@ export const budgetSettings = sqliteTable("budget_settings", {
     "business_advance_budget_category_id",
   ).references(() => budgetCategories.id),
 });
+
+export const productMetadataCache = sqliteTable("product_metadata_cache", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  normalized_url: text("normalized_url").notNull().unique(),
+  source_site: text("source_site", {
+    enum: ["amazon", "rakuten", "yahoo", "other"],
+  }).notNull(),
+  source_product_id: text("source_product_id"),
+  name: text("name"),
+  price_amount: integer("price_amount"),
+  currency: text("currency").notNull().default("JPY"),
+  availability_status: text("availability_status", {
+    enum: [
+      "in_stock",
+      "out_of_stock",
+      "unavailable",
+      "unknown",
+      "api_credentials_missing",
+      "unsupported",
+      "error",
+    ],
+  }).notNull().default("unknown"),
+  availability_label: text("availability_label"),
+  og_title: text("og_title"),
+  og_description: text("og_description"),
+  og_image_url: text("og_image_url"),
+  og_site_name: text("og_site_name"),
+  fetched_at: text("fetched_at").notNull(),
+  expires_at: text("expires_at").notNull(),
+  error_code: text("error_code"),
+  error_message: text("error_message"),
+  created_at: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updated_at: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+}, (table) => ({
+  expiresAtIdx: index("idx_product_metadata_cache_expires_at").on(
+    table.expires_at,
+  ),
+  priceAmountInteger: check(
+    "chk_product_metadata_price_amount_integer",
+    sql`${table.price_amount} IS NULL OR typeof(${table.price_amount}) = 'integer'`,
+  ),
+}));
+
+export const plannedExpenseCategories = sqliteTable("planned_expense_categories", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  kind: text("kind", {
+    enum: ["shopping_list", "wishlist", "scheduled_payment"],
+  }).notNull(),
+  name: text("name").notNull(),
+  estimated_amount: integer("estimated_amount").notNull().default(0),
+  currency: text("currency").notNull().default("JPY"),
+  default_expense_account_id: integer("default_expense_account_id").references(
+    () => accounts.id,
+    { onDelete: "set null" },
+  ),
+  target_date: text("target_date"),
+  shopping_plan_type: text("shopping_plan_type", {
+    enum: ["one_time", "routine"],
+  }).notNull().default("one_time"),
+  archived_at: text("archived_at"),
+  last_checked_out_date: text("last_checked_out_date"),
+  sort_order: integer("sort_order").notNull().default(0),
+  created_at: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updated_at: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+}, (table) => ({
+  kindIdx: index("idx_planned_expense_categories_kind").on(
+    table.kind,
+    table.sort_order,
+    table.name,
+  ),
+  kindArchivedIdx: index("idx_planned_expense_categories_kind_archived").on(
+    table.kind,
+    table.archived_at,
+    table.sort_order,
+    table.name,
+  ),
+  estimatedAmountInteger: check(
+    "chk_planned_expense_categories_estimated_amount_integer",
+    sql`typeof(${table.estimated_amount}) = 'integer'`,
+  ),
+}));
+
+export const plannedExpenses = sqliteTable("planned_expenses", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  kind: text("kind", {
+    enum: ["shopping_list", "wishlist", "scheduled_payment"],
+  }).notNull(),
+  category_id: integer("category_id").references(
+    () => plannedExpenseCategories.id,
+    { onDelete: "set null" },
+  ),
+  name: text("name").notNull(),
+  estimated_amount: integer("estimated_amount").notNull().default(0),
+  currency: text("currency").notNull().default("JPY"),
+  budget_category_id: integer("budget_category_id").references(
+    () => budgetCategories.id,
+    { onDelete: "set null" },
+  ),
+  expense_account_id: integer("expense_account_id").references(
+    () => accounts.id,
+    { onDelete: "set null" },
+  ),
+  target_date: text("target_date"),
+  recurrence_type: text("recurrence_type", {
+    enum: ["one_time", "recurring"],
+  }).notNull().default("one_time"),
+  recurrence_interval_months: integer("recurrence_interval_months"),
+  recurrence_day: integer("recurrence_day"),
+  next_due_date: text("next_due_date"),
+  end_date: text("end_date"),
+  priority: integer("priority").notNull().default(2),
+  status: text("status", {
+    enum: ["open", "completed", "cancelled"],
+  }).notNull().default("open"),
+  keep_on_routine_clear: integer("keep_on_routine_clear").notNull().default(0),
+  note: text("note"),
+  url: text("url"),
+  product_metadata_cache_id: integer("product_metadata_cache_id").references(
+    () => productMetadataCache.id,
+    { onDelete: "set null" },
+  ),
+  created_at: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updated_at: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+}, (table) => ({
+  kindStatusDateIdx: index("idx_planned_expenses_kind_status_date").on(
+    table.kind,
+    table.status,
+    table.target_date,
+  ),
+  expenseAccountIdx: index("idx_planned_expenses_expense_account").on(
+    table.expense_account_id,
+  ),
+  categoryIdx: index("idx_planned_expenses_category").on(table.category_id),
+  estimatedAmountInteger: check(
+    "chk_planned_expenses_estimated_amount_integer",
+    sql`typeof(${table.estimated_amount}) = 'integer'`,
+  ),
+  priorityRange: check(
+    "chk_planned_expenses_priority_range",
+    sql`${table.priority} BETWEEN 1 AND 3`,
+  ),
+  recurrenceIntervalRange: check(
+    "chk_planned_expenses_recurrence_interval_range",
+    sql`${table.recurrence_interval_months} IS NULL OR ${table.recurrence_interval_months} > 0`,
+  ),
+  recurrenceDayRange: check(
+    "chk_planned_expenses_recurrence_day_range",
+    sql`${table.recurrence_day} IS NULL OR ${table.recurrence_day} BETWEEN 1 AND 31`,
+  ),
+}));
 
 export const storeAccountMappings = sqliteTable("store_account_mappings", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -580,6 +759,8 @@ export type JournalLine = typeof journalLines.$inferSelect;
 export type NewJournalLine = typeof journalLines.$inferInsert;
 export type CryptoWallet = typeof cryptoWallets.$inferSelect;
 export type NewCryptoWallet = typeof cryptoWallets.$inferInsert;
+export type ProductApiCredential = typeof productApiCredentials.$inferSelect;
+export type NewProductApiCredential = typeof productApiCredentials.$inferInsert;
 export type BudgetCategory = typeof budgetCategories.$inferSelect;
 export type NewBudgetCategory = typeof budgetCategories.$inferInsert;
 export type BudgetCategoryAccount = typeof budgetCategoryAccounts.$inferSelect;
@@ -598,6 +779,14 @@ export type JournalEntryBudgetAllocation =
 export type BudgetAdjustmentLog = typeof budgetAdjustmentLogs.$inferSelect;
 export type NewBudgetAdjustmentLog = typeof budgetAdjustmentLogs.$inferInsert;
 export type BudgetSettings = typeof budgetSettings.$inferSelect;
+export type ProductMetadataCache = typeof productMetadataCache.$inferSelect;
+export type NewProductMetadataCache = typeof productMetadataCache.$inferInsert;
+export type PlannedExpenseCategory =
+  typeof plannedExpenseCategories.$inferSelect;
+export type NewPlannedExpenseCategory =
+  typeof plannedExpenseCategories.$inferInsert;
+export type PlannedExpense = typeof plannedExpenses.$inferSelect;
+export type NewPlannedExpense = typeof plannedExpenses.$inferInsert;
 export type CreditCardSettingsRow = typeof creditCardSettings.$inferSelect;
 export type NewCreditCardSettings = typeof creditCardSettings.$inferInsert;
 export type StoreAccountMapping = typeof storeAccountMappings.$inferSelect;

@@ -17,7 +17,12 @@ import {
   IconPencil,
   IconShoppingCart,
 } from "@tabler/icons-react";
-import { useSearchParams, useLocation, Link } from "react-router-dom";
+import {
+  useSearchParams,
+  useLocation,
+  useNavigate,
+  Link,
+} from "react-router-dom";
 import { useCallback, useRef, useState } from "react";
 import type { CreateJournalInput } from "@balance-sheet/shared";
 import { api } from "../api/client";
@@ -41,6 +46,7 @@ import { showFeedback } from "../lib/feedback";
 import { refreshAfterBudgetAdjustment } from "../lib/budgetAdjustmentRefresh";
 import { usePrivacy } from "../context/PrivacyContext";
 import { PrivacyModeBlocked } from "../components/PrivacyModeBlocked";
+import type { PlannedExpenseEntrySource } from "../types/plannedExpenseInput";
 import {
   savedTab,
   setSavedTab,
@@ -57,12 +63,15 @@ export default function InputPage() {
   const { privacyMode } = usePrivacy();
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const locationState = location.state as {
     loanDraft?: Partial<HouseholdForm>;
+    plannedExpenseEntry?: PlannedExpenseEntrySource;
     settledEntryIds?: number[];
     tab?: string;
   } | null;
   const locationLoanDraft = locationState?.loanDraft;
+  const locationPlannedExpenseEntry = locationState?.plannedExpenseEntry;
   const locationSettledEntryIds = locationState?.settledEntryIds;
   const fromTt = searchParams.get("from") === "tt";
   const typeParam = searchParams.get("type"); // e.g. "loan" from /fs/db
@@ -81,8 +90,15 @@ export default function InputPage() {
 
   const hasFx = enabledCurrencies.length >= 2;
   const [activeTab, setActiveTab] = useState(
-    locationLoanDraft != null ? "simple" : savedTab,
+    locationLoanDraft != null || locationPlannedExpenseEntry != null
+      ? "simple"
+      : (locationState?.tab ?? savedTab),
   );
+  const [pendingPlannedExpenseCompletion, setPendingPlannedExpenseCompletion] =
+    useState<{
+      source: PlannedExpenseEntrySource;
+      checkoutDate: string;
+    } | null>(null);
   const [resetKeys, setResetKeys] = useState({
     simple: 0,
     multi: 0,
@@ -118,6 +134,180 @@ export default function InputPage() {
     setSimpleDraft(draft);
   }, []);
 
+  const plannedExpenseInitialDraft: SimpleFormDraft | null =
+    locationPlannedExpenseEntry != null
+      ? {
+          formValues: {
+            entryType: "expense",
+            description: locationPlannedExpenseEntry.name,
+            expenseCategoryId: locationPlannedExpenseEntry.expenseAccountId,
+            amount: locationPlannedExpenseEntry.amount,
+          },
+          budgetDist: [],
+          showZeroCategories: false,
+        }
+      : null;
+
+  function clearPlannedExpenseNavigationState() {
+    if (!locationState?.plannedExpenseEntry) return;
+    const { plannedExpenseEntry: _plannedExpenseEntry, ...rest } =
+      locationState;
+    navigate(
+      {
+        pathname: location.pathname,
+        search: location.search,
+      },
+      {
+        replace: true,
+        state: Object.keys(rest).length > 0 ? rest : null,
+      },
+    );
+  }
+
+  function getSubmittedExpenseSummary(values: CreateJournalInput) {
+    const expenseLine = values.lines.find((line) => {
+      if (line.debit <= 0) return false;
+      const account = accounts.find((a) => a.id === line.account_id);
+      return account?.type === "expense";
+    });
+    const amount = values.lines.reduce(
+      (sum, line) => sum + Math.max(line.debit, 0),
+      0,
+    );
+    return {
+      description: values.description.trim(),
+      expenseAccountId: expenseLine?.account_id ?? null,
+      amount,
+    };
+  }
+
+  async function completePlannedExpenseSource(
+    source: PlannedExpenseEntrySource,
+    checkoutDate: string,
+  ): Promise<boolean> {
+    try {
+      const checkoutItemIds = source.checkoutItemIds ?? [];
+      const checkoutKeepItemIdSet = new Set(source.checkoutKeepItemIds ?? []);
+      const completedItemIds =
+        checkoutItemIds.length > 0 ? checkoutItemIds : [source.id];
+      if (
+        source.kind === "shopping_list" &&
+        source.categoryId != null &&
+        source.categoryShoppingPlanType === "routine" &&
+        checkoutItemIds.length > 0
+      ) {
+        const checkoutItemIdSet = new Set(checkoutItemIds);
+        const checkoutItems =
+          source.checkoutItems ??
+          (await api.plannedExpenses.list({ kind: "shopping_list" }))
+            .filter((item) => checkoutItemIdSet.has(item.id))
+            .map((item) => ({
+              id: item.id,
+              name: item.name,
+              estimatedAmount: item.estimated_amount,
+              currency: item.currency,
+              status: item.status,
+              keepOnRoutineClear: item.keep_on_routine_clear,
+              note: item.note,
+            }));
+        const snapshotArchivedAt = new Date().toISOString();
+        const snapshotCategory = await api.plannedExpenses.createCategory({
+          kind: "shopping_list",
+          name: source.name,
+          estimated_amount: source.amount,
+          currency: source.currency,
+          default_expense_account_id: source.expenseAccountId,
+          target_date: source.categoryTargetDate ?? checkoutDate,
+          shopping_plan_type: "one_time",
+        });
+        await Promise.all(
+          checkoutItems.map((item) =>
+            api.plannedExpenses.create({
+              kind: "shopping_list",
+              category_id: snapshotCategory.id,
+              name: item.name,
+              estimated_amount: item.estimatedAmount,
+              currency: item.currency,
+              budget_category_id: null,
+              expense_account_id: null,
+              target_date: null,
+              recurrence_type: "one_time",
+              recurrence_interval_months: null,
+              recurrence_day: null,
+              next_due_date: null,
+              end_date: null,
+              priority: 2,
+              status: item.status,
+              keep_on_routine_clear: item.keepOnRoutineClear,
+              note: item.note,
+              url: null,
+              product_metadata_cache_id: null,
+            }),
+          ),
+        );
+        await api.plannedExpenses.updateCategory(snapshotCategory.id, {
+          archived_at: snapshotArchivedAt,
+        });
+        await Promise.all(
+          checkoutItemIds.map((id) =>
+            checkoutKeepItemIdSet.has(id)
+              ? api.plannedExpenses.update(id, { status: "open" })
+              : api.plannedExpenses.delete(id),
+          ),
+        );
+        await api.plannedExpenses.updateCategory(source.categoryId, {
+          last_checked_out_date: checkoutDate,
+        });
+        return true;
+      }
+      await Promise.all(
+        completedItemIds.map((id) =>
+          api.plannedExpenses.update(id, {
+            status: checkoutKeepItemIdSet.has(id) ? "open" : "completed",
+          }),
+        ),
+      );
+      if (
+        source.kind === "shopping_list" &&
+        source.categoryId != null &&
+        source.categoryShoppingPlanType === "one_time"
+      ) {
+        await api.plannedExpenses.updateCategory(source.categoryId, {
+          archived_at: new Date().toISOString(),
+        });
+        return checkoutItemIds.length > 0;
+      }
+      return false;
+    } catch (e) {
+      showFeedback({
+        message: e instanceof Error ? e.message : String(e),
+        color: "red",
+      });
+      return false;
+    }
+  }
+
+  async function handlePlannedExpenseCompletion(values: CreateJournalInput) {
+    const source = locationPlannedExpenseEntry;
+    if (!source || activeTab !== "simple") return "none";
+
+    clearPlannedExpenseNavigationState();
+    const submitted = getSubmittedExpenseSummary(values);
+    const allChanged =
+      submitted.description !== source.name.trim() &&
+      submitted.expenseAccountId !== source.expenseAccountId &&
+      Math.round(submitted.amount) !== Math.round(source.amount);
+
+    if (allChanged) {
+      setPendingPlannedExpenseCompletion({ source, checkoutDate: values.date });
+      return "pending";
+    }
+
+    return (await completePlannedExpenseSource(source, values.date))
+      ? "shopping_list_archived"
+      : "none";
+  }
+
   async function handleSubmit(
     values: CreateJournalInput,
     meta?: SimpleEntryMeta,
@@ -131,9 +321,16 @@ export default function InputPage() {
       })),
     };
     await api.journal.create(input);
-    showFeedback({ message: t("transactionSaved"), color: "teal" });
     if (activeTab === "simple") setSimpleDraft(null);
     if (activeTab === "multi") setMultiDraft(null);
+    const plannedExpenseCompletion = await handlePlannedExpenseCompletion(input);
+    showFeedback({
+      message:
+        plannedExpenseCompletion === "shopping_list_archived"
+          ? t("transactionSavedWithShoppingListArchived")
+          : t("transactionSaved"),
+      color: "teal",
+    });
     refresh();
     void refreshBudget();
     void refreshAllocatable();
@@ -237,6 +434,7 @@ export default function InputPage() {
               onSubmit={handleSubmit}
               onDepreciationSubmit={handleDepreciationSubmit}
               initialDraft={
+                plannedExpenseInitialDraft ??
                 (locationLoanDraft != null
                   ? {
                       formValues: locationLoanDraft,
@@ -336,6 +534,30 @@ export default function InputPage() {
         message={t("resetConfirm")}
         confirmLabel={t("reset")}
         confirmColor="orange"
+      />
+      <ConfirmModal
+        opened={pendingPlannedExpenseCompletion != null}
+        onClose={() => setPendingPlannedExpenseCompletion(null)}
+        onConfirm={() => {
+          if (pendingPlannedExpenseCompletion) {
+            void (async () => {
+              const archived = await completePlannedExpenseSource(
+                pendingPlannedExpenseCompletion.source,
+                pendingPlannedExpenseCompletion.checkoutDate,
+              );
+              if (archived) {
+                showFeedback({
+                  message: t("shoppingListArchivedFeedback"),
+                  color: "teal",
+                });
+              }
+            })();
+          }
+        }}
+        title={t("plannedExpenseCompleteSourceTitle")}
+        message={t("plannedExpenseCompleteSourceMessage")}
+        confirmLabel={t("plannedExpenseCompleteSourceConfirm")}
+        confirmColor="teal"
       />
     </Stack>
   );

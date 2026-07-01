@@ -23,6 +23,9 @@ import {
   IconCalendarX,
   IconWallet,
   IconPigMoney,
+  IconGift,
+  IconCalendarDollar,
+  IconShoppingCart,
 } from "@tabler/icons-react";
 import { useState, useEffect, useMemo } from "react";
 import dayjs from "dayjs";
@@ -733,6 +736,7 @@ export default function OverviewPage() {
 
       {/* Budget including savings summary + link to savings page */}
       {displaySummary && displaySummary.total_budget > 0 && (
+        <>
         <Paper withBorder px="md" py="sm" radius="md">
           <Group justify="space-between" align="center">
             <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
@@ -773,6 +777,50 @@ export default function OverviewPage() {
             </Group>
           )}
         </Paper>
+
+        <Paper withBorder p="md" radius="md">
+          <Stack gap="sm">
+            <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+              {t("plannedMoneyTitle")}
+            </Text>
+            <SimpleGrid cols={{ base: 1, xs: 3 }}>
+              <Button
+                component={Link}
+                to="/shopping-list"
+                variant="light"
+                color="green"
+                leftSection={<IconShoppingCart size={18} />}
+                justify="flex-start"
+                styles={{ root: { minHeight: rem(52) } }}
+              >
+                {t("shoppingListTitle")}
+              </Button>
+              <Button
+                component={Link}
+                to="/wishlist"
+                variant="light"
+                color="pink"
+                leftSection={<IconGift size={18} />}
+                justify="flex-start"
+                styles={{ root: { minHeight: rem(52) } }}
+              >
+                {t("wishlistTitle")}
+              </Button>
+              <Button
+                component={Link}
+                to="/scheduled-payments"
+                variant="light"
+                color="blue"
+                leftSection={<IconCalendarDollar size={18} />}
+                justify="flex-start"
+                styles={{ root: { minHeight: rem(52) } }}
+              >
+                {t("scheduledPaymentsTitle")}
+              </Button>
+            </SimpleGrid>
+          </Stack>
+        </Paper>
+        </>
       )}
 
       {/* Recent transactions */}

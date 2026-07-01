@@ -42,6 +42,18 @@ import type {
   UpsertLongTermLoanPlanInput,
   UpsertLongTermLoanPlanRowInput,
   LongTermLoanComparisonRow,
+  PlannedExpense,
+  PlannedExpenseCategory,
+  PlannedExpenseKind,
+  CreatePlannedExpenseInput,
+  CreatePlannedExpenseCategoryInput,
+  ProductMetadata,
+  ProductMetadataLookupInput,
+  UpdatePlannedExpenseInput,
+  UpdatePlannedExpenseCategoryInput,
+  ProductApiCredentialStatus,
+  ProductApiProvider,
+  UpsertProductApiCredentialInput,
 } from "@balance-sheet/shared";
 import { createInFlightRequestDeduper } from "./inFlightRequest";
 import {
@@ -172,6 +184,7 @@ async function mutationRequest<T>(
 const DERIVED_ACCOUNT_PREFIXES = ["/accounts", "/budget", "/reports"];
 const DERIVED_JOURNAL_PREFIXES = ["/accounts", "/budget", "/reports"];
 const BUDGET_PREFIXES = ["/budget"];
+const PLANNED_EXPENSE_PREFIXES = ["/planned-expenses", "/budget"];
 
 export const api = {
   accounts: {
@@ -308,6 +321,25 @@ export const api = {
       }),
     delete: (id: number) =>
       request<{ success: boolean }>(`/exchange-credentials/${id}`, {
+        method: "DELETE",
+      }),
+  },
+  productApiCredentials: {
+    list: () =>
+      request<ProductApiCredentialStatus[]>("/product-api-credentials"),
+    upsert: (
+      provider: ProductApiProvider,
+      input: UpsertProductApiCredentialInput,
+    ) =>
+      request<ProductApiCredentialStatus>(
+        `/product-api-credentials/${provider}`,
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        },
+      ),
+    delete: (provider: ProductApiProvider) =>
+      request<{ success: boolean }>(`/product-api-credentials/${provider}`, {
         method: "DELETE",
       }),
   },
@@ -607,6 +639,77 @@ export const api = {
       request<{ rows: LongTermLoanComparisonRow[] }>(
         `/long-term-loan-plans/${accountId}/comparison`,
       ),
+  },
+  plannedExpenses: {
+    listCategories: (params?: {
+      kind?: PlannedExpenseKind;
+      includeArchived?: boolean;
+    }) => {
+      const q = new URLSearchParams();
+      if (params?.kind) q.set("kind", params.kind);
+      if (params?.includeArchived) q.set("include_archived", "true");
+      const qs = q.toString();
+      return cachedRequest<PlannedExpenseCategory[]>(
+        `/planned-expenses/categories${qs ? `?${qs}` : ""}`,
+      );
+    },
+    createCategory: (input: CreatePlannedExpenseCategoryInput) =>
+      mutationRequest<PlannedExpenseCategory>("/planned-expenses/categories", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }, PLANNED_EXPENSE_PREFIXES),
+    updateCategory: (id: number, input: UpdatePlannedExpenseCategoryInput) =>
+      mutationRequest<PlannedExpenseCategory>(
+        `/planned-expenses/categories/${id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(input),
+        },
+        PLANNED_EXPENSE_PREFIXES,
+      ),
+    deleteCategory: (id: number) =>
+      mutationRequest<{ success: boolean }>(
+        `/planned-expenses/categories/${id}`,
+        { method: "DELETE" },
+        PLANNED_EXPENSE_PREFIXES,
+      ),
+    list: (params?: {
+      kind?: PlannedExpenseKind;
+      status?: PlannedExpense["status"];
+      includeArchived?: boolean;
+    }) => {
+      const q = new URLSearchParams();
+      if (params?.kind) q.set("kind", params.kind);
+      if (params?.status) q.set("status", params.status);
+      if (params?.includeArchived) q.set("include_archived", "true");
+      const qs = q.toString();
+      return cachedRequest<PlannedExpense[]>(
+        `/planned-expenses${qs ? `?${qs}` : ""}`,
+      );
+    },
+    create: (input: CreatePlannedExpenseInput) =>
+      mutationRequest<PlannedExpense>("/planned-expenses", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }, PLANNED_EXPENSE_PREFIXES),
+    lookupMetadata: (input: ProductMetadataLookupInput) =>
+      mutationRequest<ProductMetadata>("/planned-expenses/metadata", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }, PLANNED_EXPENSE_PREFIXES),
+    refreshMetadata: (id: number) =>
+      mutationRequest<PlannedExpense>(`/planned-expenses/${id}/refresh-metadata`, {
+        method: "POST",
+      }, PLANNED_EXPENSE_PREFIXES),
+    update: (id: number, input: UpdatePlannedExpenseInput) =>
+      mutationRequest<PlannedExpense>(`/planned-expenses/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }, PLANNED_EXPENSE_PREFIXES),
+    delete: (id: number) =>
+      mutationRequest<{ success: boolean }>(`/planned-expenses/${id}`, {
+        method: "DELETE",
+      }, PLANNED_EXPENSE_PREFIXES),
   },
   currencies: {
     list: () => cachedRequest<EnabledCurrency[]>("/currencies"),

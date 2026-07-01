@@ -29,9 +29,13 @@ const DangerZonePage = lazy(() => import("./pages/DangerZonePage"));
 const GuidesPage = lazy(() => import("./pages/GuidesPage"));
 const ExportPage = lazy(() => import("./pages/ExportPage"));
 const CurrencySettingsPage = lazy(() => import("./pages/CurrencySettingsPage"));
+const ProductApiSettingsPage = lazy(
+  () => import("./pages/ProductApiSettingsPage"),
+);
 const TtPage = lazy(() => import("./pages/TtPage"));
 const DbPage = lazy(() => import("./pages/DbPage"));
 const SvPage = lazy(() => import("./pages/SvPage"));
+const PlannedExpensePage = lazy(() => import("./pages/PlannedExpensePage"));
 const LongTermLoanDetailPage = lazy(
   () => import("./pages/LongTermLoanDetailPage"),
 );
@@ -124,6 +128,15 @@ export default function App() {
                 }
               />
               <Route path="/fs/sv" element={<SvPage />} />
+              <Route
+                path="/shopping-list"
+                element={<PlannedExpensePage kind="shopping_list" />}
+              />
+              <Route path="/wishlist" element={<PlannedExpensePage kind="wishlist" />} />
+              <Route
+                path="/scheduled-payments"
+                element={<PlannedExpensePage kind="scheduled_payment" />}
+              />
               <Route path="/ledger" element={<LedgerPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route
@@ -178,6 +191,16 @@ export default function App() {
                     <PrivacyModeBlocked />
                   ) : (
                     <CurrencySettingsPage />
+                  )
+                }
+              />
+              <Route
+                path="/settings/product-api"
+                element={
+                  privacyMode ? (
+                    <PrivacyModeBlocked />
+                  ) : (
+                    <ProductApiSettingsPage />
                   )
                 }
               />

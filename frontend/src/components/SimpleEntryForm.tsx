@@ -12,7 +12,7 @@ import {
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMediaQuery } from "@mantine/hooks";
 import dayjs from "dayjs";
 import {
@@ -171,6 +171,38 @@ export function SimpleEntryForm({
   } = useAppData();
   const isMobile = useMediaQuery("(max-width: 48em)");
   const selectedCurrency = displayCurrency || "JPY";
+  const buildBudgetDistribution = useCallback(
+    (accountId: number | null): BudgetDistributionItem[] => {
+      if (!accountId) return [];
+
+      const account = accounts.find((a) => a.id === accountId);
+      const ratios = account?.budget_ratios ?? [];
+      const configuredIds = new Set(
+        ratios.map((r) => r.budget_category_id),
+      );
+
+      const configuredItems: BudgetDistributionItem[] = ratios.map((r) => ({
+        budget_category_id: r.budget_category_id,
+        name:
+          r.budget_category_name ??
+          `${t("unknownCategoryPrefix")}${r.budget_category_id}`,
+        ratio: r.ratio,
+        isDefault: r.ratio === 0,
+      }));
+
+      const unconfiguredItems: BudgetDistributionItem[] = budgetCategories
+        .filter((c) => !configuredIds.has(c.id))
+        .map((c) => ({
+          budget_category_id: c.id,
+          name: c.name,
+          ratio: 0,
+          isDefault: true,
+        }));
+
+      return [...configuredItems, ...unconfiguredItems];
+    },
+    [accounts, budgetCategories, t],
+  );
   const [selectedFilterId, setSelectedFilterId] = useState<string | null>(
     initialDraft?.selectedFilterId ?? null,
   );
@@ -192,7 +224,11 @@ export function SimpleEntryForm({
   );
   // Budget distribution for the currently selected expense account
   const [budgetDist, setBudgetDist] = useState<BudgetDistributionItem[]>(
-    initialDraft?.budgetDist ?? [],
+    initialDraft?.budgetDist?.length
+      ? initialDraft.budgetDist
+      : buildBudgetDistribution(
+          initialDraft?.formValues.expenseCategoryId ?? null,
+        ),
   );
   const [showZeroCategories, setShowZeroCategories] = useState(
     initialDraft?.showZeroCategories ?? false,
@@ -1235,36 +1271,7 @@ export function SimpleEntryForm({
     const accountId = v ? Number(v) : null;
     form.setFieldValue("expenseCategoryId", accountId);
     setShowZeroCategories(false);
-
-    if (accountId) {
-      const account = accounts.find((a) => a.id === accountId);
-      const ratios = account?.budget_ratios ?? [];
-      const configuredIds = new Set(ratios.map((r) => r.budget_category_id));
-
-      // Configured ratios (non-zero = primary, zero = default)
-      const configuredItems: BudgetDistributionItem[] = ratios.map((r) => ({
-        budget_category_id: r.budget_category_id,
-        name:
-          r.budget_category_name ??
-          `${t("unknownCategoryPrefix")}${r.budget_category_id}`,
-        ratio: r.ratio,
-        isDefault: r.ratio === 0,
-      }));
-
-      // Unconfigured budget categories (all with ratio=0, shown in collapsible)
-      const unconfiguredItems: BudgetDistributionItem[] = budgetCategories
-        .filter((c) => !configuredIds.has(c.id))
-        .map((c) => ({
-          budget_category_id: c.id,
-          name: c.name,
-          ratio: 0,
-          isDefault: true,
-        }));
-
-      setBudgetDist([...configuredItems, ...unconfiguredItems]);
-    } else {
-      setBudgetDist([]);
-    }
+    setBudgetDist(buildBudgetDistribution(accountId));
   }
 
   function handleIncomeTypeChange(v: string | null) {

@@ -22,6 +22,32 @@ privacyModeToggleHint: 隱藏金額數字，並在關閉前禁止編輯。
 privacyMaskAccountsToggle: 遮蔽帳戶名稱
 privacyMaskAccountsToggleHint: 將帳戶顯示為「資產01」「收入01」等標籤。
 privacySettingsLockedMessage: 隱私模式已開啟。其他設定已鎖定；只能使用本區的開關和使用指南。
+productApiSettingsTitle: 商品 API 金鑰
+productApiSettingsDescription: 設定用於取得願望清單商品名稱與價格的官方 API 金鑰。已儲存的密鑰不會顯示。
+productApiProviderRakuten: 樂天市場
+productApiProviderRakutenDesc: 使用 Rakuten Ichiba Item Search API 的應用程式 ID 與存取金鑰。
+productApiProviderYahoo: Yahoo! 購物
+productApiProviderYahooDesc: 使用 Yahoo! Shopping API 的應用程式 ID。
+productApiProviderAmazon: Amazon
+productApiProviderAmazonDesc: 適用於 Amazon Associates API，不是面向賣家的 SP-API。舊 Product Advertising API 已於 2026-05-15 棄用。
+productApiGuideRakuten: 在 Rakuten Web Service 建立應用程式，然後取得 Application ID 與 Access Key。
+productApiGuideYahoo: 在 Yahoo! JAPAN Developer Network 建立應用程式，然後取得 Client ID / 應用程式 ID。
+productApiGuideAmazon: 符合 API 使用條件後，從 Amazon Associates 發行金鑰。這不是賣家用 SP-API，可能需要遷移到 Creators API。
+productApiGuideOpenDocs: 官方文件
+productApiApplicationId: 應用程式 ID
+productApiAccessKey: 存取金鑰
+productApiSecretKey: 秘密金鑰
+productApiPartnerTag: 合作夥伴標籤
+productApiConfigured: 已設定
+productApiNotConfigured: 未設定
+productApiSave: 儲存
+productApiClear: 刪除
+productApiSettingsLeaveBlank: 輸入新值
+productApiSettingsConfiguredLast4: 已儲存，末尾
+productApiSettingsNoInput: 請輸入至少一個要儲存的值。
+productApiSettingsSaved: API 金鑰設定已儲存。
+productApiSettingsCleared: API 金鑰設定已刪除。
+productApiSettingsClearConfirm: 要刪除此 API 金鑰設定嗎？
 privacyModeBlockedTitle: 隱私模式已開啟
 privacyModeBlockedMessage: 隱私模式開啟時不能使用此頁面。如需編輯，請在設定 > 一般中關閉。
 settingsSectionAccounts: 帳戶
@@ -1012,6 +1038,7 @@ exportDepreciationNone: 沒有註冊的折舊資產。
 negativeBalanceWarning: 此帳戶餘額為負數
 settingsNavCurrencyTitle: 外幣
 settingsNavCurrencyDesc: 啟用與 JPY 一起使用的貨幣和加密貨幣。
+settingsNavProductApiDesc: 設定用於商品查詢的官方 API 金鑰。
 currencySettingsTitle: 外幣設定
 currencySettingsFiatGroup: 法定貨幣
 currencySettingsCryptoGroup: 加密貨幣
@@ -1063,3 +1090,111 @@ fxToAmount: 收到金額
 loanOtherCurrencyReadOnly: 切換顯示貨幣後才能輸入還款
 includeAllCurrencies: 包含所有貨幣
 displayCurrencyLabel: 顯示貨幣
+plannedMoneyTitle: 即將使用的錢
+shoppingListTitle: 購物清單
+shoppingListPageDesc: 依購物計畫、概算與勾選項管理近期食品與日用品採買。
+shoppingPlanLabel: 購物計畫
+shoppingPlanAdd: 新增購物計畫
+shoppingPlanName: 購物計畫名稱
+shoppingPlanNameOrDateRequired: 購物計畫名稱或計畫日期為必填
+shoppingPlanRequired: 必須選擇所屬購物計畫
+shoppingPlanTotal: 購物計畫預算概算合計
+shoppingPlanEmpty: 此購物計畫尚無項目。
+shoppingPlanBudgetEstimate: 購物計畫預算概算
+shoppingPlanNone: 無購物計畫
+shoppingPlanType: 購物計畫處理方式
+shoppingPlanTypeOneTime: 單次購物
+shoppingPlanTypeRoutine: 常規購物
+shoppingPlanTypeOneTimeHelp: 適合生日禮物、家具等，完成後會封存整個購物計畫。
+shoppingPlanTypeRoutineHelp: 適合食品、日用品等，保留預算和日期，全部完成時只清空項目。
+shoppingPlanNextTargetDate: 下次計畫日期
+shoppingPlanClearItems: 清空項目
+shoppingPlanCheckout: 結帳清單（輸入支出）
+shoppingPlanDelete: 刪除清單
+shoppingPlanDeleteConfirmTitle: 要刪除此清單嗎？
+shoppingPlanDeleteConfirmMessage: 將刪除此購物計畫及其項目。此操作無法復原。
+shoppingPlanKeepItemOnClear: 完成清單時不要刪除此項目
+shoppingPlanLastCheckoutDate: 上次結帳
+shoppingPlanAddItem: 新增項目
+shoppingPlanComplete: 購物完成
+shoppingPlanActions: 操作
+shoppingPlanRestore: 還原
+shoppingPlanRestoreItem: 還原項目
+shoppingPlanRestoreConfirmTitle: 要還原嗎？
+shoppingPlanRestoreConfirmMessage: 已完成的購物計畫將還原為未完成狀態。
+shoppingPlanRestoredNameSuffix: （還原）
+shoppingPlanUndatedFirstToggle: 將無日期計畫置頂
+plannedExpenseCategory: 類別
+plannedExpenseCategoryAdd: 新增類別
+plannedExpenseCategoryName: 類別名稱
+plannedExpenseCategoryNameOrDateRequired: 類別名稱或計畫日期為必填
+plannedExpenseCategoryRequired: 必須選擇所屬類別
+plannedExpenseCategoryTotal: 類別預算概算合計
+plannedExpenseCategoryEmpty: 此類別尚無項目。
+plannedExpenseShoppingCategoryEstimate: 類別預算概算
+plannedExpenseItemEstimate: 項目概算
+plannedExpenseCompleteCategory: 全部完成
+plannedExpenseCalendar: 行事曆
+plannedExpenseOneTime: 僅一次
+plannedExpenseRecurring: 定期
+plannedExpenseRecurrenceType: 排程類型
+plannedExpenseEveryMonths: 每 N 個月
+plannedExpenseDayOfMonth: 每月日期
+plannedExpenseNextDueDate: 下次日期
+plannedExpenseEndDate: 結束日期
+wishlistTitle: 願望清單
+wishlistPageDesc: 依自訂類別與項目概算管理將來想買的東西。
+scheduledPaymentsTitle: 定期支出與支付計畫
+scheduledPaymentsPageDesc: 用類別與行事曆管理一次性支付與定期支出。
+plannedExpenseAdd: 新增
+plannedExpenseEdit: 編輯
+plannedExpenseName: 名稱
+plannedExpenseDuplicateShoppingItem: 已存在名稱和備註相同的項目
+plannedExpenseBudgetAmount: 金額（預算）
+plannedExpenseTargetDate: 計畫日期
+plannedExpenseDueDate: 支付期限
+plannedExpensePriority: 優先順序
+plannedExpensePriorityLow: 低
+plannedExpensePriorityMedium: 中
+plannedExpensePriorityHigh: 高
+plannedExpenseStatus_open: 未完成
+plannedExpenseStatus_completed: 已完成
+plannedExpenseStatus_cancelled: 已取消
+plannedExpenseOpenCount: 未完成項目
+plannedExpenseOpenTotal: 未完成合計
+plannedExpenseList: 清單
+plannedExpenseEmpty: 還沒有項目。
+plannedExpenseNoCategory: 無預算分類
+plannedExpenseExpenseAccount: 費用科目
+plannedExpenseDefaultExpenseAccount: 預設費用科目
+plannedExpenseNoExpenseAccount: 無費用科目
+plannedExpenseComplete: 標記為完成
+plannedExpenseCancel: 取消項目
+plannedExpenseInputExpense: 輸入支出
+plannedExpenseCompleteSourceTitle: 將來源項目標記為完成？
+plannedExpenseCompleteSourceMessage: 摘要、類別和金額都已從來源項目變更。是否將來源項目標記為完成？
+plannedExpenseCompleteSourceConfirm: 標記為完成
+transactionSavedWithShoppingListArchived: 交易已儲存，購物清單也已標記為完成。
+shoppingListArchivedFeedback: 購物清單也已封存。
+plannedExpenseUrl: URL
+plannedExpenseReferenceCurrency: 參考
+productMetadataLookup: 取得商品資訊
+productMetadataAutoFetchPrompt: 要自動取得商品資訊嗎？
+productMetadataRefresh: 重新整理商品資訊
+productMetadataPrice: 已取得價格
+productMetadataFetched: 已取得
+productMetadataCacheUntil: 快取至
+productMetadataOpen: 開啟
+productMetadataNoName: 無商品名稱
+productSource_amazon: Amazon
+productSource_rakuten: 樂天
+productSource_yahoo: Yahoo
+productSource_other: 其他
+productAvailability_in_stock: 可購買
+productAvailability_out_of_stock: 缺貨
+productAvailability_unavailable: 不可購買
+productAvailability_unknown: 未知
+productAvailability_api_credentials_missing: 未設定API金鑰
+productAvailability_unsupported: 不支援
+productAvailability_error: 取得失敗
+shoppingPlanArchivedTitle: 已完成的購物計畫

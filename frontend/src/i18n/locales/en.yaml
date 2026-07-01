@@ -22,6 +22,32 @@ privacyModeToggleHint: Hide monetary digits and disable editing until turned off
 privacyMaskAccountsToggle: Mask account names
 privacyMaskAccountsToggleHint: Show accounts as Asset01, Income01, and similar labels.
 privacySettingsLockedMessage: Privacy mode is on. Other settings are locked; only this section and the guide are available.
+productApiSettingsTitle: Product API keys
+productApiSettingsDescription: Configure official API keys used to fetch wishlist product names and prices. Saved secrets are never displayed.
+productApiProviderRakuten: Rakuten Ichiba
+productApiProviderRakutenDesc: Uses the Rakuten Ichiba Item Search API application ID and access key.
+productApiProviderYahoo: Yahoo! Shopping
+productApiProviderYahooDesc: Uses the Yahoo! Shopping API application ID.
+productApiProviderAmazon: Amazon
+productApiProviderAmazonDesc: Intended for Amazon Associates APIs, not seller-facing SP-API. The legacy Product Advertising API was deprecated on 2026-05-15.
+productApiGuideRakuten: Create an app in Rakuten Web Service, then issue an Application ID and Access Key.
+productApiGuideYahoo: Create an app in Yahoo! JAPAN Developer Network, then issue a Client ID / application ID.
+productApiGuideAmazon: Issue keys from Amazon Associates after meeting API eligibility. This is not the seller-facing SP-API. Creators API migration may be required.
+productApiGuideOpenDocs: Official docs
+productApiApplicationId: Application ID
+productApiAccessKey: Access key
+productApiSecretKey: Secret key
+productApiPartnerTag: Partner tag
+productApiConfigured: Configured
+productApiNotConfigured: Not set
+productApiSave: Save
+productApiClear: Delete
+productApiSettingsLeaveBlank: Enter a new value
+productApiSettingsConfiguredLast4: Saved ending in
+productApiSettingsNoInput: Enter at least one value to save.
+productApiSettingsSaved: API key settings saved.
+productApiSettingsCleared: API key settings deleted.
+productApiSettingsClearConfirm: Delete this API key setting?
 privacyModeBlockedTitle: Privacy mode is on
 privacyModeBlockedMessage: This page cannot be used while privacy mode is on. Turn it off from Settings > General to edit data.
 settingsSectionAccounts: Accounts
@@ -1012,6 +1038,7 @@ exportDepreciationNone: No depreciable assets registered.
 negativeBalanceWarning: This account has a negative balance
 settingsNavCurrencyTitle: Foreign Currency
 settingsNavCurrencyDesc: Enable currencies and cryptocurrencies to use alongside JPY.
+settingsNavProductApiDesc: Configure official API keys for wishlist product lookup.
 currencySettingsTitle: Foreign Currency Settings
 currencySettingsFiatGroup: Fiat Currencies
 currencySettingsCryptoGroup: Cryptocurrencies
@@ -1063,3 +1090,111 @@ fxToAmount: Amount received
 loanOtherCurrencyReadOnly: Switch display currency to enter repayment
 includeAllCurrencies: Include all currencies
 displayCurrencyLabel: Display currency
+plannedMoneyTitle: Upcoming money
+shoppingListTitle: Shopping list
+shoppingListPageDesc: Manage near-term groceries and supplies by shopping plan with estimates and checklist items.
+shoppingPlanLabel: Shopping plan
+shoppingPlanAdd: Add shopping plan
+shoppingPlanName: Shopping plan name
+shoppingPlanNameOrDateRequired: Shopping plan name or target date is required
+shoppingPlanRequired: Shopping plan is required
+shoppingPlanTotal: Shopping plan budget estimate total
+shoppingPlanEmpty: No items in this shopping plan yet.
+shoppingPlanBudgetEstimate: Shopping plan budget estimate
+shoppingPlanNone: No shopping plan
+shoppingPlanType: Shopping plan handling
+shoppingPlanTypeOneTime: One-off shopping
+shoppingPlanTypeRoutine: Regular shopping
+shoppingPlanTypeOneTimeHelp: For gifts, furniture, and other one-off plans. The whole plan is archived when completed.
+shoppingPlanTypeRoutineHelp: For groceries and consumables. Budget and schedule stay, and completing all clears only the items.
+shoppingPlanNextTargetDate: Next planned date
+shoppingPlanClearItems: Clear items
+shoppingPlanCheckout: Checkout list (enter expense)
+shoppingPlanDelete: Delete list
+shoppingPlanDeleteConfirmTitle: Delete this list?
+shoppingPlanDeleteConfirmMessage: This will delete the shopping plan and its items. This action cannot be undone.
+shoppingPlanKeepItemOnClear: Keep this item when the list is completed
+shoppingPlanLastCheckoutDate: Last checkout
+shoppingPlanAddItem: Add item
+shoppingPlanComplete: Shopping done
+shoppingPlanActions: Actions
+shoppingPlanRestore: Restore
+shoppingPlanRestoreItem: Restore item
+shoppingPlanRestoreConfirmTitle: Restore this plan?
+shoppingPlanRestoreConfirmMessage: This completed shopping plan will be moved back to active plans.
+shoppingPlanRestoredNameSuffix: " (restored)"
+shoppingPlanUndatedFirstToggle: Put undated plans at the top
+plannedExpenseCategory: Category
+plannedExpenseCategoryAdd: Add category
+plannedExpenseCategoryName: Category name
+plannedExpenseCategoryNameOrDateRequired: Category name or target date is required
+plannedExpenseCategoryRequired: Category is required
+plannedExpenseCategoryTotal: Category budget estimate total
+plannedExpenseCategoryEmpty: No items in this category yet.
+plannedExpenseShoppingCategoryEstimate: Category budget estimate
+plannedExpenseItemEstimate: Item estimate
+plannedExpenseCompleteCategory: Complete all
+plannedExpenseCalendar: Calendar
+plannedExpenseOneTime: One-time
+plannedExpenseRecurring: Recurring
+plannedExpenseRecurrenceType: Schedule type
+plannedExpenseEveryMonths: Every N months
+plannedExpenseDayOfMonth: Day of month
+plannedExpenseNextDueDate: Next due date
+plannedExpenseEndDate: End date
+wishlistTitle: Wishlist
+wishlistPageDesc: Track future purchases by custom category with item-level estimates.
+scheduledPaymentsTitle: Recurring expenses and payments
+scheduledPaymentsPageDesc: Manage one-time payments and recurring expenses by category with a calendar.
+plannedExpenseAdd: Add
+plannedExpenseEdit: Edit
+plannedExpenseName: Name
+plannedExpenseDuplicateShoppingItem: An item with the same name and note already exists
+plannedExpenseBudgetAmount: Amount (budget)
+plannedExpenseTargetDate: Target date
+plannedExpenseDueDate: Due date
+plannedExpensePriority: Priority
+plannedExpensePriorityLow: Low
+plannedExpensePriorityMedium: Medium
+plannedExpensePriorityHigh: High
+plannedExpenseStatus_open: Open
+plannedExpenseStatus_completed: Completed
+plannedExpenseStatus_cancelled: Cancelled
+plannedExpenseOpenCount: Open items
+plannedExpenseOpenTotal: Open total
+plannedExpenseList: List
+plannedExpenseEmpty: No items yet.
+plannedExpenseNoCategory: No budget category
+plannedExpenseExpenseAccount: Expense account
+plannedExpenseDefaultExpenseAccount: Default expense account
+plannedExpenseNoExpenseAccount: No expense account
+plannedExpenseComplete: Mark completed
+plannedExpenseCancel: Cancel item
+plannedExpenseInputExpense: Enter expense
+plannedExpenseCompleteSourceTitle: Mark source item completed?
+plannedExpenseCompleteSourceMessage: Description, category, and amount were all changed from the source item. Mark the source item completed?
+plannedExpenseCompleteSourceConfirm: Mark completed
+transactionSavedWithShoppingListArchived: Transaction saved and the shopping list was also marked complete.
+shoppingListArchivedFeedback: The shopping list was also archived.
+plannedExpenseUrl: URL
+plannedExpenseReferenceCurrency: Reference
+productMetadataLookup: Fetch product
+productMetadataAutoFetchPrompt: Fetch product info automatically?
+productMetadataRefresh: Refresh product info
+productMetadataPrice: Fetched
+productMetadataFetched: Fetched
+productMetadataCacheUntil: Cache until
+productMetadataOpen: Open
+productMetadataNoName: Name unavailable
+productSource_amazon: Amazon
+productSource_rakuten: Rakuten
+productSource_yahoo: Yahoo
+productSource_other: Other
+productAvailability_in_stock: Available
+productAvailability_out_of_stock: Out of stock
+productAvailability_unavailable: Unavailable
+productAvailability_unknown: Unknown
+productAvailability_api_credentials_missing: API key missing
+productAvailability_unsupported: Unsupported
+productAvailability_error: Fetch failed
+shoppingPlanArchivedTitle: Completed shopping plans
