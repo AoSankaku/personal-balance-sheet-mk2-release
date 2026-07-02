@@ -36,6 +36,27 @@ export interface BudgetDistributionSummary {
   isUnderAllocated: boolean;
 }
 
+export interface AmountDistributionItem {
+  amount: number;
+}
+
+export interface AmountDistributionSummary {
+  displayRatio: number;
+  allocatedAmount: number;
+  targetAmount: number;
+  isComplete: boolean;
+  isOverAllocated: boolean;
+  isUnderAllocated: boolean;
+}
+
+export interface IncomeDistributionItem {
+  budget_category_id: number;
+  name: string;
+  amount: number;
+}
+
+type DistributionRatioDirection = "exact" | "over" | "under";
+
 export function getIncomeDescriptionForSubmit(
   description: string,
   incomeAccount: Pick<Account, "category" | "name"> | undefined,
@@ -125,11 +146,17 @@ export function summarizeBudgetDistribution(
   }, 0);
   const targetAmount = Math.round((base * totalRatio) / 100);
   const isExactAmount = allocatedAmount === targetAmount;
-  const displayRatio = isExactAmount
-    ? totalRatio
-    : base > 0
-      ? Math.round((allocatedAmount / base) * 1000) / 10
-      : totalRatio;
+  const rawDisplayRatio = base > 0 ? (allocatedAmount / base) * 100 : totalRatio;
+  const ratioDirection =
+    allocatedAmount > targetAmount || totalRatio > 100
+      ? "over"
+      : allocatedAmount < targetAmount || (totalRatio > 0 && totalRatio < 100)
+        ? "under"
+        : "exact";
+  const displayRatio =
+    ratioDirection === "exact"
+      ? normalizeDistributionRatio(totalRatio, "exact")
+      : normalizeDistributionRatio(rawDisplayRatio, ratioDirection);
 
   return {
     totalRatio,
@@ -145,7 +172,80 @@ export function summarizeBudgetDistribution(
 }
 
 export function formatBudgetDistributionRatio(ratio: number): string {
-  return Number.isInteger(ratio) ? String(ratio) : ratio.toFixed(1);
+  return ratio.toFixed(2);
+}
+
+export function summarizeAmountDistribution(
+  totalAmount: number,
+  distribution: AmountDistributionItem[],
+): AmountDistributionSummary {
+  const targetAmount = Math.max(0, Math.round(Number(totalAmount) || 0));
+  const allocatedAmount = distribution.reduce(
+    (sum, item) => sum + Math.max(0, Math.round(Number(item.amount) || 0)),
+    0,
+  );
+  const displayRatio =
+    targetAmount > 0
+      ? normalizeDistributionRatio(
+          (allocatedAmount / targetAmount) * 100,
+          allocatedAmount > targetAmount
+            ? "over"
+            : allocatedAmount < targetAmount
+              ? "under"
+              : "exact",
+        )
+      : 0;
+
+  return {
+    displayRatio,
+    allocatedAmount,
+    targetAmount,
+    isComplete: allocatedAmount === targetAmount,
+    isOverAllocated: allocatedAmount > targetAmount,
+    isUnderAllocated: allocatedAmount > 0 && allocatedAmount < targetAmount,
+  };
+}
+
+function normalizeDistributionRatio(
+  ratio: number,
+  direction: DistributionRatioDirection,
+): number {
+  const scaled = ratio * 100;
+  if (direction === "over") return Math.ceil(scaled) / 100;
+  if (direction === "under") return Math.floor(scaled) / 100;
+  return Math.round(scaled) / 100;
+}
+
+export function mergeIncomeDistributionDefaults({
+  defaultRows,
+  currentRows,
+  dirtyCategoryIds,
+}: {
+  defaultRows: IncomeDistributionItem[];
+  currentRows: IncomeDistributionItem[];
+  dirtyCategoryIds: ReadonlySet<number>;
+}): IncomeDistributionItem[] {
+  const currentById = new Map(
+    currentRows.map((row) => [row.budget_category_id, row]),
+  );
+  const defaultIds = new Set(defaultRows.map((row) => row.budget_category_id));
+  const mergedRows = defaultRows.map((row) => {
+    const current = currentById.get(row.budget_category_id);
+    return dirtyCategoryIds.has(row.budget_category_id) && current
+      ? { ...row, amount: current.amount }
+      : row;
+  });
+
+  for (const row of currentRows) {
+    if (
+      dirtyCategoryIds.has(row.budget_category_id) &&
+      !defaultIds.has(row.budget_category_id)
+    ) {
+      mergedRows.push(row);
+    }
+  }
+
+  return mergedRows;
 }
 
 export function computeFilterSteps(
