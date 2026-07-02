@@ -475,7 +475,8 @@ export const plannedExpenses = sqliteTable("planned_expenses", {
   recurrence_day: integer("recurrence_day"),
   next_due_date: text("next_due_date"),
   end_date: text("end_date"),
-  priority: integer("priority").notNull().default(2),
+  priority: integer("priority").notNull().default(3),
+  sort_order: integer("sort_order").notNull().default(0),
   status: text("status", {
     enum: ["open", "completed", "cancelled"],
   }).notNull().default("open"),
@@ -502,13 +503,19 @@ export const plannedExpenses = sqliteTable("planned_expenses", {
     table.expense_account_id,
   ),
   categoryIdx: index("idx_planned_expenses_category").on(table.category_id),
+  kindCategoryOrderIdx: index("idx_planned_expenses_kind_category_order").on(
+    table.kind,
+    table.category_id,
+    table.sort_order,
+    table.name,
+  ),
   estimatedAmountInteger: check(
     "chk_planned_expenses_estimated_amount_integer",
     sql`typeof(${table.estimated_amount}) = 'integer'`,
   ),
   priorityRange: check(
     "chk_planned_expenses_priority_range",
-    sql`${table.priority} BETWEEN 1 AND 3`,
+    sql`${table.priority} BETWEEN 1 AND 5`,
   ),
   recurrenceIntervalRange: check(
     "chk_planned_expenses_recurrence_interval_range",

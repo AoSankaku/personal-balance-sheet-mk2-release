@@ -1150,8 +1150,10 @@ plannedExpenseAdd: Add
 plannedExpenseEdit: Edit
 plannedExpenseName: Name
 plannedExpenseDuplicateShoppingItem: An item with the same name and note already exists
+plannedExpenseDuplicateItem: An item with the same name already exists in this category
+plannedExpenseDuplicateCategory: A category with the same name already exists
 plannedExpenseBudgetAmount: Amount (budget)
-plannedExpenseTargetDate: Target date
+plannedExpenseTargetDate: Target date / deadline
 plannedExpenseDueDate: Due date
 plannedExpensePriority: Priority
 plannedExpensePriorityLow: Low
@@ -1163,6 +1165,10 @@ plannedExpenseStatus_cancelled: Cancelled
 plannedExpenseOpenCount: Open items
 plannedExpenseOpenTotal: Open total
 plannedExpenseList: List
+plannedExpenseReorder: Reorder
+plannedExpenseMoveUp: Move up
+plannedExpenseMoveDown: Move down
+plannedExpenseCompletedWishlist: Completed / cancelled wishlist
 plannedExpenseEmpty: No items yet.
 plannedExpenseNoCategory: No budget category
 plannedExpenseExpenseAccount: Expense account
@@ -1170,10 +1176,23 @@ plannedExpenseDefaultExpenseAccount: Default expense account
 plannedExpenseNoExpenseAccount: No expense account
 plannedExpenseComplete: Mark completed
 plannedExpenseCancel: Cancel item
+plannedExpenseDeleteCategoryConfirmTitle: Delete category?
+plannedExpenseDeleteCategoryConfirmMessage: This category and its items will be deleted. This action cannot be undone.
+plannedExpenseDeleteCategoryConfirm: Delete category
+plannedExpenseDeleteItemConfirmTitle: Delete item?
+plannedExpenseDeleteItemConfirmMessage: This item will be deleted. This action cannot be undone.
+plannedExpenseDeleteItemConfirm: Delete item
+plannedExpenseForceComplete: Force complete without expense
+plannedExpenseForceCompleteConfirmTitle: Complete without entering expense?
+plannedExpenseForceCompleteConfirmMessage: This will mark the item completed without creating an expense entry. Use it only when no spending record is needed.
+plannedExpenseForceCompleteConfirm: Complete without expense
+plannedExpenseCancelConfirmTitle: Cancel item?
+plannedExpenseCancelConfirmMessage: This item will be marked cancelled.
 plannedExpenseInputExpense: Enter expense
 plannedExpenseCompleteSourceTitle: Mark source item completed?
 plannedExpenseCompleteSourceMessage: Description, category, and amount were all changed from the source item. Mark the source item completed?
 plannedExpenseCompleteSourceConfirm: Mark completed
+transactionSavedWithPlannedExpenseCompleted: Transaction saved and the source item was also marked complete.
 transactionSavedWithShoppingListArchived: Transaction saved and the shopping list was also marked complete.
 shoppingListArchivedFeedback: The shopping list was also archived.
 plannedExpenseUrl: URL

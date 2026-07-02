@@ -536,6 +536,48 @@ export interface PlannedExpenseCategory {
   updated_at: string;
 }
 
+export function normalizePlannedExpenseCategoryName(name: string): string {
+  return name.trim();
+}
+
+export function hasDuplicatePlannedExpenseCategoryName(input: {
+  name: string;
+  kind: PlannedExpenseKind;
+  categories: Array<Pick<PlannedExpenseCategory, "id" | "kind" | "name">>;
+  excludeId?: number;
+}): boolean {
+  const normalizedName = normalizePlannedExpenseCategoryName(input.name);
+  if (!normalizedName) return false;
+  return input.categories.some(
+    (category) =>
+      category.id !== input.excludeId &&
+      category.kind === input.kind &&
+    normalizePlannedExpenseCategoryName(category.name) === normalizedName,
+  );
+}
+
+export function normalizePlannedExpenseItemName(name: string): string {
+  return name.trim();
+}
+
+export function hasDuplicatePlannedExpenseItemName(input: {
+  name: string;
+  kind: PlannedExpenseKind;
+  categoryId: number | null;
+  items: Array<Pick<PlannedExpense, "id" | "kind" | "category_id" | "name">>;
+  excludeId?: number;
+}): boolean {
+  const normalizedName = normalizePlannedExpenseItemName(input.name);
+  if (!normalizedName) return false;
+  return input.items.some(
+    (item) =>
+      item.id !== input.excludeId &&
+      item.kind === input.kind &&
+      (item.category_id ?? null) === input.categoryId &&
+      normalizePlannedExpenseItemName(item.name) === normalizedName,
+  );
+}
+
 export interface CreatePlannedExpenseCategoryInput {
   kind: PlannedExpenseKind;
   name: string;
@@ -584,6 +626,7 @@ export interface PlannedExpense {
   next_due_date: string | null;
   end_date: string | null;
   priority: number;
+  sort_order: number;
   status: PlannedExpenseStatus;
   keep_on_routine_clear: boolean;
   note: string | null;
@@ -609,6 +652,7 @@ export interface CreatePlannedExpenseInput {
   next_due_date?: string | null;
   end_date?: string | null;
   priority?: number;
+  sort_order?: number;
   status?: PlannedExpenseStatus;
   keep_on_routine_clear?: boolean;
   note?: string | null;
@@ -630,6 +674,7 @@ export interface UpdatePlannedExpenseInput {
   next_due_date?: string | null;
   end_date?: string | null;
   priority?: number;
+  sort_order?: number;
   status?: PlannedExpenseStatus;
   keep_on_routine_clear?: boolean;
   note?: string | null;

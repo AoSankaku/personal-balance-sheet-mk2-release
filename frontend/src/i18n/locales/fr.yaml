@@ -1150,8 +1150,10 @@ plannedExpenseAdd: Ajouter
 plannedExpenseEdit: Modifier
 plannedExpenseName: Nom
 plannedExpenseDuplicateShoppingItem: Un element avec le meme nom et la meme note existe deja
+plannedExpenseDuplicateItem: Un élément portant le même nom existe déjà dans cette catégorie
+plannedExpenseDuplicateCategory: Une catégorie portant le même nom existe déjà
 plannedExpenseBudgetAmount: Montant (budget)
-plannedExpenseTargetDate: Date prévue
+plannedExpenseTargetDate: Date prévue / échéance
 plannedExpenseDueDate: Échéance
 plannedExpensePriority: Priorité
 plannedExpensePriorityLow: Basse
@@ -1163,6 +1165,10 @@ plannedExpenseStatus_cancelled: Annulé
 plannedExpenseOpenCount: Éléments ouverts
 plannedExpenseOpenTotal: Total ouvert
 plannedExpenseList: Liste
+plannedExpenseReorder: Réordonner
+plannedExpenseMoveUp: Monter
+plannedExpenseMoveDown: Descendre
+plannedExpenseCompletedWishlist: Souhaits terminés / annulés
 plannedExpenseEmpty: Aucun élément pour le moment.
 plannedExpenseNoCategory: Aucune catégorie de budget
 plannedExpenseExpenseAccount: Compte de dépense
@@ -1170,10 +1176,23 @@ plannedExpenseDefaultExpenseAccount: Compte de dépense par défaut
 plannedExpenseNoExpenseAccount: Aucun compte de dépense
 plannedExpenseComplete: Marquer comme terminé
 plannedExpenseCancel: Annuler l’élément
+plannedExpenseDeleteCategoryConfirmTitle: Supprimer la catégorie ?
+plannedExpenseDeleteCategoryConfirmMessage: Cette catégorie et ses éléments seront supprimés. Cette action est irréversible.
+plannedExpenseDeleteCategoryConfirm: Supprimer la catégorie
+plannedExpenseDeleteItemConfirmTitle: Supprimer l’élément ?
+plannedExpenseDeleteItemConfirmMessage: Cet élément sera supprimé. Cette action est irréversible.
+plannedExpenseDeleteItemConfirm: Supprimer l’élément
+plannedExpenseForceComplete: Terminer sans dépense
+plannedExpenseForceCompleteConfirmTitle: Terminer sans saisir de dépense ?
+plannedExpenseForceCompleteConfirmMessage: Cet élément sera marqué comme terminé sans créer d’écriture de dépense. À utiliser uniquement si aucun enregistrement de dépense n’est nécessaire.
+plannedExpenseForceCompleteConfirm: Terminer sans dépense
+plannedExpenseCancelConfirmTitle: Annuler l’élément ?
+plannedExpenseCancelConfirmMessage: Cet élément sera marqué comme annulé.
 plannedExpenseInputExpense: Saisir une dépense
 plannedExpenseCompleteSourceTitle: Marquer l’élément source comme terminé ?
 plannedExpenseCompleteSourceMessage: La description, la catégorie et le montant ont tous été modifiés par rapport à l’élément source. Marquer l’élément source comme terminé ?
 plannedExpenseCompleteSourceConfirm: Marquer comme terminé
+transactionSavedWithPlannedExpenseCompleted: Transaction enregistree et l'element source a aussi ete marque comme termine.
 transactionSavedWithShoppingListArchived: Transaction enregistree et la liste de courses a aussi ete marquee comme terminee.
 shoppingListArchivedFeedback: La liste de courses a aussi ete archivee.
 plannedExpenseUrl: URL

@@ -48,6 +48,10 @@ import { usePrivacy } from "../context/PrivacyContext";
 import { PrivacyModeBlocked } from "../components/PrivacyModeBlocked";
 import type { PlannedExpenseEntrySource } from "../types/plannedExpenseInput";
 import {
+  plannedExpenseCompletionFeedbackKey,
+  type PlannedExpenseCompletionResult,
+} from "../lib/plannedExpenseForm";
+import {
   savedTab,
   setSavedTab,
   simpleDraft,
@@ -184,12 +188,15 @@ export default function InputPage() {
   async function completePlannedExpenseSource(
     source: PlannedExpenseEntrySource,
     checkoutDate: string,
-  ): Promise<boolean> {
+  ): Promise<PlannedExpenseCompletionResult> {
     try {
       const checkoutItemIds = source.checkoutItemIds ?? [];
       const checkoutKeepItemIdSet = new Set(source.checkoutKeepItemIds ?? []);
       const completedItemIds =
         checkoutItemIds.length > 0 ? checkoutItemIds : [source.id];
+      const completesAnyItem = completedItemIds.some(
+        (id) => !checkoutKeepItemIdSet.has(id),
+      );
       if (
         source.kind === "shopping_list" &&
         source.categoryId != null &&
@@ -258,7 +265,7 @@ export default function InputPage() {
         await api.plannedExpenses.updateCategory(source.categoryId, {
           last_checked_out_date: checkoutDate,
         });
-        return true;
+        return "shopping_list_archived";
       }
       await Promise.all(
         completedItemIds.map((id) =>
@@ -275,15 +282,19 @@ export default function InputPage() {
         await api.plannedExpenses.updateCategory(source.categoryId, {
           archived_at: new Date().toISOString(),
         });
-        return checkoutItemIds.length > 0;
+        return checkoutItemIds.length > 0
+          ? "shopping_list_archived"
+          : completesAnyItem
+            ? "completed"
+            : "none";
       }
-      return false;
+      return completesAnyItem ? "completed" : "none";
     } catch (e) {
       showFeedback({
         message: e instanceof Error ? e.message : String(e),
         color: "red",
       });
-      return false;
+      return "none";
     }
   }
 
@@ -303,9 +314,7 @@ export default function InputPage() {
       return "pending";
     }
 
-    return (await completePlannedExpenseSource(source, values.date))
-      ? "shopping_list_archived"
-      : "none";
+    return await completePlannedExpenseSource(source, values.date);
   }
 
   async function handleSubmit(
@@ -325,10 +334,7 @@ export default function InputPage() {
     if (activeTab === "multi") setMultiDraft(null);
     const plannedExpenseCompletion = await handlePlannedExpenseCompletion(input);
     showFeedback({
-      message:
-        plannedExpenseCompletion === "shopping_list_archived"
-          ? t("transactionSavedWithShoppingListArchived")
-          : t("transactionSaved"),
+      message: t(plannedExpenseCompletionFeedbackKey(plannedExpenseCompletion)),
       color: "teal",
     });
     refresh();
@@ -541,13 +547,13 @@ export default function InputPage() {
         onConfirm={() => {
           if (pendingPlannedExpenseCompletion) {
             void (async () => {
-              const archived = await completePlannedExpenseSource(
+              const completion = await completePlannedExpenseSource(
                 pendingPlannedExpenseCompletion.source,
                 pendingPlannedExpenseCompletion.checkoutDate,
               );
-              if (archived) {
+              if (completion !== "none") {
                 showFeedback({
-                  message: t("shoppingListArchivedFeedback"),
+                  message: t(plannedExpenseCompletionFeedbackKey(completion)),
                   color: "teal",
                 });
               }

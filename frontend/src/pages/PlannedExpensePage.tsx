@@ -29,6 +29,9 @@ import { DatePickerInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import {
   IconArrowLeft,
+  IconArrowDown,
+  IconArrowUp,
+  IconAlertTriangle,
   IconCalendarDollar,
   IconCheck,
   IconChevronLeft,
@@ -36,16 +39,18 @@ import {
   IconDotsVertical,
   IconEdit,
   IconGift,
+  IconGripVertical,
   IconPlus,
   IconRefresh,
   IconReceipt,
+  IconStar,
   IconShoppingCart,
   IconStarFilled,
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, DragEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type {
@@ -58,6 +63,10 @@ import type {
   ProductMetadata,
   ShoppingPlanType,
 } from "@balance-sheet/shared";
+import {
+  hasDuplicatePlannedExpenseCategoryName,
+  hasDuplicatePlannedExpenseItemName,
+} from "@balance-sheet/shared";
 import { ApiError, api } from "../api/client";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
@@ -69,6 +78,23 @@ import {
 } from "../lib/accountSelect";
 import type { PlannedExpenseEntrySource } from "../types/plannedExpenseInput";
 import { ConfirmModal } from "../components/ConfirmModal";
+import {
+  moveById,
+  moveByStep,
+  sortByManualOrder,
+  type DropPosition,
+  type MoveDirection,
+  withSequentialSortOrder,
+} from "../lib/plannedExpenseOrdering";
+import {
+  plannedExpenseActionRequiresConfirmation,
+  plannedExpenseItemNameLineClamp,
+  plannedExpenseCategorySelectValue,
+  shouldShowCompletedWishlistAmountTotal,
+  shouldShowWishlistItemInCompletedList,
+  shouldShowWishlistItemInMainList,
+  shouldShowPlannedExpenseStatusField,
+} from "../lib/plannedExpenseForm";
 
 type PlannedExpensePageProps = {
   kind: PlannedExpenseKind;
@@ -128,11 +154,10 @@ type BudgetDistributionPreviewRow = {
   isUnallocated?: boolean;
 };
 
-const priorityColors: Record<number, string> = {
-  1: "gray",
-  2: "blue",
-  3: "orange",
-};
+type WishlistDragState =
+  | { type: "category"; id: number }
+  | { type: "item"; id: number; categoryId: number | null };
+
 const statusRank: Record<PlannedExpenseStatus, number> = {
   open: 0,
   completed: 1,
@@ -186,8 +211,42 @@ function availabilityColor(status: ProductAvailabilityStatus) {
   return "gray";
 }
 
-function normalizeShoppingItemDuplicateText(value: string | null | undefined) {
-  return value?.trim() ?? "";
+function getDropPosition(event: DragEvent<HTMLElement>): DropPosition {
+  const rect = event.currentTarget.getBoundingClientRect();
+  return event.clientY > rect.top + rect.height / 2 ? "after" : "before";
+}
+
+function PriorityStars({
+  value,
+  onChange,
+  readOnly = false,
+}: {
+  value: number;
+  onChange?: (value: number) => void;
+  readOnly?: boolean;
+}) {
+  return (
+    <Group gap={2} wrap="nowrap">
+      {[1, 2, 3, 4, 5].map((rating) => {
+        const filled = rating <= value;
+        const Icon = filled ? IconStarFilled : IconStar;
+        return (
+          <ActionIcon
+            key={rating}
+            size="sm"
+            variant="subtle"
+            color={filled ? "yellow" : "gray"}
+            aria-label={`priority ${rating}`}
+            tabIndex={readOnly ? -1 : 0}
+            style={{ pointerEvents: readOnly ? "none" : undefined }}
+            onClick={readOnly ? undefined : () => onChange?.(rating)}
+          >
+            <Icon size={15} />
+          </ActionIcon>
+        );
+      })}
+    </Group>
+  );
 }
 
 function isSupportedProductUrl(value: string) {
@@ -862,6 +921,170 @@ function ArchivedShoppingPlanList({
   );
 }
 
+function CompletedWishlistList({
+  groups,
+  t,
+  locale,
+  selectedCurrency,
+  pageColor,
+  onReopenItem,
+  onEditItem,
+  onDeleteItem,
+}: {
+  groups: ShoppingPlanGroup[];
+  t: Translate;
+  locale: string;
+  selectedCurrency: string;
+  pageColor: string;
+  onReopenItem: (item: PlannedExpense) => void;
+  onEditItem: (item: PlannedExpense) => void;
+  onDeleteItem: (item: PlannedExpense) => void;
+}) {
+  const visibleGroups = groups.filter((group) => group.items.length > 0);
+  const showAmountTotal = shouldShowCompletedWishlistAmountTotal();
+  const completedCount = visibleGroups.reduce(
+    (count, group) => count + group.items.length,
+    0,
+  );
+  if (completedCount === 0) return null;
+
+  return (
+    <Accordion variant="contained" radius="md">
+      <Accordion.Item value="completed-wishlist">
+        <Accordion.Control>
+          <Group gap="xs">
+            <Text fw={800} size="sm">
+              {t("plannedExpenseCompletedWishlist")}
+            </Text>
+            <Text size="sm" c="dimmed">
+              {completedCount}
+            </Text>
+          </Group>
+        </Accordion.Control>
+        <Accordion.Panel>
+          <Stack gap="sm">
+            {visibleGroups.map((group) => (
+                <Paper
+                  key={group.id ?? "__completed_wishlist_none"}
+                  withBorder
+                  radius="md"
+                >
+                  <Box px="md" py="xs" bg="var(--mantine-color-default-hover)">
+                    <Group justify="space-between" gap="xs" wrap="nowrap">
+                      <Text fw={700} size="sm" style={{ minWidth: 0 }}>
+                        {group.name}
+                      </Text>
+                      <Group gap={6} wrap="nowrap" style={{ flex: "0 0 auto" }}>
+                        <Badge size="xs" variant="light" color={pageColor}>
+                          {group.items.length}
+                        </Badge>
+                        {showAmountTotal && (
+                          <Badge size="xs" variant="light" color={pageColor}>
+                            {formatCurrency(
+                              group.items.reduce(
+                                (sum, item) =>
+                                  item.currency === selectedCurrency
+                                    ? sum + item.estimated_amount
+                                    : sum,
+                                0,
+                              ),
+                              locale,
+                              selectedCurrency,
+                            )}
+                          </Badge>
+                        )}
+                      </Group>
+                    </Group>
+                  </Box>
+                  <Stack gap={0}>
+                    {group.items.map((item) => (
+                      <Box
+                        key={item.id}
+                        px="md"
+                        py="sm"
+                        style={{
+                          borderTop:
+                            "1px solid var(--mantine-color-default-border)",
+                        }}
+                      >
+                        <Group align="flex-start" gap="sm" wrap="nowrap">
+                          <Box style={{ minWidth: 0, flex: 1 }}>
+                            <Text
+                              fw={700}
+                              size="sm"
+                              lineClamp={2}
+                              style={{ wordBreak: "break-word" }}
+                            >
+                              {item.name}
+                            </Text>
+                            <Group gap={4} mt={4} wrap="wrap">
+                              <Tooltip
+                                label={`${t("plannedExpensePriority")} ${item.priority}`}
+                                withArrow
+                              >
+                                <Box>
+                                  <PriorityStars
+                                    value={item.priority}
+                                    readOnly
+                                  />
+                                </Box>
+                              </Tooltip>
+                              <Text size="xs" c="dimmed">
+                                {formatCurrency(
+                                  item.estimated_amount,
+                                  locale,
+                                  item.currency,
+                                )}
+                              </Text>
+                            </Group>
+                            {(item.note || item.url) && (
+                              <Text size="xs" c="dimmed" lineClamp={1} mt={2}>
+                                {item.note || item.url}
+                              </Text>
+                            )}
+                          </Box>
+                          <Group gap={4} wrap="nowrap" style={{ flex: "0 0 auto" }}>
+                            <Tooltip label={t("plannedExpenseStatus_open")} withArrow>
+                              <ActionIcon
+                                variant="subtle"
+                                color={pageColor}
+                                aria-label={t("plannedExpenseStatus_open")}
+                                onClick={() => onReopenItem(item)}
+                              >
+                                <IconRefresh size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <ActionIcon
+                              variant="subtle"
+                              aria-label={t("editLabel")}
+                              onClick={() => onEditItem(item)}
+                            >
+                              <IconEdit size={16} />
+                            </ActionIcon>
+                            <Tooltip label={t("deleteBudgetCategory")} withArrow>
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                aria-label={t("deleteBudgetCategory")}
+                                onClick={() => onDeleteItem(item)}
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Group>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Paper>
+              ))}
+          </Stack>
+        </Accordion.Panel>
+      </Accordion.Item>
+    </Accordion>
+  );
+}
+
 export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
   const { t, locale } = useLang();
   const { accounts, budgetCategories, displayCurrency, enabledCurrencies } =
@@ -887,10 +1110,19 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     useState<PlannedExpenseCategory | null>(null);
   const [deleteCategoryTarget, setDeleteCategoryTarget] =
     useState<PlannedExpenseCategory | null>(null);
+  const [deleteItemTarget, setDeleteItemTarget] =
+    useState<PlannedExpense | null>(null);
+  const [completeItemTarget, setCompleteItemTarget] =
+    useState<PlannedExpense | null>(null);
+  const [cancelItemTarget, setCancelItemTarget] =
+    useState<PlannedExpense | null>(null);
   const [restoreShoppingPlanTarget, setRestoreShoppingPlanTarget] =
     useState<ShoppingPlanGroup | null>(null);
   const [inlineShoppingItemDraft, setInlineShoppingItemDraft] =
     useState<InlineShoppingItemDraft | null>(null);
+  const [wishlistDrag, setWishlistDrag] = useState<WishlistDragState | null>(
+    null,
+  );
   const [
     undatedShoppingPlanPosition,
     setUndatedShoppingPlanPosition,
@@ -903,34 +1135,38 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
   const isWishlist = kind === "wishlist";
   const isScheduled = kind === "scheduled_payment";
   const selectedCurrency = displayCurrency || "JPY";
-  const isDuplicateShoppingItem = ({
+  const showItemPriorityField = !isShoppingList;
+  const showItemStatusField = shouldShowPlannedExpenseStatusField(editingItem);
+  const itemNameLineClamp = plannedExpenseItemNameLineClamp();
+  const isDuplicateItemName = ({
     categoryId,
     name,
-    note,
     excludeId,
   }: {
     categoryId: number | null;
     name: string;
-    note: string | null;
     excludeId?: number;
   }) => {
-    if (!isShoppingList || categoryId == null) return false;
-    const normalizedName = normalizeShoppingItemDuplicateText(name);
-    const normalizedNote = normalizeShoppingItemDuplicateText(note);
-    return [...items, ...archivedItems].some(
-      (item) =>
-        item.id !== excludeId &&
-        item.category_id === categoryId &&
-        normalizeShoppingItemDuplicateText(item.name) === normalizedName &&
-        normalizeShoppingItemDuplicateText(item.note) === normalizedNote,
-    );
+    return hasDuplicatePlannedExpenseItemName({
+      name,
+      kind,
+      categoryId,
+      excludeId,
+      items: [...items, ...archivedItems],
+    });
   };
   const handlePlannedExpenseError = (error: unknown) => {
     if (
       error instanceof ApiError &&
-      error.body.error === "duplicate_shopping_list_item"
+      error.body.error === "duplicate_planned_expense_item"
     ) {
-      return t("plannedExpenseDuplicateShoppingItem");
+      return t("plannedExpenseDuplicateItem");
+    }
+    if (
+      error instanceof ApiError &&
+      error.body.error === "duplicate_planned_expense_category"
+    ) {
+      return t("plannedExpenseDuplicateCategory");
     }
     return error instanceof Error ? error.message : String(error);
   };
@@ -1021,7 +1257,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       recurrence_day: "",
       next_due_date: null,
       end_date: null,
-      priority: "2",
+      priority: "3",
       status: "open",
       keep_on_routine_clear: false,
       note: "",
@@ -1050,10 +1286,20 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       shopping_plan_type: "one_time",
     },
     validate: {
-      name: (value, values) =>
-        value.trim() || (isShoppingList && values.target_date)
-          ? null
-          : categoryNameOrDateRequiredLabel,
+      name: (value, values) => {
+        const categoryName =
+          value.trim() ||
+          (isShoppingList ? inputDateToString(values.target_date) : "");
+        if (!categoryName) return categoryNameOrDateRequiredLabel;
+        return hasDuplicatePlannedExpenseCategoryName({
+          name: categoryName,
+          kind,
+          excludeId: editingCategory?.id,
+          categories,
+        })
+          ? t("plannedExpenseDuplicateCategory")
+          : null;
+      },
       estimated_amount: (value) => {
         if (!isShoppingList || value === "") return null;
         return typeof value === "number" && value >= 0
@@ -1218,7 +1464,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       recurrence_day: "",
       next_due_date: null,
       end_date: null,
-      priority: "2",
+      priority: "3",
       status: "open",
       keep_on_routine_clear: false,
       note: "",
@@ -1234,7 +1480,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     if (categoryId !== undefined) {
       form.setFieldValue(
         "category_id",
-        categoryId == null ? null : String(categoryId),
+        plannedExpenseCategorySelectValue(categoryId),
       );
     }
     setModalOpen(true);
@@ -1299,15 +1545,14 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       return;
     }
     if (
-      isDuplicateShoppingItem({
+      isDuplicateItemName({
         categoryId: draft.categoryId,
         name,
-        note: null,
       })
     ) {
       setInlineShoppingItemDraft({
         ...draft,
-        error: t("plannedExpenseDuplicateShoppingItem"),
+        error: t("plannedExpenseDuplicateItem"),
       });
       return;
     }
@@ -1327,7 +1572,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         recurrence_day: null,
         next_due_date: null,
         end_date: null,
-        priority: 2,
+        priority: 3,
         status: "open",
         keep_on_routine_clear: draft.keepOnRoutineClear,
         note: null,
@@ -1426,6 +1671,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         shopping_plan_type: isShoppingList
           ? values.shopping_plan_type
           : "one_time",
+        sort_order: editingCategory?.sort_order ?? categories.length,
       };
       if (editingCategory) {
         await api.plannedExpenses.updateCategory(editingCategory.id, payload);
@@ -1434,6 +1680,8 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       }
       setCategoryModalOpen(false);
       await loadData();
+    } catch (error) {
+      categoryForm.setFieldError("name", handlePlannedExpenseError(error));
     } finally {
       setCategorySaving(false);
     }
@@ -1488,7 +1736,14 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           isScheduled && recurrenceType === "recurring"
             ? inputDateToString(values.end_date)
             : null,
-        priority: isShoppingList ? 2 : Number(values.priority),
+        priority: isShoppingList ? 3 : Number(values.priority),
+        sort_order:
+          editingItem?.sort_order ??
+          items.filter(
+            (item) =>
+              (item.category_id ?? null) ===
+              (values.category_id == null ? null : Number(values.category_id)),
+          ).length,
         status: values.status,
         keep_on_routine_clear: keepOnRoutineClear,
         note: values.note.trim() || null,
@@ -1498,14 +1753,13 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           : null,
       };
       if (
-        isDuplicateShoppingItem({
+        isDuplicateItemName({
           categoryId: payload.category_id,
           name: payload.name,
-          note: payload.note,
           excludeId: editingItem?.id,
         })
       ) {
-        form.setFieldError("name", t("plannedExpenseDuplicateShoppingItem"));
+        form.setFieldError("name", t("plannedExpenseDuplicateItem"));
         return;
       }
       if (editingItem) {
@@ -1647,6 +1901,227 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     await loadData();
   };
 
+  const requestDeleteCategory = (category: PlannedExpenseCategory) => {
+    if (plannedExpenseActionRequiresConfirmation("delete_category")) {
+      setDeleteCategoryTarget(category);
+      return;
+    }
+    void deleteCategory(category);
+  };
+
+  const requestDeleteItem = (item: PlannedExpense) => {
+    if (plannedExpenseActionRequiresConfirmation("delete_item")) {
+      setDeleteItemTarget(item);
+      return;
+    }
+    void deleteItem(item);
+  };
+
+  const requestCancelItem = (item: PlannedExpense) => {
+    if (plannedExpenseActionRequiresConfirmation("cancel_item")) {
+      setCancelItemTarget(item);
+      return;
+    }
+    void updateStatus(item, "cancelled");
+  };
+
+  const requestCompleteItem = (item: PlannedExpense) => {
+    if (plannedExpenseActionRequiresConfirmation("complete_item")) {
+      setCompleteItemTarget(item);
+      return;
+    }
+    void updateStatus(item, "completed");
+  };
+
+  const reorderWishlistCategory = async (
+    targetId: number,
+    position: DropPosition,
+  ) => {
+    if (!isWishlist || wishlistDrag?.type !== "category") return;
+    const previousCategories = categories;
+    const previousOrder = new Map(
+      previousCategories.map((category) => [category.id, category.sort_order]),
+    );
+    const nextCategories = withSequentialSortOrder(
+      moveById(
+        sortByManualOrder(previousCategories),
+        wishlistDrag.id,
+        targetId,
+        position,
+      ),
+    );
+    if (
+      nextCategories.map((category) => category.id).join(",") ===
+      sortByManualOrder(previousCategories)
+        .map((category) => category.id)
+        .join(",")
+    ) {
+      setWishlistDrag(null);
+      return;
+    }
+
+    setCategories(nextCategories);
+    setWishlistDrag(null);
+    try {
+      await Promise.all(
+        nextCategories
+          .filter(
+            (category) => previousOrder.get(category.id) !== category.sort_order,
+          )
+          .map((category) =>
+            api.plannedExpenses.updateCategory(category.id, {
+              sort_order: category.sort_order,
+            }),
+          ),
+      );
+    } catch (error) {
+      setCategories(previousCategories);
+      throw error;
+    }
+  };
+
+  const moveWishlistCategoryByStep = async (
+    categoryId: number,
+    direction: MoveDirection,
+  ) => {
+    if (!isWishlist) return;
+    const previousCategories = categories;
+    const orderedCategories = sortByManualOrder(previousCategories);
+    const previousOrder = new Map(
+      previousCategories.map((category) => [category.id, category.sort_order]),
+    );
+    const nextCategories = withSequentialSortOrder(
+      moveByStep(orderedCategories, categoryId, direction),
+    );
+    if (
+      nextCategories.map((category) => category.id).join(",") ===
+      orderedCategories.map((category) => category.id).join(",")
+    ) {
+      return;
+    }
+
+    setCategories(nextCategories);
+    try {
+      await Promise.all(
+        nextCategories
+          .filter(
+            (category) => previousOrder.get(category.id) !== category.sort_order,
+          )
+          .map((category) =>
+            api.plannedExpenses.updateCategory(category.id, {
+              sort_order: category.sort_order,
+            }),
+          ),
+      );
+    } catch (error) {
+      setCategories(previousCategories);
+      throw error;
+    }
+  };
+
+  const reorderWishlistItem = async (
+    target: PlannedExpense,
+    position: DropPosition,
+  ) => {
+    if (!isWishlist || wishlistDrag?.type !== "item") return;
+    const targetCategoryId = target.category_id ?? null;
+    if (wishlistDrag.categoryId !== targetCategoryId) {
+      setWishlistDrag(null);
+      return;
+    }
+
+    const previousItems = items;
+    const groupItems = sortByManualOrder(
+      previousItems.filter(
+        (item) => (item.category_id ?? null) === targetCategoryId,
+      ),
+    );
+    const nextGroupItems = withSequentialSortOrder(
+      moveById(groupItems, wishlistDrag.id, target.id, position),
+    );
+    if (
+      nextGroupItems.map((item) => item.id).join(",") ===
+      groupItems.map((item) => item.id).join(",")
+    ) {
+      setWishlistDrag(null);
+      return;
+    }
+
+    const nextGroupItemById = new Map(
+      nextGroupItems.map((item) => [item.id, item]),
+    );
+    setItems((currentItems) =>
+      currentItems.map((item) => nextGroupItemById.get(item.id) ?? item),
+    );
+    setWishlistDrag(null);
+    try {
+      await Promise.all(
+        nextGroupItems
+          .filter((item) => {
+            const previous = previousItems.find((entry) => entry.id === item.id);
+            return previous?.sort_order !== item.sort_order;
+          })
+          .map((item) =>
+            api.plannedExpenses.update(item.id, {
+              sort_order: item.sort_order,
+            }),
+          ),
+      );
+    } catch (error) {
+      setItems(previousItems);
+      throw error;
+    }
+  };
+
+  const moveWishlistItemByStep = async (
+    item: PlannedExpense,
+    direction: MoveDirection,
+  ) => {
+    if (!isWishlist) return;
+    const targetCategoryId = item.category_id ?? null;
+    const previousItems = items;
+    const groupItems = sortByManualOrder(
+      previousItems.filter(
+        (entry) => (entry.category_id ?? null) === targetCategoryId,
+      ),
+    );
+    const nextGroupItems = withSequentialSortOrder(
+      moveByStep(groupItems, item.id, direction),
+    );
+    if (
+      nextGroupItems.map((entry) => entry.id).join(",") ===
+      groupItems.map((entry) => entry.id).join(",")
+    ) {
+      return;
+    }
+
+    const nextGroupItemById = new Map(
+      nextGroupItems.map((entry) => [entry.id, entry]),
+    );
+    setItems((currentItems) =>
+      currentItems.map((entry) => nextGroupItemById.get(entry.id) ?? entry),
+    );
+    try {
+      await Promise.all(
+        nextGroupItems
+          .filter((entry) => {
+            const previous = previousItems.find(
+              (current) => current.id === entry.id,
+            );
+            return previous?.sort_order !== entry.sort_order;
+          })
+          .map((entry) =>
+            api.plannedExpenses.update(entry.id, {
+              sort_order: entry.sort_order,
+            }),
+          ),
+      );
+    } catch (error) {
+      setItems(previousItems);
+      throw error;
+    }
+  };
+
   const refreshItemMetadata = async (item: PlannedExpense) => {
     await api.plannedExpenses.refreshMetadata(item.id);
     await loadData();
@@ -1726,6 +2201,9 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       if (isShoppingList) {
         return [...items].sort(compareShoppingItems);
       }
+      if (isWishlist) {
+        return sortByManualOrder(items);
+      }
       return [...items].sort(
         (a, b) =>
           statusRank[a.status] - statusRank[b.status] ||
@@ -1736,10 +2214,25 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           b.id - a.id,
       );
     },
-    [isShoppingList, items],
+    [isShoppingList, isWishlist, items],
+  );
+  const visibleSortedItems = useMemo(
+    () =>
+      isWishlist
+        ? sortedItems.filter(shouldShowWishlistItemInMainList)
+        : sortedItems,
+    [isWishlist, sortedItems],
+  );
+  const completedWishlistItems = useMemo(
+    () =>
+      isWishlist
+        ? sortedItems.filter(shouldShowWishlistItemInCompletedList)
+        : [],
+    [isWishlist, sortedItems],
   );
 
   const sortedShoppingCategories = useMemo(() => {
+    if (isWishlist) return sortByManualOrder(categories);
     if (!isShoppingList) return categories;
     return [...categories].sort((a, b) => {
       const aDate = a.target_date;
@@ -1763,18 +2256,18 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         a.id - b.id
       );
     });
-  }, [categories, isShoppingList, undatedShoppingPlanPosition]);
+  }, [categories, isShoppingList, isWishlist, undatedShoppingPlanPosition]);
 
   const groupedCategories = useMemo(() => {
     const groups: ShoppingPlanGroup[] = sortedShoppingCategories.map((category) => ({
       category,
       id: category.id,
       name: category.name,
-      items: sortedItems.filter(
+      items: visibleSortedItems.filter(
         (item) => item.category_id === category.id,
       ),
     }));
-    const uncategorizedItems = sortedItems.filter(
+    const uncategorizedItems = visibleSortedItems.filter(
       (item) => item.category_id == null,
     );
     if (uncategorizedItems.length > 0 || sortedShoppingCategories.length === 0) {
@@ -1786,7 +2279,36 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       });
     }
     return groups;
-  }, [noCategoryLabel, sortedItems, sortedShoppingCategories]);
+  }, [noCategoryLabel, visibleSortedItems, sortedShoppingCategories]);
+
+  const completedWishlistGroupedCategories = useMemo(() => {
+    if (!isWishlist) return [];
+    const groups: ShoppingPlanGroup[] = sortedShoppingCategories.map((category) => ({
+      category,
+      id: category.id,
+      name: category.name,
+      items: completedWishlistItems.filter(
+        (item) => item.category_id === category.id,
+      ),
+    }));
+    const uncategorizedItems = completedWishlistItems.filter(
+      (item) => item.category_id == null,
+    );
+    if (uncategorizedItems.length > 0) {
+      groups.push({
+        category: null,
+        id: null,
+        name: noCategoryLabel,
+        items: uncategorizedItems,
+      });
+    }
+    return groups;
+  }, [
+    completedWishlistItems,
+    isWishlist,
+    noCategoryLabel,
+    sortedShoppingCategories,
+  ]);
 
   const archivedGroupedCategories = useMemo(() => {
     const archivedSortedItems = [...archivedItems].sort(compareShoppingItems);
@@ -1805,6 +2327,9 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     });
   }, [archivedCategories, archivedItems]);
 
+  const openItemCount = activeCurrencyItems.filter(
+    (item) => item.status === "open",
+  ).length;
   const openTotal = activeCurrencyItems.reduce((sum, item) => {
     if (item.status !== "open") return sum;
     if (isShoppingList) return sum;
@@ -1826,6 +2351,167 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     }
     return map;
   }, [items]);
+
+  const renderWishlistItemOrderControls = (
+    item: PlannedExpense,
+    itemIndex: number,
+    itemCount: number,
+    includeGrip: boolean,
+  ) => {
+    if (!isWishlist) return null;
+    return (
+      <Group
+        gap={2}
+        wrap="nowrap"
+        style={{ flex: "0 0 auto" }}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <Tooltip label={t("plannedExpenseMoveUp")} withArrow>
+          <ActionIcon
+            variant="subtle"
+            size="sm"
+            aria-label={t("plannedExpenseMoveUp")}
+            disabled={itemIndex === 0}
+            draggable={false}
+            onClick={(event) => {
+              event.stopPropagation();
+              void moveWishlistItemByStep(item, "up");
+            }}
+          >
+            <IconArrowUp size={14} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label={t("plannedExpenseMoveDown")} withArrow>
+          <ActionIcon
+            variant="subtle"
+            size="sm"
+            aria-label={t("plannedExpenseMoveDown")}
+            disabled={itemIndex >= itemCount - 1}
+            draggable={false}
+            onClick={(event) => {
+              event.stopPropagation();
+              void moveWishlistItemByStep(item, "down");
+            }}
+          >
+            <IconArrowDown size={14} />
+          </ActionIcon>
+        </Tooltip>
+        {includeGrip && (
+          <ActionIcon
+            variant="subtle"
+            size="sm"
+            aria-label={t("plannedExpenseReorder")}
+            style={{ cursor: "grab", flex: "0 0 auto" }}
+          >
+            <IconGripVertical size={15} />
+          </ActionIcon>
+        )}
+      </Group>
+    );
+  };
+
+  const renderItemAmount = (item: PlannedExpense) => {
+    const hasEstimatedAmount = !isShoppingList;
+    const hasMetadataPrice = item.product_metadata?.price_amount != null;
+    if (!hasEstimatedAmount && !hasMetadataPrice) return null;
+    return (
+      <Stack gap={0} align="flex-end">
+        {hasEstimatedAmount && (
+          <Text fw={800} size="sm">
+            {formatCurrency(item.estimated_amount, locale, item.currency)}
+          </Text>
+        )}
+        {hasMetadataPrice && (
+          <Text size="xs" c="dimmed">
+            {t("productMetadataPrice")}{" "}
+            {formatCurrency(
+              item.product_metadata!.price_amount!,
+              locale,
+              item.product_metadata!.currency,
+            )}
+          </Text>
+        )}
+      </Stack>
+    );
+  };
+
+  const renderItemActions = (
+    item: PlannedExpense,
+    isReferenceCurrency: boolean,
+    wrap: "wrap" | "nowrap" = "nowrap",
+  ) => (
+    <Group gap={4} wrap={wrap} justify="flex-end">
+      {item.url && (
+        <ActionIcon
+          variant="subtle"
+          color="blue"
+          aria-label={t("productMetadataRefresh")}
+          disabled={isReferenceCurrency}
+          onClick={() => void refreshItemMetadata(item)}
+        >
+          <IconRefresh size={16} />
+        </ActionIcon>
+      )}
+      {item.status === "open" && (
+        <Tooltip label={t("plannedExpenseInputExpense")} withArrow>
+          <ActionIcon
+            variant="subtle"
+            color={pageColor}
+            aria-label={t("plannedExpenseInputExpense")}
+            disabled={isReferenceCurrency}
+            onClick={() => startExpenseInput(item)}
+          >
+            <IconCheck size={16} />
+          </ActionIcon>
+        </Tooltip>
+      )}
+      {!isShoppingList && item.status !== "completed" && (
+        <Tooltip label={t("plannedExpenseForceComplete")} withArrow>
+          <ActionIcon
+            variant="subtle"
+            color="orange"
+            aria-label={t("plannedExpenseForceComplete")}
+            disabled={isReferenceCurrency}
+            onClick={() => requestCompleteItem(item)}
+          >
+            <IconAlertTriangle size={16} />
+          </ActionIcon>
+        </Tooltip>
+      )}
+      {!isShoppingList && item.status !== "cancelled" && (
+        <Tooltip label={t("plannedExpenseCancel")} withArrow>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            aria-label={t("plannedExpenseCancel")}
+            disabled={isReferenceCurrency}
+            onClick={() => requestCancelItem(item)}
+          >
+            <IconX size={16} />
+          </ActionIcon>
+        </Tooltip>
+      )}
+      <ActionIcon
+        variant="subtle"
+        aria-label={t("editLabel")}
+        disabled={isReferenceCurrency}
+        onClick={() => openEditModal(item)}
+      >
+        <IconEdit size={16} />
+      </ActionIcon>
+      <Tooltip label={t("deleteBudgetCategory")} withArrow>
+        <ActionIcon
+          variant="subtle"
+          color="red"
+          aria-label={t("deleteBudgetCategory")}
+          disabled={isReferenceCurrency}
+          onClick={() => requestDeleteItem(item)}
+        >
+          <IconTrash size={16} />
+        </ActionIcon>
+      </Tooltip>
+    </Group>
+  );
 
   return (
     <Stack gap="lg">
@@ -1874,24 +2560,27 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       </Group>
 
       {!isShoppingList && (
-        <SimpleGrid cols={{ base: 1, sm: 2 }}>
-          <Paper withBorder p="md" radius="md">
-            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-              {t("plannedExpenseOpenCount")}
-            </Text>
-            <Text fw={800} size="xl">
-              {activeCurrencyItems.filter((item) => item.status === "open").length}
-            </Text>
-          </Paper>
-          <Paper withBorder p="md" radius="md">
-            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-              {t("plannedExpenseOpenTotal")}
-            </Text>
-            <Text fw={800} size="xl">
-              {formatCurrency(openTotal, locale, selectedCurrency)}
-            </Text>
-          </Paper>
-        </SimpleGrid>
+        <Paper withBorder px="md" py="xs" radius="md">
+          <Group gap="md" wrap="wrap">
+            <Group gap={6} wrap="nowrap">
+              <Text size="xs" c="dimmed" fw={700}>
+                {t("plannedExpenseOpenCount")}
+              </Text>
+              <Text fw={800} size="sm">
+                {openItemCount}
+              </Text>
+            </Group>
+            <Divider orientation="vertical" />
+            <Group gap={6} wrap="nowrap">
+              <Text size="xs" c="dimmed" fw={700}>
+                {t("plannedExpenseOpenTotal")}
+              </Text>
+              <Text fw={800} size="sm">
+                {formatCurrency(openTotal, locale, selectedCurrency)}
+              </Text>
+            </Group>
+          </Group>
+        </Paper>
       )}
 
       {isScheduled && (
@@ -1994,12 +2683,12 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
             onCompletePlan={(category) => void completeCategory(category)}
             onCheckoutPlan={startShoppingPlanCheckout}
             onEditPlan={openEditCategoryModal}
-            onDeletePlan={setDeleteCategoryTarget}
+            onDeletePlan={requestDeleteCategory}
             onToggleItem={(item, checked) =>
               void updateStatus(item, checked ? "completed" : "open")
             }
             onEditItem={openEditModal}
-            onDeleteItem={(item) => void deleteItem(item)}
+            onDeleteItem={requestDeleteItem}
           />
           <ArchivedShoppingPlanList
             groups={archivedGroupedCategories}
@@ -2014,6 +2703,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           />
         </Stack>
       ) : (
+      <Stack gap="md">
       <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
         <Group justify="space-between" px="md" py="sm">
           <Text fw={700} size="sm">
@@ -2073,15 +2763,106 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                 isShoppingList && group.category?.target_date
                   ? dayjs(group.category.target_date).format("YYYY/MM/DD")
                   : null;
+              const wishlistCategoryOrder = isWishlist
+                ? sortByManualOrder(categories)
+                : [];
+              const wishlistCategoryIndex = group.category
+                ? wishlistCategoryOrder.findIndex(
+                    (category) => category.id === group.category!.id,
+                  )
+                : -1;
               return (
-                <Box key={group.id ?? "__none"}>
+                <Box
+                  key={group.id ?? "__none"}
+                  onDragOver={(event) => {
+                    if (isWishlist && wishlistDrag?.type === "category") {
+                      event.preventDefault();
+                    }
+                  }}
+                  onDrop={(event) => {
+                    if (isWishlist && group.category) {
+                      event.preventDefault();
+                      void reorderWishlistCategory(
+                        group.category.id,
+                        getDropPosition(event),
+                      );
+                    }
+                  }}
+                  onDragEnd={() => setWishlistDrag(null)}
+                >
                   <Group
                     justify="space-between"
                     px="md"
                     py={isShoppingList ? "sm" : "xs"}
                     bg="var(--mantine-color-default-hover)"
+                    draggable={isWishlist && group.category != null}
+                    onDragStart={() => {
+                      if (isWishlist && group.category) {
+                        setWishlistDrag({
+                          type: "category",
+                          id: group.category.id,
+                        });
+                      }
+                    }}
                   >
                     <Group gap={isShoppingList ? "sm" : "xs"}>
+                      {isWishlist && group.category && (
+                        <Group
+                          gap={2}
+                          wrap="nowrap"
+                          style={{ flex: "0 0 auto" }}
+                          onPointerDown={(event) => event.stopPropagation()}
+                        >
+                          <Tooltip label={t("plannedExpenseMoveUp")} withArrow>
+                            <ActionIcon
+                              variant="subtle"
+                              size="sm"
+                              aria-label={t("plannedExpenseMoveUp")}
+                              disabled={wishlistCategoryIndex <= 0}
+                              draggable={false}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void moveWishlistCategoryByStep(
+                                  group.category!.id,
+                                  "up",
+                                );
+                              }}
+                            >
+                              <IconArrowUp size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                          <Tooltip label={t("plannedExpenseMoveDown")} withArrow>
+                            <ActionIcon
+                              variant="subtle"
+                              size="sm"
+                              aria-label={t("plannedExpenseMoveDown")}
+                              disabled={
+                                wishlistCategoryIndex < 0 ||
+                                wishlistCategoryIndex >=
+                                  wishlistCategoryOrder.length - 1
+                              }
+                              draggable={false}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void moveWishlistCategoryByStep(
+                                  group.category!.id,
+                                  "down",
+                                );
+                              }}
+                            >
+                              <IconArrowDown size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                          <ActionIcon
+                            variant="subtle"
+                            size="sm"
+                            aria-label={t("plannedExpenseReorder")}
+                            style={{ cursor: "grab", flex: "0 0 auto" }}
+                          >
+                            <IconGripVertical size={15} />
+                          </ActionIcon>
+                        </Group>
+                      )}
                       {shoppingPlanDate && (
                         <Group gap={4} wrap="nowrap">
                           {group.category?.shopping_plan_type === "routine" && (
@@ -2108,6 +2889,22 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                       )}
                     </Group>
                     <Group gap={4}>
+                      {!isShoppingList && group.category && (
+                        <Tooltip label={t("plannedExpenseAdd")} withArrow>
+                          <ActionIcon
+                            variant="subtle"
+                            color={pageColor}
+                            aria-label={t("plannedExpenseAdd")}
+                            draggable={false}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openCreateModal(group.category!.id);
+                            }}
+                          >
+                            <IconPlus size={15} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
                       {isShoppingList && group.category && (
                         <Button
                           size="xs"
@@ -2149,7 +2946,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                             variant="subtle"
                             color="red"
                             aria-label={t("deleteBudgetCategory")}
-                            onClick={() => void deleteCategory(group.category!)}
+                            onClick={() => requestDeleteCategory(group.category!)}
                           >
                             <IconTrash size={15} />
                           </ActionIcon>
@@ -2216,19 +3013,55 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                     </Text>
                     )
                   ) : (
-                    group.items.map((item) => {
+                    group.items.map((item, itemIndex) => {
                       const isReferenceCurrency = item.currency !== selectedCurrency;
                       return (
                         <Box
                           key={item.id}
                           px="md"
                           py="sm"
+                          draggable={isWishlist}
+                          onDragStart={(event) => {
+                            if (isWishlist) {
+                              event.stopPropagation();
+                              setWishlistDrag({
+                                type: "item",
+                                id: item.id,
+                                categoryId: item.category_id ?? null,
+                              });
+                            }
+                          }}
+                          onDragOver={(event) => {
+                            if (
+                              isWishlist &&
+                              wishlistDrag?.type === "item" &&
+                              wishlistDrag.categoryId ===
+                                (item.category_id ?? null)
+                            ) {
+                              event.preventDefault();
+                            }
+                          }}
+                          onDrop={(event) => {
+                            if (isWishlist) {
+                              event.preventDefault();
+                              void reorderWishlistItem(
+                                item,
+                                getDropPosition(event),
+                              );
+                            }
+                          }}
+                          onDragEnd={() => setWishlistDrag(null)}
                           style={{
                             borderBottom:
                               "1px solid var(--mantine-color-default-border)",
                           }}
                         >
-                          <Group justify="space-between" align="flex-start" gap="sm">
+                          <Group
+                            justify="space-between"
+                            align="flex-start"
+                            gap="sm"
+                            wrap="nowrap"
+                          >
                             <Group gap="sm" align="flex-start" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
                               {isShoppingList && (
                                 <Checkbox
@@ -2246,12 +3079,27 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                                   aria-label={t("plannedExpenseComplete")}
                                 />
                               )}
+                              {isWishlist && (
+                                <Box visibleFrom="sm" style={{ flex: "0 0 auto" }}>
+                                  {renderWishlistItemOrderControls(
+                                    item,
+                                    itemIndex,
+                                    group.items.length,
+                                    true,
+                                  )}
+                                </Box>
+                              )}
                               <Box style={{ minWidth: 0, flex: 1 }}>
-                                <Group gap="xs" mb={4}>
-                                  <Text fw={700} size="sm" lineClamp={1}>
-                                    {item.name}
-                                  </Text>
-                                  {!isShoppingList && (
+                                <Text
+                                  fw={700}
+                                  size="sm"
+                                  lineClamp={itemNameLineClamp}
+                                  style={{ wordBreak: "break-word" }}
+                                >
+                                  {item.name}
+                                </Text>
+                                <Group gap={4} mt={4} mb={4} wrap="wrap">
+                                  {!isShoppingList && !isWishlist && (
                                     <Badge
                                       size="xs"
                                       color={statusColor(item.status)}
@@ -2261,13 +3109,17 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                                     </Badge>
                                   )}
                                   {!isShoppingList && (
-                                    <Badge
-                                      size="xs"
-                                      color={priorityColors[item.priority] ?? "gray"}
-                                      variant="light"
+                                    <Tooltip
+                                      label={`${t("plannedExpensePriority")} ${item.priority}`}
+                                      withArrow
                                     >
-                                      {t("plannedExpensePriority")} {item.priority}
-                                    </Badge>
+                                      <Box>
+                                        <PriorityStars
+                                          value={item.priority}
+                                          readOnly
+                                        />
+                                      </Box>
+                                    </Tooltip>
                                   )}
                                   {isReferenceCurrency && (
                                     <Badge size="xs" color="gray" variant="outline">
@@ -2320,112 +3172,36 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                                 )}
                               </Box>
                             </Group>
-                            <Stack gap={4} align="flex-end">
-                              {!isShoppingList && (
-                                <Text fw={800} size="sm">
-                                  {formatCurrency(
-                                    item.estimated_amount,
-                                    locale,
-                                    item.currency,
-                                  )}
-                                </Text>
-                              )}
-                              {item.product_metadata?.price_amount != null && (
-                                <Text size="xs" c="dimmed">
-                                  {t("productMetadataPrice")}{" "}
-                                  {formatCurrency(
-                                    item.product_metadata.price_amount,
-                                    locale,
-                                    item.product_metadata.currency,
-                                  )}
-                                </Text>
-                              )}
-                              <Group gap={4} wrap="nowrap">
-                                {item.url && (
-                                  <ActionIcon
-                                    variant="subtle"
-                                    color="blue"
-                                    aria-label={t("productMetadataRefresh")}
-                                    disabled={isReferenceCurrency}
-                                    onClick={() => void refreshItemMetadata(item)}
-                                  >
-                                    <IconRefresh size={16} />
-                                  </ActionIcon>
-                                )}
-                                {item.status === "open" && (
-                                  <Tooltip
-                                    label={t("plannedExpenseInputExpense")}
-                                    withArrow
-                                  >
-                                    <ActionIcon
-                                      variant="subtle"
-                                      color={pageColor}
-                                      aria-label={t("plannedExpenseInputExpense")}
-                                      disabled={isReferenceCurrency}
-                                      onClick={() => startExpenseInput(item)}
-                                    >
-                                      <IconReceipt size={16} />
-                                    </ActionIcon>
-                                  </Tooltip>
-                                )}
-                                {!isShoppingList && item.status !== "completed" && (
-                                  <Tooltip
-                                    label={t("plannedExpenseComplete")}
-                                    withArrow
-                                  >
-                                    <ActionIcon
-                                      variant="subtle"
-                                      color="teal"
-                                      aria-label={t("plannedExpenseComplete")}
-                                      disabled={isReferenceCurrency}
-                                      onClick={() =>
-                                        void updateStatus(item, "completed")
-                                      }
-                                    >
-                                      <IconCheck size={16} />
-                                    </ActionIcon>
-                                  </Tooltip>
-                                )}
-                                {!isShoppingList && item.status !== "cancelled" && (
-                                  <Tooltip
-                                    label={t("plannedExpenseCancel")}
-                                    withArrow
-                                  >
-                                    <ActionIcon
-                                      variant="subtle"
-                                      color="gray"
-                                      aria-label={t("plannedExpenseCancel")}
-                                      disabled={isReferenceCurrency}
-                                      onClick={() =>
-                                        void updateStatus(item, "cancelled")
-                                      }
-                                    >
-                                      <IconX size={16} />
-                                    </ActionIcon>
-                                  </Tooltip>
-                                )}
-                                <ActionIcon
-                                  variant="subtle"
-                                  aria-label={t("editLabel")}
-                                  disabled={isReferenceCurrency}
-                                  onClick={() => openEditModal(item)}
-                                >
-                                  <IconEdit size={16} />
-                                </ActionIcon>
-                                <Tooltip label={t("deleteBudgetCategory")} withArrow>
-                                  <ActionIcon
-                                    variant="subtle"
-                                    color="red"
-                                    aria-label={t("deleteBudgetCategory")}
-                                    disabled={isReferenceCurrency}
-                                    onClick={() => void deleteItem(item)}
-                                  >
-                                    <IconTrash size={16} />
-                                  </ActionIcon>
-                                </Tooltip>
-                              </Group>
+                            <Stack
+                              gap={4}
+                              align="flex-end"
+                              visibleFrom="sm"
+                              style={{ flex: "0 0 auto" }}
+                            >
+                              {renderItemAmount(item)}
+                              {renderItemActions(item, isReferenceCurrency)}
                             </Stack>
                           </Group>
+                          <Stack hiddenFrom="sm" gap={6} mt="xs">
+                            {(isWishlist ||
+                              !isShoppingList ||
+                              item.product_metadata?.price_amount != null) && (
+                              <Group
+                                justify="space-between"
+                                align="center"
+                                gap="xs"
+                              >
+                                {renderWishlistItemOrderControls(
+                                  item,
+                                  itemIndex,
+                                  group.items.length,
+                                  false,
+                                )}
+                                {renderItemAmount(item)}
+                              </Group>
+                            )}
+                            {renderItemActions(item, isReferenceCurrency, "wrap")}
+                          </Stack>
                         </Box>
                       );
                     })
@@ -2436,6 +3212,19 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           </Stack>
         )}
       </Paper>
+      {isWishlist && (
+        <CompletedWishlistList
+          groups={completedWishlistGroupedCategories}
+          t={t}
+          locale={locale}
+          selectedCurrency={selectedCurrency}
+          pageColor={pageColor}
+          onReopenItem={(item) => void updateStatus(item, "open")}
+          onEditItem={openEditModal}
+          onDeleteItem={requestDeleteItem}
+        />
+      )}
+      </Stack>
       )}
 
       <Modal
@@ -2758,34 +3547,40 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                 {...form.getInputProps("target_date")}
               />
             ) : null}
-            <Group grow>
-              {!isShoppingList && (
-                <Select
-                  label={t("plannedExpensePriority")}
-                  data={[
-                    { value: "1", label: t("plannedExpensePriorityLow") },
-                    { value: "2", label: t("plannedExpensePriorityMedium") },
-                    { value: "3", label: t("plannedExpensePriorityHigh") },
-                  ]}
-                  {...form.getInputProps("priority")}
-                />
-              )}
-              <Select
-                label={t("statusLabel")}
-                data={[
-                  { value: "open", label: t("plannedExpenseStatus_open") },
-                  {
-                    value: "completed",
-                    label: t("plannedExpenseStatus_completed"),
-                  },
-                  {
-                    value: "cancelled",
-                    label: t("plannedExpenseStatus_cancelled"),
-                  },
-                ]}
-                {...form.getInputProps("status")}
-              />
-            </Group>
+            {(showItemPriorityField || showItemStatusField) && (
+              <Group grow>
+                {showItemPriorityField && (
+                  <Box>
+                    <Text size="xs" c="dimmed" fw={500} mb={6}>
+                      {t("plannedExpensePriority")}
+                    </Text>
+                    <PriorityStars
+                      value={Number(form.values.priority)}
+                      onChange={(value) =>
+                        form.setFieldValue("priority", String(value))
+                      }
+                    />
+                  </Box>
+                )}
+                {showItemStatusField && (
+                  <Select
+                    label={t("statusLabel")}
+                    data={[
+                      { value: "open", label: t("plannedExpenseStatus_open") },
+                      {
+                        value: "completed",
+                        label: t("plannedExpenseStatus_completed"),
+                      },
+                      {
+                        value: "cancelled",
+                        label: t("plannedExpenseStatus_cancelled"),
+                      },
+                    ]}
+                    {...form.getInputProps("status")}
+                  />
+                )}
+              </Group>
+            )}
             <Textarea
               label={t("budgetAdjustNoteLabel")}
               minRows={3}
@@ -2810,9 +3605,60 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
             void deleteCategory(deleteCategoryTarget);
           }
         }}
-        title={t("shoppingPlanDeleteConfirmTitle")}
-        message={t("shoppingPlanDeleteConfirmMessage")}
-        confirmLabel={t("shoppingPlanDelete")}
+        title={
+          deleteCategoryTarget?.kind === "shopping_list"
+            ? t("shoppingPlanDeleteConfirmTitle")
+            : t("plannedExpenseDeleteCategoryConfirmTitle")
+        }
+        message={
+          deleteCategoryTarget?.kind === "shopping_list"
+            ? t("shoppingPlanDeleteConfirmMessage")
+            : t("plannedExpenseDeleteCategoryConfirmMessage")
+        }
+        confirmLabel={
+          deleteCategoryTarget?.kind === "shopping_list"
+            ? t("shoppingPlanDelete")
+            : t("plannedExpenseDeleteCategoryConfirm")
+        }
+        confirmColor="red"
+      />
+      <ConfirmModal
+        opened={deleteItemTarget != null}
+        onClose={() => setDeleteItemTarget(null)}
+        onConfirm={() => {
+          if (deleteItemTarget) {
+            void deleteItem(deleteItemTarget);
+          }
+        }}
+        title={t("plannedExpenseDeleteItemConfirmTitle")}
+        message={t("plannedExpenseDeleteItemConfirmMessage")}
+        confirmLabel={t("plannedExpenseDeleteItemConfirm")}
+        confirmColor="red"
+      />
+      <ConfirmModal
+        opened={completeItemTarget != null}
+        onClose={() => setCompleteItemTarget(null)}
+        onConfirm={() => {
+          if (completeItemTarget) {
+            void updateStatus(completeItemTarget, "completed");
+          }
+        }}
+        title={t("plannedExpenseForceCompleteConfirmTitle")}
+        message={t("plannedExpenseForceCompleteConfirmMessage")}
+        confirmLabel={t("plannedExpenseForceCompleteConfirm")}
+        confirmColor="orange"
+      />
+      <ConfirmModal
+        opened={cancelItemTarget != null}
+        onClose={() => setCancelItemTarget(null)}
+        onConfirm={() => {
+          if (cancelItemTarget) {
+            void updateStatus(cancelItemTarget, "cancelled");
+          }
+        }}
+        title={t("plannedExpenseCancelConfirmTitle")}
+        message={t("plannedExpenseCancelConfirmMessage")}
+        confirmLabel={t("plannedExpenseCancel")}
         confirmColor="red"
       />
       <ConfirmModal

@@ -1,21 +1,23 @@
-import { and, asc, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { Hono } from "hono";
-import type {
-  CreatePlannedExpenseInput,
-  CreatePlannedExpenseCategoryInput,
-  PlannedExpense,
-  PlannedExpenseCategory,
-  PlannedExpenseKind,
-  PlannedExpenseRecurrenceType,
-  PlannedExpenseStatus,
-  ProductAvailabilityStatus,
-  ProductMetadata,
-  ProductMetadataLookupInput,
-  ProductSourceSite,
-  ShoppingPlanType,
-  UpdatePlannedExpenseInput,
-  UpdatePlannedExpenseCategoryInput,
+import {
+  hasDuplicatePlannedExpenseCategoryName,
+  hasDuplicatePlannedExpenseItemName,
+  type CreatePlannedExpenseInput,
+  type CreatePlannedExpenseCategoryInput,
+  type PlannedExpense,
+  type PlannedExpenseCategory,
+  type PlannedExpenseKind,
+  type PlannedExpenseRecurrenceType,
+  type PlannedExpenseStatus,
+  type ProductAvailabilityStatus,
+  type ProductMetadata,
+  type ProductMetadataLookupInput,
+  type ProductSourceSite,
+  type ShoppingPlanType,
+  type UpdatePlannedExpenseInput,
+  type UpdatePlannedExpenseCategoryInput,
 } from "@balance-sheet/shared";
 import { createDb, type Env } from "../db";
 import {
@@ -27,6 +29,11 @@ import {
 } from "../db/schema";
 import { lookupProductMetadata } from "../lib/productMetadata";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
+import {
+  isWishlistClosedStatus,
+  selectWishlistClosedItemIdsToDelete,
+  WISHLIST_CLOSED_RETENTION_LIMIT,
+} from "../lib/plannedExpenseRetention";
 import {
   findInvalidMoneyField,
   fromStorageMoneyAmount,
@@ -86,9 +93,9 @@ function normalizePriority(value: number | undefined): number {
   return typeof value === "number" &&
     Number.isInteger(value) &&
     value >= 1 &&
-    value <= 3
+    value <= 5
     ? value
-    : 2;
+    : 3;
 }
 
 function normalizeSortOrder(value: number | undefined): number {
@@ -128,30 +135,86 @@ async function validateCategory(
   return category?.kind === kind;
 }
 
-async function hasDuplicateShoppingListItem(
+async function hasDuplicatePlannedExpenseItem(
   db: ReturnType<typeof createDb>,
   input: {
+    kind: PlannedExpenseKind;
     categoryId: number | null | undefined;
     name: string;
-    note: string | null;
     excludeId?: number;
   },
 ) {
-  if (input.categoryId == null) return false;
+  const rows = await db
+    .select({
+      id: plannedExpenses.id,
+      kind: plannedExpenses.kind,
+      category_id: plannedExpenses.category_id,
+      name: plannedExpenses.name,
+    })
+    .from(plannedExpenses)
+    .where(
+      and(
+        eq(plannedExpenses.kind, input.kind),
+        input.categoryId == null
+          ? isNull(plannedExpenses.category_id)
+          : eq(plannedExpenses.category_id, input.categoryId),
+      ),
+    );
+  return hasDuplicatePlannedExpenseItemName({
+    name: input.name,
+    kind: input.kind,
+    categoryId: input.categoryId ?? null,
+    excludeId: input.excludeId,
+    items: rows.map((row) => ({
+      ...row,
+      kind: row.kind as PlannedExpenseKind,
+    })),
+  });
+}
+
+async function fetchLatestClosedWishlistItemIds(
+  db: ReturnType<typeof createDb>,
+  limit = WISHLIST_CLOSED_RETENTION_LIMIT,
+) {
   const rows = await db
     .select({ id: plannedExpenses.id })
     .from(plannedExpenses)
     .where(
       and(
-        eq(plannedExpenses.kind, "shopping_list"),
-        eq(plannedExpenses.category_id, input.categoryId),
-        eq(plannedExpenses.name, input.name),
-        input.note === null
-          ? isNull(plannedExpenses.note)
-          : eq(plannedExpenses.note, input.note),
+        eq(plannedExpenses.kind, "wishlist"),
+        or(
+          eq(plannedExpenses.status, "completed"),
+          eq(plannedExpenses.status, "cancelled"),
+        ),
+      ),
+    )
+    .orderBy(desc(plannedExpenses.updated_at), desc(plannedExpenses.id))
+    .limit(limit);
+  return rows.map((row) => row.id);
+}
+
+async function pruneWishlistClosedItems(db: ReturnType<typeof createDb>) {
+  const rows = await db
+    .select({
+      id: plannedExpenses.id,
+      status: plannedExpenses.status,
+      updated_at: plannedExpenses.updated_at,
+    })
+    .from(plannedExpenses)
+    .where(
+      and(
+        eq(plannedExpenses.kind, "wishlist"),
+        or(
+          eq(plannedExpenses.status, "completed"),
+          eq(plannedExpenses.status, "cancelled"),
+        ),
       ),
     );
-  return rows.some((row) => row.id !== input.excludeId);
+  const idsToDelete = selectWishlistClosedItemIdsToDelete(rows);
+  if (idsToDelete.length === 0) return;
+  await db
+    .delete(plannedExpenses)
+    .where(inArray(plannedExpenses.id, idsToDelete));
 }
 
 async function loadMoneyScaleOptions(
@@ -325,6 +388,7 @@ function toResponse(
     next_due_date: row.next_due_date ?? null,
     end_date: row.end_date ?? null,
     priority: row.priority,
+    sort_order: row.sort_order,
     status: row.status as PlannedExpenseStatus,
     keep_on_routine_clear: isShoppingList
       ? row.keep_on_routine_clear === 1
@@ -371,6 +435,7 @@ async function fetchOne(
       next_due_date: plannedExpenses.next_due_date,
       end_date: plannedExpenses.end_date,
       priority: plannedExpenses.priority,
+      sort_order: plannedExpenses.sort_order,
       status: plannedExpenses.status,
       keep_on_routine_clear: plannedExpenses.keep_on_routine_clear,
       note: plannedExpenses.note,
@@ -438,9 +503,27 @@ router.get("/", async (c) => {
 
   const db = createDb(c.env);
   const scaleOptions = await loadMoneyScaleOptions(db);
+  const latestClosedWishlistItemIds =
+    kind === "wishlist" && (!status || isWishlistClosedStatus(status))
+      ? await fetchLatestClosedWishlistItemIds(db)
+      : [];
+  const wishlistClosedRetentionFilter =
+    kind === "wishlist" && !status
+      ? latestClosedWishlistItemIds.length > 0
+        ? or(
+            eq(plannedExpenses.status, "open"),
+            inArray(plannedExpenses.id, latestClosedWishlistItemIds),
+          )
+        : eq(plannedExpenses.status, "open")
+      : kind === "wishlist" && status && isWishlistClosedStatus(status)
+        ? latestClosedWishlistItemIds.length > 0
+          ? inArray(plannedExpenses.id, latestClosedWishlistItemIds)
+          : eq(plannedExpenses.id, -1)
+        : null;
   const filters = [
     kind ? eq(plannedExpenses.kind, kind as PlannedExpenseKind) : null,
     status ? eq(plannedExpenses.status, status as PlannedExpenseStatus) : null,
+    wishlistClosedRetentionFilter,
     kind === "shopping_list" && !includeArchived
       ? and(
           isNotNull(plannedExpenses.category_id),
@@ -477,6 +560,7 @@ router.get("/", async (c) => {
       next_due_date: plannedExpenses.next_due_date,
       end_date: plannedExpenses.end_date,
       priority: plannedExpenses.priority,
+      sort_order: plannedExpenses.sort_order,
       status: plannedExpenses.status,
       keep_on_routine_clear: plannedExpenses.keep_on_routine_clear,
       note: plannedExpenses.note,
@@ -528,21 +612,39 @@ router.get("/", async (c) => {
     );
 
   const rows =
-    filters.length > 0
-      ? await baseQuery
-          .where(and(...filters))
-          .orderBy(
+    kind === "wishlist"
+      ? filters.length > 0
+        ? await baseQuery
+            .where(and(...filters))
+            .orderBy(
+              asc(plannedExpenseCategories.sort_order),
+              asc(plannedExpenseCategories.name),
+              asc(plannedExpenses.sort_order),
+              asc(plannedExpenses.name),
+              asc(plannedExpenses.id),
+            )
+        : await baseQuery.orderBy(
+            asc(plannedExpenseCategories.sort_order),
+            asc(plannedExpenseCategories.name),
+            asc(plannedExpenses.sort_order),
+            asc(plannedExpenses.name),
+            asc(plannedExpenses.id),
+          )
+      : filters.length > 0
+        ? await baseQuery
+            .where(and(...filters))
+            .orderBy(
+              asc(plannedExpenses.status),
+              asc(plannedExpenses.target_date),
+              desc(plannedExpenses.priority),
+              desc(plannedExpenses.created_at),
+            )
+        : await baseQuery.orderBy(
             asc(plannedExpenses.status),
             asc(plannedExpenses.target_date),
             desc(plannedExpenses.priority),
             desc(plannedExpenses.created_at),
-          )
-      : await baseQuery.orderBy(
-          asc(plannedExpenses.status),
-          asc(plannedExpenses.target_date),
-          desc(plannedExpenses.priority),
-          desc(plannedExpenses.created_at),
-        );
+          );
 
   return c.json(rows.map((row) => toResponse(row, scaleOptions)));
 });
@@ -626,6 +728,26 @@ router.post("/categories", async (c) => {
       400,
     );
   }
+  const existingCategories = await db
+    .select({
+      id: plannedExpenseCategories.id,
+      kind: plannedExpenseCategories.kind,
+      name: plannedExpenseCategories.name,
+    })
+    .from(plannedExpenseCategories)
+    .where(eq(plannedExpenseCategories.kind, body.kind));
+  if (
+    hasDuplicatePlannedExpenseCategoryName({
+      name: categoryName,
+      kind: body.kind,
+      categories: existingCategories.map((category) => ({
+        ...category,
+        kind: category.kind as PlannedExpenseKind,
+      })),
+    })
+  ) {
+    return c.json({ error: "duplicate_planned_expense_category" }, 409);
+  }
   const [row] = await db
     .insert(plannedExpenseCategories)
     .values({
@@ -702,12 +824,34 @@ router.patch("/categories/:id", async (c) => {
       400,
     );
   }
+  const nextCategoryName = nextName || nextTargetDate || existing.name;
+  const existingCategories = await db
+    .select({
+      id: plannedExpenseCategories.id,
+      kind: plannedExpenseCategories.kind,
+      name: plannedExpenseCategories.name,
+    })
+    .from(plannedExpenseCategories)
+    .where(eq(plannedExpenseCategories.kind, existing.kind));
+  if (
+    hasDuplicatePlannedExpenseCategoryName({
+      name: nextCategoryName,
+      kind: existing.kind as PlannedExpenseKind,
+      excludeId: id,
+      categories: existingCategories.map((category) => ({
+        ...category,
+        kind: category.kind as PlannedExpenseKind,
+      })),
+    })
+  ) {
+    return c.json({ error: "duplicate_planned_expense_category" }, 409);
+  }
 
   const updates: Partial<typeof plannedExpenseCategories.$inferInsert> = {
     updated_at: new Date().toISOString(),
   };
   if (body.name !== undefined) {
-    updates.name = body.name.trim() || nextTargetDate || existing.name;
+    updates.name = nextCategoryName;
   }
   if (body.currency !== undefined) updates.currency = currency;
   if (body.sort_order !== undefined) {
@@ -871,15 +1015,16 @@ router.post("/", async (c) => {
   const normalizedName = body.name.trim();
   const normalizedNote = normalizeNullableText(body.note);
   if (
-    isShoppingList &&
-    (await hasDuplicateShoppingListItem(db, {
+    await hasDuplicatePlannedExpenseItem(db, {
+      kind: body.kind,
       categoryId: body.category_id,
       name: normalizedName,
-      note: normalizedNote,
-    }))
+    })
   ) {
-    return c.json({ error: "duplicate_shopping_list_item" }, 409);
+    return c.json({ error: "duplicate_planned_expense_item" }, 409);
   }
+  const now = new Date().toISOString();
+  const status = body.status ?? "open";
 
   const [row] = await db
     .insert(plannedExpenses)
@@ -904,17 +1049,22 @@ router.post("/", async (c) => {
       recurrence_day: recurrenceType === "recurring" ? recurrenceDay : null,
       next_due_date: recurrenceType === "recurring" ? nextDueDate : null,
       end_date: recurrenceType === "recurring" ? endDate : null,
-      priority: isShoppingList ? 2 : normalizePriority(body.priority),
-      status: body.status ?? "open",
+      priority: isShoppingList ? 3 : normalizePriority(body.priority),
+      sort_order: normalizeSortOrder(body.sort_order),
+      status,
       keep_on_routine_clear:
         isShoppingList && body.keep_on_routine_clear === true ? 1 : 0,
       note: normalizedNote,
       url: normalizeNullableText(body.url),
       product_metadata_cache_id: body.product_metadata_cache_id ?? null,
+      updated_at: now,
     })
     .returning();
 
   if (!row) return c.json({ error: "insert failed" }, 500);
+  if (body.kind === "wishlist" && isWishlistClosedStatus(status)) {
+    await pruneWishlistClosedItems(db);
+  }
   const result = await fetchOne(db, row.id, scaleOptions);
   return c.json(result, 201);
 });
@@ -936,12 +1086,16 @@ router.post("/:id/refresh-metadata", async (c) => {
     force: true,
   });
   if (!metadata) return c.json({ error: "unsupported url" }, 400);
+  const shouldPreserveWishlistClosedDate =
+    existing.kind === "wishlist" && isWishlistClosedStatus(existing.status);
 
   await db
     .update(plannedExpenses)
     .set({
       product_metadata_cache_id: metadata.id,
-      updated_at: new Date().toISOString(),
+      updated_at: shouldPreserveWishlistClosedDate
+        ? existing.updated_at
+        : new Date().toISOString(),
     })
     .where(eq(plannedExpenses.id, id));
 
@@ -1008,15 +1162,14 @@ router.patch("/:id", async (c) => {
   const nextNote =
     body.note !== undefined ? normalizeNullableText(body.note) : existing.note;
   if (
-    isShoppingList &&
-    (await hasDuplicateShoppingListItem(db, {
+    await hasDuplicatePlannedExpenseItem(db, {
+      kind: existing.kind as PlannedExpenseKind,
       categoryId: nextCategoryId,
       name: nextName,
-      note: nextNote,
       excludeId: id,
-    }))
+    })
   ) {
-    return c.json({ error: "duplicate_shopping_list_item" }, 409);
+    return c.json({ error: "duplicate_planned_expense_item" }, 409);
   }
   if (
     body.recurrence_type !== undefined &&
@@ -1045,8 +1198,16 @@ router.patch("/:id", async (c) => {
     return c.json({ error: "recurrence_day must be 1-31" }, 400);
   }
 
+  const statusChanged =
+    body.status !== undefined && body.status !== existing.status;
+  const shouldPreserveWishlistClosedDate =
+    existing.kind === "wishlist" &&
+    isWishlistClosedStatus(existing.status) &&
+    !statusChanged;
   const updates: Partial<typeof plannedExpenses.$inferInsert> = {
-    updated_at: new Date().toISOString(),
+    updated_at: shouldPreserveWishlistClosedDate
+      ? existing.updated_at
+      : new Date().toISOString(),
   };
   if (body.name !== undefined) updates.name = nextName;
   if (body.category_id !== undefined) {
@@ -1119,6 +1280,9 @@ router.patch("/:id", async (c) => {
   if (body.priority !== undefined) {
     updates.priority = normalizePriority(body.priority);
   }
+  if (body.sort_order !== undefined) {
+    updates.sort_order = normalizeSortOrder(body.sort_order);
+  }
   if (body.status !== undefined) updates.status = body.status;
   if (body.keep_on_routine_clear !== undefined) {
     updates.keep_on_routine_clear =
@@ -1131,6 +1295,13 @@ router.patch("/:id", async (c) => {
   }
 
   await db.update(plannedExpenses).set(updates).where(eq(plannedExpenses.id, id));
+  if (
+    existing.kind === "wishlist" &&
+    body.status !== undefined &&
+    isWishlistClosedStatus(body.status)
+  ) {
+    await pruneWishlistClosedItems(db);
+  }
   const result = await fetchOne(db, id, scaleOptions);
   return c.json(result);
 });
