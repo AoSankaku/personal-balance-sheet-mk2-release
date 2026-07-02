@@ -17,7 +17,11 @@ import type { Account, BudgetSettings } from "@balance-sheet/shared";
 import { useLang } from "../../i18n";
 import { useAppData } from "../../context/AppDataContext";
 import { renderAccountOption, type AccountOption } from "../../lib/accountSelect";
-import { computeBudgetDistributionAmounts } from "../../lib/simpleEntryUtils";
+import {
+  computeBudgetDistributionAmounts,
+  formatBudgetDistributionRatio,
+  type BudgetDistributionSummary,
+} from "../../lib/simpleEntryUtils";
 import {
   type BudgetDistributionItem,
   type HouseholdForm,
@@ -38,7 +42,7 @@ interface Props {
   budgetDist: BudgetDistributionItem[];
   showZeroCategories: boolean;
   setShowZeroCategories: React.Dispatch<React.SetStateAction<boolean>>;
-  totalBudgetRatio: number;
+  budgetDistributionSummary: BudgetDistributionSummary;
   businessRatio: number;
   businessAmount: number;
   personalAmount: number;
@@ -90,7 +94,7 @@ export function ExpenseSection({
   budgetDist,
   showZeroCategories,
   setShowZeroCategories,
-  totalBudgetRatio,
+  budgetDistributionSummary,
   businessRatio,
   businessAmount,
   personalAmount,
@@ -376,6 +380,9 @@ export function ExpenseSection({
             budgetBase,
             budgetDist,
           );
+          const budgetTotalLabel = `${formatBudgetDistributionRatio(
+            budgetDistributionSummary.displayRatio,
+          )}%`;
           const primaryDist = budgetDist.filter((d) => !d.isDefault);
           const zeroDist = budgetDist.filter((d) => d.isDefault);
           const renderRow = (dist: BudgetDistributionItem) => (
@@ -431,19 +438,20 @@ export function ExpenseSection({
                   size="xs"
                   variant="light"
                   color={
-                    totalBudgetRatio > 100
+                    budgetDistributionSummary.isOverAllocated
                       ? "red"
-                      : totalBudgetRatio > 0 && totalBudgetRatio < 100
+                      : budgetDistributionSummary.isUnderAllocated
                         ? "yellow"
                         : "teal"
                   }
                   leftSection={
-                    totalBudgetRatio > 0 && totalBudgetRatio < 100 ? (
+                    budgetDistributionSummary.isOverAllocated ||
+                    budgetDistributionSummary.isUnderAllocated ? (
                       <IconAlertTriangle size={10} />
                     ) : undefined
                   }
                 >
-                  {t("budgetDistributionTotal")}: {totalBudgetRatio}%
+                  {t("budgetDistributionTotal")}: {budgetTotalLabel}
                 </Badge>
               </Group>
               {primaryDist.map(renderRow)}

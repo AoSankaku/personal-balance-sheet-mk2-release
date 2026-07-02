@@ -25,6 +25,17 @@ export interface BudgetDistributionAllocation {
   amount?: number;
 }
 
+export interface BudgetDistributionSummary {
+  totalRatio: number;
+  displayRatio: number;
+  allocatedAmount: number;
+  targetAmount: number;
+  isExactAmount: boolean;
+  isComplete: boolean;
+  isOverAllocated: boolean;
+  isUnderAllocated: boolean;
+}
+
 export function getIncomeDescriptionForSubmit(
   description: string,
   incomeAccount: Pick<Account, "category" | "name"> | undefined,
@@ -96,6 +107,45 @@ export function buildExpenseBudgetAllocations(
       };
     })
     .filter((allocation) => allocation.amount < 0);
+}
+
+export function summarizeBudgetDistribution(
+  totalAmount: number,
+  distribution: BudgetDistributionAllocation[],
+): BudgetDistributionSummary {
+  const base = Math.max(0, Number(totalAmount) || 0);
+  const totalRatio = distribution.reduce((sum, item) => sum + item.ratio, 0);
+  const computedAmounts = computeBudgetDistributionAmounts(base, distribution);
+  const allocatedAmount = distribution.reduce((sum, item) => {
+    const amount =
+      item.amount != null
+        ? Math.max(0, Math.round(Number(item.amount) || 0))
+        : (computedAmounts.get(item.budget_category_id) ?? 0);
+    return sum + amount;
+  }, 0);
+  const targetAmount = Math.round((base * totalRatio) / 100);
+  const isExactAmount = allocatedAmount === targetAmount;
+  const displayRatio = isExactAmount
+    ? totalRatio
+    : base > 0
+      ? Math.round((allocatedAmount / base) * 1000) / 10
+      : totalRatio;
+
+  return {
+    totalRatio,
+    displayRatio,
+    allocatedAmount,
+    targetAmount,
+    isExactAmount,
+    isComplete: totalRatio === 100 && allocatedAmount === base,
+    isOverAllocated: totalRatio > 100 || allocatedAmount > targetAmount,
+    isUnderAllocated:
+      (totalRatio > 0 && totalRatio < 100) || allocatedAmount < targetAmount,
+  };
+}
+
+export function formatBudgetDistributionRatio(ratio: number): string {
+  return Number.isInteger(ratio) ? String(ratio) : ratio.toFixed(1);
 }
 
 export function computeFilterSteps(

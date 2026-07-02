@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildExpenseBudgetAllocations,
   computeBudgetDistributionAmounts,
+  summarizeBudgetDistribution,
 } from "../src/lib/simpleEntryUtils";
 
 describe("simple entry budget distribution", () => {
@@ -29,5 +30,32 @@ describe("simple entry budget distribution", () => {
       { budget_category_id: 1, amount: -159 },
       { budget_category_id: 2, amount: -160 },
     ]);
+  });
+
+  test("does not treat 159 yen plus 159 yen as complete for a 319 yen entry", () => {
+    const summary = summarizeBudgetDistribution(319, [
+      { budget_category_id: 1, ratio: 50, amount: 159 },
+      { budget_category_id: 2, ratio: 50, amount: 159 },
+    ]);
+
+    expect(summary.totalRatio).toBe(100);
+    expect(summary.allocatedAmount).toBe(318);
+    expect(summary.targetAmount).toBe(319);
+    expect(summary.displayRatio).toBe(99.7);
+    expect(summary.isComplete).toBe(false);
+    expect(summary.isUnderAllocated).toBe(true);
+  });
+
+  test("shows over-allocation as an effective percentage above 100", () => {
+    const summary = summarizeBudgetDistribution(319, [
+      { budget_category_id: 1, ratio: 50, amount: 160 },
+      { budget_category_id: 2, ratio: 50, amount: 160 },
+    ]);
+
+    expect(summary.totalRatio).toBe(100);
+    expect(summary.allocatedAmount).toBe(320);
+    expect(summary.displayRatio).toBe(100.3);
+    expect(summary.isComplete).toBe(false);
+    expect(summary.isOverAllocated).toBe(true);
   });
 });
