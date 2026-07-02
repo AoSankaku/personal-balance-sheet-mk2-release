@@ -17,6 +17,7 @@ import type { Account, BudgetSettings } from "@balance-sheet/shared";
 import { useLang } from "../../i18n";
 import { useAppData } from "../../context/AppDataContext";
 import { renderAccountOption, type AccountOption } from "../../lib/accountSelect";
+import { computeBudgetDistributionAmounts } from "../../lib/simpleEntryUtils";
 import {
   type BudgetDistributionItem,
   type HouseholdForm,
@@ -64,7 +65,16 @@ interface Props {
   >;
   onDepreciationSubmit?: ((...args: never[]) => unknown) | null;
   handleExpenseAccountChange: (v: string | null) => void;
-  handleRatioChange: (catId: number, newRatio: number) => void;
+  handleRatioChange: (
+    catId: number,
+    newRatio: number,
+    baseAmount: number,
+  ) => void;
+  handleBudgetAmountChange: (
+    catId: number,
+    newAmount: number,
+    baseAmount: number,
+  ) => void;
 }
 
 export function ExpenseSection({
@@ -100,6 +110,7 @@ export function ExpenseSection({
   onDepreciationSubmit,
   handleExpenseAccountChange,
   handleRatioChange,
+  handleBudgetAmountChange,
 }: Props) {
   const { t } = useLang();
   const { displayCurrencySymbol: currencySymbol } = useAppData();
@@ -361,6 +372,10 @@ export function ExpenseSection({
             entryType === "business_advance"
               ? personalAmount
               : form.values.amount;
+          const computedBudgetAmounts = computeBudgetDistributionAmounts(
+            budgetBase,
+            budgetDist,
+          );
           const primaryDist = budgetDist.filter((d) => !d.isDefault);
           const zeroDist = budgetDist.filter((d) => d.isDefault);
           const renderRow = (dist: BudgetDistributionItem) => (
@@ -376,7 +391,11 @@ export function ExpenseSection({
                 suffix="%"
                 value={dist.ratio}
                 onChange={(v) =>
-                  handleRatioChange(dist.budget_category_id, Number(v) || 0)
+                  handleRatioChange(
+                    dist.budget_category_id,
+                    Number(v) || 0,
+                    budgetBase,
+                  )
                 }
               />
               <NumberInput
@@ -387,15 +406,17 @@ export function ExpenseSection({
                 hideControls
                 thousandSeparator=","
                 value={
-                  budgetBase > 0
-                    ? Math.round((budgetBase * dist.ratio) / 100)
-                    : 0
+                  dist.amount ??
+                  computedBudgetAmounts.get(dist.budget_category_id) ??
+                  0
                 }
                 onChange={(v) => {
                   const num = Number(v) || 0;
-                  const newRatio =
-                    budgetBase > 0 ? Math.round((num / budgetBase) * 100) : 0;
-                  handleRatioChange(dist.budget_category_id, newRatio);
+                  handleBudgetAmountChange(
+                    dist.budget_category_id,
+                    num,
+                    budgetBase,
+                  );
                 }}
               />
             </Group>

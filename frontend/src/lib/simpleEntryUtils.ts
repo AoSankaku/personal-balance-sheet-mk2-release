@@ -19,6 +19,12 @@ export interface StepPreview {
   outputAmount: number;
 }
 
+export interface BudgetDistributionAllocation {
+  budget_category_id: number;
+  ratio: number;
+  amount?: number;
+}
+
 export function getIncomeDescriptionForSubmit(
   description: string,
   incomeAccount: Pick<Account, "category" | "name"> | undefined,
@@ -50,6 +56,46 @@ export function distributeWithLargestRemainder(
     leftover -= 1;
   }
   return new Map(floors.map((f) => [f.id, f.floor]));
+}
+
+export function computeBudgetDistributionAmounts(
+  totalAmount: number,
+  distribution: BudgetDistributionAllocation[],
+): Map<number, number> {
+  const base = Math.max(0, Number(totalAmount) || 0);
+  const items = distribution
+    .filter((item) => item.ratio > 0)
+    .map((item) => ({
+      id: item.budget_category_id,
+      exact: (base * item.ratio) / 100,
+    }));
+  const pool = Math.round(items.reduce((sum, item) => sum + item.exact, 0));
+
+  return distributeWithLargestRemainder(pool, items);
+}
+
+export function buildExpenseBudgetAllocations(
+  totalAmount: number,
+  distribution: BudgetDistributionAllocation[],
+): { budget_category_id: number; amount: number }[] {
+  const computedAmounts = computeBudgetDistributionAmounts(
+    totalAmount,
+    distribution,
+  );
+
+  return distribution
+    .map((item) => {
+      const amount =
+        item.amount != null
+          ? Math.max(0, Math.round(Number(item.amount) || 0))
+          : (computedAmounts.get(item.budget_category_id) ?? 0);
+
+      return {
+        budget_category_id: item.budget_category_id,
+        amount: -amount,
+      };
+    })
+    .filter((allocation) => allocation.amount < 0);
 }
 
 export function computeFilterSteps(
