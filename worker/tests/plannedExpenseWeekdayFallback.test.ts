@@ -12,7 +12,7 @@ function readRepoFile(path: string) {
 describe("planned expense weekday fallback persistence", () => {
   test("adds recurrence_week_fallback to the planned expense schema", () => {
     const migrationSql = readRepoFile(
-      "worker/drizzle/0008_planned_expense_weekday_fallback.sql",
+      "worker/drizzle/0005_planned_expense_recurrence_patterns.sql",
     );
     const schemaSource = readRepoFile("worker/src/db/schema.ts");
     const sharedTypes = readRepoFile("shared/types.ts");

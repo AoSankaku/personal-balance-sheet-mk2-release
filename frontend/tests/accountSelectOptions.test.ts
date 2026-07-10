@@ -34,7 +34,11 @@ describe("account select option helpers", () => {
         { id: 1, name: "__system:misc_expense__", is_system: true },
         t,
       ),
-    ).toEqual({ value: "1", label: "translated:sysMiscExpense" });
+    ).toMatchObject({
+      value: "1",
+      label: "translated:sysMiscExpense",
+      is_system: true,
+    });
   });
 
   test("translates raw system names carried by denormalized journal rows", () => {

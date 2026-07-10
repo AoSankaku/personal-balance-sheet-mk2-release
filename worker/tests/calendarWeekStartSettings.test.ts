@@ -12,7 +12,7 @@ function readWorkerFile(path: string) {
 describe("calendar week start settings", () => {
   test("adds a persisted budget_settings column with a Sunday default", () => {
     const migrationSql = readWorkerFile(
-      "drizzle/0007_budget_settings_calendar_week_start.sql",
+      "drizzle/0005_planned_expense_recurrence_patterns.sql",
     );
     const schemaSource = readWorkerFile("src/db/schema.ts");
 
