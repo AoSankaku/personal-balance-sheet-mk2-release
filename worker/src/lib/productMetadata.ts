@@ -42,9 +42,6 @@ type ProductApiCredentialValues = {
   rakutenApplicationId: string | null;
   rakutenAccessKey: string | null;
   yahooShoppingAppId: string | null;
-  amazonAccessKey: string | null;
-  amazonSecretKey: string | null;
-  amazonPartnerTag: string | null;
 };
 
 const allowedProductHosts = new Set([
@@ -399,9 +396,6 @@ async function loadProductApiCredentials(
     rakutenApplicationId: env.RAKUTEN_APPLICATION_ID ?? null,
     rakutenAccessKey: env.RAKUTEN_ACCESS_KEY ?? null,
     yahooShoppingAppId: env.YAHOO_SHOPPING_APP_ID ?? null,
-    amazonAccessKey: env.AMAZON_ACCESS_KEY ?? null,
-    amazonSecretKey: env.AMAZON_SECRET_KEY ?? null,
-    amazonPartnerTag: env.AMAZON_PARTNER_TAG ?? null,
   };
 
   const db = createDb(env);
@@ -414,10 +408,6 @@ async function loadProductApiCredentials(
     } else if (row.provider === "yahoo") {
       credentials.yahooShoppingAppId =
         row.application_id ?? credentials.yahooShoppingAppId;
-    } else if (row.provider === "amazon") {
-      credentials.amazonAccessKey = row.api_key ?? credentials.amazonAccessKey;
-      credentials.amazonSecretKey = row.api_secret ?? credentials.amazonSecretKey;
-      credentials.amazonPartnerTag = row.partner_tag ?? credentials.amazonPartnerTag;
     }
   }
 
@@ -538,143 +528,6 @@ async function fetchYahooMetadata(
   };
 }
 
-async function hmac(key: CryptoKey, message: string): Promise<ArrayBuffer> {
-  return crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
-}
-
-async function importHmacKey(key: ArrayBuffer | string): Promise<CryptoKey> {
-  const bytes =
-    typeof key === "string" ? new TextEncoder().encode(key) : new Uint8Array(key);
-  return crypto.subtle.importKey(
-    "raw",
-    bytes,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-}
-
-function hex(buffer: ArrayBuffer): string {
-  return [...new Uint8Array(buffer)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function sha256Hex(value: string): Promise<string> {
-  return hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
-}
-
-function amzDate(now: Date): { date: string; datetime: string } {
-  const iso = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
-  return { date: iso.slice(0, 8), datetime: iso };
-}
-
-async function signingKey(secret: string, date: string): Promise<CryptoKey> {
-  const kDate = await hmac(await importHmacKey(`AWS4${secret}`), date);
-  const kRegion = await hmac(await importHmacKey(kDate), "us-west-2");
-  const kService = await hmac(await importHmacKey(kRegion), "ProductAdvertisingAPI");
-  const kSigning = await hmac(await importHmacKey(kService), "aws4_request");
-  return importHmacKey(kSigning);
-}
-
-async function fetchAmazonMetadata(
-  credentials: ProductApiCredentialValues,
-  identity: ProductIdentity,
-  now: Date,
-): Promise<ProviderMetadata> {
-  if (
-    !credentials.amazonAccessKey ||
-    !credentials.amazonSecretKey ||
-    !credentials.amazonPartnerTag
-  ) {
-    return providerError(
-      "api_credentials_missing",
-      "Amazon official API credentials are not configured",
-      "api_credentials_missing",
-    );
-  }
-  if (!identity.sourceProductId) {
-    return providerError("product_id_missing", "Amazon ASIN was not found", "unsupported");
-  }
-
-  const host = "webservices.amazon.co.jp";
-  const target = "com.amazon.paapi5.v1.ProductAdvertisingAPIv1.GetItems";
-  const body = JSON.stringify({
-    ItemIds: [identity.sourceProductId],
-    Marketplace: "www.amazon.co.jp",
-    PartnerTag: credentials.amazonPartnerTag,
-    PartnerType: "Associates",
-    Resources: [
-      "Images.Primary.Medium",
-      "ItemInfo.Title",
-      "Offers.Listings.Availability.Message",
-      "Offers.Listings.Availability.Type",
-      "Offers.Listings.Price",
-    ],
-  });
-  const { date, datetime } = amzDate(now);
-  const payloadHash = await sha256Hex(body);
-  const canonicalHeaders =
-    `content-encoding:amz-1.0\nhost:${host}\nx-amz-date:${datetime}\nx-amz-target:${target}\n`;
-  const signedHeaders = "content-encoding;host;x-amz-date;x-amz-target";
-  const canonicalRequest = [
-    "POST",
-    "/paapi5/getitems",
-    "",
-    canonicalHeaders,
-    signedHeaders,
-    payloadHash,
-  ].join("\n");
-  const credentialScope = `${date}/us-west-2/ProductAdvertisingAPI/aws4_request`;
-  const stringToSign = [
-    "AWS4-HMAC-SHA256",
-    datetime,
-    credentialScope,
-    await sha256Hex(canonicalRequest),
-  ].join("\n");
-  const signature = hex(
-    await hmac(await signingKey(credentials.amazonSecretKey, date), stringToSign),
-  );
-
-  const response = await fetchWithTimeout(`https://${host}/paapi5/getitems`, {
-    method: "POST",
-    headers: {
-      Authorization:
-        `AWS4-HMAC-SHA256 Credential=${credentials.amazonAccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
-      "Content-Encoding": "amz-1.0",
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Amz-Date": datetime,
-      "X-Amz-Target": target,
-    },
-    body,
-  });
-  if (!response.ok) {
-    return providerError("api_request_failed", `Amazon official API returned ${response.status}`);
-  }
-
-  const json = (await response.json()) as unknown;
-  const item = getPath(json, ["ItemsResult", "Items"]);
-  const firstItem = Array.isArray(item) ? item[0] : null;
-  const listing = getPath(firstItem, ["Offers", "Listings"]);
-  const firstListing = Array.isArray(listing) ? listing[0] : null;
-  const price = getNumber(getPath(firstListing, ["Price", "Amount"]));
-  const availabilityType = getPath(firstListing, ["Availability", "Type"]);
-  const availabilityMessage = cleanText(
-    getPath(firstListing, ["Availability", "Message"]),
-    100,
-  );
-
-  return {
-    name: cleanText(getPath(firstItem, ["ItemInfo", "Title", "DisplayValue"]), 500),
-    price_amount: price == null ? null : Math.round(price),
-    currency: cleanText(getPath(firstListing, ["Price", "Currency"]), 3) ?? "JPY",
-    availability_status: mapAvailability(availabilityType ?? availabilityMessage),
-    availability_label: availabilityMessage,
-    error_code: null,
-    error_message: null,
-  };
-}
-
 async function fetchProviderMetadata(
   credentials: ProductApiCredentialValues,
   identity: ProductIdentity,
@@ -688,7 +541,11 @@ async function fetchProviderMetadata(
       return await fetchYahooMetadata(credentials, identity);
     }
     if (identity.sourceSite === "amazon") {
-      return await fetchAmazonMetadata(credentials, identity, now);
+      return providerError(
+        "amazon_creators_api_required",
+        "Amazon metadata is temporarily unavailable while the Creators API integration is completed",
+        "unsupported",
+      );
     }
     return providerError("unsupported_site", "This URL is not supported", "unsupported");
   } catch (error) {

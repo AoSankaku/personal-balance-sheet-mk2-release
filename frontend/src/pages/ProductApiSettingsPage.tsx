@@ -39,9 +39,6 @@ function isProviderConfigured(
   status?: ProductApiCredentialStatus,
 ) {
   if (!status) return false;
-  if (provider === "amazon") {
-    return status.has_api_key && status.has_api_secret && status.has_partner_tag;
-  }
   if (provider === "rakuten") {
     return status.has_application_id && status.has_api_key;
   }
@@ -59,7 +56,6 @@ export default function ProductApiSettingsPage() {
   >({
     rakuten: emptyProductApiCredentialForm(),
     yahoo: emptyProductApiCredentialForm(),
-    amazon: emptyProductApiCredentialForm(),
   });
 
   useEffect(() => {
@@ -119,18 +115,6 @@ export default function ProductApiSettingsPage() {
       ],
       guide: t("productApiGuideYahoo"),
       docsUrl: "https://developer.yahoo.co.jp/webapi/shopping/v3/itemsearch.html",
-    },
-    {
-      provider: "amazon" as const,
-      label: t("productApiProviderAmazon"),
-      description: t("productApiProviderAmazonDesc"),
-      fields: [
-        { field: "api_key" as const, label: t("productApiAccessKey") },
-        { field: "api_secret" as const, label: t("productApiSecretKey") },
-        { field: "partner_tag" as const, label: t("productApiPartnerTag") },
-      ],
-      guide: t("productApiGuideAmazon"),
-      docsUrl: "https://webservices.amazon.com/paapi5/documentation/",
     },
   ];
 

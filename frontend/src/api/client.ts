@@ -4,6 +4,8 @@ import type {
   CreateAccountInput,
   JournalEntry,
   CreateJournalInput,
+  CompletePlannedExpenseWithJournalInput,
+  CompletePlannedExpenseWithJournalResponse,
   BatchCreateJournalInput,
   PLReport,
   CryptoWallet,
@@ -706,6 +708,18 @@ export const api = {
       mutationRequest<PlannedExpense>(`/planned-expenses/${id}/refresh-metadata`, {
         method: "POST",
       }, PLANNED_EXPENSE_PREFIXES),
+    completeWithJournal: (
+      id: number,
+      input: CompletePlannedExpenseWithJournalInput,
+    ) =>
+      mutationRequest<CompletePlannedExpenseWithJournalResponse>(
+        `/planned-expenses/${id}/complete-with-journal`,
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        },
+        [...PLANNED_EXPENSE_PREFIXES, ...DERIVED_JOURNAL_PREFIXES],
+      ),
     update: (id: number, input: UpdatePlannedExpenseInput) =>
       mutationRequest<PlannedExpense>(`/planned-expenses/${id}`, {
         method: "PATCH",

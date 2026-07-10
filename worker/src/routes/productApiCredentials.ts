@@ -10,7 +10,7 @@ import { productApiCredentials } from "../db/schema";
 
 const router = new Hono<{ Bindings: Env }>();
 
-const providers: ProductApiProvider[] = ["rakuten", "yahoo", "amazon"];
+const providers: ProductApiProvider[] = ["rakuten", "yahoo"];
 
 function isProvider(value: string): value is ProductApiProvider {
   return providers.includes(value as ProductApiProvider);

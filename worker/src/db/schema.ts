@@ -556,6 +556,31 @@ export const plannedExpenses = sqliteTable("planned_expenses", {
   ),
 }));
 
+export const plannedExpenseCompletionRequests = sqliteTable(
+  "planned_expense_completion_requests",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    idempotency_key: text("idempotency_key").notNull().unique(),
+    // The completed source can be deleted as part of a routine checkout, so this
+    // is an immutable audit value rather than a foreign-key relationship.
+    planned_expense_id: integer("planned_expense_id").notNull(),
+    journal_entry_id: integer("journal_entry_id")
+      .notNull()
+      .references(() => journalEntries.id, { onDelete: "cascade" }),
+    completion: text("completion", {
+      enum: ["completed", "shopping_list_archived", "none"],
+    }).notNull(),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    plannedExpenseIdx: index("idx_planned_expense_completion_requests_expense").on(
+      table.planned_expense_id,
+    ),
+  }),
+);
+
 export const storeAccountMappings = sqliteTable("store_account_mappings", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   store_name: text("store_name").notNull().unique(),
@@ -823,6 +848,8 @@ export type NewPlannedExpenseCategory =
   typeof plannedExpenseCategories.$inferInsert;
 export type PlannedExpense = typeof plannedExpenses.$inferSelect;
 export type NewPlannedExpense = typeof plannedExpenses.$inferInsert;
+export type PlannedExpenseCompletionRequest =
+  typeof plannedExpenseCompletionRequests.$inferSelect;
 export type CreditCardSettingsRow = typeof creditCardSettings.$inferSelect;
 export type NewCreditCardSettings = typeof creditCardSettings.$inferInsert;
 export type StoreAccountMapping = typeof storeAccountMappings.$inferSelect;

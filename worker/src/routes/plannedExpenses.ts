@@ -6,6 +6,8 @@ import {
   hasDuplicatePlannedExpenseItemName,
   type CreatePlannedExpenseInput,
   type CreatePlannedExpenseCategoryInput,
+  type CompletePlannedExpenseWithJournalInput,
+  type CompletePlannedExpenseWithJournalResponse,
   type PlannedExpense,
   type PlannedExpenseCategory,
   type PlannedExpenseKind,
@@ -29,7 +31,12 @@ import { createDb, type Env } from "../db";
 import {
   accounts,
   budgetCategories,
+  budgetAdjustmentLogs,
+  journalEntries,
+  journalEntryBudgetAllocations,
+  journalLines,
   plannedExpenseCategories,
+  plannedExpenseCompletionRequests,
   plannedExpenses,
   productMetadataCache,
 } from "../db/schema";
@@ -45,6 +52,7 @@ import {
 } from "../lib/plannedExpenseCurrency";
 import {
   findInvalidMoneyField,
+  findInvalidMoney,
   fromStorageMoneyAmount,
   invalidMoneyResponse,
   rescaleStorageMoneyAmount,
@@ -115,6 +123,39 @@ function normalizeOptionalDate(
 
 function normalizeSortOrder(value: number | undefined): number {
   return typeof value === "number" && Number.isInteger(value) ? value : 0;
+}
+
+function placeholders(count: number): string {
+  return Array.from({ length: count }, () => "?").join(", ");
+}
+
+function buildRowsSql(rowCount: number, columnsPerRow: number): string {
+  const row = `(${placeholders(columnsPerRow)})`;
+  return Array.from({ length: rowCount }, () => row).join(", ");
+}
+
+function buildNewJournalEntryRowsSql(rowCount: number, columnsPerRow: number): string {
+  const row = `((SELECT MAX(id) FROM journal_entries), ${placeholders(
+    columnsPerRow,
+  )})`;
+  return Array.from({ length: rowCount }, () => row).join(", ");
+}
+
+function journalCurrencyFromLines(
+  lines: Array<{ debit?: number; credit?: number; currency?: string }>,
+): string {
+  const line = lines.find((line) => (line.debit ?? 0) > 0 || (line.credit ?? 0) > 0);
+  return normalizeCurrency(line?.currency);
+}
+
+function validDate(value: string | null | undefined): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function normalizeIdList(value: unknown): number[] | null {
+  if (!Array.isArray(value)) return null;
+  const ids = Array.from(new Set(value));
+  return ids.every((id) => Number.isInteger(id) && id > 0) ? ids : null;
 }
 
 function normalizeWeeksOfMonth(value: string | null | undefined): string | null {
@@ -1373,6 +1414,359 @@ router.post("/:id/refresh-metadata", async (c) => {
 
   const result = await fetchOne(db, id, scaleOptions);
   return c.json(result);
+});
+
+router.post("/:id/complete-with-journal", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id)) return c.json({ error: "invalid id" }, 400);
+
+  const body = await c.req.json<CompletePlannedExpenseWithJournalInput>();
+  const journal = body.journal;
+  if (
+    !body.idempotency_key ||
+    body.idempotency_key.length > 128 ||
+    !journal?.date ||
+    !journal.description ||
+    !Array.isArray(journal.lines) ||
+    journal.lines.length < 2
+  ) {
+    return c.json({ error: "idempotency_key, journal date, description, and lines are required" }, 400);
+  }
+
+  const db = createDb(c.env);
+  const [replayed] = await db
+    .select()
+    .from(plannedExpenseCompletionRequests)
+    .where(eq(plannedExpenseCompletionRequests.idempotency_key, body.idempotency_key));
+  if (replayed) {
+    return c.json({
+      journal_entry_id: replayed.journal_entry_id,
+      completion: replayed.completion as CompletePlannedExpenseWithJournalResponse["completion"],
+      replayed: true,
+    });
+  }
+
+  const [source] = await db
+    .select()
+    .from(plannedExpenses)
+    .where(eq(plannedExpenses.id, id));
+  if (!source) return c.json({ error: "not found" }, 404);
+
+  const decimalPlacesByCurrency = await loadCurrencyDecimalPlaces(db);
+  const scaleOptions = { decimalPlacesByCurrency };
+  const invalidMoney = findInvalidMoney([
+    ...journal.lines.flatMap((line, index) => [
+      {
+        path: `journal.lines[${index}].debit`,
+        value: line.debit,
+        currency: line.currency,
+        decimalPlaces: decimalPlacesByCurrency[normalizeCurrency(line.currency)],
+      },
+      {
+        path: `journal.lines[${index}].credit`,
+        value: line.credit,
+        currency: line.currency,
+        decimalPlaces: decimalPlacesByCurrency[normalizeCurrency(line.currency)],
+      },
+    ]),
+    ...(journal.budget_allocations ?? []).map((allocation, index) => ({
+      path: `journal.budget_allocations[${index}].amount`,
+      value: allocation.amount,
+      currency: allocation.currency ?? journalCurrencyFromLines(journal.lines),
+      decimalPlaces:
+        decimalPlacesByCurrency[
+          normalizeCurrency(allocation.currency ?? journalCurrencyFromLines(journal.lines))
+        ],
+    })),
+    ...(journal.income_budget_allocations ?? []).map((allocation, index) => ({
+      path: `journal.income_budget_allocations[${index}].amount`,
+      value: allocation.amount,
+      currency: allocation.currency ?? journalCurrencyFromLines(journal.lines),
+      decimalPlaces:
+        decimalPlacesByCurrency[
+          normalizeCurrency(allocation.currency ?? journalCurrencyFromLines(journal.lines))
+        ],
+    })),
+  ]);
+  if (invalidMoney) {
+    return c.json(invalidMoneyResponse(invalidMoney.path, invalidMoney.currency), 400);
+  }
+  if (!journal.is_currency_exchange) {
+    const debit = journal.lines.reduce((sum, line) => sum + (line.debit ?? 0), 0);
+    const credit = journal.lines.reduce((sum, line) => sum + (line.credit ?? 0), 0);
+    if (Math.abs(debit - credit) > 0.001) {
+      return c.json({ error: "unbalanced entry" }, 400);
+    }
+  }
+
+  const checkoutItemIds = normalizeIdList(body.checkout_item_ids) ?? [id];
+  const checkoutKeepItemIds = normalizeIdList(body.checkout_keep_item_ids) ?? [];
+  if (body.checkout_item_ids != null && checkoutItemIds.length === 0) {
+    return c.json({ error: "checkout_item_ids must not be empty" }, 400);
+  }
+  if (!checkoutKeepItemIds.every((itemId) => checkoutItemIds.includes(itemId))) {
+    return c.json({ error: "checkout_keep_item_ids must be included in checkout_item_ids" }, 400);
+  }
+  if (source.kind !== "shopping_list" && checkoutItemIds.some((itemId) => itemId !== id)) {
+    return c.json({ error: "only shopping lists can complete multiple items" }, 400);
+  }
+
+  const checkoutItems = await db
+    .select()
+    .from(plannedExpenses)
+    .where(inArray(plannedExpenses.id, checkoutItemIds));
+  if (checkoutItems.length !== checkoutItemIds.length) {
+    return c.json({ error: "checkout item not found" }, 400);
+  }
+  if (
+    source.kind === "shopping_list" &&
+    (source.category_id == null ||
+      checkoutItems.some(
+        (item) =>
+          item.kind !== "shopping_list" || item.category_id !== source.category_id,
+      ))
+  ) {
+    return c.json({ error: "checkout items must belong to the same shopping plan" }, 400);
+  }
+
+  const [category] = source.category_id == null
+    ? []
+    : await db
+        .select()
+        .from(plannedExpenseCategories)
+        .where(eq(plannedExpenseCategories.id, source.category_id));
+  const categoryItems =
+    source.kind === "shopping_list" && source.category_id != null
+      ? await db
+          .select({ id: plannedExpenses.id, status: plannedExpenses.status })
+          .from(plannedExpenses)
+          .where(eq(plannedExpenses.category_id, source.category_id))
+      : [];
+  const isRoutineCheckout =
+    source.kind === "shopping_list" &&
+    category?.shopping_plan_type === "routine" &&
+    body.checkout_item_ids != null;
+  const shouldArchiveOneTimeShoppingPlan =
+    source.kind === "shopping_list" &&
+    category?.shopping_plan_type === "one_time" &&
+    categoryItems.every(
+      (item) => item.status !== "open" || checkoutItemIds.includes(item.id),
+    );
+  const completion: CompletePlannedExpenseWithJournalResponse["completion"] =
+    isRoutineCheckout || shouldArchiveOneTimeShoppingPlan
+      ? "shopping_list_archived"
+      : source.kind === "scheduled_payment" ||
+          checkoutItemIds.some((itemId) => !checkoutKeepItemIds.includes(itemId))
+        ? "completed"
+        : "none";
+  const now = new Date().toISOString();
+
+  const statements: D1PreparedStatement[] = [
+    c.env.DB.prepare(
+      `INSERT INTO journal_entries (date, description, source)
+       VALUES (?, ?, 'manual')`,
+    ).bind(journal.date, journal.description),
+  ];
+  const lineValues = journal.lines.flatMap((line) => [
+    line.account_id,
+    toStorageMoneyAmount(line.debit ?? 0, line.currency, scaleOptions),
+    toStorageMoneyAmount(line.credit ?? 0, line.currency, scaleOptions),
+    normalizeCurrency(line.currency),
+    line.credit_card_billing_offset_months ?? null,
+  ]);
+  statements.push(
+    c.env.DB.prepare(
+      `INSERT INTO journal_lines
+        (journal_entry_id, account_id, debit, credit, currency, credit_card_billing_offset_months)
+       VALUES ${buildNewJournalEntryRowsSql(journal.lines.length, 5)}`,
+    ).bind(...lineValues),
+  );
+
+  const budgetCurrency = journalCurrencyFromLines(journal.lines);
+  const allocations = (journal.budget_allocations ?? []).filter(
+    (allocation) => allocation.budget_category_id && allocation.amount !== 0,
+  );
+  if (allocations.length > 0) {
+    const values = allocations.flatMap((allocation) => [
+      allocation.budget_category_id,
+      toStorageMoneyAmount(allocation.amount, allocation.currency ?? budgetCurrency, scaleOptions),
+      normalizeCurrency(allocation.currency ?? budgetCurrency),
+      journal.budget_source ?? null,
+    ]);
+    statements.push(
+      c.env.DB.prepare(
+        `INSERT INTO journal_entry_budget_allocations
+          (journal_entry_id, budget_category_id, amount, currency, source)
+         VALUES ${buildNewJournalEntryRowsSql(allocations.length, 4)}`,
+      ).bind(...values),
+    );
+  }
+  const incomeAllocations = (journal.income_budget_allocations ?? []).filter(
+    (allocation) => allocation.budget_category_id && allocation.amount !== 0,
+  );
+  if (incomeAllocations.length > 0) {
+    const values = incomeAllocations.flatMap((allocation) => [
+      allocation.budget_category_id,
+      toStorageMoneyAmount(allocation.amount, allocation.currency ?? budgetCurrency, scaleOptions),
+      normalizeCurrency(allocation.currency ?? budgetCurrency),
+      journal.date.slice(0, 7),
+      journal.date,
+      allocation.adjustment_type === "transfer" ? "transfer" : "allocation",
+    ]);
+    statements.push(
+      c.env.DB.prepare(
+        `INSERT INTO budget_adjustment_logs
+          (journal_entry_id, budget_category_id, amount, currency, year_month, date, adjustment_type)
+         VALUES ${buildNewJournalEntryRowsSql(incomeAllocations.length, 6)}`,
+      ).bind(...values),
+    );
+  }
+
+  if (isRoutineCheckout && category) {
+    const checkoutDate = validDate(journal.date) ? journal.date : now.slice(0, 10);
+    const snapshotName = `${category.name} (${checkoutDate} #${id}-${body.idempotency_key.slice(0, 8)})`;
+    statements.push(
+      c.env.DB.prepare(
+        `INSERT INTO planned_expense_categories
+          (kind, name, estimated_amount, currency, default_expense_account_id, target_date, shopping_plan_type, archived_at, created_at, updated_at)
+         VALUES ('shopping_list', ?, ?, ?, ?, ?, 'one_time', ?, ?, ?)`,
+      ).bind(
+        snapshotName,
+        category.estimated_amount,
+        category.currency,
+        category.default_expense_account_id,
+        category.target_date ?? checkoutDate,
+        now,
+        now,
+        now,
+      ),
+    );
+    for (const item of checkoutItems) {
+      statements.push(
+        c.env.DB.prepare(
+          `INSERT INTO planned_expenses
+            (kind, category_id, name, estimated_amount, currency, status, keep_on_routine_clear, note, created_at, updated_at)
+           VALUES ('shopping_list', (SELECT MAX(id) FROM planned_expense_categories), ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).bind(
+          item.name,
+          item.estimated_amount,
+          item.currency,
+          item.status,
+          item.keep_on_routine_clear,
+          item.note,
+          now,
+          now,
+        ),
+      );
+    }
+    const idsToDelete = checkoutItemIds.filter(
+      (itemId) => !checkoutKeepItemIds.includes(itemId),
+    );
+    if (idsToDelete.length > 0) {
+      statements.push(
+        c.env.DB.prepare(
+          `DELETE FROM planned_expenses WHERE id IN (${placeholders(idsToDelete.length)})`,
+        ).bind(...idsToDelete),
+      );
+    }
+    if (checkoutKeepItemIds.length > 0) {
+      statements.push(
+        c.env.DB.prepare(
+          `UPDATE planned_expenses SET status = 'open', updated_at = ? WHERE id IN (${placeholders(checkoutKeepItemIds.length)})`,
+        ).bind(now, ...checkoutKeepItemIds),
+      );
+    }
+    statements.push(
+      c.env.DB.prepare(
+        "UPDATE planned_expense_categories SET last_checked_out_date = ?, updated_at = ? WHERE id = ?",
+      ).bind(checkoutDate, now, category.id),
+    );
+  } else if (source.kind === "scheduled_payment" && source.recurrence_type === "recurring") {
+    const nextDueDate = body.next_due_date_after_occurrence;
+    const completedDates = normalizeCompletedDates(body.completed_dates);
+    if (
+      (nextDueDate != null && !validDate(nextDueDate)) ||
+      completedDates === "__invalid__" ||
+      (body.completion_status_after_occurrence != null &&
+        body.completion_status_after_occurrence !== "open" &&
+        body.completion_status_after_occurrence !== "completed")
+    ) {
+      return c.json({ error: "invalid recurring completion data" }, 400);
+    }
+    statements.push(
+      c.env.DB.prepare(
+        "UPDATE planned_expenses SET status = ?, next_due_date = ?, completed_dates = ?, updated_at = ? WHERE id = ?",
+      ).bind(
+        body.completion_status_after_occurrence ??
+          (nextDueDate == null ? "completed" : "open"),
+        nextDueDate ?? null,
+        completedDates ?? null,
+        now,
+        id,
+      ),
+    );
+  } else {
+    const idsToComplete = checkoutItemIds.filter(
+      (itemId) => !checkoutKeepItemIds.includes(itemId),
+    );
+    if (idsToComplete.length > 0) {
+      statements.push(
+        c.env.DB.prepare(
+          `UPDATE planned_expenses SET status = 'completed', updated_at = ? WHERE id IN (${placeholders(idsToComplete.length)})`,
+        ).bind(now, ...idsToComplete),
+      );
+    }
+    if (checkoutKeepItemIds.length > 0) {
+      statements.push(
+        c.env.DB.prepare(
+          `UPDATE planned_expenses SET status = 'open', updated_at = ? WHERE id IN (${placeholders(checkoutKeepItemIds.length)})`,
+        ).bind(now, ...checkoutKeepItemIds),
+      );
+    }
+    if (shouldArchiveOneTimeShoppingPlan && category) {
+      statements.push(
+        c.env.DB.prepare(
+          "UPDATE planned_expense_categories SET archived_at = ?, updated_at = ? WHERE id = ?",
+        ).bind(now, now, category.id),
+      );
+    }
+  }
+
+  statements.push(
+    c.env.DB.prepare(
+      `INSERT INTO planned_expense_completion_requests
+        (idempotency_key, planned_expense_id, journal_entry_id, completion)
+       VALUES (?, ?, (SELECT MAX(id) FROM journal_entries), ?)`,
+    ).bind(body.idempotency_key, id, completion),
+  );
+
+  try {
+    await c.env.DB.batch(statements);
+  } catch (error) {
+    const [existing] = await db
+      .select()
+      .from(plannedExpenseCompletionRequests)
+      .where(eq(plannedExpenseCompletionRequests.idempotency_key, body.idempotency_key));
+    if (existing) {
+      return c.json({
+        journal_entry_id: existing.journal_entry_id,
+        completion: existing.completion as CompletePlannedExpenseWithJournalResponse["completion"],
+        replayed: true,
+      });
+    }
+    throw error;
+  }
+
+  const [request] = await db
+    .select()
+    .from(plannedExpenseCompletionRequests)
+    .where(eq(plannedExpenseCompletionRequests.idempotency_key, body.idempotency_key));
+  if (!request) throw new Error("completion request was not recorded");
+  return c.json({
+    journal_entry_id: request.journal_entry_id,
+    completion,
+    replayed: false,
+  }, 201);
 });
 
 router.patch("/:id", async (c) => {

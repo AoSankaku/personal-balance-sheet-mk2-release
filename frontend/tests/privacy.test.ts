@@ -86,6 +86,24 @@ describe("privacy formatting", () => {
     );
   });
 
+  test("blocks planned expense routes in privacy mode", () => {
+    const source = readFileSync(
+      new URL("../src/App.tsx", import.meta.url),
+      "utf8",
+    );
+    const plannedExpenseRoutes = source.slice(
+      source.indexOf('path="/shopping-list"'),
+      source.indexOf('path="/ledger"'),
+    );
+
+    expect(plannedExpenseRoutes).toMatch(
+      /privacyMode\s*\?\s*\(\s*<PrivacyModeBlocked\s*\/>/,
+    );
+    expect(plannedExpenseRoutes).toContain('path="/shopping-list"');
+    expect(plannedExpenseRoutes).toContain('path="/wishlist"');
+    expect(plannedExpenseRoutes).toContain('path="/scheduled-payments"');
+  });
+
   test("blocks crypto wallet edits in privacy mode", () => {
     const source = readFileSync(
       new URL("../src/pages/CryptoPage.tsx", import.meta.url),

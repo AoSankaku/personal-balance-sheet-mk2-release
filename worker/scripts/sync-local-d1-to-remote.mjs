@@ -25,6 +25,7 @@ export const IMPORT_TABLE_ORDER = [
   "product_metadata_cache",
   "planned_expense_categories",
   "planned_expenses",
+  "planned_expense_completion_requests",
   "budget_adjustment_logs",
   "budget_filter_steps",
   "budget_filter_step_allocations",

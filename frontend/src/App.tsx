@@ -139,12 +139,33 @@ export default function App() {
               <Route path="/fs/sv" element={<SvPage />} />
               <Route
                 path="/shopping-list"
-                element={<PlannedExpensePage kind="shopping_list" />}
+                element={
+                  privacyMode ? (
+                    <PrivacyModeBlocked />
+                  ) : (
+                    <PlannedExpensePage kind="shopping_list" />
+                  )
+                }
               />
-              <Route path="/wishlist" element={<PlannedExpensePage kind="wishlist" />} />
+              <Route
+                path="/wishlist"
+                element={
+                  privacyMode ? (
+                    <PrivacyModeBlocked />
+                  ) : (
+                    <PlannedExpensePage kind="wishlist" />
+                  )
+                }
+              />
               <Route
                 path="/scheduled-payments"
-                element={<PlannedExpensePage kind="scheduled_payment" />}
+                element={
+                  privacyMode ? (
+                    <PrivacyModeBlocked />
+                  ) : (
+                    <PlannedExpensePage kind="scheduled_payment" />
+                  )
+                }
               />
               <Route path="/ledger" element={<LedgerPage />} />
               <Route path="/settings" element={<SettingsPage />} />

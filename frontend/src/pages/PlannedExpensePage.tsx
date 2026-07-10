@@ -2805,6 +2805,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         : null;
     const source: PlannedExpenseEntrySource = {
       id: item.id,
+      idempotencyKey: crypto.randomUUID(),
       kind: item.kind,
       name: item.name,
       amount: getInputAmount(item),
@@ -2918,6 +2919,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     if (categoryItems.length === 0) return;
     const source: PlannedExpenseEntrySource = {
       id: categoryItems[0].id,
+      idempotencyKey: crypto.randomUUID(),
       kind: "shopping_list",
       name: category.name,
       amount: category.estimated_amount,

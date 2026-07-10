@@ -266,7 +266,7 @@ export interface CreateExchangeCredentialInput {
   api_secret: string;
 }
 
-export type ProductApiProvider = "rakuten" | "yahoo" | "amazon";
+export type ProductApiProvider = "rakuten" | "yahoo";
 
 export interface ProductApiCredentialStatus {
   provider: ProductApiProvider;
@@ -854,6 +854,23 @@ export interface UpdatePlannedExpenseInput {
   note?: string | null;
   url?: string | null;
   product_metadata_cache_id?: number | null;
+}
+
+export interface CompletePlannedExpenseWithJournalInput {
+  journal: CreateJournalInput;
+  idempotency_key: string;
+  occurrence_date?: string | null;
+  next_due_date_after_occurrence?: string | null;
+  completed_dates?: string | null;
+  completion_status_after_occurrence?: "open" | "completed";
+  checkout_item_ids?: number[];
+  checkout_keep_item_ids?: number[];
+}
+
+export interface CompletePlannedExpenseWithJournalResponse {
+  journal_entry_id: number;
+  completion: "completed" | "shopping_list_archived" | "none";
+  replayed: boolean;
 }
 
 export interface DepreciationSchedule {

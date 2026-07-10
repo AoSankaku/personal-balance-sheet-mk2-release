@@ -49,9 +49,7 @@ import { PrivacyModeBlocked } from "../components/PrivacyModeBlocked";
 import type { PlannedExpenseEntrySource } from "../types/plannedExpenseInput";
 import {
   plannedExpenseCompletionFeedbackKey,
-  type PlannedExpenseCompletionResult,
 } from "../lib/plannedExpenseForm";
-import { plannedExpenseAddCompletedDate } from "../lib/plannedExpenseCalendar";
 import { plannedExpenseJournalCurrency } from "../lib/plannedExpenseCurrency";
 import {
   savedTab,
@@ -118,7 +116,7 @@ export default function InputPage() {
   const [pendingPlannedExpenseCompletion, setPendingPlannedExpenseCompletion] =
     useState<{
       source: PlannedExpenseEntrySource;
-      checkoutDate: string;
+      input: CreateJournalInput;
     } | null>(null);
   const [resetKeys, setResetKeys] = useState({
     simple: 0,
@@ -213,166 +211,26 @@ export default function InputPage() {
     };
   }
 
-  async function completePlannedExpenseSource(
+  async function completePlannedExpenseWithJournal(
     source: PlannedExpenseEntrySource,
-    checkoutDate: string,
-  ): Promise<PlannedExpenseCompletionResult> {
-    try {
-      const checkoutItemIds = source.checkoutItemIds ?? [];
-      const checkoutKeepItemIdSet = new Set(source.checkoutKeepItemIds ?? []);
-      const completedItemIds =
-        checkoutItemIds.length > 0 ? checkoutItemIds : [source.id];
-      const completesAnyItem = completedItemIds.some(
-        (id) => !checkoutKeepItemIdSet.has(id),
-      );
-      if (
-        source.kind === "shopping_list" &&
-        source.categoryId != null &&
-        source.categoryShoppingPlanType === "routine" &&
-        checkoutItemIds.length > 0
-      ) {
-        const checkoutItemIdSet = new Set(checkoutItemIds);
-        const checkoutItems =
-          source.checkoutItems ??
-          (await api.plannedExpenses.list({
-            kind: "shopping_list",
-            currency: source.currency,
-          }))
-            .filter((item) => checkoutItemIdSet.has(item.id))
-            .map((item) => ({
-              id: item.id,
-              name: item.name,
-              estimatedAmount: item.estimated_amount,
-              currency: source.currency,
-              status: item.status,
-              keepOnRoutineClear: item.keep_on_routine_clear,
-              note: item.note,
-            }));
-        const snapshotArchivedAt = new Date().toISOString();
-        const snapshotCategory = await api.plannedExpenses.createCategory({
-          kind: "shopping_list",
-          name: source.name,
-          estimated_amount: source.amount,
-          currency: source.currency,
-          default_expense_account_id: source.expenseAccountId,
-          target_date: source.categoryTargetDate ?? checkoutDate,
-          shopping_plan_type: "one_time",
-        });
-        await Promise.all(
-          checkoutItems.map((item) =>
-            api.plannedExpenses.create({
-              kind: "shopping_list",
-              category_id: snapshotCategory.id,
-              name: item.name,
-              estimated_amount: item.estimatedAmount,
-              currency: item.currency,
-              budget_category_id: null,
-              expense_account_id: null,
-              target_date: null,
-              recurrence_type: "one_time",
-              recurrence_interval: null,
-              recurrence_unit: null,
-              recurrence_monthly_mode: null,
-              recurrence_interval_months: null,
-              recurrence_day: null,
-              recurrence_weeks_of_month: null,
-              recurrence_weekday: null,
-              recurrence_week_fallback: null,
-              next_due_date: null,
-              end_date: null,
-              recurrence_count: null,
-              status: item.status,
-              keep_on_routine_clear: item.keepOnRoutineClear,
-              note: item.note,
-              url: null,
-              product_metadata_cache_id: null,
-            }),
-          ),
-        );
-        await api.plannedExpenses.updateCategory(snapshotCategory.id, {
-          archived_at: snapshotArchivedAt,
-        });
-        await Promise.all(
-          checkoutItemIds.map((id) =>
-            checkoutKeepItemIdSet.has(id)
-              ? api.plannedExpenses.update(id, { status: "open" })
-              : api.plannedExpenses.delete(id),
-          ),
-        );
-        await api.plannedExpenses.updateCategory(source.categoryId, {
-          last_checked_out_date: checkoutDate,
-        });
-        return "shopping_list_archived";
-      }
-      if (
-        source.kind === "scheduled_payment" &&
-        source.recurrenceType === "recurring"
-      ) {
-        const completedDates =
-          source.occurrenceDate == null
-            ? source.completedDates
-            : plannedExpenseAddCompletedDate(
-                source.completedDates,
-                source.occurrenceDate,
-              );
-        await api.plannedExpenses.update(source.id, {
-          status:
-            source.completionStatusAfterOccurrence ??
-            (source.nextDueDateAfterOccurrence == null ? "completed" : "open"),
-          next_due_date: source.nextDueDateAfterOccurrence ?? null,
-          completed_dates: completedDates,
-        });
-        return "completed";
-      }
-      await Promise.all(
-        completedItemIds.map((id) =>
-          api.plannedExpenses.update(id, {
-            status: checkoutKeepItemIdSet.has(id) ? "open" : "completed",
-          }),
-        ),
-      );
-      if (
-        source.kind === "shopping_list" &&
-        source.categoryId != null &&
-        source.categoryShoppingPlanType === "one_time"
-      ) {
-        await api.plannedExpenses.updateCategory(source.categoryId, {
-          archived_at: new Date().toISOString(),
-        });
-        return checkoutItemIds.length > 0
-          ? "shopping_list_archived"
-          : completesAnyItem
-            ? "completed"
-            : "none";
-      }
-      return completesAnyItem ? "completed" : "none";
-    } catch (e) {
-      showFeedback({
-        message: e instanceof Error ? e.message : String(e),
-        color: "red",
-      });
-      return "none";
-    }
-  }
-
-  async function handlePlannedExpenseCompletion(values: CreateJournalInput) {
-    const source = locationPlannedExpenseEntry;
-    if (!source || activeTab !== "simple") return "none";
-
+    input: CreateJournalInput,
+  ) {
+    const result = await api.plannedExpenses.completeWithJournal(source.id, {
+      journal: input,
+      idempotency_key: source.idempotencyKey,
+      occurrence_date: source.occurrenceDate ?? null,
+      next_due_date_after_occurrence: source.nextDueDateAfterOccurrence ?? null,
+      completed_dates: source.completedDates ?? null,
+      completion_status_after_occurrence:
+        source.completionStatusAfterOccurrence === "open" ||
+        source.completionStatusAfterOccurrence === "completed"
+          ? source.completionStatusAfterOccurrence
+          : undefined,
+      checkout_item_ids: source.checkoutItemIds,
+      checkout_keep_item_ids: source.checkoutKeepItemIds,
+    });
     clearPlannedExpenseNavigationState();
-    const submitted = getSubmittedExpenseSummary(values);
-    const allChanged =
-      submitted.description !== source.name.trim() &&
-      submitted.expenseAccountId !== source.expenseAccountId &&
-      Math.round(submitted.amount) !==
-        Math.round(source.inputAmount ?? source.amount);
-
-    if (allChanged) {
-      setPendingPlannedExpenseCompletion({ source, checkoutDate: values.date });
-      return "pending";
-    }
-
-    return await completePlannedExpenseSource(source, values.date);
+    return result.completion;
   }
 
   async function handleSubmit(
@@ -394,10 +252,26 @@ export default function InputPage() {
         ...l,
       })),
     };
-    await api.journal.create(input);
+    const source =
+      activeTab === "simple" ? locationPlannedExpenseEntry : undefined;
+    if (source) {
+      const submitted = getSubmittedExpenseSummary(input);
+      const allChanged =
+        submitted.description !== source.name.trim() &&
+        submitted.expenseAccountId !== source.expenseAccountId &&
+        Math.round(submitted.amount) !==
+          Math.round(source.inputAmount ?? source.amount);
+      if (allChanged) {
+        setPendingPlannedExpenseCompletion({ source, input });
+        return;
+      }
+    }
+
+    const plannedExpenseCompletion = source
+      ? await completePlannedExpenseWithJournal(source, input)
+      : (await api.journal.create(input), "none");
     if (activeTab === "simple") setSimpleDraft(null);
     if (activeTab === "multi") setMultiDraft(null);
-    const plannedExpenseCompletion = await handlePlannedExpenseCompletion(input);
     showFeedback({
       message: t(plannedExpenseCompletionFeedbackKey(plannedExpenseCompletion)),
       color: "teal",
@@ -612,16 +486,19 @@ export default function InputPage() {
         onConfirm={() => {
           if (pendingPlannedExpenseCompletion) {
             void (async () => {
-              const completion = await completePlannedExpenseSource(
+              const completion = await completePlannedExpenseWithJournal(
                 pendingPlannedExpenseCompletion.source,
-                pendingPlannedExpenseCompletion.checkoutDate,
+                pendingPlannedExpenseCompletion.input,
               );
-              if (completion !== "none") {
-                showFeedback({
-                  message: t(plannedExpenseCompletionFeedbackKey(completion)),
-                  color: "teal",
-                });
-              }
+              setPendingPlannedExpenseCompletion(null);
+              setSimpleDraft(null);
+              showFeedback({
+                message: t(plannedExpenseCompletionFeedbackKey(completion)),
+                color: "teal",
+              });
+              refresh();
+              void refreshBudget();
+              void refreshAllocatable();
             })();
           }
         }}

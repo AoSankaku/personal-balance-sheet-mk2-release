@@ -17,6 +17,8 @@ export interface ShoppingPlanCheckoutItemSnapshot {
 
 export interface PlannedExpenseEntrySource {
   id: number;
+  /** Stable for the lifetime of this input flow so a retried submit cannot duplicate a journal. */
+  idempotencyKey: string;
   kind: PlannedExpenseKind;
   name: string;
   amount: number;
