@@ -1135,13 +1135,54 @@ plannedExpenseShoppingCategoryEstimate: Category budget estimate
 plannedExpenseItemEstimate: Item estimate
 plannedExpenseCompleteCategory: Complete all
 plannedExpenseCalendar: Calendar
+plannedExpensePaymentDetails: Payment details
+plannedExpensePaymentDetailsTotal: Total for this day
+plannedExpenseFrequency: Frequency
+plannedExpenseOccurrenceNumber: Occurrence
+plannedExpenseEnterPayment: Enter this payment
+plannedExpenseSkipPayment: Skip this payment
+plannedExpenseUndoCompletion: Undo completion
 plannedExpenseOneTime: One-time
 plannedExpenseRecurring: Recurring
 plannedExpenseRecurrenceType: Schedule type
 plannedExpenseEveryMonths: Every N months
+plannedExpenseEveryInterval: Every
+plannedExpenseRecurrenceUnit: Unit
+plannedExpenseRecurrenceUnit_week: Week(s)
+plannedExpenseRecurrenceUnit_month: Month(s)
+plannedExpenseRecurrenceUnit_year: Year(s)
+plannedExpenseMonthlyMode: Monthly rule
+plannedExpenseMonthlyDay: Day of month
+plannedExpenseMonthlyWeekday: Nth weekday
 plannedExpenseDayOfMonth: Day of month
+plannedExpenseWeeksOfMonth: Week(s) of month
+plannedExpenseWeekday: Weekday
+plannedExpenseWeekOfMonth_1: First
+plannedExpenseWeekOfMonth_2: Second
+plannedExpenseWeekOfMonth_3: Third
+plannedExpenseWeekOfMonth_4: Fourth
+plannedExpenseWeekOfMonth_5: Fifth
+weekday_short_0: Sun
+weekday_short_1: Mon
+weekday_short_2: Tue
+weekday_short_3: Wed
+weekday_short_4: Thu
+weekday_short_5: Fri
+weekday_short_6: Sat
 plannedExpenseNextDueDate: Next due date
 plannedExpenseEndDate: End date
+plannedExpenseEndCondition: End condition
+plannedExpenseEndConditionDate: End date
+plannedExpenseEndConditionCount: Final occurrence
+plannedExpenseFinalOccurrence: Final occurrence
+plannedExpenseUnspecifiedPlaceholder: Leave blank for indefinite
+plannedExpensePlannedCountHint: "Planned payments: {count}"
+plannedExpenseFinalDateHint: "Final payment date: {date}"
+plannedExpensePlannedCountChangeHint: "{from} payments -> {to} payments"
+plannedExpenseSkipPolicyTitle: Skip payment count
+plannedExpenseSkipPolicyMessage: This payment has an end condition. Choose how this skip should affect the total schedule.
+plannedExpenseSkipPolicyPostpone: Postpone by one payment
+plannedExpenseSkipPolicyReduce: Reduce the count
 wishlistTitle: Wishlist
 wishlistPageDesc: Track future purchases by custom category with item-level estimates.
 scheduledPaymentsTitle: Recurring expenses and payments
@@ -1169,13 +1210,17 @@ plannedExpenseReorder: Reorder
 plannedExpenseMoveUp: Move up
 plannedExpenseMoveDown: Move down
 plannedExpenseCompletedWishlist: Completed / cancelled wishlist
+plannedExpenseCompletedOneTimePayments: Completed one-time payments
+plannedExpenseCompletedScheduledPayments: Completed payments
+plannedExpenseRecentlyCompleted: Recently completed
+plannedExpenseEndedByDate: End date reached
+plannedExpenseEndedByCount: Final occurrence reached
 plannedExpenseEmpty: No items yet.
 plannedExpenseNoCategory: No budget category
 plannedExpenseExpenseAccount: Expense account
 plannedExpenseDefaultExpenseAccount: Default expense account
 plannedExpenseNoExpenseAccount: No expense account
 plannedExpenseComplete: Mark completed
-plannedExpenseCancel: Cancel item
 plannedExpenseDeleteCategoryConfirmTitle: Delete category?
 plannedExpenseDeleteCategoryConfirmMessage: This category and its items will be deleted. This action cannot be undone.
 plannedExpenseDeleteCategoryConfirm: Delete category
@@ -1186,8 +1231,6 @@ plannedExpenseForceComplete: Force complete without expense
 plannedExpenseForceCompleteConfirmTitle: Complete without entering expense?
 plannedExpenseForceCompleteConfirmMessage: This will mark the item completed without creating an expense entry. Use it only when no spending record is needed.
 plannedExpenseForceCompleteConfirm: Complete without expense
-plannedExpenseCancelConfirmTitle: Cancel item?
-plannedExpenseCancelConfirmMessage: This item will be marked cancelled.
 plannedExpenseInputExpense: Enter expense
 plannedExpenseCompleteSourceTitle: Mark source item completed?
 plannedExpenseCompleteSourceMessage: Description, category, and amount were all changed from the source item. Mark the source item completed?
@@ -1217,3 +1260,10 @@ productAvailability_api_credentials_missing: API key missing
 productAvailability_unsupported: Unsupported
 productAvailability_error: Fetch failed
 shoppingPlanArchivedTitle: Completed shopping plans
+calendarWeekStartLabel: Calendar week starts on
+calendarTodayButton: Today
+plannedExpenseWeekFallback: If the nth weekday does not exist
+plannedExpenseWeekFallback_skip: Skip this month
+plannedExpenseWeekFallback_last_day_of_month: Closest same-month month end
+plannedExpenseWeekFallback_previous_week: Previous week
+plannedExpenseWeekFallback_next_month_first_week: First week of next month

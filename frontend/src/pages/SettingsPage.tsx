@@ -91,6 +91,16 @@ const settingsSwitchClassNames = {
   root: "settings-inline-control",
 };
 
+const weekdayShortKeys = [
+  "weekday_short_0",
+  "weekday_short_1",
+  "weekday_short_2",
+  "weekday_short_3",
+  "weekday_short_4",
+  "weekday_short_5",
+  "weekday_short_6",
+] as const;
+
 export default function SettingsPage() {
   const { t, locale, setLocale } = useLang();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
@@ -235,6 +245,12 @@ export default function SettingsPage() {
   async function savePreferredIds(ids: number[]) {
     if (privacyMode) return;
     await api.budget.updateSettings({ preferred_payment_account_ids: ids });
+    void refreshBudgetSettings();
+  }
+
+  async function handleCalendarWeekStartChange(value: string | null) {
+    if (privacyMode || value == null) return;
+    await api.budget.updateSettings({ calendar_week_start: Number(value) });
     void refreshBudgetSettings();
   }
 
@@ -463,6 +479,32 @@ export default function SettingsPage() {
                   <span>{option.label}</span>
                 </Group>
               )}
+            />
+          </Group>
+          <Group gap="xs" align="center" wrap="wrap">
+            <Text
+              size="sm"
+              c="dimmed"
+              w={{ base: "100%", sm: 120 }}
+              style={{ flexShrink: 0 }}
+            >
+              {t("calendarWeekStartLabel")}
+            </Text>
+            <Select
+              aria-label={t("calendarWeekStartLabel")}
+              size="xs"
+              flex={1}
+              maw={220}
+              style={{ minWidth: 160 }}
+              value={String(budgetSettings?.calendar_week_start ?? 0)}
+              onChange={handleCalendarWeekStartChange}
+              disabled={privacyMode}
+              data={weekdayShortKeys.map((key, day) => ({
+                value: String(day),
+                label: t(key),
+              }))}
+              allowDeselect={false}
+              checkIconPosition="right"
             />
           </Group>
         </Stack>

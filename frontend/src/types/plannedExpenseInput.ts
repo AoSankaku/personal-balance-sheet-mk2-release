@@ -1,5 +1,6 @@
 import type {
   PlannedExpenseKind,
+  PlannedExpenseRecurrenceType,
   PlannedExpenseStatus,
   ShoppingPlanType,
 } from "@balance-sheet/shared";
@@ -20,10 +21,15 @@ export interface PlannedExpenseEntrySource {
   name: string;
   amount: number;
   currency: string;
+  recurrenceType?: PlannedExpenseRecurrenceType;
   expenseAccountId: number | null;
   categoryId?: number | null;
   categoryShoppingPlanType?: ShoppingPlanType | null;
   categoryTargetDate?: string | null;
+  occurrenceDate?: string | null;
+  nextDueDateAfterOccurrence?: string | null;
+  completedDates?: string | null;
+  completionStatusAfterOccurrence?: PlannedExpenseStatus;
   checkoutItemIds?: number[];
   checkoutKeepItemIds?: number[];
   checkoutItems?: ShoppingPlanCheckoutItemSnapshot[];

@@ -1,4 +1,5 @@
 import { AppShell, Skeleton, Stack } from "@mantine/core";
+import { DatesProvider } from "@mantine/dates";
 import { Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { TopNav } from "./components/TopNav";
@@ -11,6 +12,7 @@ import { useVersionUpdateMonitor } from "./hooks/useVersionUpdateMonitor";
 import { useLang } from "./i18n";
 import { usePrivacy } from "./context/PrivacyContext";
 import { PrivacyModeBlocked } from "./components/PrivacyModeBlocked";
+import { normalizeCalendarWeekStart } from "./lib/calendarWeekStart";
 
 const OverviewPage = lazy(() => import("./pages/OverviewPage"));
 const InputPage = lazy(() => import("./pages/InputPage"));
@@ -53,9 +55,13 @@ function PageFallback() {
 
 export default function App() {
   useVersionUpdateMonitor();
-  const { enabledCurrencies, enabledCurrenciesLoaded } = useAppData();
-  const { hasExplicitLocale } = useLang();
+  const { budgetSettings, enabledCurrencies, enabledCurrenciesLoaded } =
+    useAppData();
+  const { hasExplicitLocale, locale } = useLang();
   const { privacyMode } = usePrivacy();
+  const calendarWeekStart = normalizeCalendarWeekStart(
+    budgetSettings?.calendar_week_start,
+  );
   const needsCurrencySetup =
     enabledCurrenciesLoaded && enabledCurrencies.length === 0;
   const needsLanguageSetup = needsCurrencySetup && !hasExplicitLocale;
@@ -83,13 +89,16 @@ export default function App() {
         <PageTitle overrideTitleKey={overrideTitleKey} />
         <FeedbackHost />
         <HardReloadPrompt />
-        <Suspense fallback={<PageFallback />}>
-          {!enabledCurrenciesLoaded ? null : needsLanguageSetup ? (
-            <LanguageSetupPage />
-          ) : needsCurrencySetup ? (
-            <CurrencySettingsPage initialSetup />
-          ) : (
-            <Routes>
+        <DatesProvider
+          settings={{ firstDayOfWeek: calendarWeekStart, locale }}
+        >
+          <Suspense fallback={<PageFallback />}>
+            {!enabledCurrenciesLoaded ? null : needsLanguageSetup ? (
+              <LanguageSetupPage />
+            ) : needsCurrencySetup ? (
+              <CurrencySettingsPage initialSetup />
+            ) : (
+              <Routes>
               <Route path="/" element={<OverviewPage />} />
               <Route
                 path="/input"
@@ -204,9 +213,10 @@ export default function App() {
                   )
                 }
               />
-            </Routes>
-          )}
-        </Suspense>
+              </Routes>
+            )}
+          </Suspense>
+        </DatesProvider>
       </AppShell.Main>
 
       <AppShell.Footer hiddenFrom="md">

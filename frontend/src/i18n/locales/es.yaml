@@ -1135,13 +1135,54 @@ plannedExpenseShoppingCategoryEstimate: Presupuesto estimado de categoría
 plannedExpenseItemEstimate: Estimación del elemento
 plannedExpenseCompleteCategory: Completar todo
 plannedExpenseCalendar: Calendario
+plannedExpensePaymentDetails: Detalles del pago
+plannedExpensePaymentDetailsTotal: Total de este dia
+plannedExpenseFrequency: Frecuencia
+plannedExpenseOccurrenceNumber: Ocurrencia
+plannedExpenseEnterPayment: Introducir este pago
+plannedExpenseSkipPayment: Omitir este pago
+plannedExpenseUndoCompletion: Deshacer finalizacion
 plannedExpenseOneTime: Una vez
 plannedExpenseRecurring: Recurrente
 plannedExpenseRecurrenceType: Tipo de programación
 plannedExpenseEveryMonths: Cada N meses
+plannedExpenseEveryInterval: Cada
+plannedExpenseRecurrenceUnit: Unidad
+plannedExpenseRecurrenceUnit_week: Semana(s)
+plannedExpenseRecurrenceUnit_month: Mes(es)
+plannedExpenseRecurrenceUnit_year: Ano(s)
+plannedExpenseMonthlyMode: Regla mensual
+plannedExpenseMonthlyDay: Dia del mes
+plannedExpenseMonthlyWeekday: Enesimo dia de semana
 plannedExpenseDayOfMonth: Día del mes
+plannedExpenseWeeksOfMonth: Semana(s) del mes
+plannedExpenseWeekday: Dia de semana
+plannedExpenseWeekOfMonth_1: Primero
+plannedExpenseWeekOfMonth_2: Segundo
+plannedExpenseWeekOfMonth_3: Tercero
+plannedExpenseWeekOfMonth_4: Cuarto
+plannedExpenseWeekOfMonth_5: Quinto
+weekday_short_0: Dom
+weekday_short_1: Lun
+weekday_short_2: Mar
+weekday_short_3: Mie
+weekday_short_4: Jue
+weekday_short_5: Vie
+weekday_short_6: Sab
 plannedExpenseNextDueDate: Próxima fecha
 plannedExpenseEndDate: Fecha de finalización
+plannedExpenseEndCondition: Condicion de fin
+plannedExpenseEndConditionDate: Fecha de fin
+plannedExpenseEndConditionCount: Ocurrencia final
+plannedExpenseFinalOccurrence: Ocurrencia final
+plannedExpenseUnspecifiedPlaceholder: Vacio para indefinido
+plannedExpensePlannedCountHint: "Pagos previstos: {count}"
+plannedExpenseFinalDateHint: "Fecha del pago final: {date}"
+plannedExpensePlannedCountChangeHint: "{from} pagos -> {to} pagos"
+plannedExpenseSkipPolicyTitle: Recuento al omitir
+plannedExpenseSkipPolicyMessage: Este pago tiene una condicion de finalizacion. Elige como afectara esta omision al calendario total.
+plannedExpenseSkipPolicyPostpone: Posponer un pago
+plannedExpenseSkipPolicyReduce: Reducir el recuento
 wishlistTitle: Lista de deseos
 wishlistPageDesc: Controla compras futuras por categoría personalizada con estimaciones por elemento.
 scheduledPaymentsTitle: Gastos recurrentes y pagos
@@ -1169,13 +1210,17 @@ plannedExpenseReorder: Reordenar
 plannedExpenseMoveUp: Subir
 plannedExpenseMoveDown: Bajar
 plannedExpenseCompletedWishlist: Deseos completados / cancelados
+plannedExpenseCompletedOneTimePayments: Pagos unicos completados
+plannedExpenseCompletedScheduledPayments: Pagos completados
+plannedExpenseRecentlyCompleted: Recien completados
+plannedExpenseEndedByDate: Fecha final alcanzada
+plannedExpenseEndedByCount: Ocurrencia final alcanzada
 plannedExpenseEmpty: Todavía no hay elementos.
 plannedExpenseNoCategory: Sin categoría de presupuesto
 plannedExpenseExpenseAccount: Cuenta de gasto
 plannedExpenseDefaultExpenseAccount: Cuenta de gasto predeterminada
 plannedExpenseNoExpenseAccount: Sin cuenta de gasto
 plannedExpenseComplete: Marcar como completado
-plannedExpenseCancel: Cancelar elemento
 plannedExpenseDeleteCategoryConfirmTitle: ¿Eliminar categoría?
 plannedExpenseDeleteCategoryConfirmMessage: Esta categoría y sus elementos se eliminarán. Esta acción no se puede deshacer.
 plannedExpenseDeleteCategoryConfirm: Eliminar categoría
@@ -1186,8 +1231,6 @@ plannedExpenseForceComplete: Completar sin gasto
 plannedExpenseForceCompleteConfirmTitle: ¿Completar sin introducir un gasto?
 plannedExpenseForceCompleteConfirmMessage: Este elemento se marcará como completado sin crear un asiento de gasto. Úsalo solo si no se necesita un registro de gasto.
 plannedExpenseForceCompleteConfirm: Completar sin gasto
-plannedExpenseCancelConfirmTitle: ¿Cancelar elemento?
-plannedExpenseCancelConfirmMessage: Este elemento se marcará como cancelado.
 plannedExpenseInputExpense: Introducir gasto
 plannedExpenseCompleteSourceTitle: ¿Marcar el elemento origen como completado?
 plannedExpenseCompleteSourceMessage: La descripción, la categoría y el importe se cambiaron respecto al elemento origen. ¿Marcar el elemento origen como completado?
@@ -1217,3 +1260,10 @@ productAvailability_api_credentials_missing: Falta clave API
 productAvailability_unsupported: No compatible
 productAvailability_error: Error al obtener
 shoppingPlanArchivedTitle: Planes de compra completados
+calendarWeekStartLabel: "Inicio de semana del calendario"
+calendarTodayButton: "Hoy"
+plannedExpenseWeekFallback: "Si no existe ese enesimo dia"
+plannedExpenseWeekFallback_skip: "Omitir este mes"
+plannedExpenseWeekFallback_last_day_of_month: "Fin de mes mas cercano"
+plannedExpenseWeekFallback_previous_week: "Semana anterior"
+plannedExpenseWeekFallback_next_month_first_week: "Primera semana del mes siguiente"

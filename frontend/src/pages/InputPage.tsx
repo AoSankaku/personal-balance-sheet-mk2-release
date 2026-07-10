@@ -51,6 +51,7 @@ import {
   plannedExpenseCompletionFeedbackKey,
   type PlannedExpenseCompletionResult,
 } from "../lib/plannedExpenseForm";
+import { plannedExpenseAddCompletedDate } from "../lib/plannedExpenseCalendar";
 import {
   savedTab,
   setSavedTab,
@@ -142,6 +143,10 @@ export default function InputPage() {
     locationPlannedExpenseEntry != null
       ? {
           formValues: {
+            date:
+              locationPlannedExpenseEntry.occurrenceDate != null
+                ? dateFromInputString(locationPlannedExpenseEntry.occurrenceDate)
+                : undefined,
             entryType: "expense",
             description: locationPlannedExpenseEntry.name,
             expenseCategoryId: locationPlannedExpenseEntry.expenseAccountId,
@@ -151,6 +156,11 @@ export default function InputPage() {
           showZeroCategories: false,
         }
       : null;
+
+  function dateFromInputString(value: string): Date {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }
 
   function clearPlannedExpenseNavigationState() {
     if (!locationState?.plannedExpenseEntry) return;
@@ -239,11 +249,17 @@ export default function InputPage() {
               expense_account_id: null,
               target_date: null,
               recurrence_type: "one_time",
+              recurrence_interval: null,
+              recurrence_unit: null,
+              recurrence_monthly_mode: null,
               recurrence_interval_months: null,
               recurrence_day: null,
+              recurrence_weeks_of_month: null,
+              recurrence_weekday: null,
+              recurrence_week_fallback: null,
               next_due_date: null,
               end_date: null,
-              priority: 2,
+              recurrence_count: null,
               status: item.status,
               keep_on_routine_clear: item.keepOnRoutineClear,
               note: item.note,
@@ -266,6 +282,26 @@ export default function InputPage() {
           last_checked_out_date: checkoutDate,
         });
         return "shopping_list_archived";
+      }
+      if (
+        source.kind === "scheduled_payment" &&
+        source.recurrenceType === "recurring"
+      ) {
+        const completedDates =
+          source.occurrenceDate == null
+            ? source.completedDates
+            : plannedExpenseAddCompletedDate(
+                source.completedDates,
+                source.occurrenceDate,
+              );
+        await api.plannedExpenses.update(source.id, {
+          status:
+            source.completionStatusAfterOccurrence ??
+            (source.nextDueDateAfterOccurrence == null ? "completed" : "open"),
+          next_due_date: source.nextDueDateAfterOccurrence ?? null,
+          completed_dates: completedDates,
+        });
+        return "completed";
       }
       await Promise.all(
         completedItemIds.map((id) =>

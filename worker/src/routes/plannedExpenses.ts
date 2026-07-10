@@ -9,12 +9,18 @@ import {
   type PlannedExpense,
   type PlannedExpenseCategory,
   type PlannedExpenseKind,
+  type PlannedExpenseMonthlyMode,
   type PlannedExpenseRecurrenceType,
+  type PlannedExpenseRecurrenceUnit,
   type PlannedExpenseStatus,
+  type PlannedExpenseWeekFallback,
   type ProductAvailabilityStatus,
   type ProductMetadata,
   type ProductMetadataLookupInput,
   type ProductSourceSite,
+  normalizePlannedExpenseWeekFallback,
+  resolveMonthlyPayday,
+  resolvePlannedExpenseWeekdayRuleDate,
   type ShoppingPlanType,
   type UpdatePlannedExpenseInput,
   type UpdatePlannedExpenseCategoryInput,
@@ -64,6 +70,21 @@ const recurrenceTypes = new Set<PlannedExpenseRecurrenceType>([
   "one_time",
   "recurring",
 ]);
+const recurrenceUnits = new Set<PlannedExpenseRecurrenceUnit>([
+  "week",
+  "month",
+  "year",
+]);
+const recurrenceMonthlyModes = new Set<PlannedExpenseMonthlyMode>([
+  "day_of_month",
+  "week_of_month",
+]);
+const recurrenceWeekFallbacks = new Set<PlannedExpenseWeekFallback>([
+  "skip",
+  "last_day_of_month",
+  "previous_week",
+  "next_month_first_week",
+]);
 const shoppingPlanTypes = new Set<ShoppingPlanType>(["one_time", "routine"]);
 
 function normalizeCurrency(currency: string | null | undefined): string {
@@ -89,17 +110,54 @@ function normalizeOptionalDate(
   return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "__invalid__";
 }
 
-function normalizePriority(value: number | undefined): number {
-  return typeof value === "number" &&
-    Number.isInteger(value) &&
-    value >= 1 &&
-    value <= 5
-    ? value
-    : 3;
-}
-
 function normalizeSortOrder(value: number | undefined): number {
   return typeof value === "number" && Number.isInteger(value) ? value : 0;
+}
+
+function normalizeWeeksOfMonth(value: string | null | undefined): string | null {
+  const weeks = Array.from(
+    new Set(
+      (value ?? "")
+        .split(",")
+        .map((entry) => Number(entry.trim()))
+        .filter((entry) => Number.isInteger(entry) && entry >= 1 && entry <= 5),
+    ),
+  ).sort((a, b) => a - b);
+  return weeks.length > 0 ? weeks.join(",") : null;
+}
+
+function normalizeDateList(
+  value: string | null | undefined,
+): string | null | "__invalid__" {
+  if (value == null) return null;
+  const normalized = normalizeNullableText(value);
+  if (normalized === null) return null;
+  const dates = Array.from(
+    new Set(normalized.split(",").map((entry) => entry.trim())),
+  ).filter(Boolean);
+  if (dates.some((date) => !/^\d{4}-\d{2}-\d{2}$/.test(date))) {
+    return "__invalid__";
+  }
+  return dates.sort().join(",") || null;
+}
+
+function normalizeSkippedDates(value: string | null | undefined) {
+  return normalizeDateList(value);
+}
+
+function normalizeCompletedDates(value: string | null | undefined) {
+  return normalizeDateList(value);
+}
+
+function resolveMonthlyRecurrenceDate(
+  date: string | null,
+  day: number | null,
+): string | null {
+  if (date == null || day == null) return date;
+  const month = date.slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(month)) return date;
+  const resolvedDay = resolveMonthlyPayday(month, day);
+  return `${month}-${String(resolvedDay).padStart(2, "0")}`;
 }
 
 function normalizeShoppingPlanType(
@@ -383,11 +441,27 @@ function toResponse(
       ? (row.category_target_date ?? null)
       : (row.target_date ?? null),
     recurrence_type: row.recurrence_type as PlannedExpenseRecurrenceType,
+    recurrence_interval:
+      row.recurrence_interval ?? row.recurrence_interval_months ?? null,
+    recurrence_unit:
+      (row.recurrence_unit as PlannedExpenseRecurrenceUnit | null) ??
+      (row.recurrence_type === "recurring" ? "month" : null),
+    recurrence_monthly_mode:
+      (row.recurrence_monthly_mode as PlannedExpenseMonthlyMode | null) ??
+      (row.recurrence_day == null ? null : "day_of_month"),
     recurrence_interval_months: row.recurrence_interval_months ?? null,
     recurrence_day: row.recurrence_day ?? null,
+    recurrence_weeks_of_month: row.recurrence_weeks_of_month ?? null,
+    recurrence_weekday: row.recurrence_weekday ?? null,
+    recurrence_week_fallback:
+      row.recurrence_week_fallback == null
+        ? null
+        : normalizePlannedExpenseWeekFallback(row.recurrence_week_fallback),
     next_due_date: row.next_due_date ?? null,
     end_date: row.end_date ?? null,
-    priority: row.priority,
+    recurrence_count: row.recurrence_count ?? null,
+    skipped_dates: row.skipped_dates ?? null,
+    completed_dates: row.completed_dates ?? null,
     sort_order: row.sort_order,
     status: row.status as PlannedExpenseStatus,
     keep_on_routine_clear: isShoppingList
@@ -430,11 +504,19 @@ async function fetchOne(
       expense_account_name: expenseAccounts.name,
       target_date: plannedExpenses.target_date,
       recurrence_type: plannedExpenses.recurrence_type,
+      recurrence_interval: plannedExpenses.recurrence_interval,
+      recurrence_unit: plannedExpenses.recurrence_unit,
+      recurrence_monthly_mode: plannedExpenses.recurrence_monthly_mode,
       recurrence_interval_months: plannedExpenses.recurrence_interval_months,
       recurrence_day: plannedExpenses.recurrence_day,
+      recurrence_weeks_of_month: plannedExpenses.recurrence_weeks_of_month,
+      recurrence_weekday: plannedExpenses.recurrence_weekday,
+      recurrence_week_fallback: plannedExpenses.recurrence_week_fallback,
       next_due_date: plannedExpenses.next_due_date,
       end_date: plannedExpenses.end_date,
-      priority: plannedExpenses.priority,
+      recurrence_count: plannedExpenses.recurrence_count,
+      skipped_dates: plannedExpenses.skipped_dates,
+      completed_dates: plannedExpenses.completed_dates,
       sort_order: plannedExpenses.sort_order,
       status: plannedExpenses.status,
       keep_on_routine_clear: plannedExpenses.keep_on_routine_clear,
@@ -555,11 +637,19 @@ router.get("/", async (c) => {
       expense_account_name: expenseAccounts.name,
       target_date: plannedExpenses.target_date,
       recurrence_type: plannedExpenses.recurrence_type,
+      recurrence_interval: plannedExpenses.recurrence_interval,
+      recurrence_unit: plannedExpenses.recurrence_unit,
+      recurrence_monthly_mode: plannedExpenses.recurrence_monthly_mode,
       recurrence_interval_months: plannedExpenses.recurrence_interval_months,
       recurrence_day: plannedExpenses.recurrence_day,
+      recurrence_weeks_of_month: plannedExpenses.recurrence_weeks_of_month,
+      recurrence_weekday: plannedExpenses.recurrence_weekday,
+      recurrence_week_fallback: plannedExpenses.recurrence_week_fallback,
       next_due_date: plannedExpenses.next_due_date,
       end_date: plannedExpenses.end_date,
-      priority: plannedExpenses.priority,
+      recurrence_count: plannedExpenses.recurrence_count,
+      skipped_dates: plannedExpenses.skipped_dates,
+      completed_dates: plannedExpenses.completed_dates,
       sort_order: plannedExpenses.sort_order,
       status: plannedExpenses.status,
       keep_on_routine_clear: plannedExpenses.keep_on_routine_clear,
@@ -636,13 +726,11 @@ router.get("/", async (c) => {
             .orderBy(
               asc(plannedExpenses.status),
               asc(plannedExpenses.target_date),
-              desc(plannedExpenses.priority),
               desc(plannedExpenses.created_at),
             )
         : await baseQuery.orderBy(
             asc(plannedExpenses.status),
             asc(plannedExpenses.target_date),
-            desc(plannedExpenses.priority),
             desc(plannedExpenses.created_at),
           );
 
@@ -977,6 +1065,21 @@ router.post("/", async (c) => {
   if (!recurrenceTypes.has(recurrenceType)) {
     return c.json({ error: "invalid recurrence_type" }, 400);
   }
+  const recurrenceUnit = body.recurrence_unit ?? "month";
+  if (recurrenceType === "recurring" && !recurrenceUnits.has(recurrenceUnit)) {
+    return c.json({ error: "invalid recurrence_unit" }, 400);
+  }
+  const recurrenceMonthlyMode =
+    body.recurrence_monthly_mode ??
+    (body.recurrence_day == null ? null : "day_of_month");
+  if (
+    recurrenceType === "recurring" &&
+    recurrenceUnit === "month" &&
+    recurrenceMonthlyMode !== null &&
+    !recurrenceMonthlyModes.has(recurrenceMonthlyMode)
+  ) {
+    return c.json({ error: "invalid recurrence_monthly_mode" }, 400);
+  }
   const nextDueDate = normalizeOptionalDate(body.next_due_date);
   if (nextDueDate === "__invalid__") {
     return c.json({ error: "next_due_date must be YYYY-MM-DD" }, 400);
@@ -985,26 +1088,94 @@ router.post("/", async (c) => {
   if (endDate === "__invalid__") {
     return c.json({ error: "end_date must be YYYY-MM-DD" }, 400);
   }
+  const recurrenceCount = body.recurrence_count ?? null;
+  if (
+    recurrenceCount != null &&
+    (!Number.isInteger(recurrenceCount) || recurrenceCount <= 0)
+  ) {
+    return c.json(
+      { error: "recurrence_count must be a positive integer" },
+      400,
+    );
+  }
+  if (endDate != null && recurrenceCount != null) {
+    return c.json(
+      { error: "end_date and recurrence_count cannot both be set" },
+      400,
+    );
+  }
+  const skippedDates = normalizeSkippedDates(body.skipped_dates);
+  if (skippedDates === "__invalid__") {
+    return c.json({ error: "skipped_dates must be YYYY-MM-DD list" }, 400);
+  }
+  const completedDates = normalizeCompletedDates(body.completed_dates);
+  if (completedDates === "__invalid__") {
+    return c.json({ error: "completed_dates must be YYYY-MM-DD list" }, 400);
+  }
   const recurrenceInterval =
-    body.recurrence_interval_months == null
-      ? null
-      : body.recurrence_interval_months;
+    body.recurrence_interval ??
+    body.recurrence_interval_months ??
+    null;
   if (
     recurrenceInterval != null &&
     (!Number.isInteger(recurrenceInterval) || recurrenceInterval <= 0)
   ) {
     return c.json(
-      { error: "recurrence_interval_months must be a positive integer" },
+      { error: "recurrence_interval must be a positive integer" },
       400,
     );
   }
   const recurrenceDay = body.recurrence_day == null ? null : body.recurrence_day;
   if (
     recurrenceDay != null &&
-    (!Number.isInteger(recurrenceDay) || recurrenceDay < 1 || recurrenceDay > 31)
+    (!Number.isInteger(recurrenceDay) || recurrenceDay < 0 || recurrenceDay > 31)
   ) {
-    return c.json({ error: "recurrence_day must be 1-31" }, 400);
+    return c.json({ error: "recurrence_day must be 0-31" }, 400);
   }
+  const recurrenceWeeksOfMonth = normalizeWeeksOfMonth(
+    body.recurrence_weeks_of_month,
+  );
+  const recurrenceWeekday =
+    body.recurrence_weekday == null ? null : body.recurrence_weekday;
+  if (
+    recurrenceWeekday != null &&
+    (!Number.isInteger(recurrenceWeekday) ||
+      recurrenceWeekday < 0 ||
+      recurrenceWeekday > 6)
+  ) {
+    return c.json({ error: "recurrence_weekday must be 0-6" }, 400);
+  }
+  const recurrenceWeekFallback = normalizePlannedExpenseWeekFallback(
+    body.recurrence_week_fallback,
+  );
+  if (
+    body.recurrence_week_fallback != null &&
+    !recurrenceWeekFallbacks.has(body.recurrence_week_fallback)
+  ) {
+    return c.json({ error: "invalid recurrence_week_fallback" }, 400);
+  }
+  if (
+    recurrenceType === "recurring" &&
+    recurrenceUnit === "month" &&
+    recurrenceMonthlyMode === "week_of_month" &&
+    (!recurrenceWeeksOfMonth || recurrenceWeekday == null)
+  ) {
+    return c.json(
+      { error: "recurrence_weeks_of_month and recurrence_weekday are required" },
+      400,
+    );
+  }
+  const resolvedNextDueDate =
+    recurrenceType === "recurring" && recurrenceUnit === "month"
+      ? (recurrenceMonthlyMode ?? "day_of_month") === "day_of_month"
+        ? resolveMonthlyRecurrenceDate(nextDueDate, recurrenceDay)
+        : resolvePlannedExpenseWeekdayRuleDate({
+            date: nextDueDate,
+            weeksOfMonth: recurrenceWeeksOfMonth,
+            weekday: recurrenceWeekday,
+            fallback: recurrenceWeekFallback,
+          })
+      : nextDueDate;
   const isShoppingList = body.kind === "shopping_list";
   if (isShoppingList && body.category_id == null) {
     return c.json(
@@ -1044,12 +1215,47 @@ router.post("/", async (c) => {
         : (body.expense_account_id ?? null),
       target_date: isShoppingList ? null : targetDate,
       recurrence_type: recurrenceType,
-      recurrence_interval_months:
+      recurrence_interval:
         recurrenceType === "recurring" ? (recurrenceInterval ?? 1) : null,
-      recurrence_day: recurrenceType === "recurring" ? recurrenceDay : null,
-      next_due_date: recurrenceType === "recurring" ? nextDueDate : null,
+      recurrence_unit: recurrenceType === "recurring" ? recurrenceUnit : null,
+      recurrence_monthly_mode:
+        recurrenceType === "recurring" && recurrenceUnit === "month"
+          ? (recurrenceMonthlyMode ?? "day_of_month")
+          : null,
+      recurrence_interval_months:
+        recurrenceType === "recurring" && recurrenceUnit === "month"
+          ? (recurrenceInterval ?? 1)
+          : null,
+      recurrence_day:
+        recurrenceType === "recurring" &&
+        recurrenceUnit === "month" &&
+        (recurrenceMonthlyMode ?? "day_of_month") === "day_of_month"
+          ? recurrenceDay
+          : null,
+      recurrence_weeks_of_month:
+        recurrenceType === "recurring" &&
+        recurrenceUnit === "month" &&
+        recurrenceMonthlyMode === "week_of_month"
+          ? recurrenceWeeksOfMonth
+          : null,
+      recurrence_weekday:
+        recurrenceType === "recurring" &&
+        recurrenceUnit === "month" &&
+        recurrenceMonthlyMode === "week_of_month"
+          ? recurrenceWeekday
+          : null,
+      recurrence_week_fallback:
+        recurrenceType === "recurring" &&
+        recurrenceUnit === "month" &&
+        recurrenceMonthlyMode === "week_of_month"
+          ? recurrenceWeekFallback
+          : null,
+      next_due_date: recurrenceType === "recurring" ? resolvedNextDueDate : null,
       end_date: recurrenceType === "recurring" ? endDate : null,
-      priority: isShoppingList ? 3 : normalizePriority(body.priority),
+      recurrence_count:
+        recurrenceType === "recurring" ? recurrenceCount : null,
+      skipped_dates: recurrenceType === "recurring" ? skippedDates : null,
+      completed_dates: recurrenceType === "recurring" ? completedDates : null,
       sort_order: normalizeSortOrder(body.sort_order),
       status,
       keep_on_routine_clear:
@@ -1178,6 +1384,31 @@ router.patch("/:id", async (c) => {
     return c.json({ error: "invalid recurrence_type" }, 400);
   }
   if (
+    body.recurrence_unit !== undefined &&
+    body.recurrence_unit !== null &&
+    !recurrenceUnits.has(body.recurrence_unit)
+  ) {
+    return c.json({ error: "invalid recurrence_unit" }, 400);
+  }
+  if (
+    body.recurrence_monthly_mode !== undefined &&
+    body.recurrence_monthly_mode !== null &&
+    !recurrenceMonthlyModes.has(body.recurrence_monthly_mode)
+  ) {
+    return c.json({ error: "invalid recurrence_monthly_mode" }, 400);
+  }
+  if (
+    body.recurrence_interval !== undefined &&
+    body.recurrence_interval !== null &&
+    (!Number.isInteger(body.recurrence_interval) ||
+      body.recurrence_interval <= 0)
+  ) {
+    return c.json(
+      { error: "recurrence_interval must be a positive integer" },
+      400,
+    );
+  }
+  if (
     body.recurrence_interval_months !== undefined &&
     body.recurrence_interval_months !== null &&
     (!Number.isInteger(body.recurrence_interval_months) ||
@@ -1189,13 +1420,109 @@ router.patch("/:id", async (c) => {
     );
   }
   if (
+    body.recurrence_count !== undefined &&
+    body.recurrence_count !== null &&
+    (!Number.isInteger(body.recurrence_count) || body.recurrence_count <= 0)
+  ) {
+    return c.json(
+      { error: "recurrence_count must be a positive integer" },
+      400,
+    );
+  }
+  if (
+    body.end_date !== undefined &&
+    body.end_date !== null &&
+    body.recurrence_count !== undefined &&
+    body.recurrence_count !== null
+  ) {
+    return c.json(
+      { error: "end_date and recurrence_count cannot both be set" },
+      400,
+    );
+  }
+  if (
     body.recurrence_day !== undefined &&
     body.recurrence_day !== null &&
     (!Number.isInteger(body.recurrence_day) ||
-      body.recurrence_day < 1 ||
+      body.recurrence_day < 0 ||
       body.recurrence_day > 31)
   ) {
-    return c.json({ error: "recurrence_day must be 1-31" }, 400);
+    return c.json({ error: "recurrence_day must be 0-31" }, 400);
+  }
+  if (
+    body.recurrence_weekday !== undefined &&
+    body.recurrence_weekday !== null &&
+    (!Number.isInteger(body.recurrence_weekday) ||
+      body.recurrence_weekday < 0 ||
+      body.recurrence_weekday > 6)
+  ) {
+    return c.json({ error: "recurrence_weekday must be 0-6" }, 400);
+  }
+  if (
+    body.recurrence_week_fallback !== undefined &&
+    body.recurrence_week_fallback !== null &&
+    !recurrenceWeekFallbacks.has(body.recurrence_week_fallback)
+  ) {
+    return c.json({ error: "invalid recurrence_week_fallback" }, 400);
+  }
+  const nextSkippedDates =
+    body.skipped_dates !== undefined
+      ? normalizeSkippedDates(body.skipped_dates)
+      : existing.skipped_dates;
+  if (nextSkippedDates === "__invalid__") {
+    return c.json({ error: "skipped_dates must be YYYY-MM-DD list" }, 400);
+  }
+  const nextCompletedDates =
+    body.completed_dates !== undefined
+      ? normalizeCompletedDates(body.completed_dates)
+      : existing.completed_dates;
+  if (nextCompletedDates === "__invalid__") {
+    return c.json({ error: "completed_dates must be YYYY-MM-DD list" }, 400);
+  }
+  const nextRecurrenceType =
+    body.recurrence_type ?? (existing.recurrence_type as PlannedExpenseRecurrenceType);
+  const nextRecurrenceUnit =
+    body.recurrence_unit ??
+    ((existing.recurrence_unit as PlannedExpenseRecurrenceUnit | null) ??
+      (existing.recurrence_type === "recurring" ? "month" : null));
+  const nextRecurrenceMonthlyMode =
+    body.recurrence_monthly_mode ??
+    ((existing.recurrence_monthly_mode as PlannedExpenseMonthlyMode | null) ??
+      (existing.recurrence_day == null ? null : "day_of_month"));
+  const nextRecurrenceWeeksOfMonth =
+    body.recurrence_weeks_of_month !== undefined
+      ? normalizeWeeksOfMonth(body.recurrence_weeks_of_month)
+      : existing.recurrence_weeks_of_month;
+  const nextRecurrenceDay =
+    body.recurrence_day !== undefined
+      ? body.recurrence_day
+      : existing.recurrence_day;
+  const nextRecurrenceWeekday =
+    body.recurrence_weekday !== undefined
+      ? body.recurrence_weekday
+      : existing.recurrence_weekday;
+  const nextRecurrenceWeekFallback =
+    body.recurrence_week_fallback !== undefined
+      ? normalizePlannedExpenseWeekFallback(body.recurrence_week_fallback)
+      : normalizePlannedExpenseWeekFallback(existing.recurrence_week_fallback);
+  const shouldResolveMonthlyDayNextDueDate =
+    nextRecurrenceType === "recurring" &&
+    nextRecurrenceUnit === "month" &&
+    (nextRecurrenceMonthlyMode ?? "day_of_month") === "day_of_month";
+  const shouldResolveMonthlyWeekdayNextDueDate =
+    nextRecurrenceType === "recurring" &&
+    nextRecurrenceUnit === "month" &&
+    nextRecurrenceMonthlyMode === "week_of_month";
+  if (
+    nextRecurrenceType === "recurring" &&
+    nextRecurrenceUnit === "month" &&
+    nextRecurrenceMonthlyMode === "week_of_month" &&
+    (!nextRecurrenceWeeksOfMonth || nextRecurrenceWeekday == null)
+  ) {
+    return c.json(
+      { error: "recurrence_weeks_of_month and recurrence_weekday are required" },
+      400,
+    );
   }
 
   const statusChanged =
@@ -1251,10 +1578,44 @@ router.patch("/:id", async (c) => {
   if (body.recurrence_type !== undefined) {
     updates.recurrence_type = body.recurrence_type;
     if (body.recurrence_type === "one_time") {
+      updates.recurrence_interval = null;
+      updates.recurrence_unit = null;
+      updates.recurrence_monthly_mode = null;
       updates.recurrence_interval_months = null;
       updates.recurrence_day = null;
+      updates.recurrence_weeks_of_month = null;
+      updates.recurrence_weekday = null;
+      updates.recurrence_week_fallback = null;
       updates.next_due_date = null;
       updates.end_date = null;
+      updates.recurrence_count = null;
+      updates.skipped_dates = null;
+      updates.completed_dates = null;
+    }
+  }
+  if (body.recurrence_interval !== undefined) {
+    updates.recurrence_interval = body.recurrence_interval;
+  }
+  if (body.recurrence_unit !== undefined) {
+    updates.recurrence_unit = body.recurrence_unit;
+    if (body.recurrence_unit !== "month") {
+      updates.recurrence_monthly_mode = null;
+      updates.recurrence_interval_months = null;
+      updates.recurrence_day = null;
+      updates.recurrence_weeks_of_month = null;
+      updates.recurrence_weekday = null;
+      updates.recurrence_week_fallback = null;
+    }
+  }
+  if (body.recurrence_monthly_mode !== undefined) {
+    updates.recurrence_monthly_mode = body.recurrence_monthly_mode;
+    if (body.recurrence_monthly_mode === "day_of_month") {
+      updates.recurrence_weeks_of_month = null;
+      updates.recurrence_weekday = null;
+      updates.recurrence_week_fallback = null;
+    } else if (body.recurrence_monthly_mode === "week_of_month") {
+      updates.recurrence_day = null;
+      updates.recurrence_week_fallback = nextRecurrenceWeekFallback;
     }
   }
   if (body.recurrence_interval_months !== undefined) {
@@ -1262,13 +1623,39 @@ router.patch("/:id", async (c) => {
   }
   if (body.recurrence_day !== undefined) {
     updates.recurrence_day = body.recurrence_day;
+    if (body.next_due_date === undefined && shouldResolveMonthlyDayNextDueDate) {
+      updates.next_due_date = resolveMonthlyRecurrenceDate(
+        existing.next_due_date,
+        nextRecurrenceDay,
+      );
+    }
+  }
+  if (body.recurrence_weeks_of_month !== undefined) {
+    updates.recurrence_weeks_of_month = normalizeWeeksOfMonth(
+      body.recurrence_weeks_of_month,
+    );
+  }
+  if (body.recurrence_weekday !== undefined) {
+    updates.recurrence_weekday = body.recurrence_weekday;
+  }
+  if (body.recurrence_week_fallback !== undefined) {
+    updates.recurrence_week_fallback = body.recurrence_week_fallback;
   }
   if (body.next_due_date !== undefined) {
     const nextDueDate = normalizeOptionalDate(body.next_due_date);
     if (nextDueDate === "__invalid__") {
       return c.json({ error: "next_due_date must be YYYY-MM-DD" }, 400);
     }
-    updates.next_due_date = nextDueDate;
+    updates.next_due_date = shouldResolveMonthlyDayNextDueDate
+      ? resolveMonthlyRecurrenceDate(nextDueDate, nextRecurrenceDay)
+      : shouldResolveMonthlyWeekdayNextDueDate
+        ? resolvePlannedExpenseWeekdayRuleDate({
+            date: nextDueDate,
+            weeksOfMonth: nextRecurrenceWeeksOfMonth,
+            weekday: nextRecurrenceWeekday,
+            fallback: nextRecurrenceWeekFallback,
+          })
+        : nextDueDate;
   }
   if (body.end_date !== undefined) {
     const endDate = normalizeOptionalDate(body.end_date);
@@ -1276,9 +1663,24 @@ router.patch("/:id", async (c) => {
       return c.json({ error: "end_date must be YYYY-MM-DD" }, 400);
     }
     updates.end_date = endDate;
+    if (endDate != null) {
+      updates.recurrence_count = null;
+    }
   }
-  if (body.priority !== undefined) {
-    updates.priority = normalizePriority(body.priority);
+  if (body.recurrence_count !== undefined) {
+    updates.recurrence_count =
+      nextRecurrenceType === "recurring" ? body.recurrence_count : null;
+    if (body.recurrence_count != null) {
+      updates.end_date = null;
+    }
+  }
+  if (body.skipped_dates !== undefined) {
+    updates.skipped_dates =
+      nextRecurrenceType === "recurring" ? nextSkippedDates : null;
+  }
+  if (body.completed_dates !== undefined) {
+    updates.completed_dates =
+      nextRecurrenceType === "recurring" ? nextCompletedDates : null;
   }
   if (body.sort_order !== undefined) {
     updates.sort_order = normalizeSortOrder(body.sort_order);

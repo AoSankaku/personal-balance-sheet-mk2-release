@@ -12,6 +12,7 @@ import {
   Image,
   Menu,
   Modal,
+  MultiSelect,
   NumberInput,
   Paper,
   Select,
@@ -24,9 +25,11 @@ import {
   Textarea,
   ThemeIcon,
   Tooltip,
+  UnstyledButton,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
+import { useMediaQuery } from "@mantine/hooks";
 import {
   IconArrowLeft,
   IconArrowDown,
@@ -40,10 +43,10 @@ import {
   IconEdit,
   IconGift,
   IconGripVertical,
+  IconPlayerTrackNext,
   IconPlus,
   IconRefresh,
   IconReceipt,
-  IconStar,
   IconShoppingCart,
   IconStarFilled,
   IconTrash,
@@ -57,8 +60,11 @@ import type {
   PlannedExpense,
   PlannedExpenseCategory,
   PlannedExpenseKind,
+  PlannedExpenseMonthlyMode,
   PlannedExpenseRecurrenceType,
+  PlannedExpenseRecurrenceUnit,
   PlannedExpenseStatus,
+  PlannedExpenseWeekFallback,
   ProductAvailabilityStatus,
   ProductMetadata,
   ShoppingPlanType,
@@ -66,11 +72,12 @@ import type {
 import {
   hasDuplicatePlannedExpenseCategoryName,
   hasDuplicatePlannedExpenseItemName,
+  resolvePlannedExpenseWeekdayRuleDate,
 } from "@balance-sheet/shared";
 import { ApiError, api } from "../api/client";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
-import { formatCurrency } from "../lib/numberFormat";
+import { formatCompactCurrency, formatCurrency } from "../lib/numberFormat";
 import { accountDisplayName } from "../lib/accountUtils";
 import {
   buildAccountOptions,
@@ -88,13 +95,47 @@ import {
 } from "../lib/plannedExpenseOrdering";
 import {
   plannedExpenseActionRequiresConfirmation,
+  plannedExpenseDayOfMonthSelectOptions,
+  plannedExpenseMonthlyDueDateFromDay,
+  plannedExpenseCompletedScheduledGroups,
+  type PlannedExpenseCompletedScheduledGroup,
+  plannedExpenseApplyScheduledSkipPolicy,
+  plannedExpenseHasFixedRecurrenceEnd,
+  plannedExpenseRecurrenceFinalOccurrenceDate,
+  plannedExpenseRecurrencePlannedCount,
+  type PlannedExpenseSkipPolicy,
+  mergePlannedExpenseListsById,
   plannedExpenseItemNameLineClamp,
   plannedExpenseCategorySelectValue,
+  parsePlannedExpenseWeeksOfMonth,
+  serializePlannedExpenseWeeksOfMonth,
   shouldShowCompletedWishlistAmountTotal,
   shouldShowWishlistItemInCompletedList,
   shouldShowWishlistItemInMainList,
   shouldShowPlannedExpenseStatusField,
 } from "../lib/plannedExpenseForm";
+import {
+  calendarGridLayout,
+  calendarWeekdayColor,
+  calendarWeekdayKeys,
+  isCalendarToday,
+  normalizeCalendarWeekStart,
+  startOfCalendarWeek,
+} from "../lib/calendarWeekStart";
+import {
+  plannedExpenseCalendarDayBackground,
+  plannedExpenseCalendarDayHasCompleted,
+  plannedExpenseCalendarDayHasSkipped,
+  plannedExpenseCalendarEntryAmount,
+  plannedExpenseCalendarOccurrences,
+  plannedExpenseCalendarShouldShowStatus,
+  plannedExpenseCompleteOccurrenceUpdates,
+  plannedExpenseCompletedDateList,
+  plannedExpenseRemoveCompletedDate,
+  plannedExpenseRemoveSkippedDate,
+  plannedExpenseSkippedDateList,
+  type PlannedExpenseCalendarOccurrence,
+} from "../lib/plannedExpenseCalendar";
 
 type PlannedExpensePageProps = {
   kind: PlannedExpenseKind;
@@ -107,17 +148,25 @@ type PlannedExpenseFormValues = {
   expense_account_id: string | null;
   target_date: Date | null;
   recurrence_type: PlannedExpenseRecurrenceType;
-  recurrence_interval_months: number | "";
-  recurrence_day: number | "";
+  recurrence_interval: number | "";
+  recurrence_unit: PlannedExpenseRecurrenceUnit;
+  recurrence_monthly_mode: PlannedExpenseMonthlyMode;
+  recurrence_day: string | null;
+  recurrence_weeks_of_month: string[];
+  recurrence_weekday: string | null;
+  recurrence_week_fallback: PlannedExpenseWeekFallback;
   next_due_date: Date | null;
+  recurrence_end_mode: PlannedExpenseRecurrenceEndMode;
   end_date: Date | null;
-  priority: string;
+  recurrence_count: number | "";
   status: PlannedExpenseStatus;
   keep_on_routine_clear: boolean;
   note: string;
   url: string;
   product_metadata_cache_id: number | null;
 };
+
+type PlannedExpenseRecurrenceEndMode = "date" | "count";
 
 type CategoryFormValues = {
   name: string;
@@ -133,6 +182,17 @@ type InlineShoppingItemDraft = {
   keepOnRoutineClear: boolean;
   saving: boolean;
   error: string | null;
+};
+
+type CalendarDayEntry = PlannedExpenseCalendarOccurrence & {
+  item: PlannedExpense;
+  skipped: boolean;
+  completed: boolean;
+};
+
+type SelectedCalendarDay = {
+  date: string;
+  entries: CalendarDayEntry[];
 };
 
 type Translate = ReturnType<typeof useLang>["t"];
@@ -195,12 +255,6 @@ function inputDateToString(value: Date | null): string | null {
   return value ? dayjs(value).format("YYYY-MM-DD") : null;
 }
 
-function statusColor(status: PlannedExpenseStatus) {
-  if (status === "completed") return "teal";
-  if (status === "cancelled") return "gray";
-  return "blue";
-}
-
 function availabilityColor(status: ProductAvailabilityStatus) {
   if (status === "in_stock") return "teal";
   if (status === "out_of_stock" || status === "unavailable") return "red";
@@ -214,39 +268,6 @@ function availabilityColor(status: ProductAvailabilityStatus) {
 function getDropPosition(event: DragEvent<HTMLElement>): DropPosition {
   const rect = event.currentTarget.getBoundingClientRect();
   return event.clientY > rect.top + rect.height / 2 ? "after" : "before";
-}
-
-function PriorityStars({
-  value,
-  onChange,
-  readOnly = false,
-}: {
-  value: number;
-  onChange?: (value: number) => void;
-  readOnly?: boolean;
-}) {
-  return (
-    <Group gap={2} wrap="nowrap">
-      {[1, 2, 3, 4, 5].map((rating) => {
-        const filled = rating <= value;
-        const Icon = filled ? IconStarFilled : IconStar;
-        return (
-          <ActionIcon
-            key={rating}
-            size="sm"
-            variant="subtle"
-            color={filled ? "yellow" : "gray"}
-            aria-label={`priority ${rating}`}
-            tabIndex={readOnly ? -1 : 0}
-            style={{ pointerEvents: readOnly ? "none" : undefined }}
-            onClick={readOnly ? undefined : () => onChange?.(rating)}
-          >
-            <Icon size={15} />
-          </ActionIcon>
-        );
-      })}
-    </Group>
-  );
 }
 
 function isSupportedProductUrl(value: string) {
@@ -273,6 +294,61 @@ function dueDateForItem(item: PlannedExpense) {
   return item.recurrence_type === "recurring"
     ? item.next_due_date
     : item.target_date;
+}
+
+function recurrenceUnitLabel(
+  item: PlannedExpense,
+  t: Translate,
+): string {
+  const unit = item.recurrence_unit ?? "month";
+  if (unit === "week") return t("plannedExpenseRecurrenceUnit_week");
+  if (unit === "year") return t("plannedExpenseRecurrenceUnit_year");
+  return t("plannedExpenseRecurrenceUnit_month");
+}
+
+function recurrenceFrequencyLabel(item: PlannedExpense, t: Translate): string {
+  if (item.recurrence_type !== "recurring") {
+    return t("plannedExpenseOneTime");
+  }
+
+  const interval =
+    item.recurrence_interval ?? item.recurrence_interval_months ?? 1;
+  const base = `${t("plannedExpenseEveryInterval")} ${interval} ${recurrenceUnitLabel(
+    item,
+    t,
+  )}`;
+  if (item.recurrence_unit !== "month") return base;
+
+  const mode =
+    item.recurrence_monthly_mode === "week_of_month"
+      ? t("plannedExpenseMonthlyWeekday")
+      : t("plannedExpenseMonthlyDay");
+  return `${base} / ${mode}`;
+}
+
+function calendarTotalsByCurrency(entries: CalendarDayEntry[]) {
+  const totals = new Map<string, number>();
+  for (const entry of entries) {
+    const currency = entry.item.currency;
+    totals.set(
+      currency,
+      (totals.get(currency) ?? 0) + plannedExpenseCalendarEntryAmount(entry),
+    );
+  }
+  return totals;
+}
+
+function calendarPrimaryTotal(
+  entries: CalendarDayEntry[],
+  selectedCurrency: string,
+) {
+  const totals = calendarTotalsByCurrency(entries);
+  const currency = totals.has(selectedCurrency)
+    ? selectedCurrency
+    : totals.keys().next().value;
+  return typeof currency === "string"
+    ? { currency, amount: totals.get(currency) ?? 0 }
+    : null;
 }
 
 function compareShoppingItems(a: PlannedExpense, b: PlannedExpense) {
@@ -1018,17 +1094,6 @@ function CompletedWishlistList({
                               {item.name}
                             </Text>
                             <Group gap={4} mt={4} wrap="wrap">
-                              <Tooltip
-                                label={`${t("plannedExpensePriority")} ${item.priority}`}
-                                withArrow
-                              >
-                                <Box>
-                                  <PriorityStars
-                                    value={item.priority}
-                                    readOnly
-                                  />
-                                </Box>
-                              </Tooltip>
                               <Text size="xs" c="dimmed">
                                 {formatCurrency(
                                   item.estimated_amount,
@@ -1085,10 +1150,163 @@ function CompletedWishlistList({
   );
 }
 
+function completedScheduledGroupTitle(
+  reason: PlannedExpenseCompletedScheduledGroup<PlannedExpense>["reason"],
+  t: Translate,
+) {
+  if (reason === "end_date") return t("plannedExpenseEndedByDate");
+  if (reason === "final_occurrence") return t("plannedExpenseEndedByCount");
+  return t("plannedExpenseRecentlyCompleted");
+}
+
+function CompletedScheduledPaymentList({
+  groups,
+  t,
+  locale,
+  onReopenItem,
+  onEditItem,
+  onDeleteItem,
+}: {
+  groups: Array<PlannedExpenseCompletedScheduledGroup<PlannedExpense>>;
+  t: Translate;
+  locale: string;
+  onReopenItem: (item: PlannedExpense) => void;
+  onEditItem: (item: PlannedExpense) => void;
+  onDeleteItem: (item: PlannedExpense) => void;
+}) {
+  const itemCount = groups.reduce((count, group) => count + group.items.length, 0);
+  if (itemCount === 0) return null;
+
+  return (
+    <Accordion variant="contained" radius="md">
+      <Accordion.Item value="completed-scheduled-payments">
+        <Accordion.Control>
+          <Group gap="xs">
+            <Text fw={800} size="sm">
+              {t("plannedExpenseCompletedScheduledPayments")}
+            </Text>
+            <Text size="sm" c="dimmed">
+              {itemCount}
+            </Text>
+          </Group>
+        </Accordion.Control>
+        <Accordion.Panel>
+          <Stack gap="sm">
+            {groups.map((group) => (
+              <Paper key={group.reason} withBorder radius="md">
+                <Box px="md" py="xs" bg="var(--mantine-color-default-hover)">
+                  <Group justify="space-between" gap="xs" wrap="nowrap">
+                    <Text fw={700} size="sm">
+                      {completedScheduledGroupTitle(group.reason, t)}
+                    </Text>
+                    <Badge size="xs" variant="light">
+                      {group.items.length}
+                    </Badge>
+                  </Group>
+                </Box>
+                <Stack gap={0}>
+                  {group.items.map(({ item, completedAt }) => (
+                    <Box
+                      key={`${group.reason}-${item.id}`}
+                      px="md"
+                      py="sm"
+                      style={{
+                        borderTop:
+                          "1px solid var(--mantine-color-default-border)",
+                      }}
+                    >
+                      <Group
+                        align="flex-start"
+                        justify="space-between"
+                        gap="sm"
+                        wrap="nowrap"
+                      >
+                        <Box style={{ minWidth: 0, flex: 1 }}>
+                          <Text
+                            fw={700}
+                            size="sm"
+                            lineClamp={2}
+                            style={{ wordBreak: "break-word" }}
+                          >
+                            {item.name}
+                          </Text>
+                          <Group gap={6} mt={4} wrap="wrap">
+                            <Text size="xs" c="dimmed">
+                              {formatCurrency(
+                                item.estimated_amount,
+                                locale,
+                                item.currency,
+                              )}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              {dayjs(completedAt).format("YYYY/MM/DD")}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              {item.expense_account_name ??
+                                t("plannedExpenseNoExpenseAccount")}
+                            </Text>
+                          </Group>
+                          {(item.note || item.url) && (
+                            <Text size="xs" c="dimmed" lineClamp={1} mt={2}>
+                              {item.note || item.url}
+                            </Text>
+                          )}
+                        </Box>
+                        <Group gap={4} wrap="nowrap" style={{ flex: "0 0 auto" }}>
+                          {item.status === "completed" && (
+                            <Tooltip
+                              label={t("plannedExpenseStatus_open")}
+                              withArrow
+                            >
+                              <ActionIcon
+                                variant="subtle"
+                                aria-label={t("plannedExpenseStatus_open")}
+                                onClick={() => onReopenItem(item)}
+                              >
+                                <IconRefresh size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          )}
+                          <ActionIcon
+                            variant="subtle"
+                            aria-label={t("editLabel")}
+                            onClick={() => onEditItem(item)}
+                          >
+                            <IconEdit size={16} />
+                          </ActionIcon>
+                          <Tooltip label={t("deleteBudgetCategory")} withArrow>
+                            <ActionIcon
+                              variant="subtle"
+                              color="red"
+                              aria-label={t("deleteBudgetCategory")}
+                              onClick={() => onDeleteItem(item)}
+                            >
+                              <IconTrash size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Group>
+                      </Group>
+                    </Box>
+                  ))}
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
+        </Accordion.Panel>
+      </Accordion.Item>
+    </Accordion>
+  );
+}
+
 export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
   const { t, locale } = useLang();
-  const { accounts, budgetCategories, displayCurrency, enabledCurrencies } =
-    useAppData();
+  const {
+    accounts,
+    budgetCategories,
+    budgetSettings,
+    displayCurrency,
+    enabledCurrencies,
+  } = useAppData();
   const navigate = useNavigate();
   const [items, setItems] = useState<PlannedExpense[]>([]);
   const [categories, setCategories] = useState<PlannedExpenseCategory[]>([]);
@@ -1114,8 +1332,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     useState<PlannedExpense | null>(null);
   const [completeItemTarget, setCompleteItemTarget] =
     useState<PlannedExpense | null>(null);
-  const [cancelItemTarget, setCancelItemTarget] =
-    useState<PlannedExpense | null>(null);
   const [restoreShoppingPlanTarget, setRestoreShoppingPlanTarget] =
     useState<ShoppingPlanGroup | null>(null);
   const [inlineShoppingItemDraft, setInlineShoppingItemDraft] =
@@ -1130,12 +1346,17 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
   const [calendarMonth, setCalendarMonth] = useState(() =>
     dayjs().startOf("month"),
   );
+  const [selectedCalendarDay, setSelectedCalendarDay] =
+    useState<SelectedCalendarDay | null>(null);
+  const [skipPolicyTarget, setSkipPolicyTarget] =
+    useState<CalendarDayEntry | null>(null);
 
   const isShoppingList = kind === "shopping_list";
   const isWishlist = kind === "wishlist";
   const isScheduled = kind === "scheduled_payment";
   const selectedCurrency = displayCurrency || "JPY";
-  const showItemPriorityField = !isShoppingList;
+  const isCalendarCompact = useMediaQuery("(max-width: 36em)");
+  const calendarLayout = calendarGridLayout(Boolean(isCalendarCompact));
   const showItemStatusField = shouldShowPlannedExpenseStatusField(editingItem);
   const itemNameLineClamp = plannedExpenseItemNameLineClamp();
   const isDuplicateItemName = ({
@@ -1244,6 +1465,60 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     value: String(category.id),
     label: category.name,
   }));
+  const recurrenceUnitOptions = [
+    { value: "week", label: t("plannedExpenseRecurrenceUnit_week") },
+    { value: "month", label: t("plannedExpenseRecurrenceUnit_month") },
+    { value: "year", label: t("plannedExpenseRecurrenceUnit_year") },
+  ];
+  const recurrenceMonthlyModeOptions = [
+    {
+      value: "day_of_month",
+      label: t("plannedExpenseMonthlyDay"),
+    },
+    {
+      value: "week_of_month",
+      label: t("plannedExpenseMonthlyWeekday"),
+    },
+  ];
+  const recurrenceEndModeOptions = [
+    { value: "date", label: t("plannedExpenseEndConditionDate") },
+    { value: "count", label: t("plannedExpenseEndConditionCount") },
+  ];
+  const recurrenceWeekOfMonthOptions = [
+    { value: "1", label: t("plannedExpenseWeekOfMonth_1") },
+    { value: "2", label: t("plannedExpenseWeekOfMonth_2") },
+    { value: "3", label: t("plannedExpenseWeekOfMonth_3") },
+    { value: "4", label: t("plannedExpenseWeekOfMonth_4") },
+    { value: "5", label: t("plannedExpenseWeekOfMonth_5") },
+  ];
+  const recurrenceWeekdayOptions = [
+    { value: "0", label: t("weekday_short_0") },
+    { value: "1", label: t("weekday_short_1") },
+    { value: "2", label: t("weekday_short_2") },
+    { value: "3", label: t("weekday_short_3") },
+    { value: "4", label: t("weekday_short_4") },
+    { value: "5", label: t("weekday_short_5") },
+    { value: "6", label: t("weekday_short_6") },
+  ];
+  const recurrenceWeekFallbackOptions = [
+    {
+      value: "skip",
+      label: t("plannedExpenseWeekFallback_skip"),
+    },
+    {
+      value: "last_day_of_month",
+      label: t("plannedExpenseWeekFallback_last_day_of_month"),
+    },
+    {
+      value: "previous_week",
+      label: t("plannedExpenseWeekFallback_previous_week"),
+    },
+    {
+      value: "next_month_first_week",
+      label: t("plannedExpenseWeekFallback_next_month_first_week"),
+    },
+  ];
+  const recurrenceDayOfMonthOptions = plannedExpenseDayOfMonthSelectOptions(t);
 
   const form = useForm<PlannedExpenseFormValues>({
     initialValues: {
@@ -1253,11 +1528,17 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       expense_account_id: null,
       target_date: null,
       recurrence_type: "one_time",
-      recurrence_interval_months: 1,
-      recurrence_day: "",
+      recurrence_interval: 1,
+      recurrence_unit: "month",
+      recurrence_monthly_mode: "day_of_month",
+      recurrence_day: null,
+      recurrence_weeks_of_month: [],
+      recurrence_weekday: null,
+      recurrence_week_fallback: "previous_week",
       next_due_date: null,
+      recurrence_end_mode: "date",
       end_date: null,
-      priority: "3",
+      recurrence_count: "",
       status: "open",
       keep_on_routine_clear: false,
       note: "",
@@ -1276,6 +1557,103 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       },
     },
   });
+
+  const recurrencePreviewItem = useMemo(() => {
+    const recurrenceType = isScheduled ? form.values.recurrence_type : "one_time";
+    if (!isScheduled || recurrenceType !== "recurring") return null;
+    const usesMonthlyDayRule =
+      form.values.recurrence_unit === "month" &&
+      form.values.recurrence_monthly_mode === "day_of_month";
+    const usesMonthlyWeekdayRule =
+      form.values.recurrence_unit === "month" &&
+      form.values.recurrence_monthly_mode === "week_of_month";
+    const recurrenceDay =
+      usesMonthlyDayRule && form.values.recurrence_day != null
+        ? Number(form.values.recurrence_day)
+        : null;
+    const recurrenceWeeksOfMonth = usesMonthlyWeekdayRule
+      ? serializePlannedExpenseWeeksOfMonth(form.values.recurrence_weeks_of_month)
+      : null;
+    const recurrenceWeekday =
+      usesMonthlyWeekdayRule && form.values.recurrence_weekday != null
+        ? Number(form.values.recurrence_weekday)
+        : null;
+    const rawNextDueDate = inputDateToString(form.values.next_due_date);
+    const nextDueDate = usesMonthlyDayRule
+      ? plannedExpenseMonthlyDueDateFromDay(rawNextDueDate, recurrenceDay)
+      : usesMonthlyWeekdayRule
+        ? resolvePlannedExpenseWeekdayRuleDate({
+            date: rawNextDueDate,
+            weeksOfMonth: recurrenceWeeksOfMonth,
+            weekday: recurrenceWeekday,
+            fallback: form.values.recurrence_week_fallback,
+          })
+        : rawNextDueDate;
+
+    return {
+      kind: "scheduled_payment" as const,
+      recurrence_type: "recurring" as const,
+      recurrence_interval: Number(form.values.recurrence_interval || 1),
+      recurrence_unit: form.values.recurrence_unit,
+      recurrence_monthly_mode:
+        form.values.recurrence_unit === "month"
+          ? form.values.recurrence_monthly_mode
+          : null,
+      recurrence_interval_months:
+        form.values.recurrence_unit === "month"
+          ? Number(form.values.recurrence_interval || 1)
+          : null,
+      recurrence_day: usesMonthlyDayRule ? recurrenceDay : null,
+      recurrence_weeks_of_month: usesMonthlyWeekdayRule
+        ? recurrenceWeeksOfMonth
+        : null,
+      recurrence_weekday: usesMonthlyWeekdayRule ? recurrenceWeekday : null,
+      recurrence_week_fallback: usesMonthlyWeekdayRule
+        ? form.values.recurrence_week_fallback
+        : null,
+      target_date: null,
+      next_due_date: nextDueDate,
+      end_date: inputDateToString(form.values.end_date),
+      recurrence_count:
+        form.values.recurrence_count === ""
+          ? null
+          : Number(form.values.recurrence_count),
+    };
+  }, [form.values, isScheduled]);
+
+  const recurrencePlannedCountPreview =
+    form.values.recurrence_end_mode === "date" && recurrencePreviewItem
+      ? plannedExpenseRecurrencePlannedCount(recurrencePreviewItem)
+      : null;
+  const recurrenceFinalDatePreview =
+    form.values.recurrence_end_mode === "count" && recurrencePreviewItem
+      ? plannedExpenseRecurrenceFinalOccurrenceDate(recurrencePreviewItem)
+      : null;
+  const originalRecurrencePlannedCount = useMemo(() => {
+    if (!editingItem || editingItem.recurrence_type !== "recurring") {
+      return null;
+    }
+    if (editingItem.recurrence_count != null) return editingItem.recurrence_count;
+    if (editingItem.end_date) {
+      return plannedExpenseRecurrencePlannedCount(editingItem);
+    }
+    return null;
+  }, [editingItem]);
+  const currentRecurrencePlannedCount =
+    form.values.recurrence_end_mode === "count"
+      ? form.values.recurrence_count === ""
+        ? null
+        : Number(form.values.recurrence_count)
+      : recurrencePlannedCountPreview;
+  const recurrencePlannedCountDiffHint =
+    originalRecurrencePlannedCount != null &&
+    currentRecurrencePlannedCount != null &&
+    Number.isFinite(currentRecurrencePlannedCount) &&
+    originalRecurrencePlannedCount !== currentRecurrencePlannedCount
+      ? t("plannedExpensePlannedCountChangeHint")
+          .replace("{from}", String(originalRecurrencePlannedCount))
+          .replace("{to}", String(currentRecurrencePlannedCount))
+      : null;
 
   const categoryForm = useForm<CategoryFormValues>({
     initialValues: {
@@ -1408,11 +1786,21 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     try {
       const [
         nextItems,
+        nextCancelledItems,
+        nextCompletedItems,
         nextCategories,
         nextAllItems,
         nextAllCategories,
       ] = await Promise.all([
-        api.plannedExpenses.list({ kind }),
+        isScheduled
+          ? api.plannedExpenses.list({ kind, status: "open" })
+          : api.plannedExpenses.list({ kind }),
+        isScheduled
+          ? api.plannedExpenses.list({ kind, status: "cancelled" })
+          : Promise.resolve([] as PlannedExpense[]),
+        isScheduled
+          ? api.plannedExpenses.list({ kind, status: "completed" })
+          : Promise.resolve([] as PlannedExpense[]),
         api.plannedExpenses.listCategories({ kind }),
         isShoppingList
           ? api.plannedExpenses.list({ kind, includeArchived: true })
@@ -1424,7 +1812,13 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
             })
           : Promise.resolve([] as PlannedExpenseCategory[]),
       ]);
-      setItems(nextItems);
+      setItems(
+        mergePlannedExpenseListsById(
+          nextItems,
+          nextCancelledItems,
+          nextCompletedItems,
+        ),
+      );
       setCategories(nextCategories);
       if (isShoppingList) {
         const archived = nextAllCategories
@@ -1460,11 +1854,17 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       expense_account_id: null,
       target_date: null,
       recurrence_type: "one_time",
-      recurrence_interval_months: 1,
-      recurrence_day: "",
+      recurrence_interval: 1,
+      recurrence_unit: "month",
+      recurrence_monthly_mode: "day_of_month",
+      recurrence_day: null,
+      recurrence_weeks_of_month: [],
+      recurrence_weekday: null,
+      recurrence_week_fallback: "previous_week",
       next_due_date: null,
+      recurrence_end_mode: "date",
       end_date: null,
-      priority: "3",
+      recurrence_count: "",
       status: "open",
       keep_on_routine_clear: false,
       note: "",
@@ -1497,11 +1897,26 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         item.expense_account_id == null ? null : String(item.expense_account_id),
       target_date: dateToInputDate(item.target_date),
       recurrence_type: item.recurrence_type,
-      recurrence_interval_months: item.recurrence_interval_months ?? 1,
-      recurrence_day: item.recurrence_day ?? "",
+      recurrence_interval:
+        item.recurrence_interval ?? item.recurrence_interval_months ?? 1,
+      recurrence_unit: item.recurrence_unit ?? "month",
+      recurrence_monthly_mode:
+        item.recurrence_monthly_mode ??
+        (item.recurrence_weeks_of_month == null
+          ? "day_of_month"
+          : "week_of_month"),
+      recurrence_day:
+        item.recurrence_day == null ? null : String(item.recurrence_day),
+      recurrence_weeks_of_month: parsePlannedExpenseWeeksOfMonth(
+        item.recurrence_weeks_of_month,
+      ),
+      recurrence_weekday:
+        item.recurrence_weekday == null ? null : String(item.recurrence_weekday),
+      recurrence_week_fallback: item.recurrence_week_fallback ?? "previous_week",
       next_due_date: dateToInputDate(item.next_due_date),
+      recurrence_end_mode: item.recurrence_count == null ? "date" : "count",
       end_date: dateToInputDate(item.end_date),
-      priority: String(item.priority),
+      recurrence_count: item.recurrence_count ?? "",
       status: item.status,
       keep_on_routine_clear: item.keep_on_routine_clear,
       note: item.note ?? "",
@@ -1568,11 +1983,16 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         expense_account_id: null,
         target_date: null,
         recurrence_type: "one_time",
+        recurrence_interval: null,
+        recurrence_unit: null,
+        recurrence_monthly_mode: null,
         recurrence_interval_months: null,
         recurrence_day: null,
+        recurrence_weeks_of_month: null,
+        recurrence_weekday: null,
+        recurrence_week_fallback: null,
         next_due_date: null,
         end_date: null,
-        priority: 3,
         status: "open",
         keep_on_routine_clear: draft.keepOnRoutineClear,
         note: null,
@@ -1702,6 +2122,39 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         isShoppingList &&
         selectedFormCategory?.shopping_plan_type === "routine" &&
         values.keep_on_routine_clear;
+      const usesMonthlyDayRule =
+        isScheduled &&
+        recurrenceType === "recurring" &&
+        values.recurrence_unit === "month" &&
+        values.recurrence_monthly_mode === "day_of_month";
+      const usesMonthlyWeekdayRule =
+        isScheduled &&
+        recurrenceType === "recurring" &&
+        values.recurrence_unit === "month" &&
+        values.recurrence_monthly_mode === "week_of_month";
+      const recurrenceDay =
+        usesMonthlyDayRule && values.recurrence_day != null
+          ? Number(values.recurrence_day)
+          : null;
+      const recurrenceWeeksOfMonth =
+        usesMonthlyWeekdayRule
+          ? serializePlannedExpenseWeeksOfMonth(
+              values.recurrence_weeks_of_month,
+            )
+          : null;
+      const recurrenceWeekday =
+        usesMonthlyWeekdayRule && values.recurrence_weekday != null
+          ? Number(values.recurrence_weekday)
+          : null;
+      const nextDueDate = inputDateToString(values.next_due_date);
+      const usesEndDate =
+        isScheduled &&
+        recurrenceType === "recurring" &&
+        values.recurrence_end_mode === "date";
+      const usesRecurrenceCount =
+        isScheduled &&
+        recurrenceType === "recurring" &&
+        values.recurrence_end_mode === "count";
       const payload = {
         category_id:
           values.category_id == null ? null : Number(values.category_id),
@@ -1718,25 +2171,56 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
             ? null
             : inputDateToString(values.target_date),
         recurrence_type: recurrenceType,
-        recurrence_interval_months:
+        recurrence_interval:
           isScheduled && recurrenceType === "recurring"
-            ? Number(values.recurrence_interval_months || 1)
+            ? Number(values.recurrence_interval || 1)
             : null,
-        recurrence_day:
+        recurrence_unit:
+          isScheduled && recurrenceType === "recurring"
+            ? values.recurrence_unit
+            : null,
+        recurrence_monthly_mode:
           isScheduled &&
           recurrenceType === "recurring" &&
-          typeof values.recurrence_day === "number"
-            ? values.recurrence_day
+          values.recurrence_unit === "month"
+            ? values.recurrence_monthly_mode
             : null,
+        recurrence_interval_months:
+          isScheduled &&
+          recurrenceType === "recurring" &&
+          values.recurrence_unit === "month"
+            ? Number(values.recurrence_interval || 1)
+            : null,
+        recurrence_day:
+          usesMonthlyDayRule ? recurrenceDay : null,
+        recurrence_weeks_of_month:
+          usesMonthlyWeekdayRule ? recurrenceWeeksOfMonth : null,
+        recurrence_weekday:
+          usesMonthlyWeekdayRule ? recurrenceWeekday : null,
+        recurrence_week_fallback: usesMonthlyWeekdayRule
+          ? values.recurrence_week_fallback
+          : null,
         next_due_date:
           isScheduled && recurrenceType === "recurring"
-            ? inputDateToString(values.next_due_date)
+            ? usesMonthlyDayRule
+              ? plannedExpenseMonthlyDueDateFromDay(nextDueDate, recurrenceDay)
+              : usesMonthlyWeekdayRule
+                ? resolvePlannedExpenseWeekdayRuleDate({
+                    date: nextDueDate,
+                    weeksOfMonth: recurrenceWeeksOfMonth,
+                    weekday: recurrenceWeekday,
+                    fallback: values.recurrence_week_fallback,
+                  })
+              : nextDueDate
             : null,
         end_date:
-          isScheduled && recurrenceType === "recurring"
+          usesEndDate
             ? inputDateToString(values.end_date)
             : null,
-        priority: isShoppingList ? 3 : Number(values.priority),
+        recurrence_count:
+          usesRecurrenceCount && values.recurrence_count !== ""
+            ? Number(values.recurrence_count)
+            : null,
         sort_order:
           editingItem?.sort_order ??
           items.filter(
@@ -1915,14 +2399,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       return;
     }
     void deleteItem(item);
-  };
-
-  const requestCancelItem = (item: PlannedExpense) => {
-    if (plannedExpenseActionRequiresConfirmation("cancel_item")) {
-      setCancelItemTarget(item);
-      return;
-    }
-    void updateStatus(item, "cancelled");
   };
 
   const requestCompleteItem = (item: PlannedExpense) => {
@@ -2134,16 +2610,29 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     return item.estimated_amount;
   };
 
-  const startExpenseInput = (item: PlannedExpense) => {
+  const startExpenseInput = (
+    item: PlannedExpense,
+    occurrenceDate?: string | null,
+  ) => {
+    const effectiveOccurrenceDate = occurrenceDate ?? dueDateForItem(item);
+    const completionUpdates =
+      effectiveOccurrenceDate != null && item.recurrence_type === "recurring"
+        ? plannedExpenseCompleteOccurrenceUpdates(item, effectiveOccurrenceDate)
+        : null;
     const source: PlannedExpenseEntrySource = {
       id: item.id,
       kind: item.kind,
       name: item.name,
       amount: getInputAmount(item),
       currency: item.currency,
+      recurrenceType: item.recurrence_type,
       expenseAccountId: item.expense_account_id,
       categoryId: item.category_id,
       categoryShoppingPlanType: item.category_shopping_plan_type ?? null,
+      occurrenceDate: effectiveOccurrenceDate ?? null,
+      nextDueDateAfterOccurrence: completionUpdates?.next_due_date,
+      completedDates: completionUpdates?.completed_dates ?? item.completed_dates,
+      completionStatusAfterOccurrence: completionUpdates?.status,
     };
     navigate("/input", {
       state: {
@@ -2151,6 +2640,96 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         plannedExpenseEntry: source,
       },
     });
+  };
+
+  const skipCalendarPayment = async (
+    entry: CalendarDayEntry,
+    policy?: PlannedExpenseSkipPolicy,
+  ) => {
+    const { item, date } = entry;
+    if (item.recurrence_type !== "recurring") {
+      await api.plannedExpenses.update(item.id, { status: "cancelled" });
+      setSelectedCalendarDay(null);
+      await loadData();
+      return;
+    }
+
+    if (policy == null && plannedExpenseHasFixedRecurrenceEnd(item)) {
+      setSkipPolicyTarget(entry);
+      return;
+    }
+
+    const updates = plannedExpenseApplyScheduledSkipPolicy(
+      item,
+      date,
+      policy ?? "reduce",
+    );
+    await api.plannedExpenses.update(item.id, updates);
+    setSelectedCalendarDay((current) =>
+      current == null
+        ? null
+        : {
+            ...current,
+            entries: current.entries.map((currentEntry) =>
+              currentEntry.item.id === item.id && currentEntry.date === date
+                ? {
+                    ...currentEntry,
+                    item: {
+                      ...currentEntry.item,
+                      ...updates,
+                    },
+                    skipped: true,
+                  }
+                : currentEntry,
+            ),
+          },
+    );
+    setSkipPolicyTarget(null);
+    await loadData();
+  };
+
+  const restoreCalendarPayment = async (entry: CalendarDayEntry) => {
+    if (entry.skipped) {
+      await api.plannedExpenses.update(entry.item.id, {
+        skipped_dates: plannedExpenseRemoveSkippedDate(
+          entry.item.skipped_dates,
+          entry.date,
+        ),
+      });
+    } else {
+      await api.plannedExpenses.update(entry.item.id, { status: "open" });
+    }
+    setSelectedCalendarDay(null);
+    await loadData();
+  };
+
+  const undoCompletedCalendarPayment = async (entry: CalendarDayEntry) => {
+    const updates: {
+      status?: PlannedExpenseStatus;
+      completed_dates?: string | null;
+      next_due_date?: string | null;
+    } = {};
+
+    if (entry.completed) {
+      updates.completed_dates = plannedExpenseRemoveCompletedDate(
+        entry.item.completed_dates,
+        entry.date,
+      );
+    }
+    if (entry.item.status === "completed") {
+      updates.status = "open";
+    }
+    if (
+      entry.item.recurrence_type === "recurring" &&
+      (entry.item.next_due_date == null || entry.date < entry.item.next_due_date)
+    ) {
+      updates.next_due_date = entry.date;
+      updates.status = "open";
+    }
+
+    await api.plannedExpenses.update(entry.item.id, updates);
+    setSelectedCalendarDay(null);
+    await loadData();
   };
 
   const startShoppingPlanCheckout = (
@@ -2210,19 +2789,35 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           (dueDateForItem(a) ?? "9999-12-31").localeCompare(
             dueDateForItem(b) ?? "9999-12-31",
           ) ||
-          b.priority - a.priority ||
           b.id - a.id,
       );
     },
     [isShoppingList, isWishlist, items],
   );
-  const visibleSortedItems = useMemo(
+  const todayDate = dayjs().format("YYYY-MM-DD");
+  const completedScheduledGroups = useMemo(
     () =>
-      isWishlist
-        ? sortedItems.filter(shouldShowWishlistItemInMainList)
-        : sortedItems,
-    [isWishlist, sortedItems],
+      isScheduled
+        ? plannedExpenseCompletedScheduledGroups(sortedItems, todayDate)
+        : [],
+    [isScheduled, sortedItems, todayDate],
   );
+  const completedScheduledItemIds = useMemo(
+    () =>
+      new Set(
+        completedScheduledGroups.flatMap((group) =>
+          group.items.map(({ item }) => item.id),
+        ),
+      ),
+    [completedScheduledGroups],
+  );
+  const visibleSortedItems = useMemo(() => {
+    if (isWishlist) return sortedItems.filter(shouldShowWishlistItemInMainList);
+    if (isScheduled) {
+      return sortedItems.filter((item) => !completedScheduledItemIds.has(item.id));
+    }
+    return sortedItems;
+  }, [completedScheduledItemIds, isScheduled, isWishlist, sortedItems]);
   const completedWishlistItems = useMemo(
     () =>
       isWishlist
@@ -2230,7 +2825,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         : [],
     [isWishlist, sortedItems],
   );
-
   const sortedShoppingCategories = useMemo(() => {
     if (isWishlist) return sortByManualOrder(categories);
     if (!isShoppingList) return categories;
@@ -2335,22 +2929,87 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     if (isShoppingList) return sum;
     return sum + item.estimated_amount;
   }, 0);
+  const calendarWeekStart = normalizeCalendarWeekStart(
+    budgetSettings?.calendar_week_start,
+  );
+  const calendarWeekdayHeaderKeys = useMemo(
+    () => calendarWeekdayKeys(calendarWeekStart),
+    [calendarWeekStart],
+  );
   const calendarDays = useMemo(() => {
-    const start = calendarMonth.startOf("month").startOf("week");
+    const start = startOfCalendarWeek(
+      calendarMonth.startOf("month"),
+      calendarWeekStart,
+    );
     return Array.from({ length: 42 }, (_, index) => start.add(index, "day"));
-  }, [calendarMonth]);
-  const calendarItemsByDate = useMemo(() => {
-    const map = new Map<string, PlannedExpense[]>();
+  }, [calendarMonth, calendarWeekStart]);
+  const todayKey = useMemo(() => dayjs().format("YYYY-MM-DD"), []);
+  const calendarEntriesByDate = useMemo(() => {
+    const map = new Map<string, CalendarDayEntry[]>();
+    const rangeStart = calendarDays[0]?.format("YYYY-MM-DD");
+    const rangeEnd = calendarDays.at(-1)?.format("YYYY-MM-DD");
+    if (!rangeStart || !rangeEnd) return map;
     for (const item of items) {
-      if (item.status !== "open") continue;
-      const date = dueDateForItem(item);
-      if (!date) continue;
-      const list = map.get(date) ?? [];
-      list.push(item);
-      map.set(date, list);
+      if (!plannedExpenseCalendarShouldShowStatus(item.status)) continue;
+      const skippedDates = new Set(
+        plannedExpenseSkippedDateList(item.skipped_dates),
+      );
+      const completedDates = new Set(
+        plannedExpenseCompletedDateList(item.completed_dates),
+      );
+      const addedDates = new Set<string>();
+      for (const completedDate of completedDates) {
+        if (completedDate < rangeStart || completedDate > rangeEnd) {
+          continue;
+        }
+        const list = map.get(completedDate) ?? [];
+        list.push({
+          date: completedDate,
+          occurrenceNumber: 0,
+          item,
+          skipped: false,
+          completed: true,
+        });
+        map.set(completedDate, list);
+        addedDates.add(completedDate);
+      }
+      for (const occurrence of plannedExpenseCalendarOccurrences(
+        item,
+        rangeStart,
+        rangeEnd,
+      )) {
+        if (addedDates.has(occurrence.date)) continue;
+        const list = map.get(occurrence.date) ?? [];
+        list.push({
+          ...occurrence,
+          item,
+          skipped: skippedDates.has(occurrence.date),
+          completed: item.status === "completed",
+        });
+        map.set(occurrence.date, list);
+        addedDates.add(occurrence.date);
+      }
+      for (const skippedDate of skippedDates) {
+        if (
+          skippedDate < rangeStart ||
+          skippedDate > rangeEnd ||
+          addedDates.has(skippedDate)
+        ) {
+          continue;
+        }
+        const list = map.get(skippedDate) ?? [];
+        list.push({
+          date: skippedDate,
+          occurrenceNumber: 0,
+          item,
+          skipped: true,
+          completed: false,
+        });
+        map.set(skippedDate, list);
+      }
     }
     return map;
-  }, [items]);
+  }, [calendarDays, items]);
 
   const renderWishlistItemOrderControls = (
     item: PlannedExpense,
@@ -2478,19 +3137,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           </ActionIcon>
         </Tooltip>
       )}
-      {!isShoppingList && item.status !== "cancelled" && (
-        <Tooltip label={t("plannedExpenseCancel")} withArrow>
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            aria-label={t("plannedExpenseCancel")}
-            disabled={isReferenceCurrency}
-            onClick={() => requestCancelItem(item)}
-          >
-            <IconX size={16} />
-          </ActionIcon>
-        </Tooltip>
-      )}
       <ActionIcon
         variant="subtle"
         aria-label={t("editLabel")}
@@ -2584,24 +3230,46 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       )}
 
       {isScheduled && (
-        <Paper withBorder p="md" radius="md">
-          <Group justify="space-between" mb="sm">
+        <Paper withBorder p={calendarLayout.calendarPadding} radius="md">
+          <Group
+            justify="space-between"
+            mb="sm"
+            gap="xs"
+            wrap="wrap"
+            px={isCalendarCompact ? 4 : 0}
+            pt={isCalendarCompact ? 4 : 0}
+          >
             <Text fw={700} size="sm">
               {t("plannedExpenseCalendar")}
             </Text>
-            <Group gap="xs">
+            <Group gap={isCalendarCompact ? 4 : "xs"} wrap="nowrap">
               <ActionIcon
                 variant="subtle"
+                size={isCalendarCompact ? "sm" : "md"}
                 onClick={() => setCalendarMonth((month) => month.subtract(1, "month"))}
                 aria-label="Previous month"
               >
                 <IconChevronLeft size={16} />
               </ActionIcon>
-              <Text fw={700} size="sm" w={92} ta="center">
+              <Text
+                fw={700}
+                size={isCalendarCompact ? "xs" : "sm"}
+                w={isCalendarCompact ? 70 : 92}
+                ta="center"
+              >
                 {calendarMonth.format("YYYY/MM")}
               </Text>
+              <Button
+                size="xs"
+                variant="light"
+                px={isCalendarCompact ? 6 : undefined}
+                onClick={() => setCalendarMonth(dayjs().startOf("month"))}
+              >
+                {t("calendarTodayButton")}
+              </Button>
               <ActionIcon
                 variant="subtle"
+                size={isCalendarCompact ? "sm" : "md"}
                 onClick={() => setCalendarMonth((month) => month.add(1, "month"))}
                 aria-label="Next month"
               >
@@ -2609,47 +3277,330 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
               </ActionIcon>
             </Group>
           </Group>
-          <SimpleGrid cols={7} spacing={4}>
+          <SimpleGrid
+            cols={7}
+            spacing={calendarLayout.gridGap}
+            mb={calendarLayout.gridGap}
+          >
+            {calendarWeekdayHeaderKeys.map((key, index) => (
+              <Text
+                key={key}
+                size={isCalendarCompact ? "10px" : "xs"}
+                c={calendarWeekdayColor((calendarWeekStart + index) % 7)}
+                fw={800}
+                ta="center"
+                py={isCalendarCompact ? 1 : 2}
+              >
+                {t(key)}
+              </Text>
+            ))}
+          </SimpleGrid>
+          <SimpleGrid cols={7} spacing={calendarLayout.gridGap}>
             {calendarDays.map((date) => {
               const dateKey = date.format("YYYY-MM-DD");
-              const dayItems = calendarItemsByDate.get(dateKey) ?? [];
-              const total = dayItems.reduce(
-                (sum, item) =>
-                  item.currency === selectedCurrency
-                    ? sum + item.estimated_amount
-                    : sum,
-                0,
+              const isToday = isCalendarToday(dateKey, todayKey);
+              const dayEntries = calendarEntriesByDate.get(dateKey) ?? [];
+              const primaryTotal = calendarPrimaryTotal(
+                dayEntries,
+                selectedCurrency,
               );
-              return (
+              const dayBackground =
+                plannedExpenseCalendarDayBackground(dayEntries);
+              const hasCompletedEntry =
+                plannedExpenseCalendarDayHasCompleted(dayEntries);
+              const hasSkippedEntry =
+                plannedExpenseCalendarDayHasSkipped(dayEntries);
+              const content = (
                 <Box
-                  key={dateKey}
-                  p={6}
-                  mih={72}
+                  p={calendarLayout.cellPadding}
+                  mih={calendarLayout.cellMinHeight}
                   style={{
                     border: "1px solid var(--mantine-color-default-border)",
-                    borderRadius: 6,
+                    borderRadius: isCalendarCompact ? 0 : 6,
+                    backgroundColor: dayBackground === "completed"
+                      ? "var(--mantine-color-green-light)"
+                      : dayBackground === "skipped"
+                        ? "var(--mantine-color-gray-light)"
+                      : isToday
+                        ? "var(--mantine-color-yellow-light)"
+                        : undefined,
+                    boxShadow: dayBackground == null && isToday
+                      ? "inset 0 0 0 1px var(--mantine-color-yellow-6)"
+                      : undefined,
                     opacity: date.month() === calendarMonth.month() ? 1 : 0.42,
+                    position: "relative",
                   }}
                 >
-                  <Text size="xs" c="dimmed" fw={700}>
+                  {(hasCompletedEntry || hasSkippedEntry) && (
+                    <Group
+                      gap={1}
+                      style={{
+                        position: "absolute",
+                        top: isCalendarCompact ? 1 : 4,
+                        right: isCalendarCompact ? 1 : 4,
+                        pointerEvents: "none",
+                      }}
+                    >
+                      {hasCompletedEntry && (
+                        <ThemeIcon
+                          size={isCalendarCompact ? 14 : 16}
+                          radius="xl"
+                          color="green"
+                          variant="filled"
+                        >
+                          <IconCheck size={isCalendarCompact ? 9 : 11} />
+                        </ThemeIcon>
+                      )}
+                      {hasSkippedEntry && (
+                        <ThemeIcon
+                          size={isCalendarCompact ? 14 : 16}
+                          radius="xl"
+                          color="gray"
+                          variant="white"
+                        >
+                          <IconPlayerTrackNext
+                            size={isCalendarCompact ? 9 : 11}
+                          />
+                        </ThemeIcon>
+                      )}
+                    </Group>
+                  )}
+                  <Text
+                    size={isCalendarCompact ? "10px" : "xs"}
+                    c={
+                      dayBackground === "completed"
+                        ? "green.9"
+                        : dayBackground === "skipped"
+                          ? "gray.8"
+                        : isToday
+                          ? "yellow.9"
+                          : calendarWeekdayColor(date.day())
+                    }
+                    fw={isToday || dayBackground != null ? 900 : 700}
+                    lh={1.1}
+                  >
                     {date.date()}
                   </Text>
-                  {dayItems.length > 0 && (
-                    <Stack gap={2} mt={3}>
-                      <Text size="xs" fw={700} c="blue">
-                        {formatCurrency(total, locale, selectedCurrency)}
+                  {dayEntries.length > 0 && primaryTotal != null && (
+                    <Stack
+                      gap={calendarLayout.showItemNames ? 2 : 0}
+                      mt={isCalendarCompact ? 1 : 2}
+                    >
+                      <Text
+                        size={isCalendarCompact ? "8px" : "xs"}
+                        fw={700}
+                        c="blue"
+                        lineClamp={1}
+                        lh={1}
+                        mx={calendarLayout.amountMarginInline}
+                        px={0}
+                        ta={calendarLayout.amountTextAlign}
+                        style={{
+                          fontVariantNumeric: "tabular-nums",
+                          letterSpacing: 0,
+                        }}
+                      >
+                        {formatCompactCurrency(
+                          primaryTotal.amount,
+                          locale,
+                          primaryTotal.currency,
+                        )}
                       </Text>
-                      <Text size="xs" lineClamp={2}>
-                        {dayItems.map((item) => item.name).join(", ")}
-                      </Text>
+                      {calendarLayout.showItemNames ? (
+                        <Text
+                          size="xs"
+                          lineClamp={2}
+                          ta={calendarLayout.itemTextAlign}
+                        >
+                          {dayEntries.map((entry) => entry.item.name).join(", ")}
+                        </Text>
+                      ) : dayEntries.length > 1 ? (
+                        <Badge size="xs" variant="light" px={3}>
+                          {dayEntries.length}
+                        </Badge>
+                      ) : null}
                     </Stack>
                   )}
                 </Box>
+              );
+              if (dayEntries.length === 0) {
+                return <Box key={dateKey}>{content}</Box>;
+              }
+              return (
+                <UnstyledButton
+                  key={dateKey}
+                  aria-label={`${dateKey} ${t("plannedExpensePaymentDetails")}`}
+                  aria-current={isToday ? "date" : undefined}
+                  onClick={() =>
+                    setSelectedCalendarDay({
+                      date: dateKey,
+                      entries: dayEntries,
+                    })
+                  }
+                  style={{ display: "block", width: "100%", textAlign: "left" }}
+                >
+                  {content}
+                </UnstyledButton>
               );
             })}
           </SimpleGrid>
         </Paper>
       )}
+
+      <Modal
+        opened={
+          selectedCalendarDay != null && selectedCalendarDay.entries.length > 0
+        }
+        onClose={() => setSelectedCalendarDay(null)}
+        title={
+          selectedCalendarDay
+            ? `${selectedCalendarDay.date} ${t("plannedExpensePaymentDetails")}`
+            : t("plannedExpensePaymentDetails")
+        }
+        centered
+        size="lg"
+      >
+        {selectedCalendarDay && (
+          <Stack gap="md">
+            <Stack gap="xs">
+              {selectedCalendarDay.entries.map((entry) => (
+                <Paper
+                  key={`${entry.item.id}-${entry.date}`}
+                  withBorder
+                  p="sm"
+                  radius="sm"
+                >
+                  <Group justify="space-between" align="flex-start" gap="sm">
+                    <Box style={{ minWidth: 0, flex: 1 }}>
+                      <Text fw={700} size="sm" lineClamp={1}>
+                        {entry.item.name}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {t("plannedExpenseFrequency")}:{" "}
+                        {recurrenceFrequencyLabel(entry.item, t)}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {t("plannedExpenseOccurrenceNumber")}:{" "}
+                        {entry.occurrenceNumber > 0 ? entry.occurrenceNumber : "-"}
+                      </Text>
+                    </Box>
+                    <Group gap="xs" wrap="nowrap">
+                      <Text fw={800} size="sm" style={{ whiteSpace: "nowrap" }}>
+                        {formatCurrency(
+                          plannedExpenseCalendarEntryAmount(entry),
+                          locale,
+                          entry.item.currency,
+                        )}
+                      </Text>
+                      {entry.skipped || entry.item.status === "cancelled" ? (
+                        <Tooltip label={t("shoppingPlanRestore")} withArrow>
+                          <ActionIcon
+                            size="sm"
+                            variant="light"
+                            color="teal"
+                            aria-label={t("shoppingPlanRestore")}
+                            onClick={() => void restoreCalendarPayment(entry)}
+                          >
+                            <IconRefresh size={15} />
+                          </ActionIcon>
+                        </Tooltip>
+                      ) : entry.completed || entry.item.status === "completed" ? (
+                        <Tooltip label={t("plannedExpenseUndoCompletion")} withArrow>
+                          <ActionIcon
+                            size="sm"
+                            variant="light"
+                            color="green"
+                            aria-label={t("plannedExpenseUndoCompletion")}
+                            onClick={() =>
+                              void undoCompletedCalendarPayment(entry)
+                            }
+                          >
+                            <IconRefresh size={15} />
+                          </ActionIcon>
+                        </Tooltip>
+                      ) : (
+                        <>
+                          <Tooltip label={t("plannedExpenseEnterPayment")} withArrow>
+                            <ActionIcon
+                              size="sm"
+                              variant="light"
+                              color="teal"
+                              aria-label={t("plannedExpenseEnterPayment")}
+                              onClick={() =>
+                                startExpenseInput(entry.item, entry.date)
+                              }
+                            >
+                              <IconReceipt size={15} />
+                            </ActionIcon>
+                          </Tooltip>
+                          <Tooltip label={t("plannedExpenseSkipPayment")} withArrow>
+                            <ActionIcon
+                              size="sm"
+                              variant="subtle"
+                              color="gray"
+                              aria-label={t("plannedExpenseSkipPayment")}
+                              onClick={() => void skipCalendarPayment(entry)}
+                            >
+                              <IconX size={15} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </>
+                      )}
+                    </Group>
+                  </Group>
+                </Paper>
+              ))}
+            </Stack>
+            <Divider />
+            <Group justify="space-between">
+              <Text fw={800}>{t("plannedExpensePaymentDetailsTotal")}</Text>
+              <Stack gap={2} align="flex-end">
+                {Array.from(
+                  calendarTotalsByCurrency(selectedCalendarDay.entries),
+                ).map(([currency, amount]) => (
+                  <Text key={currency} fw={800}>
+                    {formatCurrency(amount, locale, currency)}
+                  </Text>
+                ))}
+              </Stack>
+            </Group>
+          </Stack>
+        )}
+      </Modal>
+
+      <Modal
+        opened={skipPolicyTarget != null}
+        onClose={() => setSkipPolicyTarget(null)}
+        title={t("plannedExpenseSkipPolicyTitle")}
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm">{t("plannedExpenseSkipPolicyMessage")}</Text>
+          <Group justify="flex-end" gap="xs">
+            <Button
+              variant="light"
+              onClick={() => {
+                if (skipPolicyTarget) {
+                  void skipCalendarPayment(skipPolicyTarget, "postpone");
+                }
+              }}
+            >
+              {t("plannedExpenseSkipPolicyPostpone")}
+            </Button>
+            <Button
+              variant="filled"
+              color="gray"
+              onClick={() => {
+                if (skipPolicyTarget) {
+                  void skipCalendarPayment(skipPolicyTarget, "reduce");
+                }
+              }}
+            >
+              {t("plannedExpenseSkipPolicyReduce")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       {isShoppingList ? (
         <Stack gap="lg">
@@ -3099,28 +4050,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                                   {item.name}
                                 </Text>
                                 <Group gap={4} mt={4} mb={4} wrap="wrap">
-                                  {!isShoppingList && !isWishlist && (
-                                    <Badge
-                                      size="xs"
-                                      color={statusColor(item.status)}
-                                      variant="light"
-                                    >
-                                      {t(`plannedExpenseStatus_${item.status}`)}
-                                    </Badge>
-                                  )}
-                                  {!isShoppingList && (
-                                    <Tooltip
-                                      label={`${t("plannedExpensePriority")} ${item.priority}`}
-                                      withArrow
-                                    >
-                                      <Box>
-                                        <PriorityStars
-                                          value={item.priority}
-                                          readOnly
-                                        />
-                                      </Box>
-                                    </Tooltip>
-                                  )}
                                   {isReferenceCurrency && (
                                     <Badge size="xs" color="gray" variant="outline">
                                       {t("plannedExpenseReferenceCurrency")}
@@ -3219,6 +4148,16 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           locale={locale}
           selectedCurrency={selectedCurrency}
           pageColor={pageColor}
+          onReopenItem={(item) => void updateStatus(item, "open")}
+          onEditItem={openEditModal}
+          onDeleteItem={requestDeleteItem}
+        />
+      )}
+      {isScheduled && (
+        <CompletedScheduledPaymentList
+          groups={completedScheduledGroups}
+          t={t}
+          locale={locale}
           onReopenItem={(item) => void updateStatus(item, "open")}
           onEditItem={openEditModal}
           onDeleteItem={requestDeleteItem}
@@ -3510,25 +4449,117 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                     />
                     <Group grow align="flex-start">
                       <NumberInput
-                        label={t("plannedExpenseEveryMonths")}
+                        label={t("plannedExpenseEveryInterval")}
                         min={1}
                         allowDecimal={false}
-                        {...form.getInputProps("recurrence_interval_months")}
+                        {...form.getInputProps("recurrence_interval")}
                       />
-                      <NumberInput
-                        label={t("plannedExpenseDayOfMonth")}
-                        min={1}
-                        max={31}
-                        allowDecimal={false}
-                        {...form.getInputProps("recurrence_day")}
+                      <Select
+                        label={t("plannedExpenseRecurrenceUnit")}
+                        data={recurrenceUnitOptions}
+                        allowDeselect={false}
+                        {...form.getInputProps("recurrence_unit")}
                       />
                     </Group>
-                    <DatePickerInput
-                      label={t("plannedExpenseEndDate")}
-                      clearable
-                      valueFormat={locale === "ja" ? "YYYY/M/D" : "MMM D, YYYY"}
-                      {...form.getInputProps("end_date")}
+                    {form.values.recurrence_unit === "month" && (
+                      <>
+                        <Select
+                          label={t("plannedExpenseMonthlyMode")}
+                          data={recurrenceMonthlyModeOptions}
+                          allowDeselect={false}
+                          {...form.getInputProps("recurrence_monthly_mode")}
+                        />
+                        {form.values.recurrence_monthly_mode ===
+                        "day_of_month" ? (
+                          <Select
+                            label={t("plannedExpenseDayOfMonth")}
+                            data={recurrenceDayOfMonthOptions}
+                            {...form.getInputProps("recurrence_day")}
+                          />
+                        ) : (
+                          <Stack gap="sm">
+                            <Group grow align="flex-start">
+                              <MultiSelect
+                                label={t("plannedExpenseWeeksOfMonth")}
+                                data={recurrenceWeekOfMonthOptions}
+                                searchable={false}
+                                {...form.getInputProps(
+                                  "recurrence_weeks_of_month",
+                                )}
+                              />
+                              <Select
+                                label={t("plannedExpenseWeekday")}
+                                data={recurrenceWeekdayOptions}
+                                {...form.getInputProps("recurrence_weekday")}
+                              />
+                            </Group>
+                            <Select
+                              label={t("plannedExpenseWeekFallback")}
+                              data={recurrenceWeekFallbackOptions}
+                              allowDeselect={false}
+                              {...form.getInputProps(
+                                "recurrence_week_fallback",
+                              )}
+                            />
+                          </Stack>
+                        )}
+                      </>
+                    )}
+                    <Select
+                      label={t("plannedExpenseEndCondition")}
+                      data={recurrenceEndModeOptions}
+                      allowDeselect={false}
+                      {...form.getInputProps("recurrence_end_mode")}
                     />
+                    {form.values.recurrence_end_mode === "date" ? (
+                      <Stack gap={4}>
+                        <DatePickerInput
+                          label={t("plannedExpenseEndDate")}
+                          clearable
+                          placeholder={t("plannedExpenseUnspecifiedPlaceholder")}
+                          valueFormat={locale === "ja" ? "YYYY/M/D" : "MMM D, YYYY"}
+                          {...form.getInputProps("end_date")}
+                        />
+                        {recurrencePlannedCountPreview != null && (
+                          <Text size="xs" c="dimmed">
+                            {t("plannedExpensePlannedCountHint").replace(
+                              "{count}",
+                              String(recurrencePlannedCountPreview),
+                            )}
+                          </Text>
+                        )}
+                        {recurrencePlannedCountDiffHint && (
+                          <Text size="xs" c="orange">
+                            {recurrencePlannedCountDiffHint}
+                          </Text>
+                        )}
+                      </Stack>
+                    ) : (
+                      <Stack gap={4}>
+                        <NumberInput
+                          label={t("plannedExpenseFinalOccurrence")}
+                          min={1}
+                          allowDecimal={false}
+                          placeholder={t("plannedExpenseUnspecifiedPlaceholder")}
+                          {...form.getInputProps("recurrence_count")}
+                        />
+                        {recurrenceFinalDatePreview && (
+                          <Text size="xs" c="dimmed">
+                            {t("plannedExpenseFinalDateHint").replace(
+                              "{date}",
+                              dayjs(recurrenceFinalDatePreview).format(
+                                locale === "ja" ? "YYYY/M/D" : "MMM D, YYYY",
+                              ),
+                            )}
+                          </Text>
+                        )}
+                        {recurrencePlannedCountDiffHint && (
+                          <Text size="xs" c="orange">
+                            {recurrencePlannedCountDiffHint}
+                          </Text>
+                        )}
+                      </Stack>
+                    )}
                   </>
                 ) : (
                   <DatePickerInput
@@ -3547,38 +4578,23 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                 {...form.getInputProps("target_date")}
               />
             ) : null}
-            {(showItemPriorityField || showItemStatusField) && (
+            {showItemStatusField && (
               <Group grow>
-                {showItemPriorityField && (
-                  <Box>
-                    <Text size="xs" c="dimmed" fw={500} mb={6}>
-                      {t("plannedExpensePriority")}
-                    </Text>
-                    <PriorityStars
-                      value={Number(form.values.priority)}
-                      onChange={(value) =>
-                        form.setFieldValue("priority", String(value))
-                      }
-                    />
-                  </Box>
-                )}
-                {showItemStatusField && (
-                  <Select
-                    label={t("statusLabel")}
-                    data={[
-                      { value: "open", label: t("plannedExpenseStatus_open") },
-                      {
-                        value: "completed",
-                        label: t("plannedExpenseStatus_completed"),
-                      },
-                      {
-                        value: "cancelled",
-                        label: t("plannedExpenseStatus_cancelled"),
-                      },
-                    ]}
-                    {...form.getInputProps("status")}
-                  />
-                )}
+                <Select
+                  label={t("statusLabel")}
+                  data={[
+                    { value: "open", label: t("plannedExpenseStatus_open") },
+                    {
+                      value: "completed",
+                      label: t("plannedExpenseStatus_completed"),
+                    },
+                    {
+                      value: "cancelled",
+                      label: t("plannedExpenseStatus_cancelled"),
+                    },
+                  ]}
+                  {...form.getInputProps("status")}
+                />
               </Group>
             )}
             <Textarea
@@ -3647,19 +4663,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         message={t("plannedExpenseForceCompleteConfirmMessage")}
         confirmLabel={t("plannedExpenseForceCompleteConfirm")}
         confirmColor="orange"
-      />
-      <ConfirmModal
-        opened={cancelItemTarget != null}
-        onClose={() => setCancelItemTarget(null)}
-        onConfirm={() => {
-          if (cancelItemTarget) {
-            void updateStatus(cancelItemTarget, "cancelled");
-          }
-        }}
-        title={t("plannedExpenseCancelConfirmTitle")}
-        message={t("plannedExpenseCancelConfirmMessage")}
-        confirmLabel={t("plannedExpenseCancel")}
-        confirmColor="red"
       />
       <ConfirmModal
         opened={restoreShoppingPlanTarget != null}

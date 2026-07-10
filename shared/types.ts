@@ -463,11 +463,15 @@ export interface BudgetAdjustmentLog {
   journal_entry_id?: number;
 }
 
+export type CalendarWeekStart = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
 export interface BudgetSettings {
   /** Ordered list of preferred payment account IDs (up to 5). First = default. */
   preferred_payment_account_ids: number[];
   /** Ordered list of preferred filter IDs (up to 5). Shown first in income entry dropdown. */
   preferred_filter_ids: number[];
+  /** First day of week for calendars. 0 = Sunday, 6 = Saturday. */
+  calendar_week_start: CalendarWeekStart;
   /** Whether the user is a sole proprietor (個人事業主) */
   is_business_owner: boolean;
   /** Default asset account for business expense advances (事業立替金科目) */
@@ -484,6 +488,13 @@ export type PlannedExpenseKind =
   | "scheduled_payment";
 export type PlannedExpenseStatus = "open" | "completed" | "cancelled";
 export type PlannedExpenseRecurrenceType = "one_time" | "recurring";
+export type PlannedExpenseRecurrenceUnit = "week" | "month" | "year";
+export type PlannedExpenseMonthlyMode = "day_of_month" | "week_of_month";
+export type PlannedExpenseWeekFallback =
+  | "skip"
+  | "last_day_of_month"
+  | "previous_week"
+  | "next_month_first_week";
 export type ShoppingPlanType = "one_time" | "routine";
 export type ProductSourceSite = "amazon" | "rakuten" | "yahoo" | "other";
 export type ProductAvailabilityStatus =
@@ -494,6 +505,126 @@ export type ProductAvailabilityStatus =
   | "api_credentials_missing"
   | "unsupported"
   | "error";
+
+const plannedExpenseWeekFallbackValues = new Set<PlannedExpenseWeekFallback>([
+  "skip",
+  "last_day_of_month",
+  "previous_week",
+  "next_month_first_week",
+]);
+
+export function normalizePlannedExpenseWeekFallback(
+  value: unknown,
+): PlannedExpenseWeekFallback {
+  return typeof value === "string" &&
+    plannedExpenseWeekFallbackValues.has(value as PlannedExpenseWeekFallback)
+    ? (value as PlannedExpenseWeekFallback)
+    : "previous_week";
+}
+
+function formatDateParts(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(
+    2,
+    "0",
+  )}`;
+}
+
+function shiftYearMonth(year: number, month: number, delta: number) {
+  const shifted = new Date(year, month - 1 + delta, 1);
+  return { year: shifted.getFullYear(), month: shifted.getMonth() + 1 };
+}
+
+function parseYearMonth(value: string): { year: number; month: number } | null {
+  const match = value.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  return month >= 1 && month <= 12 ? { year, month } : null;
+}
+
+function firstWeekdayOfMonth(
+  year: number,
+  month: number,
+  weekday: number,
+): number | null {
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) return null;
+  const firstWeekday = new Date(year, month - 1, 1).getDay();
+  return 1 + ((weekday - firstWeekday + 7) % 7);
+}
+
+export function resolvePlannedExpenseWeekdayInMonth(input: {
+  yearMonth: string;
+  weekOfMonth: number;
+  weekday: number;
+  fallback?: PlannedExpenseWeekFallback | null;
+}): string | null {
+  const parsed = parseYearMonth(input.yearMonth);
+  if (!parsed) return null;
+  const weekOfMonth = input.weekOfMonth;
+  if (!Number.isInteger(weekOfMonth) || weekOfMonth < 1 || weekOfMonth > 5) {
+    return null;
+  }
+  const firstDay = firstWeekdayOfMonth(
+    parsed.year,
+    parsed.month,
+    input.weekday,
+  );
+  if (firstDay == null) return null;
+
+  const targetDay = firstDay + (weekOfMonth - 1) * 7;
+  const lastDay = new Date(parsed.year, parsed.month, 0).getDate();
+  if (targetDay <= lastDay) {
+    return formatDateParts(parsed.year, parsed.month, targetDay);
+  }
+
+  const fallback = normalizePlannedExpenseWeekFallback(input.fallback);
+  if (fallback === "skip") return null;
+  if (fallback === "last_day_of_month") {
+    return formatDateParts(parsed.year, parsed.month, lastDay);
+  }
+  if (fallback === "previous_week") {
+    const previousDay = targetDay - 7;
+    return previousDay >= 1
+      ? formatDateParts(parsed.year, parsed.month, previousDay)
+      : null;
+  }
+
+  const nextMonth = shiftYearMonth(parsed.year, parsed.month, 1);
+  const nextMonthFirstDay = firstWeekdayOfMonth(
+    nextMonth.year,
+    nextMonth.month,
+    input.weekday,
+  );
+  return nextMonthFirstDay == null
+    ? null
+    : formatDateParts(nextMonth.year, nextMonth.month, nextMonthFirstDay);
+}
+
+export function resolvePlannedExpenseWeekdayRuleDate(input: {
+  date: string | null;
+  weeksOfMonth: string | null | undefined;
+  weekday: number | null | undefined;
+  fallback?: PlannedExpenseWeekFallback | null;
+}): string | null {
+  if (!input.date || input.weekday == null) return input.date;
+  const yearMonth = input.date.slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(yearMonth)) return input.date;
+  const dates = (input.weeksOfMonth ?? "")
+    .split(",")
+    .map((week) => Number(week.trim()))
+    .filter((week) => Number.isInteger(week) && week >= 1 && week <= 5)
+    .map((week) =>
+      resolvePlannedExpenseWeekdayInMonth({
+        yearMonth,
+        weekOfMonth: week,
+        weekday: input.weekday!,
+        fallback: input.fallback,
+      }),
+    )
+    .filter((date): date is string => date != null)
+    .sort();
+  return dates[0] ?? null;
+}
 
 export interface ProductMetadata {
   id: number;
@@ -621,11 +752,19 @@ export interface PlannedExpense {
   expense_account_name?: string | null;
   target_date: string | null;
   recurrence_type: PlannedExpenseRecurrenceType;
+  recurrence_interval: number | null;
+  recurrence_unit: PlannedExpenseRecurrenceUnit | null;
+  recurrence_monthly_mode: PlannedExpenseMonthlyMode | null;
   recurrence_interval_months: number | null;
   recurrence_day: number | null;
+  recurrence_weeks_of_month: string | null;
+  recurrence_weekday: number | null;
+  recurrence_week_fallback: PlannedExpenseWeekFallback | null;
   next_due_date: string | null;
   end_date: string | null;
-  priority: number;
+  recurrence_count: number | null;
+  skipped_dates: string | null;
+  completed_dates: string | null;
   sort_order: number;
   status: PlannedExpenseStatus;
   keep_on_routine_clear: boolean;
@@ -647,11 +786,19 @@ export interface CreatePlannedExpenseInput {
   expense_account_id?: number | null;
   target_date?: string | null;
   recurrence_type?: PlannedExpenseRecurrenceType;
+  recurrence_interval?: number | null;
+  recurrence_unit?: PlannedExpenseRecurrenceUnit | null;
+  recurrence_monthly_mode?: PlannedExpenseMonthlyMode | null;
   recurrence_interval_months?: number | null;
   recurrence_day?: number | null;
+  recurrence_weeks_of_month?: string | null;
+  recurrence_weekday?: number | null;
+  recurrence_week_fallback?: PlannedExpenseWeekFallback | null;
   next_due_date?: string | null;
   end_date?: string | null;
-  priority?: number;
+  recurrence_count?: number | null;
+  skipped_dates?: string | null;
+  completed_dates?: string | null;
   sort_order?: number;
   status?: PlannedExpenseStatus;
   keep_on_routine_clear?: boolean;
@@ -669,11 +816,19 @@ export interface UpdatePlannedExpenseInput {
   expense_account_id?: number | null;
   target_date?: string | null;
   recurrence_type?: PlannedExpenseRecurrenceType;
+  recurrence_interval?: number | null;
+  recurrence_unit?: PlannedExpenseRecurrenceUnit | null;
+  recurrence_monthly_mode?: PlannedExpenseMonthlyMode | null;
   recurrence_interval_months?: number | null;
   recurrence_day?: number | null;
+  recurrence_weeks_of_month?: string | null;
+  recurrence_weekday?: number | null;
+  recurrence_week_fallback?: PlannedExpenseWeekFallback | null;
   next_due_date?: string | null;
   end_date?: string | null;
-  priority?: number;
+  recurrence_count?: number | null;
+  skipped_dates?: string | null;
+  completed_dates?: string | null;
   sort_order?: number;
   status?: PlannedExpenseStatus;
   keep_on_routine_clear?: boolean;

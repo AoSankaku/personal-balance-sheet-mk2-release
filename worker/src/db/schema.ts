@@ -342,6 +342,8 @@ export const budgetSettings = sqliteTable("budget_settings", {
   preferred_payment_account_ids: text("preferred_payment_account_ids"),
   // Ordered JSON array of filter IDs (up to 5) shown first in income entry dropdown
   preferred_filter_ids: text("preferred_filter_ids"),
+  // First day of week for calendars. 0 = Sunday, 6 = Saturday.
+  calendar_week_start: integer("calendar_week_start").notNull().default(0),
   // Business owner advance settings (個人事業主用立替設定)
   is_business_owner: integer("is_business_owner").notNull().default(0),
   // Default asset account for recording business expense advances (事業立替金科目)
@@ -471,11 +473,30 @@ export const plannedExpenses = sqliteTable("planned_expenses", {
   recurrence_type: text("recurrence_type", {
     enum: ["one_time", "recurring"],
   }).notNull().default("one_time"),
+  recurrence_interval: integer("recurrence_interval"),
+  recurrence_unit: text("recurrence_unit", {
+    enum: ["week", "month", "year"],
+  }),
+  recurrence_monthly_mode: text("recurrence_monthly_mode", {
+    enum: ["day_of_month", "week_of_month"],
+  }),
   recurrence_interval_months: integer("recurrence_interval_months"),
   recurrence_day: integer("recurrence_day"),
+  recurrence_weeks_of_month: text("recurrence_weeks_of_month"),
+  recurrence_weekday: integer("recurrence_weekday"),
+  recurrence_week_fallback: text("recurrence_week_fallback", {
+    enum: [
+      "skip",
+      "last_day_of_month",
+      "previous_week",
+      "next_month_first_week",
+    ],
+  }).default("previous_week"),
   next_due_date: text("next_due_date"),
   end_date: text("end_date"),
-  priority: integer("priority").notNull().default(3),
+  recurrence_count: integer("recurrence_count"),
+  skipped_dates: text("skipped_dates"),
+  completed_dates: text("completed_dates"),
   sort_order: integer("sort_order").notNull().default(0),
   status: text("status", {
     enum: ["open", "completed", "cancelled"],
@@ -513,17 +534,25 @@ export const plannedExpenses = sqliteTable("planned_expenses", {
     "chk_planned_expenses_estimated_amount_integer",
     sql`typeof(${table.estimated_amount}) = 'integer'`,
   ),
-  priorityRange: check(
-    "chk_planned_expenses_priority_range",
-    sql`${table.priority} BETWEEN 1 AND 5`,
-  ),
   recurrenceIntervalRange: check(
     "chk_planned_expenses_recurrence_interval_range",
     sql`${table.recurrence_interval_months} IS NULL OR ${table.recurrence_interval_months} > 0`,
   ),
+  recurrenceIntervalGeneralRange: check(
+    "chk_planned_expenses_recurrence_interval_general_range",
+    sql`${table.recurrence_interval} IS NULL OR ${table.recurrence_interval} > 0`,
+  ),
+  recurrenceCountRange: check(
+    "chk_planned_expenses_recurrence_count_range",
+    sql`${table.recurrence_count} IS NULL OR ${table.recurrence_count} > 0`,
+  ),
   recurrenceDayRange: check(
     "chk_planned_expenses_recurrence_day_range",
-    sql`${table.recurrence_day} IS NULL OR ${table.recurrence_day} BETWEEN 1 AND 31`,
+    sql`${table.recurrence_day} IS NULL OR ${table.recurrence_day} BETWEEN 0 AND 31`,
+  ),
+  recurrenceWeekdayRange: check(
+    "chk_planned_expenses_recurrence_weekday_range",
+    sql`${table.recurrence_weekday} IS NULL OR ${table.recurrence_weekday} BETWEEN 0 AND 6`,
   ),
 }));
 

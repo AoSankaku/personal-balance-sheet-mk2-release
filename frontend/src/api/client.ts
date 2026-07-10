@@ -417,6 +417,7 @@ export const api = {
     updateSettings: (input: {
       preferred_payment_account_ids?: number[];
       preferred_filter_ids?: number[];
+      calendar_week_start?: number;
       is_business_owner?: boolean;
       business_advance_account_id?: number | null;
       business_loss_account_id?: number | null;
