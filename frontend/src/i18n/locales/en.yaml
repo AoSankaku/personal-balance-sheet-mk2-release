@@ -1090,7 +1090,6 @@ fxToAmount: Amount received
 loanOtherCurrencyReadOnly: Switch display currency to enter repayment
 includeAllCurrencies: Include all currencies
 displayCurrencyLabel: Display currency
-plannedMoneyTitle: Upcoming money
 shoppingListTitle: Shopping list
 shoppingListPageDesc: Manage near-term groceries and supplies by shopping plan with estimates and checklist items.
 shoppingPlanLabel: Shopping plan
@@ -1240,6 +1239,9 @@ transactionSavedWithShoppingListArchived: Transaction saved and the shopping lis
 shoppingListArchivedFeedback: The shopping list was also archived.
 plannedExpenseUrl: URL
 plannedExpenseReferenceCurrency: Reference
+plannedExpenseReferenceAmount: Reference price
+plannedExpenseCurrencyInputConfirmTitle: Convert currency for input?
+plannedExpenseCurrencyInputConfirmMessage: "This plan is in {from}. Convert it and enter it as the currently selected currency ({to})?"
 productMetadataLookup: Fetch product
 productMetadataAutoFetchPrompt: Fetch product info automatically?
 productMetadataRefresh: Refresh product info

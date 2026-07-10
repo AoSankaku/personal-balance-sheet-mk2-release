@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   selectWishlistClosedItemIdsToDelete,
+  selectWishlistClosedItemIdsToDeleteByCurrency,
   WISHLIST_CLOSED_RETENTION_LIMIT,
 } from "../src/lib/plannedExpenseRetention";
 
@@ -38,5 +39,24 @@ describe("wishlist closed item retention", () => {
     }));
 
     expect(selectWishlistClosedItemIdsToDelete(rows)).toEqual([1]);
+  });
+
+  test("retains the latest ten closed items independently per currency", () => {
+    const rows = [
+      ...Array.from({ length: 11 }, (_, index) => ({
+        id: index + 1,
+        status: "completed",
+        currency: "JPY",
+        updated_at: `2026-07-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
+      })),
+      ...Array.from({ length: 10 }, (_, index) => ({
+        id: index + 101,
+        status: "completed",
+        currency: "USD",
+        updated_at: `2026-07-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
+      })),
+    ];
+
+    expect(selectWishlistClosedItemIdsToDeleteByCurrency(rows)).toEqual([1]);
   });
 });

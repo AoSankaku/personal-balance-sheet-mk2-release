@@ -645,10 +645,12 @@ export const api = {
     listCategories: (params?: {
       kind?: PlannedExpenseKind;
       includeArchived?: boolean;
+      currency?: string;
     }) => {
       const q = new URLSearchParams();
       if (params?.kind) q.set("kind", params.kind);
       if (params?.includeArchived) q.set("include_archived", "true");
+      if (params?.currency) q.set("currency", params.currency);
       const qs = q.toString();
       return cachedRequest<PlannedExpenseCategory[]>(
         `/planned-expenses/categories${qs ? `?${qs}` : ""}`,
@@ -678,11 +680,13 @@ export const api = {
       kind?: PlannedExpenseKind;
       status?: PlannedExpense["status"];
       includeArchived?: boolean;
+      currency?: string;
     }) => {
       const q = new URLSearchParams();
       if (params?.kind) q.set("kind", params.kind);
       if (params?.status) q.set("status", params.status);
       if (params?.includeArchived) q.set("include_archived", "true");
+      if (params?.currency) q.set("currency", params.currency);
       const qs = q.toString();
       return cachedRequest<PlannedExpense[]>(
         `/planned-expenses${qs ? `?${qs}` : ""}`,

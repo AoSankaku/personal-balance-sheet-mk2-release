@@ -37,9 +37,12 @@ import { lookupProductMetadata } from "../lib/productMetadata";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
 import {
   isWishlistClosedStatus,
-  selectWishlistClosedItemIdsToDelete,
+  selectWishlistClosedItemIdsToDeleteByCurrency,
   WISHLIST_CLOSED_RETENTION_LIMIT,
 } from "../lib/plannedExpenseRetention";
+import {
+  isPlannedExpenseCategoryCurrencyCompatible,
+} from "../lib/plannedExpenseCurrency";
 import {
   findInvalidMoneyField,
   fromStorageMoneyAmount,
@@ -183,14 +186,19 @@ async function validateCategory(
   db: ReturnType<typeof createDb>,
   categoryId: number | null | undefined,
   kind: PlannedExpenseKind,
+  currency: string,
 ) {
   if (categoryId == null) return true;
   if (!Number.isInteger(categoryId)) return false;
   const [category] = await db
-    .select({ id: plannedExpenseCategories.id, kind: plannedExpenseCategories.kind })
+    .select({
+      id: plannedExpenseCategories.id,
+      kind: plannedExpenseCategories.kind,
+      currency: plannedExpenseCategories.currency,
+    })
     .from(plannedExpenseCategories)
     .where(eq(plannedExpenseCategories.id, categoryId));
-  return category?.kind === kind;
+  return isPlannedExpenseCategoryCurrencyCompatible(category, kind, currency);
 }
 
 async function hasDuplicatePlannedExpenseItem(
@@ -199,6 +207,7 @@ async function hasDuplicatePlannedExpenseItem(
     kind: PlannedExpenseKind;
     categoryId: number | null | undefined;
     name: string;
+    currency: string;
     excludeId?: number;
   },
 ) {
@@ -208,6 +217,7 @@ async function hasDuplicatePlannedExpenseItem(
       kind: plannedExpenses.kind,
       category_id: plannedExpenses.category_id,
       name: plannedExpenses.name,
+      currency: plannedExpenses.currency,
     })
     .from(plannedExpenses)
     .where(
@@ -216,6 +226,7 @@ async function hasDuplicatePlannedExpenseItem(
         input.categoryId == null
           ? isNull(plannedExpenses.category_id)
           : eq(plannedExpenses.category_id, input.categoryId),
+        eq(plannedExpenses.currency, normalizeCurrency(input.currency)),
       ),
     );
   return hasDuplicatePlannedExpenseItemName({
@@ -223,6 +234,7 @@ async function hasDuplicatePlannedExpenseItem(
     kind: input.kind,
     categoryId: input.categoryId ?? null,
     excludeId: input.excludeId,
+    currency: input.currency,
     items: rows.map((row) => ({
       ...row,
       kind: row.kind as PlannedExpenseKind,
@@ -233,9 +245,15 @@ async function hasDuplicatePlannedExpenseItem(
 async function fetchLatestClosedWishlistItemIds(
   db: ReturnType<typeof createDb>,
   limit = WISHLIST_CLOSED_RETENTION_LIMIT,
+  currency?: string | null,
 ) {
   const rows = await db
-    .select({ id: plannedExpenses.id })
+    .select({
+      id: plannedExpenses.id,
+      status: plannedExpenses.status,
+      currency: plannedExpenses.currency,
+      updated_at: plannedExpenses.updated_at,
+    })
     .from(plannedExpenses)
     .where(
       and(
@@ -244,11 +262,16 @@ async function fetchLatestClosedWishlistItemIds(
           eq(plannedExpenses.status, "completed"),
           eq(plannedExpenses.status, "cancelled"),
         ),
+        currency
+          ? eq(plannedExpenses.currency, normalizeCurrency(currency))
+          : undefined,
       ),
     )
-    .orderBy(desc(plannedExpenses.updated_at), desc(plannedExpenses.id))
-    .limit(limit);
-  return rows.map((row) => row.id);
+    .orderBy(desc(plannedExpenses.updated_at), desc(plannedExpenses.id));
+  const idsToExclude = new Set(
+    selectWishlistClosedItemIdsToDeleteByCurrency(rows, limit),
+  );
+  return rows.filter((row) => !idsToExclude.has(row.id)).map((row) => row.id);
 }
 
 async function pruneWishlistClosedItems(db: ReturnType<typeof createDb>) {
@@ -256,6 +279,7 @@ async function pruneWishlistClosedItems(db: ReturnType<typeof createDb>) {
     .select({
       id: plannedExpenses.id,
       status: plannedExpenses.status,
+      currency: plannedExpenses.currency,
       updated_at: plannedExpenses.updated_at,
     })
     .from(plannedExpenses)
@@ -268,7 +292,7 @@ async function pruneWishlistClosedItems(db: ReturnType<typeof createDb>) {
         ),
       ),
     );
-  const idsToDelete = selectWishlistClosedItemIdsToDelete(rows);
+  const idsToDelete = selectWishlistClosedItemIdsToDeleteByCurrency(rows);
   if (idsToDelete.length === 0) return;
   await db
     .delete(plannedExpenses)
@@ -576,6 +600,9 @@ router.get("/", async (c) => {
   const kind = c.req.query("kind");
   const status = c.req.query("status");
   const includeArchived = c.req.query("include_archived") === "true";
+  const requestedCurrency = c.req.query("currency")
+    ? normalizeCurrency(c.req.query("currency"))
+    : null;
   if (kind && !plannedExpenseKinds.has(kind as PlannedExpenseKind)) {
     return c.json({ error: "invalid kind" }, 400);
   }
@@ -587,7 +614,11 @@ router.get("/", async (c) => {
   const scaleOptions = await loadMoneyScaleOptions(db);
   const latestClosedWishlistItemIds =
     kind === "wishlist" && (!status || isWishlistClosedStatus(status))
-      ? await fetchLatestClosedWishlistItemIds(db)
+      ? await fetchLatestClosedWishlistItemIds(
+          db,
+          WISHLIST_CLOSED_RETENTION_LIMIT,
+          requestedCurrency,
+        )
       : [];
   const wishlistClosedRetentionFilter =
     kind === "wishlist" && !status
@@ -605,6 +636,9 @@ router.get("/", async (c) => {
   const filters = [
     kind ? eq(plannedExpenses.kind, kind as PlannedExpenseKind) : null,
     status ? eq(plannedExpenses.status, status as PlannedExpenseStatus) : null,
+    requestedCurrency
+      ? eq(plannedExpenses.currency, requestedCurrency)
+      : null,
     wishlistClosedRetentionFilter,
     kind === "shopping_list" && !includeArchived
       ? and(
@@ -740,6 +774,9 @@ router.get("/", async (c) => {
 router.get("/categories", async (c) => {
   const kind = c.req.query("kind");
   const includeArchived = c.req.query("include_archived") === "true";
+  const requestedCurrency = c.req.query("currency")
+    ? normalizeCurrency(c.req.query("currency"))
+    : null;
   if (kind && !plannedExpenseKinds.has(kind as PlannedExpenseKind)) {
     return c.json({ error: "invalid kind" }, 400);
   }
@@ -750,6 +787,9 @@ router.get("/categories", async (c) => {
     .from(plannedExpenseCategories);
   const filters = [
     kind ? eq(plannedExpenseCategories.kind, kind as PlannedExpenseKind) : null,
+    requestedCurrency
+      ? eq(plannedExpenseCategories.currency, requestedCurrency)
+      : null,
     kind === "shopping_list" && !includeArchived
       ? isNull(plannedExpenseCategories.archived_at)
       : null,
@@ -821,13 +861,20 @@ router.post("/categories", async (c) => {
       id: plannedExpenseCategories.id,
       kind: plannedExpenseCategories.kind,
       name: plannedExpenseCategories.name,
+      currency: plannedExpenseCategories.currency,
     })
     .from(plannedExpenseCategories)
-    .where(eq(plannedExpenseCategories.kind, body.kind));
+    .where(
+      and(
+        eq(plannedExpenseCategories.kind, body.kind),
+        eq(plannedExpenseCategories.currency, currency),
+      ),
+    );
   if (
     hasDuplicatePlannedExpenseCategoryName({
       name: categoryName,
       kind: body.kind,
+      currency,
       categories: existingCategories.map((category) => ({
         ...category,
         kind: category.kind as PlannedExpenseKind,
@@ -918,13 +965,20 @@ router.patch("/categories/:id", async (c) => {
       id: plannedExpenseCategories.id,
       kind: plannedExpenseCategories.kind,
       name: plannedExpenseCategories.name,
+      currency: plannedExpenseCategories.currency,
     })
     .from(plannedExpenseCategories)
-    .where(eq(plannedExpenseCategories.kind, existing.kind));
+    .where(
+      and(
+        eq(plannedExpenseCategories.kind, existing.kind),
+        eq(plannedExpenseCategories.currency, currency),
+      ),
+    );
   if (
     hasDuplicatePlannedExpenseCategoryName({
       name: nextCategoryName,
       kind: existing.kind as PlannedExpenseKind,
+      currency,
       excludeId: id,
       categories: existingCategories.map((category) => ({
         ...category,
@@ -933,6 +987,17 @@ router.patch("/categories/:id", async (c) => {
     })
   ) {
     return c.json({ error: "duplicate_planned_expense_category" }, 409);
+  }
+
+  if (body.currency !== undefined && currency !== existing.currency) {
+    const [linkedItem] = await db
+      .select({ id: plannedExpenses.id })
+      .from(plannedExpenses)
+      .where(eq(plannedExpenses.category_id, id))
+      .limit(1);
+    if (linkedItem) {
+      return c.json({ error: "category_currency_in_use" }, 409);
+    }
   }
 
   const updates: Partial<typeof plannedExpenseCategories.$inferInsert> = {
@@ -1058,8 +1123,8 @@ router.post("/", async (c) => {
   if (!(await validateExpenseAccount(db, body.expense_account_id))) {
     return c.json({ error: "expense_account_id must be an expense account" }, 400);
   }
-  if (!(await validateCategory(db, body.category_id, body.kind))) {
-    return c.json({ error: "category_id must match kind" }, 400);
+  if (!(await validateCategory(db, body.category_id, body.kind, currency))) {
+    return c.json({ error: "category_id must match kind and currency" }, 400);
   }
   const recurrenceType = body.recurrence_type ?? "one_time";
   if (!recurrenceTypes.has(recurrenceType)) {
@@ -1190,6 +1255,7 @@ router.post("/", async (c) => {
       kind: body.kind,
       categoryId: body.category_id,
       name: normalizedName,
+      currency,
     })
   ) {
     return c.json({ error: "duplicate_planned_expense_item" }, 409);
@@ -1344,19 +1410,19 @@ router.patch("/:id", async (c) => {
   if (body.estimated_amount !== undefined && body.estimated_amount < 0) {
     return c.json({ error: "estimated_amount must be non-negative" }, 400);
   }
-  if (
-    body.category_id !== undefined &&
-    !(await validateCategory(
-      db,
-      body.category_id,
-      existing.kind as PlannedExpenseKind,
-    ))
-  ) {
-    return c.json({ error: "category_id must match kind" }, 400);
-  }
   const isShoppingList = existing.kind === "shopping_list";
   const nextCategoryId =
     body.category_id !== undefined ? body.category_id : existing.category_id;
+  if (
+    !(await validateCategory(
+      db,
+      nextCategoryId,
+      existing.kind as PlannedExpenseKind,
+      currency,
+    ))
+  ) {
+    return c.json({ error: "category_id must match kind and currency" }, 400);
+  }
   if (isShoppingList && nextCategoryId == null) {
     return c.json(
       { error: "category_id is required for shopping list items" },
@@ -1372,6 +1438,7 @@ router.patch("/:id", async (c) => {
       kind: existing.kind as PlannedExpenseKind,
       categoryId: nextCategoryId,
       name: nextName,
+      currency,
       excludeId: id,
     })
   ) {

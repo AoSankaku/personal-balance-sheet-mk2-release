@@ -1090,7 +1090,6 @@ fxToAmount: "Cantidad recibida"
 loanOtherCurrencyReadOnly: "Cambia la moneda mostrada para registrar el pago"
 includeAllCurrencies: "Incluir todas las monedas"
 displayCurrencyLabel: "Mostrar moneda"
-plannedMoneyTitle: Dinero próximo
 shoppingListTitle: Lista de compras
 shoppingListPageDesc: Gestiona compras cercanas por plan de compra, con estimaciones y lista de verificación.
 shoppingPlanLabel: Plan de compra
@@ -1240,6 +1239,9 @@ transactionSavedWithShoppingListArchived: Transaccion guardada y la lista de com
 shoppingListArchivedFeedback: La lista de compras tambien se archivo.
 plannedExpenseUrl: URL
 plannedExpenseReferenceCurrency: Referencia
+plannedExpenseReferenceAmount: Precio de referencia
+plannedExpenseCurrencyInputConfirmTitle: ¿Convertir la moneda para la entrada?
+plannedExpenseCurrencyInputConfirmMessage: "Este plan está en {from}. ¿Convertirlo e introducirlo en la moneda seleccionada actualmente ({to})?"
 productMetadataLookup: Obtener producto
 productMetadataAutoFetchPrompt: ¿Obtener información automáticamente?
 productMetadataRefresh: Actualizar producto

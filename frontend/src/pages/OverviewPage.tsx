@@ -780,9 +780,6 @@ export default function OverviewPage() {
 
         <Paper withBorder p="md" radius="md">
           <Stack gap="sm">
-            <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-              {t("plannedMoneyTitle")}
-            </Text>
             <SimpleGrid cols={{ base: 1, xs: 3 }}>
               <Button
                 component={Link}

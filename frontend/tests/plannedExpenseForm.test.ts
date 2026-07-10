@@ -343,6 +343,20 @@ describe("planned expense form helpers", () => {
     expect(pageSource).not.toContain('t("plannedExpenseCancel")');
   });
 
+  test("keeps the planned-money section labels out of the visible pages", () => {
+    const plannedExpensePageSource = readFileSync(
+      join(import.meta.dir, "../src/pages/PlannedExpensePage.tsx"),
+      "utf8",
+    );
+    const overviewPageSource = readFileSync(
+      join(import.meta.dir, "../src/pages/OverviewPage.tsx"),
+      "utf8",
+    );
+
+    expect(plannedExpensePageSource).not.toContain('t("plannedMoneyTitle")');
+    expect(overviewPageSource).not.toContain('t("plannedMoneyTitle")');
+  });
+
   test("serializes multiple monthly week positions for nth-weekday schedules", () => {
     expect(serializePlannedExpenseWeeksOfMonth(["4", "2", "2"])).toBe("2,4");
     expect(serializePlannedExpenseWeeksOfMonth(["", "6", "abc"])).toBeNull();

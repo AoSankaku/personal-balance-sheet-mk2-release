@@ -671,19 +671,30 @@ export function normalizePlannedExpenseCategoryName(name: string): string {
   return name.trim();
 }
 
+export function normalizePlannedExpenseCurrency(
+  currency: string | null | undefined,
+): string {
+  return (currency || "JPY").trim().toUpperCase();
+}
+
 export function hasDuplicatePlannedExpenseCategoryName(input: {
   name: string;
   kind: PlannedExpenseKind;
-  categories: Array<Pick<PlannedExpenseCategory, "id" | "kind" | "name">>;
+  currency: string;
+  categories: Array<
+    Pick<PlannedExpenseCategory, "id" | "kind" | "name" | "currency">
+  >;
   excludeId?: number;
 }): boolean {
   const normalizedName = normalizePlannedExpenseCategoryName(input.name);
+  const normalizedCurrency = normalizePlannedExpenseCurrency(input.currency);
   if (!normalizedName) return false;
   return input.categories.some(
     (category) =>
       category.id !== input.excludeId &&
       category.kind === input.kind &&
-    normalizePlannedExpenseCategoryName(category.name) === normalizedName,
+      normalizePlannedExpenseCurrency(category.currency) === normalizedCurrency &&
+      normalizePlannedExpenseCategoryName(category.name) === normalizedName,
   );
 }
 
@@ -695,16 +706,24 @@ export function hasDuplicatePlannedExpenseItemName(input: {
   name: string;
   kind: PlannedExpenseKind;
   categoryId: number | null;
-  items: Array<Pick<PlannedExpense, "id" | "kind" | "category_id" | "name">>;
+  currency: string;
+  items: Array<
+    Pick<
+      PlannedExpense,
+      "id" | "kind" | "category_id" | "name" | "currency"
+    >
+  >;
   excludeId?: number;
 }): boolean {
   const normalizedName = normalizePlannedExpenseItemName(input.name);
+  const normalizedCurrency = normalizePlannedExpenseCurrency(input.currency);
   if (!normalizedName) return false;
   return input.items.some(
     (item) =>
       item.id !== input.excludeId &&
       item.kind === input.kind &&
       (item.category_id ?? null) === input.categoryId &&
+      normalizePlannedExpenseCurrency(item.currency) === normalizedCurrency &&
       normalizePlannedExpenseItemName(item.name) === normalizedName,
   );
 }

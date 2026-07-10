@@ -1090,7 +1090,6 @@ fxToAmount: "Montant reçu"
 loanOtherCurrencyReadOnly: "Changez la devise affichée pour saisir le remboursement"
 includeAllCurrencies: "Inclure toutes les devises"
 displayCurrencyLabel: "Devise d'affichage"
-plannedMoneyTitle: Argent à venir
 shoppingListTitle: Liste de courses
 shoppingListPageDesc: Gérez les achats proches par plan de courses, avec estimations et cases à cocher.
 shoppingPlanLabel: Plan de courses
@@ -1240,6 +1239,9 @@ transactionSavedWithShoppingListArchived: Transaction enregistree et la liste de
 shoppingListArchivedFeedback: La liste de courses a aussi ete archivee.
 plannedExpenseUrl: URL
 plannedExpenseReferenceCurrency: Référence
+plannedExpenseReferenceAmount: Prix de référence
+plannedExpenseCurrencyInputConfirmTitle: Convertir la devise pour la saisie ?
+plannedExpenseCurrencyInputConfirmMessage: "Ce projet est en {from}. Le convertir et le saisir dans la devise actuellement sélectionnée ({to}) ?"
 productMetadataLookup: Récupérer le produit
 productMetadataAutoFetchPrompt: Récupérer les infos automatiquement ?
 productMetadataRefresh: Actualiser le produit

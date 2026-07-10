@@ -54,7 +54,7 @@ import {
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import type { ChangeEvent, DragEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type {
   PlannedExpense,
@@ -78,6 +78,12 @@ import { ApiError, api } from "../api/client";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
 import { formatCompactCurrency, formatCurrency } from "../lib/numberFormat";
+import {
+  buildPlannedExpenseInputOverride,
+  categoriesForPlannedExpenseCurrency,
+  plannedExpenseReferenceAmount,
+  preservePlannedExpensesAcrossCurrencies,
+} from "../lib/plannedExpenseCurrency";
 import { accountDisplayName } from "../lib/accountUtils";
 import {
   buildAccountOptions,
@@ -145,6 +151,7 @@ type PlannedExpenseFormValues = {
   category_id: string | null;
   name: string;
   estimated_amount: number | "";
+  currency: string;
   expense_account_id: string | null;
   target_date: Date | null;
   recurrence_type: PlannedExpenseRecurrenceType;
@@ -171,6 +178,7 @@ type PlannedExpenseRecurrenceEndMode = "date" | "count";
 type CategoryFormValues = {
   name: string;
   estimated_amount: number | "";
+  currency: string;
   default_expense_account_id: string | null;
   target_date: Date | null;
   shopping_plan_type: ShoppingPlanType;
@@ -196,6 +204,7 @@ type SelectedCalendarDay = {
 };
 
 type Translate = ReturnType<typeof useLang>["t"];
+type ConvertCurrency = (amount: number, from: string, to: string) => number;
 
 type ShoppingPlanGroup = {
   category: PlannedExpenseCategory | null;
@@ -203,6 +212,36 @@ type ShoppingPlanGroup = {
   name: string;
   items: PlannedExpense[];
 };
+
+function ReferenceAmount({
+  amount,
+  sourceCurrency,
+  selectedCurrency,
+  convertCurrency,
+  locale,
+  t,
+}: {
+  amount: number;
+  sourceCurrency: string;
+  selectedCurrency: string;
+  convertCurrency: ConvertCurrency;
+  locale: string;
+  t: Translate;
+}) {
+  const referenceAmount = plannedExpenseReferenceAmount(
+    amount,
+    sourceCurrency,
+    selectedCurrency,
+    convertCurrency,
+  );
+  if (referenceAmount === null) return null;
+  return (
+    <Text size="xs" c="dimmed">
+      {t("plannedExpenseReferenceAmount")}: {" "}
+      {formatCurrency(referenceAmount, locale, selectedCurrency)}
+    </Text>
+  );
+}
 
 type UndatedShoppingPlanPosition = "first" | "last";
 
@@ -341,14 +380,19 @@ function calendarTotalsByCurrency(entries: CalendarDayEntry[]) {
 function calendarPrimaryTotal(
   entries: CalendarDayEntry[],
   selectedCurrency: string,
+  convertCurrency: ConvertCurrency,
 ) {
-  const totals = calendarTotalsByCurrency(entries);
-  const currency = totals.has(selectedCurrency)
-    ? selectedCurrency
-    : totals.keys().next().value;
-  return typeof currency === "string"
-    ? { currency, amount: totals.get(currency) ?? 0 }
-    : null;
+  if (entries.length === 0) return null;
+  const amount = entries.reduce((sum, entry) => {
+    const entryAmount = plannedExpenseCalendarEntryAmount(entry);
+    return (
+      sum +
+      (entry.item.currency === selectedCurrency
+        ? entryAmount
+        : convertCurrency(entryAmount, entry.item.currency, selectedCurrency))
+    );
+  }, 0);
+  return { currency: selectedCurrency, amount };
 }
 
 function compareShoppingItems(a: PlannedExpense, b: PlannedExpense) {
@@ -382,6 +426,7 @@ function ShoppingPlanList({
   t,
   locale,
   selectedCurrency,
+  convertCurrency,
   accountNameById,
   inlineDraft,
   categoryEmptyLabel,
@@ -404,6 +449,7 @@ function ShoppingPlanList({
   t: Translate;
   locale: string;
   selectedCurrency: string;
+  convertCurrency: ConvertCurrency;
   accountNameById: Map<number, string>;
   inlineDraft: InlineShoppingItemDraft | null;
   categoryEmptyLabel: string;
@@ -457,6 +503,7 @@ function ShoppingPlanList({
           t={t}
           locale={locale}
           selectedCurrency={selectedCurrency}
+          convertCurrency={convertCurrency}
           accountNameById={accountNameById}
           inlineDraft={inlineDraft}
           categoryEmptyLabel={categoryEmptyLabel}
@@ -483,6 +530,7 @@ function ShoppingPlanSection({
   t,
   locale,
   selectedCurrency,
+  convertCurrency,
   accountNameById,
   inlineDraft,
   categoryEmptyLabel,
@@ -503,6 +551,7 @@ function ShoppingPlanSection({
   t: Translate;
   locale: string;
   selectedCurrency: string;
+  convertCurrency: ConvertCurrency;
   accountNameById: Map<number, string>;
   inlineDraft: InlineShoppingItemDraft | null;
   categoryEmptyLabel: string;
@@ -538,7 +587,7 @@ function ShoppingPlanSection({
       : null;
   const detailParts = [
     category
-      ? formatCurrency(category.estimated_amount, locale, selectedCurrency)
+      ? formatCurrency(category.estimated_amount, locale, category.currency)
       : null,
     defaultExpenseAccountName,
     lastCheckedOutLabel,
@@ -566,6 +615,16 @@ function ShoppingPlanSection({
               <Text size="xs" c="dimmed" mt={3} lineClamp={1}>
                 {detailParts.join(" / ")}
               </Text>
+            )}
+            {category && (
+              <ReferenceAmount
+                amount={category.estimated_amount}
+                sourceCurrency={category.currency}
+                selectedCurrency={selectedCurrency}
+                convertCurrency={convertCurrency}
+                locale={locale}
+                t={t}
+              />
             )}
           </Box>
           {category && (
@@ -746,7 +805,6 @@ function ShoppingItemRow({
       <Group gap="sm" align="center" wrap="nowrap">
         <Checkbox
           checked={isCompleted}
-          disabled={isReferenceCurrency}
           onChange={(event) => onToggleItem(item, event.currentTarget.checked)}
           aria-label={t("plannedExpenseComplete")}
         />
@@ -790,7 +848,6 @@ function ShoppingItemRow({
             <Menu.Dropdown>
               <Menu.Item
                 leftSection={<IconEdit size={14} />}
-                disabled={isReferenceCurrency}
                 onClick={() => onEditItem(item)}
               >
                 {t("editLabel")}
@@ -798,7 +855,6 @@ function ShoppingItemRow({
               <Menu.Item
                 color="red"
                 leftSection={<IconTrash size={14} />}
-                disabled={isReferenceCurrency}
                 onClick={() => onDeleteItem(item)}
               >
                 {t("deleteBudgetCategory")}
@@ -816,6 +872,7 @@ function ArchivedShoppingPlanList({
   t,
   locale,
   selectedCurrency,
+  convertCurrency,
   accountNameById,
   onRestorePlan,
   onRestoreItem,
@@ -824,6 +881,7 @@ function ArchivedShoppingPlanList({
   t: Translate;
   locale: string;
   selectedCurrency: string;
+  convertCurrency: ConvertCurrency;
   accountNameById: Map<number, string>;
   onRestorePlan: (group: ShoppingPlanGroup) => void;
   onRestoreItem: (group: ShoppingPlanGroup, item: PlannedExpense) => void;
@@ -875,7 +933,7 @@ function ArchivedShoppingPlanList({
                   ? formatCurrency(
                       category.estimated_amount,
                       locale,
-                      selectedCurrency,
+                      category.currency,
                     )
                   : null,
                 defaultExpenseAccountName,
@@ -909,6 +967,16 @@ function ArchivedShoppingPlanList({
                           <Text size="xs" c="dimmed" mt={3} lineClamp={1}>
                             {detailParts.join(" / ")}
                           </Text>
+                        )}
+                        {category && (
+                          <ReferenceAmount
+                            amount={category.estimated_amount}
+                            sourceCurrency={category.currency}
+                            selectedCurrency={selectedCurrency}
+                            convertCurrency={convertCurrency}
+                            locale={locale}
+                            t={t}
+                          />
                         )}
                       </Box>
                       {completedAt && (
@@ -1002,6 +1070,7 @@ function CompletedWishlistList({
   t,
   locale,
   selectedCurrency,
+  convertCurrency,
   pageColor,
   onReopenItem,
   onEditItem,
@@ -1011,6 +1080,7 @@ function CompletedWishlistList({
   t: Translate;
   locale: string;
   selectedCurrency: string;
+  convertCurrency: ConvertCurrency;
   pageColor: string;
   onReopenItem: (item: PlannedExpense) => void;
   onEditItem: (item: PlannedExpense) => void;
@@ -1059,9 +1129,14 @@ function CompletedWishlistList({
                             {formatCurrency(
                               group.items.reduce(
                                 (sum, item) =>
-                                  item.currency === selectedCurrency
-                                    ? sum + item.estimated_amount
-                                    : sum,
+                                  sum +
+                                  (item.currency === selectedCurrency
+                                    ? item.estimated_amount
+                                    : convertCurrency(
+                                        item.estimated_amount,
+                                        item.currency,
+                                        selectedCurrency,
+                                      )),
                                 0,
                               ),
                               locale,
@@ -1101,6 +1176,14 @@ function CompletedWishlistList({
                                   item.currency,
                                 )}
                               </Text>
+                              <ReferenceAmount
+                                amount={item.estimated_amount}
+                                sourceCurrency={item.currency}
+                                selectedCurrency={selectedCurrency}
+                                convertCurrency={convertCurrency}
+                                locale={locale}
+                                t={t}
+                              />
                             </Group>
                             {(item.note || item.url) && (
                               <Text size="xs" c="dimmed" lineClamp={1} mt={2}>
@@ -1163,6 +1246,8 @@ function CompletedScheduledPaymentList({
   groups,
   t,
   locale,
+  selectedCurrency,
+  convertCurrency,
   onReopenItem,
   onEditItem,
   onDeleteItem,
@@ -1170,6 +1255,8 @@ function CompletedScheduledPaymentList({
   groups: Array<PlannedExpenseCompletedScheduledGroup<PlannedExpense>>;
   t: Translate;
   locale: string;
+  selectedCurrency: string;
+  convertCurrency: ConvertCurrency;
   onReopenItem: (item: PlannedExpense) => void;
   onEditItem: (item: PlannedExpense) => void;
   onDeleteItem: (item: PlannedExpense) => void;
@@ -1238,6 +1325,14 @@ function CompletedScheduledPaymentList({
                                 item.currency,
                               )}
                             </Text>
+                            <ReferenceAmount
+                              amount={item.estimated_amount}
+                              sourceCurrency={item.currency}
+                              selectedCurrency={selectedCurrency}
+                              convertCurrency={convertCurrency}
+                              locale={locale}
+                              t={t}
+                            />
                             <Text size="xs" c="dimmed">
                               {dayjs(completedAt).format("YYYY/MM/DD")}
                             </Text>
@@ -1306,6 +1401,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     budgetSettings,
     displayCurrency,
     enabledCurrencies,
+    convertCurrency,
   } = useAppData();
   const navigate = useNavigate();
   const [items, setItems] = useState<PlannedExpense[]>([]);
@@ -1350,6 +1446,9 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     useState<SelectedCalendarDay | null>(null);
   const [skipPolicyTarget, setSkipPolicyTarget] =
     useState<CalendarDayEntry | null>(null);
+  const [pendingExpenseInput, setPendingExpenseInput] =
+    useState<PlannedExpenseEntrySource | null>(null);
+  const loadRequestIdRef = useRef(0);
 
   const isShoppingList = kind === "shopping_list";
   const isWishlist = kind === "wishlist";
@@ -1362,16 +1461,19 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
   const isDuplicateItemName = ({
     categoryId,
     name,
+    currency,
     excludeId,
   }: {
     categoryId: number | null;
     name: string;
+    currency: string;
     excludeId?: number;
   }) => {
     return hasDuplicatePlannedExpenseItemName({
       name,
       kind,
       categoryId,
+      currency,
       excludeId,
       items: [...items, ...archivedItems],
     });
@@ -1461,9 +1563,9 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     [accounts, locale, t],
   );
 
-  const categoryOptions = categories.map((category) => ({
-    value: String(category.id),
-    label: category.name,
+  const currencyOptions = enabledCurrencies.map((currency) => ({
+    value: currency.code,
+    label: currency.code,
   }));
   const recurrenceUnitOptions = [
     { value: "week", label: t("plannedExpenseRecurrenceUnit_week") },
@@ -1525,6 +1627,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       category_id: null,
       name: "",
       estimated_amount: "",
+      currency: selectedCurrency,
       expense_account_id: null,
       target_date: null,
       recurrence_type: "one_time",
@@ -1557,6 +1660,14 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       },
     },
   });
+
+  const categoryOptions = categoriesForPlannedExpenseCurrency(
+    categories,
+    form.values.currency,
+  ).map((category) => ({
+    value: String(category.id),
+    label: category.name,
+  }));
 
   const recurrencePreviewItem = useMemo(() => {
     const recurrenceType = isScheduled ? form.values.recurrence_type : "one_time";
@@ -1659,6 +1770,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     initialValues: {
       name: "",
       estimated_amount: "",
+      currency: selectedCurrency,
       default_expense_account_id: null,
       target_date: null,
       shopping_plan_type: "one_time",
@@ -1672,6 +1784,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         return hasDuplicatePlannedExpenseCategoryName({
           name: categoryName,
           kind,
+          currency: values.currency,
           excludeId: editingCategory?.id,
           categories,
         })
@@ -1688,13 +1801,22 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
   });
 
   const isUrlSupported = isWishlist && isSupportedProductUrl(form.values.url);
-  const currencyDecimalPlaces = useMemo(() => {
+  const decimalPlacesForCurrency = (currencyCode: string) => {
     const configured = enabledCurrencies.find(
-      (currency) => currency.code === selectedCurrency,
+      (currency) => currency.code === currencyCode,
     )?.decimal_places;
     if (configured != null) return configured;
-    return selectedCurrency === "JPY" || selectedCurrency === "KRW" ? 0 : 2;
-  }, [enabledCurrencies, selectedCurrency]);
+    return currencyCode === "JPY" || currencyCode === "KRW" ? 0 : 2;
+  };
+  const currencyDecimalPlaces = decimalPlacesForCurrency(form.values.currency);
+  const categoryCurrencyDecimalPlaces = decimalPlacesForCurrency(
+    categoryForm.values.currency,
+  );
+  const editingCategoryHasItems =
+    editingCategory != null &&
+    [...items, ...archivedItems].some(
+      (item) => item.category_id === editingCategory.id,
+    );
 
   const selectedExpenseAccount = useMemo(
     () =>
@@ -1781,6 +1903,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
   ]);
 
   const loadData = async (options: { showLoading?: boolean } = {}) => {
+    const requestId = ++loadRequestIdRef.current;
     const showLoading = options.showLoading ?? false;
     if (showLoading) setLoading(true);
     try {
@@ -1812,16 +1935,19 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
             })
           : Promise.resolve([] as PlannedExpenseCategory[]),
       ]);
+      if (requestId !== loadRequestIdRef.current) return;
       setItems(
-        mergePlannedExpenseListsById(
-          nextItems,
-          nextCancelledItems,
-          nextCompletedItems,
+        preservePlannedExpensesAcrossCurrencies(
+          mergePlannedExpenseListsById(
+            nextItems,
+            nextCancelledItems,
+            nextCompletedItems,
+          ),
         ),
       );
-      setCategories(nextCategories);
+      setCategories(preservePlannedExpensesAcrossCurrencies(nextCategories));
       if (isShoppingList) {
-        const archived = nextAllCategories
+        const archived = preservePlannedExpensesAcrossCurrencies(nextAllCategories)
           .filter((category) => category.archived_at)
           .sort((a, b) =>
             (b.archived_at ?? "").localeCompare(a.archived_at ?? ""),
@@ -1829,8 +1955,10 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         const archivedIds = new Set(archived.map((category) => category.id));
         setArchivedCategories(archived);
         setArchivedItems(
-          nextAllItems.filter((item) =>
-            item.category_id == null ? false : archivedIds.has(item.category_id),
+          preservePlannedExpensesAcrossCurrencies(nextAllItems).filter((item) =>
+            item.category_id == null
+              ? false
+              : archivedIds.has(item.category_id),
           ),
         );
       } else {
@@ -1838,11 +1966,23 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         setArchivedItems([]);
       }
     } finally {
-      if (showLoading) setLoading(false);
+      if (showLoading && requestId === loadRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
+    setItems([]);
+    setCategories([]);
+    setArchivedItems([]);
+    setArchivedCategories([]);
+    setEditingItem(null);
+    setEditingCategory(null);
+    setModalOpen(false);
+    setCategoryModalOpen(false);
+    setSelectedCalendarDay(null);
+    setInlineShoppingItemDraft(null);
     void loadData({ showLoading: true });
   }, [kind]);
 
@@ -1851,6 +1991,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       category_id: null,
       name: "",
       estimated_amount: isShoppingList ? 0 : "",
+      currency: selectedCurrency,
       expense_account_id: null,
       target_date: null,
       recurrence_type: "one_time",
@@ -1878,21 +2019,23 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     setEditingItem(null);
     resetItemForm();
     if (categoryId !== undefined) {
+      const category = categories.find((entry) => entry.id === categoryId);
       form.setFieldValue(
         "category_id",
         plannedExpenseCategorySelectValue(categoryId),
       );
+      if (category) form.setFieldValue("currency", category.currency);
     }
     setModalOpen(true);
   };
 
   const openEditModal = (item: PlannedExpense) => {
-    if (item.currency !== selectedCurrency) return;
     setEditingItem(item);
     form.setValues({
       category_id: item.category_id == null ? null : String(item.category_id),
       name: item.name,
       estimated_amount: isShoppingList ? 0 : item.estimated_amount,
+      currency: item.currency,
       expense_account_id:
         item.expense_account_id == null ? null : String(item.expense_account_id),
       target_date: dateToInputDate(item.target_date),
@@ -1954,6 +2097,8 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
   const saveInlineShoppingItem = async () => {
     const draft = inlineShoppingItemDraft;
     if (!draft) return;
+    const category = categories.find((entry) => entry.id === draft.categoryId);
+    if (!category) return;
     const name = draft.name.trim();
     if (!name) {
       setInlineShoppingItemDraft({ ...draft, error: t("nameIsRequired") });
@@ -1963,6 +2108,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       isDuplicateItemName({
         categoryId: draft.categoryId,
         name,
+        currency: category.currency,
       })
     ) {
       setInlineShoppingItemDraft({
@@ -1978,7 +2124,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         category_id: draft.categoryId,
         name,
         estimated_amount: 0,
-        currency: selectedCurrency,
+        currency: category.currency,
         budget_category_id: null,
         expense_account_id: null,
         target_date: null,
@@ -2019,6 +2165,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     categoryForm.setValues({
       name: "",
       estimated_amount: "",
+      currency: selectedCurrency,
       default_expense_account_id: null,
       target_date: null,
       shopping_plan_type: "one_time",
@@ -2031,6 +2178,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     categoryForm.setValues({
       name: category.name,
       estimated_amount: isShoppingList ? category.estimated_amount : "",
+      currency: category.currency,
       default_expense_account_id:
         isShoppingList && category.default_expense_account_id != null
           ? String(category.default_expense_account_id)
@@ -2047,7 +2195,10 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     setMetadataPreview(metadata);
     form.setFieldValue("product_metadata_cache_id", metadata.id);
     if (metadata.name) form.setFieldValue("name", metadata.name);
-    if (metadata.price_amount != null && metadata.currency === selectedCurrency) {
+    if (
+      metadata.price_amount != null &&
+      metadata.currency === form.values.currency
+    ) {
       form.setFieldValue("estimated_amount", metadata.price_amount);
     }
   };
@@ -2082,7 +2233,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           isShoppingList && typeof values.estimated_amount === "number"
             ? values.estimated_amount
             : 0,
-        currency: selectedCurrency,
+        currency: values.currency,
         default_expense_account_id:
           isShoppingList && values.default_expense_account_id != null
             ? Number(values.default_expense_account_id)
@@ -2091,7 +2242,10 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         shopping_plan_type: isShoppingList
           ? values.shopping_plan_type
           : "one_time",
-        sort_order: editingCategory?.sort_order ?? categories.length,
+        sort_order:
+          editingCategory?.sort_order ??
+          categories.filter((category) => category.currency === values.currency)
+            .length,
       };
       if (editingCategory) {
         await api.plannedExpenses.updateCategory(editingCategory.id, payload);
@@ -2160,7 +2314,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           values.category_id == null ? null : Number(values.category_id),
         name: values.name.trim(),
         estimated_amount: amount,
-        currency: selectedCurrency,
+        currency: values.currency,
         budget_category_id: null,
         expense_account_id:
           isShoppingList || values.expense_account_id == null
@@ -2225,6 +2379,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           editingItem?.sort_order ??
           items.filter(
             (item) =>
+              item.currency === values.currency &&
               (item.category_id ?? null) ===
               (values.category_id == null ? null : Number(values.category_id)),
           ).length,
@@ -2240,6 +2395,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         isDuplicateItemName({
           categoryId: payload.category_id,
           name: payload.name,
+          currency: payload.currency,
           excludeId: editingItem?.id,
         })
       ) {
@@ -2343,7 +2499,11 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     if (!group.category) return;
     const existingActiveNames = new Set(
       categories
-        .filter((category) => category.id !== group.category?.id)
+        .filter(
+          (category) =>
+            category.id !== group.category?.id &&
+            category.currency === group.category?.currency,
+        )
         .map((category) => category.name.trim()),
     );
     const restoredName = buildUniqueRestoredShoppingPlanName(
@@ -2610,6 +2770,30 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     return item.estimated_amount;
   };
 
+  const navigateToExpenseInput = (source: PlannedExpenseEntrySource) => {
+    navigate("/input", {
+      state: {
+        tab: "simple",
+        plannedExpenseEntry: source,
+      },
+    });
+  };
+
+  const requestExpenseInput = (source: PlannedExpenseEntrySource) => {
+    const override = buildPlannedExpenseInputOverride(
+      source.amount,
+      source.currency,
+      selectedCurrency,
+      convertCurrency,
+      decimalPlacesForCurrency(selectedCurrency),
+    );
+    if (source.currency !== selectedCurrency && override) {
+      setPendingExpenseInput({ ...source, ...override });
+      return;
+    }
+    navigateToExpenseInput(source);
+  };
+
   const startExpenseInput = (
     item: PlannedExpense,
     occurrenceDate?: string | null,
@@ -2634,12 +2818,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       completedDates: completionUpdates?.completed_dates ?? item.completed_dates,
       completionStatusAfterOccurrence: completionUpdates?.status,
     };
-    navigate("/input", {
-      state: {
-        tab: "simple",
-        plannedExpenseEntry: source,
-      },
-    });
+    requestExpenseInput(source);
   };
 
   const skipCalendarPayment = async (
@@ -2761,17 +2940,10 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         note: item.note,
       })),
     };
-    navigate("/input", {
-      state: {
-        tab: "simple",
-        plannedExpenseEntry: source,
-      },
-    });
+    requestExpenseInput(source);
   };
 
-  const activeCurrencyItems = items.filter(
-    (item) => item.currency === selectedCurrency,
-  );
+  const activeCurrencyItems = items;
   const referenceCurrencyItems = items.filter(
     (item) => item.currency !== selectedCurrency,
   );
@@ -2927,7 +3099,16 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
   const openTotal = activeCurrencyItems.reduce((sum, item) => {
     if (item.status !== "open") return sum;
     if (isShoppingList) return sum;
-    return sum + item.estimated_amount;
+    return (
+      sum +
+      (item.currency === selectedCurrency
+        ? item.estimated_amount
+        : convertCurrency(
+            item.estimated_amount,
+            item.currency,
+            selectedCurrency,
+          ))
+    );
   }, 0);
   const calendarWeekStart = normalizeCalendarWeekStart(
     budgetSettings?.calendar_week_start,
@@ -3076,19 +3257,39 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     return (
       <Stack gap={0} align="flex-end">
         {hasEstimatedAmount && (
-          <Text fw={800} size="sm">
-            {formatCurrency(item.estimated_amount, locale, item.currency)}
-          </Text>
+          <>
+            <Text fw={800} size="sm">
+              {formatCurrency(item.estimated_amount, locale, item.currency)}
+            </Text>
+            <ReferenceAmount
+              amount={item.estimated_amount}
+              sourceCurrency={item.currency}
+              selectedCurrency={selectedCurrency}
+              convertCurrency={convertCurrency}
+              locale={locale}
+              t={t}
+            />
+          </>
         )}
         {hasMetadataPrice && (
-          <Text size="xs" c="dimmed">
-            {t("productMetadataPrice")}{" "}
-            {formatCurrency(
-              item.product_metadata!.price_amount!,
-              locale,
-              item.product_metadata!.currency,
-            )}
-          </Text>
+          <>
+            <Text size="xs" c="dimmed">
+              {t("productMetadataPrice")}{" "}
+              {formatCurrency(
+                item.product_metadata!.price_amount!,
+                locale,
+                item.product_metadata!.currency,
+              )}
+            </Text>
+            <ReferenceAmount
+              amount={item.product_metadata!.price_amount!}
+              sourceCurrency={item.product_metadata!.currency}
+              selectedCurrency={selectedCurrency}
+              convertCurrency={convertCurrency}
+              locale={locale}
+              t={t}
+            />
+          </>
         )}
       </Stack>
     );
@@ -3096,7 +3297,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
 
   const renderItemActions = (
     item: PlannedExpense,
-    isReferenceCurrency: boolean,
     wrap: "wrap" | "nowrap" = "nowrap",
   ) => (
     <Group gap={4} wrap={wrap} justify="flex-end">
@@ -3105,7 +3305,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           variant="subtle"
           color="blue"
           aria-label={t("productMetadataRefresh")}
-          disabled={isReferenceCurrency}
           onClick={() => void refreshItemMetadata(item)}
         >
           <IconRefresh size={16} />
@@ -3117,7 +3316,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
             variant="subtle"
             color={pageColor}
             aria-label={t("plannedExpenseInputExpense")}
-            disabled={isReferenceCurrency}
             onClick={() => startExpenseInput(item)}
           >
             <IconCheck size={16} />
@@ -3130,7 +3328,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
             variant="subtle"
             color="orange"
             aria-label={t("plannedExpenseForceComplete")}
-            disabled={isReferenceCurrency}
             onClick={() => requestCompleteItem(item)}
           >
             <IconAlertTriangle size={16} />
@@ -3140,7 +3337,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       <ActionIcon
         variant="subtle"
         aria-label={t("editLabel")}
-        disabled={isReferenceCurrency}
         onClick={() => openEditModal(item)}
       >
         <IconEdit size={16} />
@@ -3150,7 +3346,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           variant="subtle"
           color="red"
           aria-label={t("deleteBudgetCategory")}
-          disabled={isReferenceCurrency}
           onClick={() => requestDeleteItem(item)}
         >
           <IconTrash size={16} />
@@ -3179,9 +3374,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
             <Icon size={23} />
           </ThemeIcon>
           <Box>
-            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-              {t("plannedMoneyTitle")}
-            </Text>
             <Text fw={800} size="xl">
               {pageTitle}
             </Text>
@@ -3303,6 +3495,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
               const primaryTotal = calendarPrimaryTotal(
                 dayEntries,
                 selectedCurrency,
+                convertCurrency,
               );
               const dayBackground =
                 plannedExpenseCalendarDayBackground(dayEntries);
@@ -3485,13 +3678,23 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                       </Text>
                     </Box>
                     <Group gap="xs" wrap="nowrap">
-                      <Text fw={800} size="sm" style={{ whiteSpace: "nowrap" }}>
-                        {formatCurrency(
-                          plannedExpenseCalendarEntryAmount(entry),
-                          locale,
-                          entry.item.currency,
-                        )}
-                      </Text>
+                      <Stack gap={0} align="flex-end">
+                        <Text fw={800} size="sm" style={{ whiteSpace: "nowrap" }}>
+                          {formatCurrency(
+                            plannedExpenseCalendarEntryAmount(entry),
+                            locale,
+                            entry.item.currency,
+                          )}
+                        </Text>
+                        <ReferenceAmount
+                          amount={plannedExpenseCalendarEntryAmount(entry)}
+                          sourceCurrency={entry.item.currency}
+                          selectedCurrency={selectedCurrency}
+                          convertCurrency={convertCurrency}
+                          locale={locale}
+                          t={t}
+                        />
+                      </Stack>
                       {entry.skipped || entry.item.status === "cancelled" ? (
                         <Tooltip label={t("shoppingPlanRestore")} withArrow>
                           <ActionIcon
@@ -3562,6 +3765,30 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                     {formatCurrency(amount, locale, currency)}
                   </Text>
                 ))}
+                {selectedCalendarDay.entries.some(
+                  (entry) => entry.item.currency !== selectedCurrency,
+                ) && (
+                  <Text size="xs" c="dimmed" fw={700}>
+                    {t("plannedExpenseReferenceAmount")}: {" "}
+                    {formatCurrency(
+                      selectedCalendarDay.entries.reduce((sum, entry) => {
+                        const amount = plannedExpenseCalendarEntryAmount(entry);
+                        return (
+                          sum +
+                          (entry.item.currency === selectedCurrency
+                            ? amount
+                            : convertCurrency(
+                                amount,
+                                entry.item.currency,
+                                selectedCurrency,
+                              ))
+                        );
+                      }, 0),
+                      locale,
+                      selectedCurrency,
+                    )}
+                  </Text>
+                )}
               </Stack>
             </Group>
           </Stack>
@@ -3623,6 +3850,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
             t={t}
             locale={locale}
             selectedCurrency={selectedCurrency}
+            convertCurrency={convertCurrency}
             accountNameById={accountNameById}
             inlineDraft={inlineShoppingItemDraft}
             categoryEmptyLabel={categoryEmptyLabel}
@@ -3646,6 +3874,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
             t={t}
             locale={locale}
             selectedCurrency={selectedCurrency}
+            convertCurrency={convertCurrency}
             accountNameById={accountNameById}
             onRestorePlan={setRestoreShoppingPlanTarget}
             onRestoreItem={(group, item) =>
@@ -3693,9 +3922,14 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                 ? group.category?.estimated_amount ?? 0
                 : group.items.reduce(
                     (sum, item) =>
-                      item.currency === selectedCurrency
-                        ? sum + item.estimated_amount
-                        : sum,
+                      sum +
+                      (item.currency === selectedCurrency
+                        ? item.estimated_amount
+                        : convertCurrency(
+                            item.estimated_amount,
+                            item.currency,
+                            selectedCurrency,
+                          )),
                     0,
                   );
               const categoryDefaultExpenseAccount =
@@ -3830,6 +4064,11 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                       <Text fw={700} size={isShoppingList ? "md" : "sm"}>
                         {group.name}
                       </Text>
+                      {group.category && (
+                        <Badge size="xs" variant="outline" color="gray">
+                          {group.category.currency}
+                        </Badge>
+                      )}
                       <Badge size={groupBadgeSize} variant="light" color={pageColor}>
                         {formatCurrency(groupTotal, locale, selectedCurrency)}
                       </Badge>
@@ -4018,7 +4257,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                                 <Checkbox
                                   mt={2}
                                   checked={item.status === "completed"}
-                                  disabled={isReferenceCurrency}
                                   onChange={(event) =>
                                     void updateStatus(
                                       item,
@@ -4108,7 +4346,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                               style={{ flex: "0 0 auto" }}
                             >
                               {renderItemAmount(item)}
-                              {renderItemActions(item, isReferenceCurrency)}
+                              {renderItemActions(item)}
                             </Stack>
                           </Group>
                           <Stack hiddenFrom="sm" gap={6} mt="xs">
@@ -4129,7 +4367,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                                 {renderItemAmount(item)}
                               </Group>
                             )}
-                            {renderItemActions(item, isReferenceCurrency, "wrap")}
+                            {renderItemActions(item, "wrap")}
                           </Stack>
                         </Box>
                       );
@@ -4147,6 +4385,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           t={t}
           locale={locale}
           selectedCurrency={selectedCurrency}
+          convertCurrency={convertCurrency}
           pageColor={pageColor}
           onReopenItem={(item) => void updateStatus(item, "open")}
           onEditItem={openEditModal}
@@ -4158,6 +4397,8 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           groups={completedScheduledGroups}
           t={t}
           locale={locale}
+          selectedCurrency={selectedCurrency}
+          convertCurrency={convertCurrency}
           onReopenItem={(item) => void updateStatus(item, "open")}
           onEditItem={openEditModal}
           onDeleteItem={requestDeleteItem}
@@ -4177,12 +4418,19 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
               label={categoryNameLabel}
               {...categoryForm.getInputProps("name")}
             />
+            <Select
+              label={t("currencyLabel")}
+              data={currencyOptions}
+              allowDeselect={false}
+              disabled={editingCategoryHasItems}
+              {...categoryForm.getInputProps("currency")}
+            />
             {isShoppingList && (
               <>
                 <NumberInput
                   label={categoryEstimateLabel}
                   min={0}
-                  decimalScale={4}
+                  decimalScale={categoryCurrencyDecimalPlaces}
                   {...categoryForm.getInputProps("estimated_amount")}
                 />
                 <Select
@@ -4301,13 +4549,23 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                             t("productMetadataNoName")}
                         </Text>
                         {metadataPreview.price_amount != null && (
-                          <Text size="sm" fw={800}>
-                            {formatCurrency(
-                              metadataPreview.price_amount,
-                              locale,
-                              metadataPreview.currency,
-                            )}
-                          </Text>
+                          <>
+                            <Text size="sm" fw={800}>
+                              {formatCurrency(
+                                metadataPreview.price_amount,
+                                locale,
+                                metadataPreview.currency,
+                              )}
+                            </Text>
+                            <ReferenceAmount
+                              amount={metadataPreview.price_amount}
+                              sourceCurrency={metadataPreview.currency}
+                              selectedCurrency={selectedCurrency}
+                              convertCurrency={convertCurrency}
+                              locale={locale}
+                              t={t}
+                            />
+                          </>
                         )}
                         {metadataPreview.error_message && (
                           <Text size="xs" c="dimmed" lineClamp={2}>
@@ -4336,6 +4594,27 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                 )}
               </>
             )}
+            <Select
+              label={t("currencyLabel")}
+              data={currencyOptions}
+              allowDeselect={false}
+              disabled={isShoppingList && form.values.category_id != null}
+              value={form.values.currency}
+              onChange={(value) => {
+                const nextCurrency = value ?? selectedCurrency;
+                form.setFieldValue("currency", nextCurrency);
+                const selectedCategory = categories.find(
+                  (category) =>
+                    String(category.id) === form.values.category_id,
+                );
+                if (
+                  selectedCategory &&
+                  selectedCategory.currency !== nextCurrency
+                ) {
+                  form.setFieldValue("category_id", null);
+                }
+              }}
+            />
             <Select
               label={categoryLabel}
               data={categoryOptions}
@@ -4367,17 +4646,9 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                       : t("plannedExpenseBudgetAmount")
                   }
                   min={0}
-                  decimalScale={4}
+                  decimalScale={currencyDecimalPlaces}
                   {...form.getInputProps("estimated_amount")}
                 />
-                <Box>
-                  <Text size="xs" c="dimmed" fw={500} mb={6}>
-                    {t("currencyLabel")}
-                  </Text>
-                  <Badge size="lg" variant="light" h={36}>
-                    {selectedCurrency}
-                  </Badge>
-                </Box>
               </Group>
             )}
             {!isShoppingList && (
@@ -4418,7 +4689,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                               {formatCurrency(
                                 row.amount,
                                 locale,
-                                selectedCurrency,
+                                form.values.currency,
                               )}
                             </Text>
                           </Group>
@@ -4613,6 +4884,23 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           </Stack>
         </form>
       </Modal>
+      <ConfirmModal
+        opened={pendingExpenseInput != null}
+        onClose={() => setPendingExpenseInput(null)}
+        onConfirm={() => {
+          if (pendingExpenseInput) {
+            navigateToExpenseInput(pendingExpenseInput);
+          }
+        }}
+        title={t("plannedExpenseCurrencyInputConfirmTitle")}
+        message={t("plannedExpenseCurrencyInputConfirmMessage")
+          .replace("{from}", pendingExpenseInput?.currency ?? "")
+          .replace(
+            "{to}",
+            pendingExpenseInput?.inputCurrency ?? selectedCurrency,
+          )}
+        confirmColor="blue"
+      />
       <ConfirmModal
         opened={deleteCategoryTarget != null}
         onClose={() => setDeleteCategoryTarget(null)}

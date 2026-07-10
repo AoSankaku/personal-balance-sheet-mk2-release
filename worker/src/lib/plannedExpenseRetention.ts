@@ -6,6 +6,10 @@ type WishlistClosedRetentionRow = {
   updated_at: string;
 };
 
+type CurrencyWishlistClosedRetentionRow = WishlistClosedRetentionRow & {
+  currency: string;
+};
+
 export function isWishlistClosedStatus(status: string): boolean {
   return status === "completed" || status === "cancelled";
 }
@@ -23,4 +27,20 @@ export function selectWishlistClosedItemIdsToDelete(
     )
     .slice(limit)
     .map((row) => row.id);
+}
+
+export function selectWishlistClosedItemIdsToDeleteByCurrency(
+  rows: CurrencyWishlistClosedRetentionRow[],
+  limit = WISHLIST_CLOSED_RETENTION_LIMIT,
+): number[] {
+  const rowsByCurrency = new Map<string, CurrencyWishlistClosedRetentionRow[]>();
+  for (const row of rows) {
+    const currency = (row.currency || "JPY").toUpperCase();
+    const currencyRows = rowsByCurrency.get(currency) ?? [];
+    currencyRows.push(row);
+    rowsByCurrency.set(currency, currencyRows);
+  }
+  return [...rowsByCurrency.values()].flatMap((currencyRows) =>
+    selectWishlistClosedItemIdsToDelete(currencyRows, limit),
+  );
 }

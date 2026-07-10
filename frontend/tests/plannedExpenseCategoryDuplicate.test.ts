@@ -16,9 +16,10 @@ describe("planned expense category duplicate detection", () => {
       hasDuplicatePlannedExpenseCategoryName({
         name: " Camera gear ",
         kind: "wishlist",
+        currency: "JPY",
         categories: [
-          { id: 1, kind: "wishlist", name: "Camera gear" },
-          { id: 2, kind: "wishlist", name: "Travel" },
+          { id: 1, kind: "wishlist", name: "Camera gear", currency: "JPY" },
+          { id: 2, kind: "wishlist", name: "Travel", currency: "JPY" },
         ],
       }),
     ).toBe(true);
@@ -29,9 +30,10 @@ describe("planned expense category duplicate detection", () => {
       hasDuplicatePlannedExpenseCategoryName({
         name: "Travel",
         kind: "wishlist",
+        currency: "JPY",
         categories: [
-          { id: 1, kind: "shopping_list", name: "Travel" },
-          { id: 2, kind: "scheduled_payment", name: "Travel" },
+          { id: 1, kind: "shopping_list", name: "Travel", currency: "JPY" },
+          { id: 2, kind: "scheduled_payment", name: "Travel", currency: "JPY" },
         ],
       }),
     ).toBe(false);
@@ -42,10 +44,24 @@ describe("planned expense category duplicate detection", () => {
       hasDuplicatePlannedExpenseCategoryName({
         name: "Travel",
         kind: "wishlist",
+        currency: "JPY",
         excludeId: 1,
         categories: [
-          { id: 1, kind: "wishlist", name: "Travel" },
-          { id: 2, kind: "wishlist", name: "Books" },
+          { id: 1, kind: "wishlist", name: "Travel", currency: "JPY" },
+          { id: 2, kind: "wishlist", name: "Books", currency: "JPY" },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  test("allows the same category name in another currency", () => {
+    expect(
+      hasDuplicatePlannedExpenseCategoryName({
+        name: "Travel",
+        kind: "wishlist",
+        currency: "USD",
+        categories: [
+          { id: 1, kind: "wishlist", name: "Travel", currency: "JPY" },
         ],
       }),
     ).toBe(false);
@@ -60,9 +76,10 @@ describe("planned expense item duplicate detection", () => {
         name: "Camera",
         kind: "wishlist",
         categoryId: 10,
+        currency: "JPY",
         items: [
-          { id: 1, kind: "wishlist", category_id: 10, name: "Camera" },
-          { id: 2, kind: "wishlist", category_id: 10, name: "Tripod" },
+          { id: 1, kind: "wishlist", category_id: 10, name: "Camera", currency: "JPY" },
+          { id: 2, kind: "wishlist", category_id: 10, name: "Tripod", currency: "JPY" },
         ],
       }),
     ).toBe(true);
@@ -74,8 +91,9 @@ describe("planned expense item duplicate detection", () => {
         name: "Camera",
         kind: "wishlist",
         categoryId: 20,
+        currency: "JPY",
         items: [
-          { id: 1, kind: "wishlist", category_id: 10, name: "Camera" },
+          { id: 1, kind: "wishlist", category_id: 10, name: "Camera", currency: "JPY" },
         ],
       }),
     ).toBe(false);
@@ -87,9 +105,24 @@ describe("planned expense item duplicate detection", () => {
         name: "Camera",
         kind: "wishlist",
         categoryId: 10,
+        currency: "JPY",
         excludeId: 1,
         items: [
-          { id: 1, kind: "wishlist", category_id: 10, name: "Camera" },
+          { id: 1, kind: "wishlist", category_id: 10, name: "Camera", currency: "JPY" },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  test("allows the same uncategorized item name in another currency", () => {
+    expect(
+      hasDuplicatePlannedExpenseItemName({
+        name: "Camera",
+        kind: "wishlist",
+        categoryId: null,
+        currency: "USD",
+        items: [
+          { id: 1, kind: "wishlist", category_id: null, name: "Camera", currency: "JPY" },
         ],
       }),
     ).toBe(false);

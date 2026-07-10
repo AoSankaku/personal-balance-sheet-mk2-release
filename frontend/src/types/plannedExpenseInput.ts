@@ -21,6 +21,8 @@ export interface PlannedExpenseEntrySource {
   name: string;
   amount: number;
   currency: string;
+  inputAmount?: number;
+  inputCurrency?: string;
   recurrenceType?: PlannedExpenseRecurrenceType;
   expenseAccountId: number | null;
   categoryId?: number | null;

@@ -23,7 +23,7 @@ import {
   useNavigate,
   Link,
 } from "react-router-dom";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CreateJournalInput } from "@balance-sheet/shared";
 import { api } from "../api/client";
 import { useLang } from "../i18n";
@@ -52,6 +52,7 @@ import {
   type PlannedExpenseCompletionResult,
 } from "../lib/plannedExpenseForm";
 import { plannedExpenseAddCompletedDate } from "../lib/plannedExpenseCalendar";
+import { plannedExpenseJournalCurrency } from "../lib/plannedExpenseCurrency";
 import {
   savedTab,
   setSavedTab,
@@ -86,12 +87,27 @@ export default function InputPage() {
     budgetSettings,
     enabledCurrencies,
     displayCurrency,
+    setDisplayCurrency,
     loading,
     error,
     refresh,
     refreshBudget,
     refreshAllocatable,
   } = useAppData();
+
+  useEffect(() => {
+    const sourceCurrency =
+      locationPlannedExpenseEntry?.inputCurrency ??
+      locationPlannedExpenseEntry?.currency;
+    if (sourceCurrency && sourceCurrency !== displayCurrency) {
+      setDisplayCurrency(sourceCurrency);
+    }
+  }, [
+    displayCurrency,
+    locationPlannedExpenseEntry?.currency,
+    locationPlannedExpenseEntry?.inputCurrency,
+    setDisplayCurrency,
+  ]);
 
   const hasFx = enabledCurrencies.length >= 2;
   const [activeTab, setActiveTab] = useState(
@@ -150,7 +166,9 @@ export default function InputPage() {
             entryType: "expense",
             description: locationPlannedExpenseEntry.name,
             expenseCategoryId: locationPlannedExpenseEntry.expenseAccountId,
-            amount: locationPlannedExpenseEntry.amount,
+            amount:
+              locationPlannedExpenseEntry.inputAmount ??
+              locationPlannedExpenseEntry.amount,
           },
           budgetDist: [],
           showZeroCategories: false,
@@ -216,13 +234,16 @@ export default function InputPage() {
         const checkoutItemIdSet = new Set(checkoutItemIds);
         const checkoutItems =
           source.checkoutItems ??
-          (await api.plannedExpenses.list({ kind: "shopping_list" }))
+          (await api.plannedExpenses.list({
+            kind: "shopping_list",
+            currency: source.currency,
+          }))
             .filter((item) => checkoutItemIdSet.has(item.id))
             .map((item) => ({
               id: item.id,
               name: item.name,
               estimatedAmount: item.estimated_amount,
-              currency: item.currency,
+              currency: source.currency,
               status: item.status,
               keepOnRoutineClear: item.keep_on_routine_clear,
               note: item.note,
@@ -343,7 +364,8 @@ export default function InputPage() {
     const allChanged =
       submitted.description !== source.name.trim() &&
       submitted.expenseAccountId !== source.expenseAccountId &&
-      Math.round(submitted.amount) !== Math.round(source.amount);
+      Math.round(submitted.amount) !==
+        Math.round(source.inputAmount ?? source.amount);
 
     if (allChanged) {
       setPendingPlannedExpenseCompletion({ source, checkoutDate: values.date });
@@ -358,10 +380,17 @@ export default function InputPage() {
     meta?: SimpleEntryMeta,
   ) {
     void meta;
+    const journalCurrency = plannedExpenseJournalCurrency(
+      activeTab === "simple"
+        ? (locationPlannedExpenseEntry?.inputCurrency ??
+          locationPlannedExpenseEntry?.currency)
+        : undefined,
+      displayCurrency,
+    );
     const input = {
       ...values,
       lines: values.lines.map((l) => ({
-        currency: displayCurrency,
+        currency: journalCurrency,
         ...l,
       })),
     };
