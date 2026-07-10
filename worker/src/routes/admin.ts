@@ -1,6 +1,7 @@
 import { count, eq, like, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { createDb, type Env } from "../db";
+import { exportD1ToSQLite } from "../lib/exportSqlite";
 import {
   accounts,
   budgetAdjustmentLogs,
@@ -370,9 +371,9 @@ router.post("/seed", async (c) => {
   return c.json({ ok: true, created: inserted.length });
 });
 
-// GET /api/admin/export-db — download the raw SQLite database file
+// GET /api/admin/export-db — rebuild and download a SQLite-compatible file
 router.get("/export-db", async (c) => {
-  const buffer = await c.env.DB.dump();
+  const buffer = await exportD1ToSQLite(c.env.DB);
   const date = new Date().toISOString().slice(0, 10);
   return new Response(buffer, {
     headers: {
