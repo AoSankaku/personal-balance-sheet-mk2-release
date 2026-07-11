@@ -5,15 +5,15 @@ import {
   Box,
   Button,
   Center,
-  Divider,
   Group,
-  Paper,
   Progress,
   SimpleGrid,
   Skeleton,
   Stack,
   Text,
   ActionIcon,
+  ThemeIcon,
+  UnstyledButton,
   rem,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
@@ -26,6 +26,7 @@ import {
   IconGift,
   IconCalendarDollar,
   IconShoppingCart,
+  IconArrowUpRight,
 } from "@tabler/icons-react";
 import { useState, useEffect, useMemo } from "react";
 import dayjs from "dayjs";
@@ -48,6 +49,7 @@ import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { BalanceDisplay } from "../components/BalanceDisplay";
 import { accountDisplayNameFromName } from "../lib/accountUtils";
 import { formatCurrency } from "../lib/numberFormat";
+import classes from "./OverviewPage.module.css";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
@@ -139,10 +141,12 @@ function BudgetCategoryCard({
   }
 
   return (
-    <Paper withBorder p="md" radius="md">
+    <Box className={classes.categoryItem}>
       <Group justify="space-between" align="flex-start" mb={8}>
         <Group gap={6} style={{ flex: 1 }}>
-          <Icon size={15} color="var(--mantine-color-dimmed)" />
+          <ThemeIcon variant="light" color={color} size={28} radius="xl">
+            <Icon size={15} />
+          </ThemeIcon>
           <Text fw={600} size="sm">
             {summary.category.name}
           </Text>
@@ -226,7 +230,7 @@ function BudgetCategoryCard({
           )}
         </>
       )}
-    </Paper>
+    </Box>
   );
 }
 
@@ -313,11 +317,8 @@ function RecentTransactionRow({
 
   return (
     <Box
-      py="sm"
-      px="md"
-      style={{
-        borderBottom: "1px solid var(--mantine-color-default-border)",
-      }}
+      py="md"
+      className={classes.transactionRow}
     >
       <Group justify="space-between" align="stretch" wrap="nowrap" gap="xs">
         <Box style={{ flex: 1, minWidth: 0 }}>
@@ -568,7 +569,7 @@ export default function OverviewPage() {
   }
 
   return (
-    <Stack gap="lg">
+    <Stack gap="xl" className={classes.page}>
       {/* Credit card import reminders */}
       {importReminders.map((cardName) => (
         <Alert
@@ -587,7 +588,12 @@ export default function OverviewPage() {
       ))}
 
       {/* Date navigator — picker IS the label */}
-      <Group justify="center" gap="xs" wrap="nowrap">
+      <Group
+        justify="center"
+        gap="xs"
+        wrap="nowrap"
+        className={classes.dateNavigator}
+      >
         <ActionIcon
           variant="subtle"
           size="lg"
@@ -642,68 +648,103 @@ export default function OverviewPage() {
 
       {/* Total available balance */}
       {displaySummary && (
-        <Paper withBorder p="xl" radius="md">
-          <Box mb={expenseTotalBudget > 0 ? "md" : 0}>
-            <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={4}>
-              {t("availableBalance")}
-              {selectedDate && !dayjs(selectedDate).isSame(dayjs(), "day") && (
-                <Text span fw={500} tt="none" c="blue" ml={6}>
-                  ·{" "}
-                  {dayjs(selectedDate).format(
-                    locale === "ja" ? "M月D日[時点]" : "[as of] MMM D",
-                  )}
+        <Box className={classes.hero}>
+          <Stack gap="lg" className={classes.heroContent}>
+            <Box className={classes.heroMetrics}>
+              <Box className={classes.primaryMetric}>
+                <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={8}>
+                  {t("availableBalance")}
+                  {selectedDate &&
+                    !dayjs(selectedDate).isSame(dayjs(), "day") && (
+                      <Text span fw={500} tt="none" c="teal" ml={6}>
+                        ·{" "}
+                        {dayjs(selectedDate).format(
+                          locale === "ja" ? "M月D日[時点]" : "[as of] MMM D",
+                        )}
+                      </Text>
+                    )}
                 </Text>
-              )}
-            </Text>
-            <BalanceDisplay
-              amount={expenseTotalAvailable}
-              currency={selectedCurrency}
-              fw={900}
-              c={expenseTotalAvailable >= 0 ? "teal" : "red"}
-            />
-            {expenseTotalBudget > 0 && (
-              <Text size="xs" c="dimmed" mt={6}>
-                {formatCurrency(expenseTotalSpent, locale, selectedCurrency)} /{" "}
-                {formatCurrency(expenseTotalBudget, locale, selectedCurrency)}
-              </Text>
-            )}
-          </Box>
-
-          {expenseTotalBudget > 0 && (
-            <>
-              <Group justify="space-between" mb={6}>
-                <Text size="xs" c="dimmed">
-                  {totalPct.toFixed(1)}% {t("used")}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {formatCurrency(expenseTotalBudget, locale, selectedCurrency)}{" "}
-                  {t("budget")}
-                </Text>
-              </Group>
-              <Box pos="relative">
-                <Progress
-                  value={Math.min(100, totalPct)}
-                  color={expenseTotalAvailable >= 0 ? "teal" : "red"}
-                  size="md"
-                  radius="xl"
+                <BalanceDisplay
+                  amount={expenseTotalAvailable}
+                  currency={selectedCurrency}
+                  fw={900}
+                  c={expenseTotalAvailable >= 0 ? "teal" : "red"}
                 />
-                {totalPct > 100 && (
-                  <Box pos="absolute" top={0} left={0} right={0}>
-                    <Progress
-                      value={Math.min(100, totalPct - 100)}
-                      color="red.9"
-                      size="md"
-                      radius="xl"
-                      striped
-                      animated
-                      styles={{ root: { background: "transparent" } }}
-                    />
-                  </Box>
-                )}
               </Box>
-            </>
-          )}
-        </Paper>
+
+              {expenseTotalBudget > 0 && (
+                <>
+                  <Box className={classes.secondaryMetric}>
+                    <Text size="xs" c="dimmed" mb={5}>
+                      {t("used")}
+                    </Text>
+                    <Text fw={700} size="lg" className="currency-token">
+                      {formatCurrency(
+                        expenseTotalSpent,
+                        locale,
+                        selectedCurrency,
+                      )}
+                    </Text>
+                  </Box>
+                  <Box className={classes.secondaryMetric}>
+                    <Text size="xs" c="dimmed" mb={5}>
+                      {t("budget")}
+                    </Text>
+                    <Text fw={700} size="lg" className="currency-token">
+                      {formatCurrency(
+                        expenseTotalBudget,
+                        locale,
+                        selectedCurrency,
+                      )}
+                    </Text>
+                  </Box>
+                </>
+              )}
+            </Box>
+
+            {expenseTotalBudget > 0 && (
+              <Box>
+                <Group justify="space-between" mb={8}>
+                  <Text size="xs" c="dimmed">
+                    {totalPct.toFixed(1)}% {t("used")}
+                  </Text>
+                  <Text
+                    size="xs"
+                    c={expenseTotalAvailable >= 0 ? "teal" : "red"}
+                    fw={700}
+                  >
+                    {formatCurrency(
+                      expenseTotalAvailable,
+                      locale,
+                      selectedCurrency,
+                    )}
+                  </Text>
+                </Group>
+                <Box pos="relative">
+                  <Progress
+                    value={Math.min(100, totalPct)}
+                    color={expenseTotalAvailable >= 0 ? "teal" : "red"}
+                    size="md"
+                    radius="xl"
+                  />
+                  {totalPct > 100 && (
+                    <Box pos="absolute" top={0} left={0} right={0}>
+                      <Progress
+                        value={Math.min(100, totalPct - 100)}
+                        color="red.9"
+                        size="md"
+                        radius="xl"
+                        striped
+                        animated
+                        styles={{ root: { background: "transparent" } }}
+                      />
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            )}
+          </Stack>
+        </Box>
       )}
 
       {/* Budget category cards (non-savings) */}
@@ -719,110 +760,144 @@ export default function OverviewPage() {
           </Stack>
         </Center>
       ) : (
-        <SimpleGrid cols={{ base: 1, sm: 2 }}>
-          {(displaySummary?.categories ?? [])
-            .filter((s) => s.category.budget_group !== "貯蓄")
-            .map((s) => (
-              <BudgetCategoryCard
-                key={s.category.id}
-                summary={s}
-                locale={locale}
-                yearMonth={displaySummary?.year_month ?? currentYearMonth}
-                currency={selectedCurrency}
-              />
-            ))}
-        </SimpleGrid>
+        <Box className={classes.section}>
+          <Group justify="space-between" className={classes.sectionHeader}>
+            <Text fw={700}>{t("budgetTitle")}</Text>
+            <Text size="xs" c="dimmed">
+              {expenseCategories.length}
+            </Text>
+          </Group>
+          <Box className={classes.categoryGrid}>
+            {(displaySummary?.categories ?? [])
+              .filter((s) => s.category.budget_group !== "貯蓄")
+              .map((s) => (
+                <BudgetCategoryCard
+                  key={s.category.id}
+                  summary={s}
+                  locale={locale}
+                  yearMonth={displaySummary?.year_month ?? currentYearMonth}
+                  currency={selectedCurrency}
+                />
+              ))}
+          </Box>
+        </Box>
       )}
 
       {/* Budget including savings summary + link to savings page */}
       {displaySummary && displaySummary.total_budget > 0 && (
         <>
-        <Paper withBorder px="md" py="sm" radius="md">
-          <Group justify="space-between" align="center">
-            <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-              {t("budgetIncludingSavings")}
-            </Text>
-            <Group gap="xs">
-              <Text size="sm" c="dimmed">
-                {formatCurrency(displaySummary.total_spent, locale, selectedCurrency)}{" "}
-                / {formatCurrency(displaySummary.total_budget, locale, selectedCurrency)}
-              </Text>
-              <Text
-                size="sm"
-                fw={700}
-                c={displaySummary.total_available >= 0 ? "teal" : "red"}
-              >
-                {formatCurrency(
-                  displaySummary.total_available,
-                  locale,
-                  selectedCurrency,
+          <Box className={classes.summaryStrip}>
+            <Group justify="space-between" align="center" wrap="wrap">
+              <Box>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                  {t("budgetIncludingSavings")}
+                </Text>
+                <Text size="sm" c="dimmed" mt={3}>
+                  {formatCurrency(
+                    displaySummary.total_spent,
+                    locale,
+                    selectedCurrency,
+                  )}{" "}
+                  /{" "}
+                  {formatCurrency(
+                    displaySummary.total_budget,
+                    locale,
+                    selectedCurrency,
+                  )}
+                </Text>
+              </Box>
+              <Group gap="sm">
+                <Text
+                  fw={800}
+                  c={displaySummary.total_available >= 0 ? "teal" : "red"}
+                  className="currency-token"
+                >
+                  {formatCurrency(
+                    displaySummary.total_available,
+                    locale,
+                    selectedCurrency,
+                  )}
+                </Text>
+                {(displaySummary.categories ?? []).some(
+                  (s) => s.category.budget_group === "貯蓄",
+                ) && (
+                  <Button
+                    component={Link}
+                    to="/fs/sv"
+                    variant="subtle"
+                    size="xs"
+                    color="teal"
+                    leftSection={<IconPigMoney size={13} />}
+                  >
+                    {t("svViewDetails")}
+                  </Button>
                 )}
-              </Text>
+              </Group>
             </Group>
-          </Group>
-          {(displaySummary.categories ?? []).some(
-            (s) => s.category.budget_group === "貯蓄",
-          ) && (
-            <Group justify="flex-end" mt="xs">
-              <Button
-                component={Link}
-                to="/fs/sv"
-                variant="subtle"
-                size="xs"
-                color="teal"
-                leftSection={<IconPigMoney size={13} />}
-              >
-                {t("svViewDetails")}
-              </Button>
-            </Group>
-          )}
-        </Paper>
+          </Box>
 
-        <Paper withBorder p="md" radius="md">
-          <Stack gap="sm">
-            <SimpleGrid cols={{ base: 1, xs: 3 }}>
-              <Button
-                component={Link}
-                to="/shopping-list"
-                variant="light"
-                color="green"
-                leftSection={<IconShoppingCart size={18} />}
-                justify="flex-start"
-                styles={{ root: { minHeight: rem(52) } }}
+          <Box className={classes.quickLinks}>
+            <UnstyledButton
+              component={Link}
+              to="/shopping-list"
+              className={classes.quickLink}
+            >
+              <ThemeIcon variant="light" color="green" radius="xl" size={38}>
+                <IconShoppingCart size={19} />
+              </ThemeIcon>
+              <Text
+                fw={600}
+                size="sm"
+                truncate
+                className={classes.quickLinkLabel}
               >
                 {t("shoppingListTitle")}
-              </Button>
-              <Button
-                component={Link}
-                to="/wishlist"
-                variant="light"
-                color="pink"
-                leftSection={<IconGift size={18} />}
-                justify="flex-start"
-                styles={{ root: { minHeight: rem(52) } }}
+              </Text>
+              <IconArrowUpRight size={16} color="var(--mantine-color-dimmed)" />
+            </UnstyledButton>
+            <UnstyledButton
+              component={Link}
+              to="/wishlist"
+              className={classes.quickLink}
+            >
+              <ThemeIcon variant="light" color="pink" radius="xl" size={38}>
+                <IconGift size={19} />
+              </ThemeIcon>
+              <Text
+                fw={600}
+                size="sm"
+                truncate
+                className={classes.quickLinkLabel}
               >
                 {t("wishlistTitle")}
-              </Button>
-              <Button
-                component={Link}
-                to="/scheduled-payments"
-                variant="light"
-                color="blue"
-                leftSection={<IconCalendarDollar size={18} />}
-                justify="flex-start"
-                styles={{ root: { minHeight: rem(52) } }}
+              </Text>
+              <IconArrowUpRight size={16} color="var(--mantine-color-dimmed)" />
+            </UnstyledButton>
+            <UnstyledButton
+              component={Link}
+              to="/scheduled-payments"
+              className={classes.quickLink}
+            >
+              <ThemeIcon variant="light" color="blue" radius="xl" size={38}>
+                <IconCalendarDollar size={19} />
+              </ThemeIcon>
+              <Text
+                fw={600}
+                size="sm"
+                truncate
+                className={classes.quickLinkLabel}
               >
                 {t("scheduledPaymentsTitle")}
-              </Button>
-            </SimpleGrid>
-          </Stack>
-        </Paper>
+              </Text>
+              <IconArrowUpRight size={16} color="var(--mantine-color-dimmed)" />
+            </UnstyledButton>
+          </Box>
         </>
       )}
 
       {/* Recent transactions */}
-      <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
-        <Group justify="space-between" align="center" px="md" py="sm">
+      <Box className={classes.transactions}>
+        <Group justify="space-between" align="center" pb="md">
           <Text fw={700} size="sm">
             {t("recentTransactions")}
           </Text>
@@ -830,7 +905,6 @@ export default function OverviewPage() {
             {t("showAllTransactions")} →
           </Anchor>
         </Group>
-        <Divider />
         {recentEntries.length === 0 ? (
           <Text c="dimmed" size="sm" ta="center" py="md">
             {t("noTransactionsYet")}
@@ -866,7 +940,7 @@ export default function OverviewPage() {
             )}
           </>
         )}
-      </Paper>
+      </Box>
     </Stack>
   );
 }
