@@ -1,4 +1,4 @@
-PRAGMA foreign_keys = OFF;
+PRAGMA defer_foreign_keys = true;
 
 CREATE TABLE planned_expenses_new (
   id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -138,22 +138,4 @@ CREATE INDEX IF NOT EXISTS idx_planned_expenses_expense_account
 CREATE INDEX IF NOT EXISTS idx_planned_expenses_kind_category_order
   ON planned_expenses (kind, category_id, sort_order, name);
 
-PRAGMA foreign_keys = ON;
-
 ALTER TABLE budget_settings ADD COLUMN calendar_week_start INTEGER NOT NULL DEFAULT 0;
-
-CREATE TRIGGER IF NOT EXISTS planned_expenses_recurrence_count_insert_check
-BEFORE INSERT ON planned_expenses
-FOR EACH ROW
-WHEN NEW.recurrence_count IS NOT NULL AND NEW.recurrence_count <= 0
-BEGIN
-  SELECT RAISE(ABORT, 'recurrence_count must be a positive integer');
-END;
-
-CREATE TRIGGER IF NOT EXISTS planned_expenses_recurrence_count_update_check
-BEFORE UPDATE OF recurrence_count ON planned_expenses
-FOR EACH ROW
-WHEN NEW.recurrence_count IS NOT NULL AND NEW.recurrence_count <= 0
-BEGIN
-  SELECT RAISE(ABORT, 'recurrence_count must be a positive integer');
-END;
