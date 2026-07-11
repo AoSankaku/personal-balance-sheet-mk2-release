@@ -12,7 +12,7 @@ describe("bump version workflow paths", () => {
     expect(workflow.on.push["paths-ignore"]).toEqual([
       "*.md",
       ".github/workflows/bump-version.yml",
-      "scripts/bump-version*.mjs",
+      "scripts/bump-version*.test.mjs",
     ]);
   });
 
@@ -21,5 +21,15 @@ describe("bump version workflow paths", () => {
     expect(workflow.on.push["paths-ignore"]).not.toContain(
       "frontend/src/guides/**",
     );
+  });
+
+  test("fast-forwards dev after committing the main version", () => {
+    const syncStep = workflow.jobs["bump-version"].steps.find(
+      (step) => step.name === "Synchronize dev",
+    );
+
+    expect(syncStep.run).toContain("git fetch origin dev");
+    expect(syncStep.run).toContain("git merge-base --is-ancestor origin/dev HEAD");
+    expect(syncStep.run).toContain("git push origin HEAD:dev");
   });
 });
