@@ -64,7 +64,7 @@ hardReloadAction: 立即重新載入
 hardReloadAccessTitle: 工作階段已過期
 hardReloadAccessMessage: Cloudflare Access 要求你重新登入。請強制重新載入此頁面，並在提示時登入 Access。
 hardReloadVersionTitle: 有新版本可用
-hardReloadVersionMessage: 已部署新版本。請強制重新載入此頁面以使用最新應用程式。
+hardReloadVersionMessage: 已部署新版本。請選擇「立即重新載入」以更新至最新應用程式。
 networkOfflineError: 你似乎處於離線狀態。請檢查網路連線後再試一次。
 internalServerError: 伺服器內部錯誤
 accountAdded: 帳戶已新增

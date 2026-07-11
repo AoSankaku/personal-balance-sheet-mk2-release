@@ -1,14 +1,16 @@
 import { Alert, Button, Group, Text } from "@mantine/core";
 import { IconRefreshAlert } from "@tabler/icons-react";
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import {
   getReloadPromptSnapshot,
   subscribeReloadPrompt,
 } from "../lib/reloadPrompt";
 import { useLang } from "../i18n";
+import { reloadAppWithLatestServiceWorker } from "../lib/pwaUpdate";
 
 export function HardReloadPrompt() {
   const { t } = useLang();
+  const [updating, setUpdating] = useState(false);
   const item = useSyncExternalStore(
     subscribeReloadPrompt,
     getReloadPromptSnapshot,
@@ -28,6 +30,17 @@ export function HardReloadPrompt() {
           item.latestVersion
         })`
       : t("hardReloadVersionMessage");
+
+  async function reload() {
+    if (isAccess) {
+      window.location.reload();
+      return;
+    }
+
+    setUpdating(true);
+    await reloadAppWithLatestServiceWorker();
+    setUpdating(false);
+  }
 
   return (
     <Alert
@@ -54,7 +67,8 @@ export function HardReloadPrompt() {
           color="dark"
           variant="white"
           size="xs"
-          onClick={() => window.location.reload()}
+          loading={updating}
+          onClick={reload}
         >
           {t("hardReloadAction")}
         </Button>
