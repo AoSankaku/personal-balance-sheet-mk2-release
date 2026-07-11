@@ -64,7 +64,7 @@ hardReloadAction: 今すぐ再読み込み
 hardReloadAccessTitle: セッションが切れました
 hardReloadAccessMessage: Cloudflare Access が再ログインを要求しています。このページをハードリロードし、求められたら Access にログインしてください。
 hardReloadVersionTitle: 新しいバージョンがあります
-hardReloadVersionMessage: 新しいバージョンがデプロイされています。最新のアプリを使うには、このページをハードリロードしてください。
+hardReloadVersionMessage: 新しいバージョンがデプロイされています。「今すぐ再読み込み」を押して最新のアプリに更新してください。
 networkOfflineError: オフラインのようです。ネットワーク接続を確認して、もう一度お試しください。
 internalServerError: 内部サーバーエラー
 accountAdded: 勘定科目を追加しました

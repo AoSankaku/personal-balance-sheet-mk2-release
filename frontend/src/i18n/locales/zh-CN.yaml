@@ -64,7 +64,7 @@ hardReloadAction: 立即重新加载
 hardReloadAccessTitle: 会话已过期
 hardReloadAccessMessage: Cloudflare Access 要求你重新登录。请强制重新加载此页面，并在提示时登录 Access。
 hardReloadVersionTitle: 有新版本可用
-hardReloadVersionMessage: 已部署新版本。请强制重新加载此页面以使用最新应用。
+hardReloadVersionMessage: 已部署新版本。请选择“立即重新加载”以更新到最新应用。
 networkOfflineError: 你似乎处于离线状态。请检查网络连接后重试。
 internalServerError: 服务器内部错误
 accountAdded: 账户已添加

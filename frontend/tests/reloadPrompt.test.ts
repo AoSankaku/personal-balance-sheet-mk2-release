@@ -11,6 +11,7 @@ import {
   isLikelyCloudflareAccessResponse,
   shouldPromptForNewVersion,
 } from "../src/lib/appVersion";
+import { reloadWithLatestServiceWorker } from "../src/lib/pwaUpdate";
 
 const frontendRoot = join(import.meta.dir, "..");
 
@@ -129,5 +130,89 @@ describe("hard reload prompt detection", () => {
         );
       }
     }
+  });
+});
+
+describe("app version reload", () => {
+  test("waits for an updated service worker to control the page before reloading", async () => {
+    let controllerChangeListener: (() => void) | undefined;
+    let reloadCount = 0;
+    let updateCount = 0;
+    const registration = {
+      installing: {} as ServiceWorker,
+      waiting: null,
+      update: async () => {
+        updateCount += 1;
+      },
+    };
+    const serviceWorker = {
+      getRegistration: async () => registration,
+      addEventListener: (
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+      ) => {
+        if (type === "controllerchange") {
+          controllerChangeListener = listener as () => void;
+        }
+      },
+      removeEventListener: () => undefined,
+    };
+
+    const reloadPromise = reloadWithLatestServiceWorker({
+      serviceWorker,
+      reload: () => {
+        reloadCount += 1;
+      },
+      timeoutMs: 100,
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(updateCount).toBe(1);
+    expect(reloadCount).toBe(0);
+
+    controllerChangeListener?.();
+    await reloadPromise;
+    expect(reloadCount).toBe(1);
+  });
+
+  test("reloads immediately when no service worker registration exists", async () => {
+    let reloadCount = 0;
+
+    await reloadWithLatestServiceWorker({
+      serviceWorker: {
+        getRegistration: async () => undefined,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      },
+      reload: () => {
+        reloadCount += 1;
+      },
+    });
+
+    expect(reloadCount).toBe(1);
+  });
+
+  test("falls back to reloading when the service worker update fails", async () => {
+    let reloadCount = 0;
+
+    await reloadWithLatestServiceWorker({
+      serviceWorker: {
+        getRegistration: async () => ({
+          installing: null,
+          waiting: null,
+          update: async () => {
+            throw new Error("update failed");
+          },
+        }),
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      },
+      reload: () => {
+        reloadCount += 1;
+      },
+    });
+
+    expect(reloadCount).toBe(1);
   });
 });
