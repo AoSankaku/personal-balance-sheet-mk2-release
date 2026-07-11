@@ -88,7 +88,7 @@ export interface Account {
   balance?: number | null;
   /** Per-currency balances: { "JPY": 10000, "USD": 500 }. Populated on GET /api/accounts. */
   balances?: Record<string, number>;
-  /** Day of month (1-31) when salary/income is expected; only for income accounts */
+  /** Day of month (0=end of month, 1-31) when salary/income is expected; only for income accounts */
   payday?: number | null;
   /** Budget distribution ratios (only populated for expense-type accounts) */
   budget_ratios?: AccountBudgetRatio[];
@@ -106,7 +106,7 @@ export interface CreateAccountInput {
   name: string;
   type: AccountType;
   category: AccountCategory;
-  /** Day of month (1-31) for income accounts; omit or null for no payday */
+  /** Day of month (0=end of month, 1-31) for income accounts; omit or null for no payday */
   payday?: number | null;
   /** Budget distribution ratios — only relevant for expense-type accounts */
   budget_ratios?: AccountBudgetRatio[];
@@ -264,6 +264,27 @@ export interface CreateExchangeCredentialInput {
   exchange: string;
   api_key: string;
   api_secret: string;
+}
+
+export type ProductApiProvider = "rakuten" | "yahoo";
+
+export interface ProductApiCredentialStatus {
+  provider: ProductApiProvider;
+  has_api_key: boolean;
+  has_api_secret: boolean;
+  has_partner_tag: boolean;
+  has_application_id: boolean;
+  api_key_last4: string | null;
+  partner_tag_last4: string | null;
+  application_id_last4: string | null;
+  updated_at: string | null;
+}
+
+export interface UpsertProductApiCredentialInput {
+  api_key?: string;
+  api_secret?: string;
+  partner_tag?: string;
+  application_id?: string;
 }
 
 export interface CryptoPrices {
@@ -442,11 +463,15 @@ export interface BudgetAdjustmentLog {
   journal_entry_id?: number;
 }
 
+export type CalendarWeekStart = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
 export interface BudgetSettings {
   /** Ordered list of preferred payment account IDs (up to 5). First = default. */
   preferred_payment_account_ids: number[];
   /** Ordered list of preferred filter IDs (up to 5). Shown first in income entry dropdown. */
   preferred_filter_ids: number[];
+  /** First day of week for calendars. 0 = Sunday, 6 = Saturday. */
+  calendar_week_start: CalendarWeekStart;
   /** Whether the user is a sole proprietor (個人事業主) */
   is_business_owner: boolean;
   /** Default asset account for business expense advances (事業立替金科目) */
@@ -455,6 +480,397 @@ export interface BudgetSettings {
   business_loss_account_id?: number | null;
   /** Budget category to deduct business advance amounts from (事業立替金の予算元) */
   business_advance_budget_category_id?: number | null;
+}
+
+export type PlannedExpenseKind =
+  | "shopping_list"
+  | "wishlist"
+  | "scheduled_payment";
+export type PlannedExpenseStatus = "open" | "completed" | "cancelled";
+export type PlannedExpenseRecurrenceType = "one_time" | "recurring";
+export type PlannedExpenseRecurrenceUnit = "week" | "month" | "year";
+export type PlannedExpenseMonthlyMode = "day_of_month" | "week_of_month";
+export type PlannedExpenseWeekFallback =
+  | "skip"
+  | "last_day_of_month"
+  | "previous_week"
+  | "next_month_first_week";
+export type ShoppingPlanType = "one_time" | "routine";
+export type ProductSourceSite = "amazon" | "rakuten" | "yahoo" | "other";
+export type ProductAvailabilityStatus =
+  | "in_stock"
+  | "out_of_stock"
+  | "unavailable"
+  | "unknown"
+  | "api_credentials_missing"
+  | "unsupported"
+  | "error";
+
+const plannedExpenseWeekFallbackValues = new Set<PlannedExpenseWeekFallback>([
+  "skip",
+  "last_day_of_month",
+  "previous_week",
+  "next_month_first_week",
+]);
+
+export function normalizePlannedExpenseWeekFallback(
+  value: unknown,
+): PlannedExpenseWeekFallback {
+  return typeof value === "string" &&
+    plannedExpenseWeekFallbackValues.has(value as PlannedExpenseWeekFallback)
+    ? (value as PlannedExpenseWeekFallback)
+    : "previous_week";
+}
+
+function formatDateParts(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(
+    2,
+    "0",
+  )}`;
+}
+
+function shiftYearMonth(year: number, month: number, delta: number) {
+  const shifted = new Date(year, month - 1 + delta, 1);
+  return { year: shifted.getFullYear(), month: shifted.getMonth() + 1 };
+}
+
+function parseYearMonth(value: string): { year: number; month: number } | null {
+  const match = value.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  return month >= 1 && month <= 12 ? { year, month } : null;
+}
+
+function firstWeekdayOfMonth(
+  year: number,
+  month: number,
+  weekday: number,
+): number | null {
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) return null;
+  const firstWeekday = new Date(year, month - 1, 1).getDay();
+  return 1 + ((weekday - firstWeekday + 7) % 7);
+}
+
+export function resolvePlannedExpenseWeekdayInMonth(input: {
+  yearMonth: string;
+  weekOfMonth: number;
+  weekday: number;
+  fallback?: PlannedExpenseWeekFallback | null;
+}): string | null {
+  const parsed = parseYearMonth(input.yearMonth);
+  if (!parsed) return null;
+  const weekOfMonth = input.weekOfMonth;
+  if (!Number.isInteger(weekOfMonth) || weekOfMonth < 1 || weekOfMonth > 5) {
+    return null;
+  }
+  const firstDay = firstWeekdayOfMonth(
+    parsed.year,
+    parsed.month,
+    input.weekday,
+  );
+  if (firstDay == null) return null;
+
+  const targetDay = firstDay + (weekOfMonth - 1) * 7;
+  const lastDay = new Date(parsed.year, parsed.month, 0).getDate();
+  if (targetDay <= lastDay) {
+    return formatDateParts(parsed.year, parsed.month, targetDay);
+  }
+
+  const fallback = normalizePlannedExpenseWeekFallback(input.fallback);
+  if (fallback === "skip") return null;
+  if (fallback === "last_day_of_month") {
+    return formatDateParts(parsed.year, parsed.month, lastDay);
+  }
+  if (fallback === "previous_week") {
+    const previousDay = targetDay - 7;
+    return previousDay >= 1
+      ? formatDateParts(parsed.year, parsed.month, previousDay)
+      : null;
+  }
+
+  const nextMonth = shiftYearMonth(parsed.year, parsed.month, 1);
+  const nextMonthFirstDay = firstWeekdayOfMonth(
+    nextMonth.year,
+    nextMonth.month,
+    input.weekday,
+  );
+  return nextMonthFirstDay == null
+    ? null
+    : formatDateParts(nextMonth.year, nextMonth.month, nextMonthFirstDay);
+}
+
+export function resolvePlannedExpenseWeekdayRuleDate(input: {
+  date: string | null;
+  weeksOfMonth: string | null | undefined;
+  weekday: number | null | undefined;
+  fallback?: PlannedExpenseWeekFallback | null;
+}): string | null {
+  if (!input.date || input.weekday == null) return input.date;
+  const yearMonth = input.date.slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(yearMonth)) return input.date;
+  const dates = (input.weeksOfMonth ?? "")
+    .split(",")
+    .map((week) => Number(week.trim()))
+    .filter((week) => Number.isInteger(week) && week >= 1 && week <= 5)
+    .map((week) =>
+      resolvePlannedExpenseWeekdayInMonth({
+        yearMonth,
+        weekOfMonth: week,
+        weekday: input.weekday!,
+        fallback: input.fallback,
+      }),
+    )
+    .filter((date): date is string => date != null)
+    .sort();
+  return dates[0] ?? null;
+}
+
+export interface ProductMetadata {
+  id: number;
+  normalized_url: string;
+  source_site: ProductSourceSite;
+  source_product_id: string | null;
+  name: string | null;
+  price_amount: number | null;
+  currency: string;
+  availability_status: ProductAvailabilityStatus;
+  availability_label: string | null;
+  og_title: string | null;
+  og_description: string | null;
+  og_image_url: string | null;
+  og_site_name: string | null;
+  fetched_at: string;
+  expires_at: string;
+  error_code: string | null;
+  error_message: string | null;
+}
+
+export interface ProductMetadataLookupInput {
+  url: string;
+  force?: boolean;
+}
+
+export interface PlannedExpenseCategory {
+  id: number;
+  kind: PlannedExpenseKind;
+  name: string;
+  estimated_amount: number;
+  currency: string;
+  default_expense_account_id: number | null;
+  target_date: string | null;
+  shopping_plan_type: ShoppingPlanType;
+  archived_at: string | null;
+  last_checked_out_date: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export function normalizePlannedExpenseCategoryName(name: string): string {
+  return name.trim();
+}
+
+export function normalizePlannedExpenseCurrency(
+  currency: string | null | undefined,
+): string {
+  return (currency || "JPY").trim().toUpperCase();
+}
+
+export function hasDuplicatePlannedExpenseCategoryName(input: {
+  name: string;
+  kind: PlannedExpenseKind;
+  currency: string;
+  categories: Array<
+    Pick<PlannedExpenseCategory, "id" | "kind" | "name" | "currency">
+  >;
+  excludeId?: number;
+}): boolean {
+  const normalizedName = normalizePlannedExpenseCategoryName(input.name);
+  const normalizedCurrency = normalizePlannedExpenseCurrency(input.currency);
+  if (!normalizedName) return false;
+  return input.categories.some(
+    (category) =>
+      category.id !== input.excludeId &&
+      category.kind === input.kind &&
+      normalizePlannedExpenseCurrency(category.currency) === normalizedCurrency &&
+      normalizePlannedExpenseCategoryName(category.name) === normalizedName,
+  );
+}
+
+export function normalizePlannedExpenseItemName(name: string): string {
+  return name.trim();
+}
+
+export function hasDuplicatePlannedExpenseItemName(input: {
+  name: string;
+  kind: PlannedExpenseKind;
+  categoryId: number | null;
+  currency: string;
+  items: Array<
+    Pick<
+      PlannedExpense,
+      "id" | "kind" | "category_id" | "name" | "currency"
+    >
+  >;
+  excludeId?: number;
+}): boolean {
+  const normalizedName = normalizePlannedExpenseItemName(input.name);
+  const normalizedCurrency = normalizePlannedExpenseCurrency(input.currency);
+  if (!normalizedName) return false;
+  return input.items.some(
+    (item) =>
+      item.id !== input.excludeId &&
+      item.kind === input.kind &&
+      (item.category_id ?? null) === input.categoryId &&
+      normalizePlannedExpenseCurrency(item.currency) === normalizedCurrency &&
+      normalizePlannedExpenseItemName(item.name) === normalizedName,
+  );
+}
+
+export interface CreatePlannedExpenseCategoryInput {
+  kind: PlannedExpenseKind;
+  name: string;
+  estimated_amount?: number;
+  currency?: string;
+  default_expense_account_id?: number | null;
+  target_date?: string | null;
+  shopping_plan_type?: ShoppingPlanType;
+  sort_order?: number;
+}
+
+export interface UpdatePlannedExpenseCategoryInput {
+  name?: string;
+  estimated_amount?: number;
+  currency?: string;
+  default_expense_account_id?: number | null;
+  target_date?: string | null;
+  shopping_plan_type?: ShoppingPlanType;
+  archived_at?: string | null;
+  last_checked_out_date?: string | null;
+  sort_order?: number;
+}
+
+export interface PlannedExpense {
+  id: number;
+  kind: PlannedExpenseKind;
+  category_id: number | null;
+  category_name?: string | null;
+  category_estimated_amount?: number | null;
+  category_currency?: string | null;
+  category_default_expense_account_id?: number | null;
+  category_target_date?: string | null;
+  category_shopping_plan_type?: ShoppingPlanType | null;
+  category_archived_at?: string | null;
+  name: string;
+  estimated_amount: number;
+  currency: string;
+  budget_category_id: number | null;
+  budget_category_name?: string | null;
+  expense_account_id: number | null;
+  expense_account_name?: string | null;
+  target_date: string | null;
+  recurrence_type: PlannedExpenseRecurrenceType;
+  recurrence_interval: number | null;
+  recurrence_unit: PlannedExpenseRecurrenceUnit | null;
+  recurrence_monthly_mode: PlannedExpenseMonthlyMode | null;
+  recurrence_interval_months: number | null;
+  recurrence_day: number | null;
+  recurrence_weeks_of_month: string | null;
+  recurrence_weekday: number | null;
+  recurrence_week_fallback: PlannedExpenseWeekFallback | null;
+  next_due_date: string | null;
+  end_date: string | null;
+  recurrence_count: number | null;
+  skipped_dates: string | null;
+  completed_dates: string | null;
+  sort_order: number;
+  status: PlannedExpenseStatus;
+  keep_on_routine_clear: boolean;
+  note: string | null;
+  url: string | null;
+  product_metadata_cache_id?: number | null;
+  product_metadata?: ProductMetadata | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePlannedExpenseInput {
+  kind: PlannedExpenseKind;
+  category_id?: number | null;
+  name: string;
+  estimated_amount: number;
+  currency?: string;
+  budget_category_id?: number | null;
+  expense_account_id?: number | null;
+  target_date?: string | null;
+  recurrence_type?: PlannedExpenseRecurrenceType;
+  recurrence_interval?: number | null;
+  recurrence_unit?: PlannedExpenseRecurrenceUnit | null;
+  recurrence_monthly_mode?: PlannedExpenseMonthlyMode | null;
+  recurrence_interval_months?: number | null;
+  recurrence_day?: number | null;
+  recurrence_weeks_of_month?: string | null;
+  recurrence_weekday?: number | null;
+  recurrence_week_fallback?: PlannedExpenseWeekFallback | null;
+  next_due_date?: string | null;
+  end_date?: string | null;
+  recurrence_count?: number | null;
+  skipped_dates?: string | null;
+  completed_dates?: string | null;
+  sort_order?: number;
+  status?: PlannedExpenseStatus;
+  keep_on_routine_clear?: boolean;
+  note?: string | null;
+  url?: string | null;
+  product_metadata_cache_id?: number | null;
+}
+
+export interface UpdatePlannedExpenseInput {
+  category_id?: number | null;
+  name?: string;
+  estimated_amount?: number;
+  currency?: string;
+  budget_category_id?: number | null;
+  expense_account_id?: number | null;
+  target_date?: string | null;
+  recurrence_type?: PlannedExpenseRecurrenceType;
+  recurrence_interval?: number | null;
+  recurrence_unit?: PlannedExpenseRecurrenceUnit | null;
+  recurrence_monthly_mode?: PlannedExpenseMonthlyMode | null;
+  recurrence_interval_months?: number | null;
+  recurrence_day?: number | null;
+  recurrence_weeks_of_month?: string | null;
+  recurrence_weekday?: number | null;
+  recurrence_week_fallback?: PlannedExpenseWeekFallback | null;
+  next_due_date?: string | null;
+  end_date?: string | null;
+  recurrence_count?: number | null;
+  skipped_dates?: string | null;
+  completed_dates?: string | null;
+  sort_order?: number;
+  status?: PlannedExpenseStatus;
+  keep_on_routine_clear?: boolean;
+  note?: string | null;
+  url?: string | null;
+  product_metadata_cache_id?: number | null;
+}
+
+export interface CompletePlannedExpenseWithJournalInput {
+  journal: CreateJournalInput;
+  idempotency_key: string;
+  occurrence_date?: string | null;
+  next_due_date_after_occurrence?: string | null;
+  completed_dates?: string | null;
+  completion_status_after_occurrence?: "open" | "completed";
+  checkout_item_ids?: number[];
+  checkout_keep_item_ids?: number[];
+}
+
+export interface CompletePlannedExpenseWithJournalResponse {
+  journal_entry_id: number;
+  completion: "completed" | "shopping_list_archived" | "none";
+  replayed: boolean;
 }
 
 export interface DepreciationSchedule {
@@ -634,6 +1050,12 @@ export function lastDayOfCreditCardMonth(month: string): number {
   return new Date(Number(match[1]), Number(match[2]), 0).getDate();
 }
 
+export function resolveMonthlyPayday(month: string, payday: number): number {
+  const lastDay = lastDayOfCreditCardMonth(month);
+  if (payday === 0) return lastDay;
+  return Math.min(Math.max(payday, 1), lastDay);
+}
+
 export function resolveCreditCardMonthDay(
   month: string,
   daySetting: number,
@@ -755,6 +1177,7 @@ export interface EnabledCurrency {
   symbol_priority: number;
   custom_symbol: string | null;
   custom_icon: string | null;
+  background_color: string | null;
   decimal_places: number;
   created_at: string;
 }

@@ -19,6 +19,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 
 export default function BusinessSettingsPage() {
   const { t } = useLang();
@@ -97,6 +98,7 @@ export default function BusinessSettingsPage() {
               data={accounts
                 .filter((a) => a.type === "asset" && isUserSelectableAccount(a))
                 .map((a) => toAccountSelectOption(a, t))}
+              renderOption={renderAccountOption as never}
             />
             <Select
               size="sm"
@@ -122,6 +124,7 @@ export default function BusinessSettingsPage() {
                   (a) => a.type === "expense" && isUserSelectableAccount(a),
                 )
                 .map((a) => toAccountSelectOption(a, t))}
+              renderOption={renderAccountOption as never}
             />
             <Select
               size="sm"

@@ -16,9 +16,12 @@ import { IconAlertTriangle, IconRefresh } from "@tabler/icons-react";
 import type { BudgetCategory } from "@balance-sheet/shared";
 import { useLang } from "../../i18n";
 import { useAppData } from "../../context/AppDataContext";
+import { renderAccountOption, type AccountOption } from "../../lib/accountSelect";
 import {
-  renderAccountOption,
-  type AccountOption,
+  formatBudgetDistributionRatio,
+  type AmountDistributionSummary,
+} from "../../lib/simpleEntryUtils";
+import {
   type HouseholdForm,
   type StepPreview,
 } from "../SimpleEntryForm";
@@ -45,7 +48,7 @@ interface Props {
   setIncomeDist: (v: IncomeDist[]) => void;
   displayIncomeDist: IncomeDist[];
   filterStepPreview: StepPreview[];
-  totalIncomePct: number;
+  incomeDistributionSummary: AmountDistributionSummary;
   totalIncomeDist: number;
   showManualIncomeDist: boolean;
   handleIncomeDistChange: (catId: number, newAmt: number) => void;
@@ -66,7 +69,7 @@ export function IncomeSection({
   setIncomeDist,
   displayIncomeDist,
   filterStepPreview,
-  totalIncomePct,
+  incomeDistributionSummary,
   totalIncomeDist,
   showManualIncomeDist,
   handleIncomeDistChange,
@@ -74,6 +77,9 @@ export function IncomeSection({
 }: Props) {
   const { t } = useLang();
   const { displayCurrencySymbol: currencySymbol } = useAppData();
+  const incomeTotalRatioLabel = `${formatBudgetDistributionRatio(
+    incomeDistributionSummary.displayRatio,
+  )}%`;
 
   return (
     <>
@@ -224,19 +230,20 @@ export function IncomeSection({
                 size="xs"
                 variant="light"
                 color={
-                  totalIncomePct > 100
+                  incomeDistributionSummary.isOverAllocated
                     ? "red"
-                    : totalIncomePct > 0 && totalIncomePct < 100
+                    : incomeDistributionSummary.isUnderAllocated
                       ? "yellow"
                       : "teal"
                 }
                 leftSection={
-                  totalIncomePct > 0 && totalIncomePct < 100 ? (
+                  incomeDistributionSummary.isOverAllocated ||
+                  incomeDistributionSummary.isUnderAllocated ? (
                     <IconAlertTriangle size={10} />
                   ) : undefined
                 }
               >
-                {t("budgetDistributionTotal")}: {totalIncomePct}%
+                {t("budgetDistributionTotal")}: {incomeTotalRatioLabel}
               </Badge>
             </Group>
             {(() => {
@@ -312,7 +319,7 @@ export function IncomeSection({
                 {t("budgetDistributionTotal")}:
               </Text>
               <Text size="xs" c="dimmed" w={36} ta="right">
-                {totalIncomePct}%
+                {incomeTotalRatioLabel}
               </Text>
               <Text size="xs" fw={600} w={130} ta="right">
                 ¥{totalIncomeDist.toLocaleString()}

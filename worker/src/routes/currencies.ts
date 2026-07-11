@@ -13,6 +13,16 @@ function parseDecimalPlaces(value: unknown): number | null {
   return value;
 }
 
+function parseBackgroundColor(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!/^#[0-9a-fA-F]{6}$/.test(trimmed)) return undefined;
+  return trimmed.toUpperCase();
+}
+
 function errorMessageMatches(error: unknown, pattern: RegExp): boolean {
   let current: unknown = error;
   const seen = new Set<unknown>();
@@ -50,6 +60,7 @@ async function ensureEnabledCurrenciesTable(db: ReturnType<typeof createDb>) {
       symbol_priority INTEGER NOT NULL DEFAULT 0,
       custom_symbol TEXT,
       custom_icon TEXT,
+      background_color TEXT,
       decimal_places INTEGER NOT NULL DEFAULT 2,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       CONSTRAINT chk_enabled_currencies_decimal_places_range
@@ -97,6 +108,7 @@ router.post("/", async (c) => {
     enabled: boolean;
     custom_symbol?: string;
     custom_icon?: string;
+    background_color?: string | null;
     decimal_places?: number;
   }>();
   if (!body.code) return c.json({ error: "code is required" }, 400);
@@ -105,6 +117,10 @@ router.post("/", async (c) => {
     parseDecimalPlaces(body.decimal_places) === null
   ) {
     return c.json({ error: "decimal_places must be an integer from 0 to 9" }, 400);
+  }
+  const requestedBackgroundColor = parseBackgroundColor(body.background_color);
+  if (body.background_color !== undefined && requestedBackgroundColor === undefined) {
+    return c.json({ error: "background_color must be a #RRGGBB color" }, 400);
   }
 
   const code = body.code.toUpperCase();
@@ -141,11 +157,13 @@ router.post("/", async (c) => {
         sort_order: maxOrder + 1,
         custom_symbol: customSymbol,
         custom_icon: customIcon,
+        background_color: requestedBackgroundColor ?? null,
         decimal_places: requestedDecimalPlaces ?? moneyScale(code),
       });
     } else if (
       customSymbol !== null ||
       customIcon !== null ||
+      requestedBackgroundColor !== undefined ||
       requestedDecimalPlaces !== null
     ) {
       await db
@@ -153,6 +171,9 @@ router.post("/", async (c) => {
         .set({
           ...(customSymbol !== null ? { custom_symbol: customSymbol } : {}),
           ...(customIcon !== null ? { custom_icon: customIcon } : {}),
+          ...(requestedBackgroundColor !== undefined
+            ? { background_color: requestedBackgroundColor }
+            : {}),
           ...(requestedDecimalPlaces !== null
             ? { decimal_places: requestedDecimalPlaces }
             : {}),
@@ -177,6 +198,7 @@ router.patch("/:code", async (c) => {
   const body = await c.req.json<{
     symbol_priority?: number;
     decimal_places?: number;
+    background_color?: string | null;
   }>();
 
   if (
@@ -191,6 +213,10 @@ router.patch("/:code", async (c) => {
   ) {
     return c.json({ error: "decimal_places must be an integer from 0 to 9" }, 400);
   }
+  const requestedBackgroundColor = parseBackgroundColor(body.background_color);
+  if (body.background_color !== undefined && requestedBackgroundColor === undefined) {
+    return c.json({ error: "background_color must be a #RRGGBB color" }, 400);
+  }
 
   const updates: Partial<typeof enabledCurrencies.$inferInsert> = {};
   if (body.symbol_priority !== undefined) {
@@ -198,6 +224,9 @@ router.patch("/:code", async (c) => {
   }
   if (body.decimal_places !== undefined) {
     updates.decimal_places = body.decimal_places;
+  }
+  if (body.background_color !== undefined) {
+    updates.background_color = requestedBackgroundColor;
   }
   if (Object.keys(updates).length === 0) {
     return c.json({ error: "no updates provided" }, 400);

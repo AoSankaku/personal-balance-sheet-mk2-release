@@ -32,12 +32,15 @@ import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { showFeedback } from "../lib/feedback";
 import { formatCurrency } from "../lib/numberFormat";
-import { renderAccountOption } from "./SimpleEntryForm";
 import {
-  systemAccountTranslationKey,
+  accountDisplayName,
   categoryIndex,
 } from "../lib/accountUtils";
-import { type AccountOption } from "../utils/csvInputUtils";
+import {
+  renderAccountOption,
+  toAccountOption,
+  type AccountOption,
+} from "../lib/accountSelect";
 import {
   multiDraft,
   setMultiDraft,
@@ -240,13 +243,6 @@ export function MultiLineEntryForm({
       income: "typeIncome",
       expense: "typeExpense",
     };
-    const resolveLabel = (a: (typeof accounts)[0]): string => {
-      if (a.is_system) {
-        const key = systemAccountTranslationKey(a.name);
-        if (key) return t(key);
-      }
-      return a.name;
-    };
     const groups: { group: string; items: AccountOption[] }[] = [];
     for (const type of TYPE_ORDER) {
       const items = accounts
@@ -254,16 +250,14 @@ export function MultiLineEntryForm({
         .sort((a, b) => {
           const ai = categoryIndex(a.type, a.category, a.is_system ?? false);
           const bi = categoryIndex(b.type, b.category, b.is_system ?? false);
-          return ai !== bi ? ai - bi : a.name.localeCompare(b.name, "ja");
+          return ai !== bi
+            ? ai - bi
+            : accountDisplayName(a, t).localeCompare(
+                accountDisplayName(b, t),
+                "ja",
+              );
         })
-        .map(
-          (a): AccountOption => ({
-            value: String(a.id),
-            label: resolveLabel(a),
-            category: a.category,
-            is_system: a.is_system ?? false,
-          }),
-        );
+        .map((a): AccountOption => toAccountOption(a, t));
       if (items.length > 0) {
         groups.push({ group: t(TYPE_LABEL[type]), items });
       }

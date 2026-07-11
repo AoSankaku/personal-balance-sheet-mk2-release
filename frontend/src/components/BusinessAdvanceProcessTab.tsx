@@ -27,6 +27,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 import { formatJPY } from "../lib/numberFormat";
 
 export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
@@ -210,6 +211,7 @@ export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
           label={t("businessAdvanceTransferToLabel")}
           placeholder={t("selectAccount")}
           data={assetOptions}
+          renderOption={renderAccountOption as never}
           searchable
           required
           value={transferToId}
@@ -222,6 +224,7 @@ export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
           label={t("businessLossAccountLabel")}
           placeholder={t("selectAccount")}
           data={expenseOptions}
+          renderOption={renderAccountOption as never}
           searchable
           required
           value={lossAccountId}

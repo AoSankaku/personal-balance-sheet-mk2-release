@@ -15,6 +15,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 import { toDateStr } from "../lib/dateUtils";
 
 interface Props {
@@ -168,6 +169,7 @@ export function ForeignExchangeForm({ onSuccess }: Props) {
         <Select
           label={t("fxFromAccount")}
           data={accountOptions}
+          renderOption={renderAccountOption as never}
           value={fromAccountId}
           onChange={setFromAccountId}
           searchable
@@ -187,6 +189,7 @@ export function ForeignExchangeForm({ onSuccess }: Props) {
         <Select
           label={t("fxToAccount")}
           data={accountOptions}
+          renderOption={renderAccountOption as never}
           value={toAccountId}
           onChange={setToAccountId}
           searchable

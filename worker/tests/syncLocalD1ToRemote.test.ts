@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
 import {
   IMPORT_TABLE_ORDER,
@@ -13,17 +13,25 @@ import {
 
 describe("D1 sync SQL processing", () => {
   test("keeps the fixed import order in sync with every application table", async () => {
-    const schema = await readFile(
-      new URL("../drizzle/0000_init.sql", import.meta.url),
-      "utf8",
-    );
-    const schemaTables = [
-      ...schema.matchAll(
-        /CREATE TABLE IF NOT EXISTS [`"]([^`"]+)[`"]/giu,
-      ),
-    ].map((match) => match[1]);
+    const migrationDirectory = new URL("../drizzle/", import.meta.url);
+    const migrationFiles = (await readdir(migrationDirectory))
+      .filter((file) => file.endsWith(".sql"))
+      .sort();
+    const schemaTables = new Set<string>();
 
-    expect(new Set(IMPORT_TABLE_ORDER)).toEqual(new Set(schemaTables));
+    for (const file of migrationFiles) {
+      const migrationSql = await readFile(
+        new URL(`../drizzle/${file}`, import.meta.url),
+        "utf8",
+      );
+      for (const match of migrationSql.matchAll(
+        /CREATE TABLE(?: IF NOT EXISTS)? [`"]?([^`"\s(]+)[`"]?/giu,
+      )) {
+        if (!match[1].endsWith("_new")) schemaTables.add(match[1]);
+      }
+    }
+
+    expect(new Set(IMPORT_TABLE_ORDER)).toEqual(schemaTables);
   });
 
   test("splits statements without breaking semicolons or Japanese text in strings", () => {

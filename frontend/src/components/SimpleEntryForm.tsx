@@ -12,29 +12,7 @@ import {
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
-import {
-  IconBolt,
-  IconBriefcase,
-  IconBuilding,
-  IconBuildingBank,
-  IconCar,
-  IconCreditCard,
-  IconCurrencyBitcoin,
-  IconDeviceGamepad2,
-  IconDoor,
-  IconDots,
-  IconHandStop,
-  IconHome,
-  IconLock,
-  IconReceipt,
-  IconSalad,
-  IconScale,
-  IconShoppingCart,
-  IconTrendingDown,
-  IconTrendingUp,
-  IconUsers,
-} from "@tabler/icons-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMediaQuery } from "@mantine/hooks";
 import dayjs from "dayjs";
 import {
@@ -50,10 +28,15 @@ import {
   isBusinessAdvanceCategory,
 } from "@balance-sheet/shared";
 import {
+  buildExpenseBudgetAllocations,
+  computeBudgetDistributionAmounts,
   type StepPreview,
   computeFilterSteps,
   computeFilterPreview,
   getIncomeDescriptionForSubmit,
+  mergeIncomeDistributionDefaults,
+  summarizeAmountDistribution,
+  summarizeBudgetDistribution,
 } from "../lib/simpleEntryUtils";
 import {
   buildTransferBudgetAdjustments,
@@ -64,10 +47,15 @@ import { useAppData } from "../context/AppDataContext";
 import { showFeedback } from "../lib/feedback";
 import { api, ApiError } from "../api/client";
 import {
+  accountDisplayName,
   categoryIndex,
   CATEGORY_TRANSLATION_KEY,
-  systemAccountTranslationKey,
 } from "../lib/accountUtils";
+import {
+  renderAccountOption,
+  toAccountOption,
+  type AccountOption,
+} from "../lib/accountSelect";
 import { ExpenseSection } from "./entry/ExpenseSection";
 import { IncomeSection } from "./entry/IncomeSection";
 import { LoanSection } from "./entry/LoanSection";
@@ -121,6 +109,7 @@ export interface BudgetDistributionItem {
   budget_category_id: number;
   name: string;
   ratio: number;
+  amount?: number;
   /** True if this category had ratio=0 when the expense account was selected */
   isDefault: boolean;
 }
@@ -166,85 +155,6 @@ interface Props {
 
 export type { StepPreview };
 
-export function getAccountIcon(
-  category: string | undefined,
-  isSystem?: boolean,
-) {
-  const size = 14;
-  if (isSystem) return <IconLock size={size} />;
-  switch (category) {
-    case "cash":
-      return <IconBuildingBank size={size} />;
-    case "lending":
-    case "short_term_lending":
-    case "short_term_loan":
-      return <IconHandStop size={size} />;
-    case "long_term_lending":
-    case "loan":
-    case "long_term_loan":
-      return <IconReceipt size={size} />;
-    case "business_advance":
-      return <IconBriefcase size={size} />;
-    case "investment":
-      return <IconTrendingUp size={size} />;
-    case "crypto":
-      return <IconCurrencyBitcoin size={size} />;
-    case "property":
-      return <IconHome size={size} />;
-    case "credit_card":
-      return <IconCreditCard size={size} />;
-    case "opening_balance":
-      return <IconScale size={size} />;
-    case "salary":
-      return <IconBriefcase size={size} />;
-    case "business":
-      return <IconBuilding size={size} />;
-    case "food":
-      return <IconSalad size={size} />;
-    case "rent":
-      return <IconDoor size={size} />;
-    case "transport":
-      return <IconCar size={size} />;
-    case "utilities":
-      return <IconBolt size={size} />;
-    case "entertainment":
-      return <IconDeviceGamepad2 size={size} />;
-    case "daily_goods":
-      return <IconShoppingCart size={size} />;
-    case "social":
-      return <IconUsers size={size} />;
-    case "investment_loss":
-      return <IconTrendingDown size={size} />;
-    default:
-      return <IconDots size={size} />;
-  }
-}
-
-export type AccountOption = {
-  value: string;
-  label: string;
-  category?: string;
-  is_system?: boolean;
-};
-
-export function renderAccountOption({
-  option,
-}: {
-  option: AccountOption;
-  checked?: boolean;
-}) {
-  return (
-    <Group gap={6} wrap="nowrap">
-      <Text c="dimmed" style={{ flexShrink: 0, lineHeight: 1 }}>
-        {getAccountIcon(option.category, option.is_system)}
-      </Text>
-      <Text size="sm" truncate>
-        {option.label}
-      </Text>
-    </Group>
-  );
-}
-
 export function SimpleEntryForm({
   accounts,
   budgetFilters = [],
@@ -267,6 +177,38 @@ export function SimpleEntryForm({
   } = useAppData();
   const isMobile = useMediaQuery("(max-width: 48em)");
   const selectedCurrency = displayCurrency || "JPY";
+  const buildBudgetDistribution = useCallback(
+    (accountId: number | null): BudgetDistributionItem[] => {
+      if (!accountId) return [];
+
+      const account = accounts.find((a) => a.id === accountId);
+      const ratios = account?.budget_ratios ?? [];
+      const configuredIds = new Set(
+        ratios.map((r) => r.budget_category_id),
+      );
+
+      const configuredItems: BudgetDistributionItem[] = ratios.map((r) => ({
+        budget_category_id: r.budget_category_id,
+        name:
+          r.budget_category_name ??
+          `${t("unknownCategoryPrefix")}${r.budget_category_id}`,
+        ratio: r.ratio,
+        isDefault: r.ratio === 0,
+      }));
+
+      const unconfiguredItems: BudgetDistributionItem[] = budgetCategories
+        .filter((c) => !configuredIds.has(c.id))
+        .map((c) => ({
+          budget_category_id: c.id,
+          name: c.name,
+          ratio: 0,
+          isDefault: true,
+        }));
+
+      return [...configuredItems, ...unconfiguredItems];
+    },
+    [accounts, budgetCategories, t],
+  );
   const [selectedFilterId, setSelectedFilterId] = useState<string | null>(
     initialDraft?.selectedFilterId ?? null,
   );
@@ -277,6 +219,7 @@ export function SimpleEntryForm({
   const [incomeDist, setIncomeDist] = useState<
     { budget_category_id: number; name: string; amount: number }[]
   >(initialDraft?.incomeDist ?? []);
+  const dirtyIncomeDistCategoryIds = useRef<Set<number>>(new Set());
   // Frozen step-by-step pipeline snapshot — restore from draft to avoid re-capture on mount
   const [filterStepPreview, setFilterStepPreview] = useState<StepPreview[]>(
     initialDraft?.filterStepPreview ?? [],
@@ -288,7 +231,11 @@ export function SimpleEntryForm({
   );
   // Budget distribution for the currently selected expense account
   const [budgetDist, setBudgetDist] = useState<BudgetDistributionItem[]>(
-    initialDraft?.budgetDist ?? [],
+    initialDraft?.budgetDist?.length
+      ? initialDraft.budgetDist
+      : buildBudgetDistribution(
+          initialDraft?.formValues.expenseCategoryId ?? null,
+        ),
   );
   const [showZeroCategories, setShowZeroCategories] = useState(
     initialDraft?.showZeroCategories ?? false,
@@ -374,28 +321,15 @@ export function SimpleEntryForm({
       (f) => f.id === Number(selectedFilterId),
     );
     if (!selectedFilter || selectedFilter.currency === selectedCurrency) return;
+    dirtyIncomeDistCategoryIds.current.clear();
     setSelectedFilterId(null);
     setIncomeDist([]);
     setFilterStepPreview([]);
   }, [budgetFilters, selectedCurrency, selectedFilterId]);
 
-  // Helper: resolve human-readable display name for an account (translates __system:*__ names)
-  function resolveLabel(a: { name: string; is_system?: boolean }): string {
-    if (a.is_system) {
-      const key = systemAccountTranslationKey(a.name);
-      if (key) return t(key);
-    }
-    return a.name;
-  }
-
   // Convert an Account to an AccountOption (includes category/is_system for renderOption icons)
   function toOpt(a: Account): AccountOption {
-    return {
-      value: String(a.id),
-      label: resolveLabel(a),
-      category: a.category,
-      is_system: a.is_system ?? false,
-    };
+    return toAccountOption(a, t);
   }
 
   // Reusable sort comparator by canonical category order
@@ -415,7 +349,9 @@ export function SimpleEntryForm({
   ) {
     const ai = categoryIndex(a.type, a.category, a.is_system ?? false);
     const bi = categoryIndex(b.type, b.category, b.is_system ?? false);
-    return ai !== bi ? ai - bi : a.name.localeCompare(b.name, "ja");
+    return ai !== bi
+      ? ai - bi
+      : accountDisplayName(a, t).localeCompare(accountDisplayName(b, t), "ja");
   }
 
   const assetOptions = [...accounts.filter((a) => a.type === "asset")]
@@ -922,12 +858,7 @@ export function SimpleEntryForm({
           budgetSettings?.business_advance_budget_category_id ?? null;
         const personalBudgetAllocs =
           budgetDist.length > 0 && personalAmount > 0
-            ? budgetDist
-                .filter((d) => d.ratio > 0)
-                .map((d) => ({
-                  budget_category_id: d.budget_category_id,
-                  amount: -Math.round((personalAmount * d.ratio) / 100),
-                }))
+            ? buildExpenseBudgetAllocations(personalAmount, budgetDist)
             : [];
         const budget_allocations = [
           ...(advanceBudgetCatId
@@ -992,12 +923,7 @@ export function SimpleEntryForm({
         // personalAmount >= totalAmount (ratio = 0%) — treat as normal expense
         const budget_allocations =
           budgetDist.length > 0 && totalAmount > 0
-            ? budgetDist
-                .filter((d) => d.ratio > 0)
-                .map((d) => ({
-                  budget_category_id: d.budget_category_id,
-                  amount: -Math.round((totalAmount * d.ratio) / 100),
-                }))
+            ? buildExpenseBudgetAllocations(totalAmount, budgetDist)
             : undefined;
         await onSubmit({
           date,
@@ -1159,12 +1085,7 @@ export function SimpleEntryForm({
           "expense";
       const diffBudgetAllocs =
         diffIsExpense && diffBudgetDist.length > 0 && Math.abs(diff) > 0
-          ? diffBudgetDist
-              .filter((d) => d.ratio > 0)
-              .map((d) => ({
-                budget_category_id: d.budget_category_id,
-                amount: -Math.round((Math.abs(diff) * d.ratio) / 100),
-              }))
+          ? buildExpenseBudgetAllocations(Math.abs(diff), diffBudgetDist)
           : undefined;
 
       // Build budget allocations for counter account (expense) when direction is increase/collect
@@ -1176,12 +1097,7 @@ export function SimpleEntryForm({
           "expense";
       const loanCounterBudgetAllocs =
         counterIsExpense && loanCounterBudgetDist.length > 0 && loanAmount > 0
-          ? loanCounterBudgetDist
-              .filter((d) => d.ratio > 0)
-              .map((d) => ({
-                budget_category_id: d.budget_category_id,
-                amount: -Math.round((loanAmount * d.ratio) / 100),
-              }))
+          ? buildExpenseBudgetAllocations(loanAmount, loanCounterBudgetDist)
           : undefined;
 
       const combinedBudgetAllocs = [
@@ -1236,12 +1152,7 @@ export function SimpleEntryForm({
       values.entryType === "expense" &&
       budgetDist.length > 0 &&
       values.amount > 0
-        ? budgetDist
-            .filter((d) => d.ratio > 0)
-            .map((d) => ({
-              budget_category_id: d.budget_category_id,
-              amount: -Math.round((values.amount * d.ratio) / 100),
-            }))
+        ? buildExpenseBudgetAllocations(values.amount, budgetDist)
         : undefined;
 
     const income_budget_allocations =
@@ -1285,6 +1196,7 @@ export function SimpleEntryForm({
       income_budget_allocations,
     });
     if (!isEditing) {
+      dirtyIncomeDistCategoryIds.current.clear();
       setSelectedFilterId(null);
       setIncomeDist([]);
       setFilterStepPreview([]);
@@ -1299,14 +1211,16 @@ export function SimpleEntryForm({
   }
 
   async function handleSubmit(values: HouseholdForm) {
-    if (values.entryType === "expense" && totalBudgetRatio > 100) {
+    if (
+      values.entryType === "expense" &&
+      budgetDistributionSummary.isOverAllocated
+    ) {
       setOverBudgetWarnOpen(true);
       return;
     }
     if (
       values.entryType === "expense" &&
-      totalBudgetRatio > 0 &&
-      totalBudgetRatio < 100
+      budgetDistributionSummary.isUnderAllocated
     ) {
       pendingValues.current = values;
       setUnderBudgetWarnOpen(true);
@@ -1315,7 +1229,7 @@ export function SimpleEntryForm({
     if (
       values.entryType === "income" &&
       incomeDist.length > 0 &&
-      totalIncomePct > 100
+      incomeDistributionSummary.isOverAllocated
     ) {
       setOverBudgetWarnOpen(true);
       return;
@@ -1323,8 +1237,7 @@ export function SimpleEntryForm({
     if (
       values.entryType === "income" &&
       incomeDist.length > 0 &&
-      totalIncomePct > 0 &&
-      totalIncomePct < 100
+      incomeDistributionSummary.isUnderAllocated
     ) {
       pendingValues.current = values;
       setUnderBudgetWarnOpen(true);
@@ -1343,36 +1256,12 @@ export function SimpleEntryForm({
     const accountId = v ? Number(v) : null;
     form.setFieldValue("expenseCategoryId", accountId);
     setShowZeroCategories(false);
-
-    if (accountId) {
-      const account = accounts.find((a) => a.id === accountId);
-      const ratios = account?.budget_ratios ?? [];
-      const configuredIds = new Set(ratios.map((r) => r.budget_category_id));
-
-      // Configured ratios (non-zero = primary, zero = default)
-      const configuredItems: BudgetDistributionItem[] = ratios.map((r) => ({
-        budget_category_id: r.budget_category_id,
-        name:
-          r.budget_category_name ??
-          `${t("unknownCategoryPrefix")}${r.budget_category_id}`,
-        ratio: r.ratio,
-        isDefault: r.ratio === 0,
-      }));
-
-      // Unconfigured budget categories (all with ratio=0, shown in collapsible)
-      const unconfiguredItems: BudgetDistributionItem[] = budgetCategories
-        .filter((c) => !configuredIds.has(c.id))
-        .map((c) => ({
-          budget_category_id: c.id,
-          name: c.name,
-          ratio: 0,
-          isDefault: true,
-        }));
-
-      setBudgetDist([...configuredItems, ...unconfiguredItems]);
-    } else {
-      setBudgetDist([]);
-    }
+    setBudgetDist(
+      withComputedBudgetAmounts(
+        expenseBudgetBase,
+        buildBudgetDistribution(accountId),
+      ),
+    );
   }
 
   function handleIncomeTypeChange(v: string | null) {
@@ -1434,20 +1323,66 @@ export function SimpleEntryForm({
     }
   }
 
-  function handleRatioChange(catId: number, newRatio: number) {
+  function withComputedBudgetAmounts(
+    baseAmount: number,
+    distribution: BudgetDistributionItem[],
+  ): BudgetDistributionItem[] {
+    const amounts = computeBudgetDistributionAmounts(baseAmount, distribution);
+    return distribution.map((item) => ({
+      ...item,
+      amount: amounts.get(item.budget_category_id) ?? 0,
+    }));
+  }
+
+  function handleRatioChange(
+    catId: number,
+    newRatio: number,
+    baseAmount: number,
+  ) {
+    setBudgetDist((prev) => {
+      const next = prev.map((d) =>
+        d.budget_category_id === catId ? { ...d, ratio: newRatio } : d,
+      );
+      return withComputedBudgetAmounts(baseAmount, next);
+    });
+  }
+
+  function handleBudgetAmountChange(
+    catId: number,
+    newAmount: number,
+    baseAmount: number,
+  ) {
+    const amount = Math.max(0, Math.round(Number(newAmount) || 0));
+    const ratio =
+      baseAmount > 0 ? Math.round((amount / baseAmount) * 100) : 0;
     setBudgetDist((prev) =>
       prev.map((d) =>
-        d.budget_category_id === catId ? { ...d, ratio: newRatio } : d,
+        d.budget_category_id === catId ? { ...d, amount, ratio } : d,
       ),
     );
   }
 
   function handleIncomeDistChange(catId: number, newAmt: number) {
+    const amount = Math.max(0, Math.round(Number(newAmt) || 0));
+    if (!showManualIncomeDist) {
+      const defaultAmount = filterStepPreview.reduce((sum, step) => {
+        const row = step.allocations.find(
+          (alloc) => alloc.budget_category_id === catId,
+        );
+        return sum + (row?.amount ?? 0);
+      }, 0);
+      if (amount === defaultAmount) {
+        dirtyIncomeDistCategoryIds.current.delete(catId);
+      } else {
+        dirtyIncomeDistCategoryIds.current.add(catId);
+      }
+    }
+
     setIncomeDist((prev) => {
       const existing = prev.find((d) => d.budget_category_id === catId);
       if (existing) {
         return prev.map((d) =>
-          d.budget_category_id === catId ? { ...d, amount: newAmt } : d,
+          d.budget_category_id === catId ? { ...d, amount } : d,
         );
       }
       const cat = budgetCategories.find((c) => c.id === catId);
@@ -1456,10 +1391,27 @@ export function SimpleEntryForm({
         {
           budget_category_id: catId,
           name: cat?.name ?? `#${catId}`,
-          amount: newAmt,
+          amount,
         },
       ];
     });
+  }
+
+  function handleRegularIncomeChange(next: boolean) {
+    setIsRegularIncome(next);
+    if (!next) dirtyIncomeDistCategoryIds.current.clear();
+  }
+
+  function handleSelectedFilterIdChange(next: string | null) {
+    dirtyIncomeDistCategoryIds.current.clear();
+    setSelectedFilterId(next);
+  }
+
+  function replaceIncomeDist(
+    rows: { budget_category_id: number; name: string; amount: number }[],
+  ) {
+    if (rows.length === 0) dirtyIncomeDistCategoryIds.current.clear();
+    setIncomeDist(rows);
   }
 
   const entryType = form.values.entryType;
@@ -1477,8 +1429,11 @@ export function SimpleEntryForm({
   );
   const canAutoGenerateDescription =
     entryType === "income" && selectedIncomeAccount?.category === "salary";
-  const totalBudgetRatio = budgetDist.reduce((s, d) => s + d.ratio, 0);
   const totalIncomeDist = incomeDist.reduce((s, d) => s + d.amount, 0);
+  const incomeDistributionSummary = summarizeAmountDistribution(
+    form.values.amount,
+    incomeDist,
+  );
   const businessRatio = Math.min(
     100,
     Math.max(0, form.values.businessRatio ?? 0),
@@ -1489,6 +1444,12 @@ export function SimpleEntryForm({
       : 0;
   const personalAmount = Math.max(0, form.values.amount - businessAmount);
   const personalRatio = Math.max(0, 100 - businessRatio);
+  const expenseBudgetBase =
+    entryType === "business_advance" ? personalAmount : form.values.amount;
+  const budgetDistributionSummary = summarizeBudgetDistribution(
+    expenseBudgetBase,
+    budgetDist,
+  );
   // In manual mode (no filter), show all budget categories (filling 0 for unset)
   const showManualIncomeDist = !isRegularIncome || !selectedFilterId;
   const displayIncomeDist = showManualIncomeDist
@@ -1501,10 +1462,17 @@ export function SimpleEntryForm({
         );
       })
     : incomeDist;
-  const totalIncomePct =
-    form.values.amount > 0
-      ? Math.round((totalIncomeDist / form.values.amount) * 100)
-      : 0;
+  useEffect(() => {
+    if (entryType !== "expense" && entryType !== "business_advance") return;
+    setBudgetDist((prev) => {
+      if (prev.length === 0) return prev;
+      const next = withComputedBudgetAmounts(expenseBudgetBase, prev);
+      const unchanged = prev.every(
+        (item, index) => item.amount === next[index]?.amount,
+      );
+      return unchanged ? prev : next;
+    });
+  }, [entryType, expenseBudgetBase]);
 
   useEffect(() => {
     if (entryType !== "transfer") return;
@@ -1546,6 +1514,7 @@ export function SimpleEntryForm({
     }
     if (form.values.amount <= 0) {
       setIncomeDist([]);
+      dirtyIncomeDistCategoryIds.current.clear();
       return;
     }
     const filter = budgetFilters.find((f) => f.id === Number(selectedFilterId));
@@ -1561,7 +1530,13 @@ export function SimpleEntryForm({
           amount: amt,
         };
       });
-    setIncomeDist(rows);
+    setIncomeDist((prev) =>
+      mergeIncomeDistributionDefaults({
+        defaultRows: rows,
+        currentRows: prev,
+        dirtyCategoryIds: dirtyIncomeDistCategoryIds.current,
+      }),
+    );
   }, [
     selectedFilterId,
     entryType,
@@ -1685,7 +1660,7 @@ export function SimpleEntryForm({
             budgetDist={budgetDist}
             showZeroCategories={showZeroCategories}
             setShowZeroCategories={setShowZeroCategories}
-            totalBudgetRatio={totalBudgetRatio}
+            budgetDistributionSummary={budgetDistributionSummary}
             businessRatio={businessRatio}
             businessAmount={businessAmount}
             personalAmount={personalAmount}
@@ -1705,6 +1680,7 @@ export function SimpleEntryForm({
             onDepreciationSubmit={onDepreciationSubmit}
             handleExpenseAccountChange={handleExpenseAccountChange}
             handleRatioChange={handleRatioChange}
+            handleBudgetAmountChange={handleBudgetAmountChange}
           />
         )}
 
@@ -1717,13 +1693,13 @@ export function SimpleEntryForm({
             activeFilterOptions={activeFilterOptions}
             budgetCategories={budgetCategories}
             isRegularIncome={isRegularIncome}
-            setIsRegularIncome={setIsRegularIncome}
+            setIsRegularIncome={handleRegularIncomeChange}
             selectedFilterId={selectedFilterId}
-            setSelectedFilterId={setSelectedFilterId}
-            setIncomeDist={setIncomeDist}
+            setSelectedFilterId={handleSelectedFilterIdChange}
+            setIncomeDist={replaceIncomeDist}
             displayIncomeDist={displayIncomeDist}
             filterStepPreview={filterStepPreview}
-            totalIncomePct={totalIncomePct}
+            incomeDistributionSummary={incomeDistributionSummary}
             totalIncomeDist={totalIncomeDist}
             showManualIncomeDist={showManualIncomeDist}
             handleIncomeDistChange={handleIncomeDistChange}

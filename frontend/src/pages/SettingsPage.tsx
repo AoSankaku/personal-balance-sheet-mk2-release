@@ -31,6 +31,7 @@ import {
   IconFileDownload,
   IconFileSpreadsheet,
   IconHelp,
+  IconKey,
   IconListCheck,
   IconSettings,
   IconStar,
@@ -51,11 +52,15 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 import { AccountTable } from "../components/AccountTable";
 import { AddAccountModal } from "../components/AddAccountModal";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { PwaInstallSetting } from "../components/PwaInstallSetting";
-import type { Account, CreateAccountInput } from "@balance-sheet/shared";
+import type {
+  Account,
+  CreateAccountInput,
+} from "@balance-sheet/shared";
 import type { CreditCardSettingsInput } from "../components/AddAccountModal";
 import { showFeedback } from "../lib/feedback";
 import * as Flags from "country-flag-icons/react/1x1";
@@ -85,6 +90,16 @@ function Flag({ locale }: { locale: Locale }) {
 const settingsSwitchClassNames = {
   root: "settings-inline-control",
 };
+
+const weekdayShortKeys = [
+  "weekday_short_0",
+  "weekday_short_1",
+  "weekday_short_2",
+  "weekday_short_3",
+  "weekday_short_4",
+  "weekday_short_5",
+  "weekday_short_6",
+] as const;
 
 export default function SettingsPage() {
   const { t, locale, setLocale } = useLang();
@@ -233,6 +248,12 @@ export default function SettingsPage() {
     void refreshBudgetSettings();
   }
 
+  async function handleCalendarWeekStartChange(value: string | null) {
+    if (privacyMode || value == null) return;
+    await api.budget.updateSettings({ calendar_week_start: Number(value) });
+    void refreshBudgetSettings();
+  }
+
   async function handlePreferredPaymentChange(
     index: number,
     value: string | null,
@@ -324,6 +345,13 @@ export default function SettingsPage() {
       label: t("settingsNavCurrencyTitle"),
       desc: t("settingsNavCurrencyDesc"),
       color: "yellow",
+    },
+    {
+      to: "/settings/product-api",
+      Icon: IconKey,
+      label: t("productApiSettingsTitle"),
+      desc: t("settingsNavProductApiDesc"),
+      color: "lime",
     },
     {
       to: "/settings/business",
@@ -451,6 +479,32 @@ export default function SettingsPage() {
                   <span>{option.label}</span>
                 </Group>
               )}
+            />
+          </Group>
+          <Group gap="xs" align="center" wrap="wrap">
+            <Text
+              size="sm"
+              c="dimmed"
+              w={{ base: "100%", sm: 120 }}
+              style={{ flexShrink: 0 }}
+            >
+              {t("calendarWeekStartLabel")}
+            </Text>
+            <Select
+              aria-label={t("calendarWeekStartLabel")}
+              size="xs"
+              flex={1}
+              maw={220}
+              style={{ minWidth: 160 }}
+              value={String(budgetSettings?.calendar_week_start ?? 0)}
+              onChange={handleCalendarWeekStartChange}
+              disabled={privacyMode}
+              data={weekdayShortKeys.map((key, day) => ({
+                value: String(day),
+                label: t(key),
+              }))}
+              allowDeselect={false}
+              checkIconPosition="right"
             />
           </Group>
         </Stack>
@@ -784,6 +838,7 @@ export default function SettingsPage() {
                     value={id != null ? String(id) : null}
                     onChange={(v) => handlePreferredPaymentChange(i, v)}
                     data={accountOptions}
+                    renderOption={renderAccountOption as never}
                   />
                   {id != null && (
                     <Group gap={2}>

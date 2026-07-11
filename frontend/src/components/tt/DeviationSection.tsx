@@ -38,6 +38,7 @@ import { showFeedback } from "../../lib/feedback";
 import { getEffectiveSymbol } from "../../lib/currencyUtils";
 import { formatCurrency, formatJPY } from "../../lib/numberFormat";
 import { toDateStr } from "../../lib/dateUtils";
+import { toAccountSelectOption } from "../../lib/accountUtils";
 import {
   useAccountDisplayName,
   type DeviationRow,
@@ -1188,10 +1189,15 @@ export function DeviationSection({
             <WorksheetEditor
               rows={worksheetRows}
               onChange={setWorksheetRows}
-              accountOptions={snapshot.general_entries.map((e) => ({
-                value: String(e.account_id),
-                label: getDisplayName(e.account_name),
-              }))}
+              accountOptions={snapshot.general_entries.map((e) => {
+                const account = accountMap.get(e.account_id);
+                return account
+                  ? toAccountSelectOption(account, t)
+                  : {
+                      value: String(e.account_id),
+                      label: getDisplayName(e.account_name),
+                    };
+              })}
             />
           )}
         </>

@@ -4,6 +4,8 @@ import type {
   CreateAccountInput,
   JournalEntry,
   CreateJournalInput,
+  CompletePlannedExpenseWithJournalInput,
+  CompletePlannedExpenseWithJournalResponse,
   BatchCreateJournalInput,
   PLReport,
   CryptoWallet,
@@ -42,6 +44,18 @@ import type {
   UpsertLongTermLoanPlanInput,
   UpsertLongTermLoanPlanRowInput,
   LongTermLoanComparisonRow,
+  PlannedExpense,
+  PlannedExpenseCategory,
+  PlannedExpenseKind,
+  CreatePlannedExpenseInput,
+  CreatePlannedExpenseCategoryInput,
+  ProductMetadata,
+  ProductMetadataLookupInput,
+  UpdatePlannedExpenseInput,
+  UpdatePlannedExpenseCategoryInput,
+  ProductApiCredentialStatus,
+  ProductApiProvider,
+  UpsertProductApiCredentialInput,
 } from "@balance-sheet/shared";
 import { createInFlightRequestDeduper } from "./inFlightRequest";
 import {
@@ -172,6 +186,7 @@ async function mutationRequest<T>(
 const DERIVED_ACCOUNT_PREFIXES = ["/accounts", "/budget", "/reports"];
 const DERIVED_JOURNAL_PREFIXES = ["/accounts", "/budget", "/reports"];
 const BUDGET_PREFIXES = ["/budget"];
+const PLANNED_EXPENSE_PREFIXES = ["/planned-expenses", "/budget"];
 
 export const api = {
   accounts: {
@@ -311,6 +326,25 @@ export const api = {
         method: "DELETE",
       }),
   },
+  productApiCredentials: {
+    list: () =>
+      request<ProductApiCredentialStatus[]>("/product-api-credentials"),
+    upsert: (
+      provider: ProductApiProvider,
+      input: UpsertProductApiCredentialInput,
+    ) =>
+      request<ProductApiCredentialStatus>(
+        `/product-api-credentials/${provider}`,
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        },
+      ),
+    delete: (provider: ProductApiProvider) =>
+      request<{ success: boolean }>(`/product-api-credentials/${provider}`, {
+        method: "DELETE",
+      }),
+  },
   budget: {
     listCategories: (options?: { includeArchived?: boolean }) => {
       const q = new URLSearchParams();
@@ -385,6 +419,7 @@ export const api = {
     updateSettings: (input: {
       preferred_payment_account_ids?: number[];
       preferred_filter_ids?: number[];
+      calendar_week_start?: number;
       is_business_owner?: boolean;
       business_advance_account_id?: number | null;
       business_loss_account_id?: number | null;
@@ -608,6 +643,93 @@ export const api = {
         `/long-term-loan-plans/${accountId}/comparison`,
       ),
   },
+  plannedExpenses: {
+    listCategories: (params?: {
+      kind?: PlannedExpenseKind;
+      includeArchived?: boolean;
+      currency?: string;
+    }) => {
+      const q = new URLSearchParams();
+      if (params?.kind) q.set("kind", params.kind);
+      if (params?.includeArchived) q.set("include_archived", "true");
+      if (params?.currency) q.set("currency", params.currency);
+      const qs = q.toString();
+      return cachedRequest<PlannedExpenseCategory[]>(
+        `/planned-expenses/categories${qs ? `?${qs}` : ""}`,
+      );
+    },
+    createCategory: (input: CreatePlannedExpenseCategoryInput) =>
+      mutationRequest<PlannedExpenseCategory>("/planned-expenses/categories", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }, PLANNED_EXPENSE_PREFIXES),
+    updateCategory: (id: number, input: UpdatePlannedExpenseCategoryInput) =>
+      mutationRequest<PlannedExpenseCategory>(
+        `/planned-expenses/categories/${id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(input),
+        },
+        PLANNED_EXPENSE_PREFIXES,
+      ),
+    deleteCategory: (id: number) =>
+      mutationRequest<{ success: boolean }>(
+        `/planned-expenses/categories/${id}`,
+        { method: "DELETE" },
+        PLANNED_EXPENSE_PREFIXES,
+      ),
+    list: (params?: {
+      kind?: PlannedExpenseKind;
+      status?: PlannedExpense["status"];
+      includeArchived?: boolean;
+      currency?: string;
+    }) => {
+      const q = new URLSearchParams();
+      if (params?.kind) q.set("kind", params.kind);
+      if (params?.status) q.set("status", params.status);
+      if (params?.includeArchived) q.set("include_archived", "true");
+      if (params?.currency) q.set("currency", params.currency);
+      const qs = q.toString();
+      return cachedRequest<PlannedExpense[]>(
+        `/planned-expenses${qs ? `?${qs}` : ""}`,
+      );
+    },
+    create: (input: CreatePlannedExpenseInput) =>
+      mutationRequest<PlannedExpense>("/planned-expenses", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }, PLANNED_EXPENSE_PREFIXES),
+    lookupMetadata: (input: ProductMetadataLookupInput) =>
+      mutationRequest<ProductMetadata>("/planned-expenses/metadata", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }, PLANNED_EXPENSE_PREFIXES),
+    refreshMetadata: (id: number) =>
+      mutationRequest<PlannedExpense>(`/planned-expenses/${id}/refresh-metadata`, {
+        method: "POST",
+      }, PLANNED_EXPENSE_PREFIXES),
+    completeWithJournal: (
+      id: number,
+      input: CompletePlannedExpenseWithJournalInput,
+    ) =>
+      mutationRequest<CompletePlannedExpenseWithJournalResponse>(
+        `/planned-expenses/${id}/complete-with-journal`,
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        },
+        [...PLANNED_EXPENSE_PREFIXES, ...DERIVED_JOURNAL_PREFIXES],
+      ),
+    update: (id: number, input: UpdatePlannedExpenseInput) =>
+      mutationRequest<PlannedExpense>(`/planned-expenses/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }, PLANNED_EXPENSE_PREFIXES),
+    delete: (id: number) =>
+      mutationRequest<{ success: boolean }>(`/planned-expenses/${id}`, {
+        method: "DELETE",
+      }, PLANNED_EXPENSE_PREFIXES),
+  },
   currencies: {
     list: () => cachedRequest<EnabledCurrency[]>("/currencies"),
     toggle: (
@@ -616,6 +738,7 @@ export const api = {
       custom_symbol?: string,
       decimal_places?: number,
       custom_icon?: string,
+      background_color?: string | null,
     ) =>
       mutationRequest<EnabledCurrency[]>("/currencies", {
         method: "POST",
@@ -625,6 +748,7 @@ export const api = {
           custom_symbol,
           decimal_places,
           custom_icon,
+          background_color,
         }),
       }, ["/currencies", "/budget"]),
     setPriority: (code: string, symbol_priority: number) =>
@@ -632,6 +756,22 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify({ symbol_priority }),
       }, ["/currencies"]),
+    update: (
+      code: string,
+      input: {
+        symbol_priority?: number;
+        decimal_places?: number;
+        background_color?: string | null;
+      },
+    ) =>
+      mutationRequest<EnabledCurrency[]>(
+        `/currencies/${encodeURIComponent(code)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(input),
+        },
+        ["/currencies", "/budget"],
+      ),
     reorder: (codes: string[]) =>
       mutationRequest<EnabledCurrency[]>("/currencies/reorder", {
         method: "POST",

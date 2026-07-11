@@ -22,6 +22,32 @@ privacyModeToggleHint: "Masque les chiffres des montants et bloque les modificat
 privacyMaskAccountsToggle: "Masquer les noms de comptes"
 privacyMaskAccountsToggleHint: "Affiche les comptes comme Actif01, Revenu01, etc."
 privacySettingsLockedMessage: "Le mode confidentialité est actif. Les autres paramètres sont verrouillés; seuls cette section et le guide restent disponibles."
+productApiSettingsTitle: "Clés API produit"
+productApiSettingsDescription: "Configurez les clés API officielles utilisées pour récupérer les noms et prix des produits. Les secrets enregistrés ne sont jamais affichés."
+productApiProviderRakuten: "Rakuten Ichiba"
+productApiProviderRakutenDesc: "Utilise l'ID d'application et la clé d'accès de l'API Rakuten Ichiba Item Search."
+productApiProviderYahoo: "Yahoo! Shopping"
+productApiProviderYahooDesc: "Utilise l'ID d'application de l'API Yahoo! Shopping."
+productApiProviderAmazon: "Amazon"
+productApiProviderAmazonDesc: "Prévu pour les API Amazon Associates, pas pour la SP-API destinée aux vendeurs. L'ancienne Product Advertising API est dépréciée depuis le 2026-05-15."
+productApiGuideRakuten: "Créez une application dans Rakuten Web Service, puis générez un Application ID et une Access Key."
+productApiGuideYahoo: "Créez une application dans Yahoo! JAPAN Developer Network, puis générez un Client ID / ID d'application."
+productApiGuideAmazon: "Générez les clés dans Amazon Associates après avoir rempli les conditions d'accès API. Ce n'est pas la SP-API vendeurs. Une migration vers Creators API peut être nécessaire."
+productApiGuideOpenDocs: "Documentation officielle"
+productApiApplicationId: "ID d'application"
+productApiAccessKey: "Clé d'accès"
+productApiSecretKey: "Clé secrète"
+productApiPartnerTag: "Tag partenaire"
+productApiConfigured: "Configuré"
+productApiNotConfigured: "Non défini"
+productApiSave: "Enregistrer"
+productApiClear: "Supprimer"
+productApiSettingsLeaveBlank: "Saisir une nouvelle valeur"
+productApiSettingsConfiguredLast4: "Enregistré, fin"
+productApiSettingsNoInput: "Saisissez au moins une valeur à enregistrer."
+productApiSettingsSaved: "Paramètres de clé API enregistrés."
+productApiSettingsCleared: "Paramètres de clé API supprimés."
+productApiSettingsClearConfirm: "Supprimer ce paramètre de clé API ?"
 privacyModeBlockedTitle: "Mode confidentialité actif"
 privacyModeBlockedMessage: "Cette page n'est pas utilisable en mode confidentialité. Désactivez-le dans Paramètres > Général pour modifier les données."
 settingsSectionAccounts: "Comptes"
@@ -1012,6 +1038,7 @@ exportDepreciationNone: "Aucun bien amortissable enregistré."
 negativeBalanceWarning: "Ce compte a un solde négatif"
 settingsNavCurrencyTitle: "Devises étrangères"
 settingsNavCurrencyDesc: "Activer les devises et cryptomonnaies à utiliser avec le JPY."
+settingsNavProductApiDesc: "Configurer les clés API officielles pour la recherche de produits."
 currencySettingsTitle: "Paramètres de devise étrangère"
 currencySettingsFiatGroup: "Devises Fiat"
 currencySettingsCryptoGroup: "Crypto-monnaies"
@@ -1048,6 +1075,8 @@ currencySettingsDisplayIcon: "Icône d'affichage"
 currencySettingsSelectIcon: "Sélectionner une icône"
 currencySettingsSymbol: "Symbole de la devise"
 currencySettingsDecimalPlaces: "Décimales"
+currencySettingsBackgroundColor: "Couleur d’arrière-plan"
+currencySettingsDefaultColor: "Par défaut"
 currencySettingsDisableBalance: "Impossible de désactiver: le solde est non nul"
 currencySettingsDisableLast: "Impossible de désactiver la dernière devise — au moins une est requise"
 tabFxExchange: "Bourse de change"
@@ -1061,3 +1090,182 @@ fxToAmount: "Montant reçu"
 loanOtherCurrencyReadOnly: "Changez la devise affichée pour saisir le remboursement"
 includeAllCurrencies: "Inclure toutes les devises"
 displayCurrencyLabel: "Devise d'affichage"
+shoppingListTitle: Liste de courses
+shoppingListPageDesc: Gérez les achats proches par plan de courses, avec estimations et cases à cocher.
+shoppingPlanLabel: Plan de courses
+shoppingPlanAdd: Ajouter un plan de courses
+shoppingPlanName: Nom du plan de courses
+shoppingPlanNameOrDateRequired: Le nom du plan de courses ou la date prévue est requis
+shoppingPlanRequired: Le plan de courses est requis
+shoppingPlanTotal: Total estimé du budget des plans de courses
+shoppingPlanEmpty: Aucun élément dans ce plan de courses.
+shoppingPlanBudgetEstimate: Budget estimé du plan de courses
+shoppingPlanNone: Aucun plan de courses
+shoppingPlanType: Gestion du plan de courses
+shoppingPlanTypeOneTime: Achat ponctuel
+shoppingPlanTypeRoutine: Courses habituelles
+shoppingPlanTypeOneTimeHelp: Pour les cadeaux, meubles et autres achats ponctuels. Le plan entier est archive une fois termine.
+shoppingPlanTypeRoutineHelp: Pour l'alimentaire et les consommables. Le budget et la date restent, et terminer tout vide seulement les elements.
+shoppingPlanNextTargetDate: Prochaine date prevue
+shoppingPlanClearItems: Vider les elements
+shoppingPlanCheckout: Valider la liste (saisir une depense)
+shoppingPlanDelete: Supprimer la liste
+shoppingPlanDeleteConfirmTitle: Supprimer cette liste ?
+shoppingPlanDeleteConfirmMessage: Le plan de courses et ses elements seront supprimes. Cette action est irreversible.
+shoppingPlanKeepItemOnClear: Conserver cet element quand la liste est terminee
+shoppingPlanLastCheckoutDate: Derniere validation
+shoppingPlanAddItem: Ajouter un element
+shoppingPlanComplete: Courses terminees
+shoppingPlanActions: Actions
+shoppingPlanRestore: Restaurer
+shoppingPlanRestoreItem: Restaurer l'element
+shoppingPlanRestoreConfirmTitle: Restaurer cette liste ?
+shoppingPlanRestoreConfirmMessage: Cette liste de courses terminee sera replacee dans les listes actives.
+shoppingPlanRestoredNameSuffix: " (restauree)"
+shoppingPlanUndatedFirstToggle: Placer les listes sans date en haut
+plannedExpenseCategory: Catégorie
+plannedExpenseCategoryAdd: Ajouter une catégorie
+plannedExpenseCategoryName: Nom de la catégorie
+plannedExpenseCategoryNameOrDateRequired: Le nom de catégorie ou la date prévue est requis
+plannedExpenseCategoryRequired: La catégorie est requise
+plannedExpenseCategoryTotal: Total du budget estimé par catégorie
+plannedExpenseCategoryEmpty: Aucun élément dans cette catégorie.
+plannedExpenseShoppingCategoryEstimate: Budget estimé de catégorie
+plannedExpenseItemEstimate: Estimation de l’élément
+plannedExpenseCompleteCategory: Tout terminer
+plannedExpenseCalendar: Calendrier
+plannedExpensePaymentDetails: Details de paiement
+plannedExpensePaymentDetailsTotal: Total du jour
+plannedExpenseFrequency: Frequence
+plannedExpenseOccurrenceNumber: Occurrence
+plannedExpenseEnterPayment: Saisir ce paiement
+plannedExpenseSkipPayment: Ignorer ce paiement
+plannedExpenseUndoCompletion: Annuler la completion
+plannedExpenseOneTime: Une fois
+plannedExpenseRecurring: Récurrent
+plannedExpenseRecurrenceType: Type de planning
+plannedExpenseEveryMonths: Tous les N mois
+plannedExpenseEveryInterval: Tous les
+plannedExpenseRecurrenceUnit: Unite
+plannedExpenseRecurrenceUnit_week: Semaine(s)
+plannedExpenseRecurrenceUnit_month: Mois
+plannedExpenseRecurrenceUnit_year: Annee(s)
+plannedExpenseMonthlyMode: Regle mensuelle
+plannedExpenseMonthlyDay: Jour du mois
+plannedExpenseMonthlyWeekday: Nieme jour de semaine
+plannedExpenseDayOfMonth: Jour du mois
+plannedExpenseWeeksOfMonth: Semaine(s) du mois
+plannedExpenseWeekday: Jour de semaine
+plannedExpenseWeekOfMonth_1: Premier
+plannedExpenseWeekOfMonth_2: Deuxieme
+plannedExpenseWeekOfMonth_3: Troisieme
+plannedExpenseWeekOfMonth_4: Quatrieme
+plannedExpenseWeekOfMonth_5: Cinquieme
+weekday_short_0: Dim
+weekday_short_1: Lun
+weekday_short_2: Mar
+weekday_short_3: Mer
+weekday_short_4: Jeu
+weekday_short_5: Ven
+weekday_short_6: Sam
+plannedExpenseNextDueDate: Prochaine échéance
+plannedExpenseEndDate: Date de fin
+plannedExpenseEndCondition: Condition de fin
+plannedExpenseEndConditionDate: Date de fin
+plannedExpenseEndConditionCount: Derniere occurrence
+plannedExpenseFinalOccurrence: Derniere occurrence
+plannedExpenseUnspecifiedPlaceholder: Vide pour une duree indefinie
+plannedExpensePlannedCountHint: "Paiements prevus : {count}"
+plannedExpenseFinalDateHint: "Date du dernier paiement : {date}"
+plannedExpensePlannedCountChangeHint: "{from} paiements -> {to} paiements"
+plannedExpenseSkipPolicyTitle: Nombre apres saut
+plannedExpenseSkipPolicyMessage: Ce paiement a une condition de fin. Choisissez comment ce saut affecte le calendrier total.
+plannedExpenseSkipPolicyPostpone: Reporter d'un paiement
+plannedExpenseSkipPolicyReduce: Reduire le nombre
+wishlistTitle: Liste d’envies
+wishlistPageDesc: Suivez les futurs achats par catégorie personnalisée avec des estimations par élément.
+scheduledPaymentsTitle: Dépenses récurrentes et paiements
+scheduledPaymentsPageDesc: Gérez les paiements ponctuels et récurrents par catégorie avec un calendrier.
+plannedExpenseAdd: Ajouter
+plannedExpenseEdit: Modifier
+plannedExpenseName: Nom
+plannedExpenseDuplicateShoppingItem: Un element avec le meme nom et la meme note existe deja
+plannedExpenseDuplicateItem: Un élément portant le même nom existe déjà dans cette catégorie
+plannedExpenseDuplicateCategory: Une catégorie portant le même nom existe déjà
+plannedExpenseBudgetAmount: Montant (budget)
+plannedExpenseTargetDate: Date prévue / échéance
+plannedExpenseDueDate: Échéance
+plannedExpensePriority: Priorité
+plannedExpensePriorityLow: Basse
+plannedExpensePriorityMedium: Moyenne
+plannedExpensePriorityHigh: Haute
+plannedExpenseStatus_open: Ouvert
+plannedExpenseStatus_completed: Terminé
+plannedExpenseStatus_cancelled: Annulé
+plannedExpenseOpenCount: Éléments ouverts
+plannedExpenseOpenTotal: Total ouvert
+plannedExpenseList: Liste
+plannedExpenseReorder: Réordonner
+plannedExpenseMoveUp: Monter
+plannedExpenseMoveDown: Descendre
+plannedExpenseCompletedWishlist: Souhaits terminés / annulés
+plannedExpenseCompletedOneTimePayments: Paiements ponctuels terminés
+plannedExpenseCompletedScheduledPayments: Paiements termines
+plannedExpenseRecentlyCompleted: Recemment termines
+plannedExpenseEndedByDate: Date de fin atteinte
+plannedExpenseEndedByCount: Derniere occurrence atteinte
+plannedExpenseEmpty: Aucun élément pour le moment.
+plannedExpenseNoCategory: Aucune catégorie de budget
+plannedExpenseExpenseAccount: Compte de dépense
+plannedExpenseDefaultExpenseAccount: Compte de dépense par défaut
+plannedExpenseNoExpenseAccount: Aucun compte de dépense
+plannedExpenseComplete: Marquer comme terminé
+plannedExpenseDeleteCategoryConfirmTitle: Supprimer la catégorie ?
+plannedExpenseDeleteCategoryConfirmMessage: Cette catégorie et ses éléments seront supprimés. Cette action est irréversible.
+plannedExpenseDeleteCategoryConfirm: Supprimer la catégorie
+plannedExpenseDeleteItemConfirmTitle: Supprimer l’élément ?
+plannedExpenseDeleteItemConfirmMessage: Cet élément sera supprimé. Cette action est irréversible.
+plannedExpenseDeleteItemConfirm: Supprimer l’élément
+plannedExpenseForceComplete: Terminer sans dépense
+plannedExpenseForceCompleteConfirmTitle: Terminer sans saisir de dépense ?
+plannedExpenseForceCompleteConfirmMessage: Cet élément sera marqué comme terminé sans créer d’écriture de dépense. À utiliser uniquement si aucun enregistrement de dépense n’est nécessaire.
+plannedExpenseForceCompleteConfirm: Terminer sans dépense
+plannedExpenseInputExpense: Saisir une dépense
+plannedExpenseCompleteSourceTitle: Marquer l’élément source comme terminé ?
+plannedExpenseCompleteSourceMessage: La description, la catégorie et le montant ont tous été modifiés par rapport à l’élément source. Marquer l’élément source comme terminé ?
+plannedExpenseCompleteSourceConfirm: Marquer comme terminé
+transactionSavedWithPlannedExpenseCompleted: Transaction enregistree et l'element source a aussi ete marque comme termine.
+transactionSavedWithShoppingListArchived: Transaction enregistree et la liste de courses a aussi ete marquee comme terminee.
+shoppingListArchivedFeedback: La liste de courses a aussi ete archivee.
+plannedExpenseUrl: URL
+plannedExpenseReferenceCurrency: Référence
+plannedExpenseReferenceAmount: Prix de référence
+plannedExpenseCurrencyInputConfirmTitle: Convertir la devise pour la saisie ?
+plannedExpenseCurrencyInputConfirmMessage: "Ce projet est en {from}. Le convertir et le saisir dans la devise actuellement sélectionnée ({to}) ?"
+productMetadataLookup: Récupérer le produit
+productMetadataAutoFetchPrompt: Récupérer les infos automatiquement ?
+productMetadataRefresh: Actualiser le produit
+productMetadataPrice: Récupéré
+productMetadataFetched: Récupéré
+productMetadataCacheUntil: Cache jusqu’à
+productMetadataOpen: Ouvrir
+productMetadataNoName: Nom indisponible
+productSource_amazon: Amazon
+productSource_rakuten: Rakuten
+productSource_yahoo: Yahoo
+productSource_other: Autre
+productAvailability_in_stock: Disponible
+productAvailability_out_of_stock: Rupture de stock
+productAvailability_unavailable: Indisponible
+productAvailability_unknown: Inconnu
+productAvailability_api_credentials_missing: Clé API manquante
+productAvailability_unsupported: Non pris en charge
+productAvailability_error: Échec de récupération
+shoppingPlanArchivedTitle: Plans de courses termines
+calendarWeekStartLabel: "Debut de semaine du calendrier"
+calendarTodayButton: "Aujourd'hui"
+plannedExpenseWeekFallback: "Si ce nieme jour n'existe pas"
+plannedExpenseWeekFallback_skip: "Ignorer ce mois"
+plannedExpenseWeekFallback_last_day_of_month: "Fin du mois la plus proche"
+plannedExpenseWeekFallback_previous_week: "Semaine precedente"
+plannedExpenseWeekFallback_next_month_first_week: "Premiere semaine du mois suivant"

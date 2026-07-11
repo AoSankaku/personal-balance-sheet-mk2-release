@@ -13,7 +13,6 @@ import {
 } from "@mantine/core";
 import {
   IconBook,
-  IconCurrencyDollar,
   IconLayoutDashboard,
   IconListCheck,
   IconPencil,
@@ -21,103 +20,26 @@ import {
   IconSettings,
 } from "@tabler/icons-react";
 import { useMediaQuery } from "@mantine/hooks";
-import * as Flags from "country-flag-icons/react/3x2";
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   isShortTermBorrowingCategory,
   isShortTermLendingCategory,
+  resolveMonthlyPayday,
 } from "@balance-sheet/shared";
 import { VERSION } from "../lib/version";
 import { findOverdueShortTermLoanAccounts } from "../pages/dbPageUtils";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
 import { formatJPY } from "../lib/numberFormat";
-import { systemAccountTranslationKey } from "../lib/accountUtils";
-import { CryptoCurrencyIcon } from "./CryptoCurrencyIcon";
-import { CustomCurrencyIcon } from "./CustomCurrencyIcon";
+import { accountDisplayNameFromName } from "../lib/accountUtils";
 import type { CryptoIconStyle } from "../lib/cryptoCurrencyIcons";
+import { getEffectiveSymbol } from "../lib/currencyUtils";
+import { CurrencyOptionIcon } from "./CurrencyOptionIcon";
 import {
   computeCreditCardWithdrawalRiskTasks,
   type CreditCardWithdrawalRiskTask,
 } from "../lib/creditCardWithdrawalRisk";
-
-const CURRENCY_TO_COUNTRY: Record<string, string> = {
-  JPY: "JP",
-  USD: "US",
-  EUR: "EU",
-  GBP: "GB",
-  AUD: "AU",
-  CAD: "CA",
-  CHF: "CH",
-  CNY: "CN",
-  HKD: "HK",
-  KRW: "KR",
-  SGD: "SG",
-  THB: "TH",
-  IDR: "ID",
-  MYR: "MY",
-  PHP: "PH",
-  INR: "IN",
-  SEK: "SE",
-  NOK: "NO",
-  DKK: "DK",
-  NZD: "NZ",
-  MXN: "MX",
-  BRL: "BR",
-  ZAR: "ZA",
-  TRY: "TR",
-  PLN: "PL",
-  CZK: "CZ",
-  HUF: "HU",
-};
-
-const CRYPTO_CODES = new Set([
-  "BTC",
-  "ETH",
-  "SOL",
-  "SKR",
-  "BNB",
-  "USDT",
-  "USDC",
-  "XRP",
-  "ADA",
-  "DOGE",
-  "AVAX",
-  "DOT",
-  "LINK",
-  "LTC",
-  "ATOM",
-]);
-
-function CurrencyOptionIcon({
-  code,
-  cryptoIconStyle,
-  customIcon,
-}: {
-  code: string;
-  cryptoIconStyle: CryptoIconStyle;
-  customIcon?: string | null;
-}) {
-  if (CRYPTO_CODES.has(code)) {
-    return (
-      <CryptoCurrencyIcon code={code} styleMode={cryptoIconStyle} size={20} />
-    );
-  }
-
-  const country = CURRENCY_TO_COUNTRY[code];
-  if (!country) return <CustomCurrencyIcon icon={customIcon} size={20} />;
-
-  const Flag = (
-    Flags as unknown as Record<
-      string,
-      React.ComponentType<{ style?: React.CSSProperties }>
-    >
-  )[country];
-
-  if (!Flag) return <IconCurrencyDollar size={16} />;
-  return <Flag style={{ width: 18, height: "auto", display: "block" }} />;
-}
 
 interface AppTask {
   id: string;
@@ -126,6 +48,7 @@ interface AppTask {
 
 function usePaydayTasks(): AppTask[] {
   const { accounts, journal } = useAppData();
+  const { t } = useLang();
 
   if (localStorage.getItem("notif:payday") === "false") return [];
 
@@ -137,8 +60,9 @@ function usePaydayTasks(): AppTask[] {
 
   for (const account of accounts) {
     if (account.type !== "income") continue;
-    if (!account.payday) continue;
-    if (todayDay < account.payday) continue;
+    if (account.payday === null || account.payday === undefined) continue;
+    const payday = resolveMonthlyPayday(thisYM, account.payday);
+    if (todayDay < payday) continue;
 
     // Check if any journal entry this month credits this income account
     const hasEntry = journal.some(
@@ -152,7 +76,7 @@ function usePaydayTasks(): AppTask[] {
     if (!hasEntry) {
       tasks.push({
         id: `payday-${account.id}`,
-        message: account.name,
+        message: accountDisplayNameFromName(account.name, t),
       });
     }
   }
@@ -180,6 +104,7 @@ interface OverdueLoanTask extends AppTask {
 
 function useOverdueLoanTasks(): OverdueLoanTask[] {
   const { accounts, journal } = useAppData();
+  const { t } = useLang();
 
   if (localStorage.getItem("notif:loanOverdue") === "false") return [];
 
@@ -220,7 +145,7 @@ function useOverdueLoanTasks(): OverdueLoanTask[] {
     today,
   ).map(({ account, daysDiff }) => ({
     id: `loan-overdue-${account.id}`,
-    message: account.name,
+    message: accountDisplayNameFromName(account.name, t),
     daysDiff,
   }));
 }
@@ -237,13 +162,7 @@ function useNegativeAccountTasks(): AppTask[] {
     if (account.name === "__system:unknown_funds__") continue;
     if ((account.balance ?? 0) >= -0.001) continue;
 
-    const label = (() => {
-      if (account.is_system) {
-        const k = systemAccountTranslationKey(account.name);
-        if (k) return t(k);
-      }
-      return account.name;
-    })();
+    const label = accountDisplayNameFromName(account.name, t);
 
     tasks.push({
       id: `account-negative-${account.id}`,
@@ -425,7 +344,7 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
                       <Stack gap={2}>
                         <Group gap={8} wrap="nowrap">
                           <Text size="sm" style={{ flex: 1 }}>
-                            {n.creditCardName}
+                            {accountDisplayNameFromName(n.creditCardName, t)}
                           </Text>
                           <Text size="xs" c="red">
                             {formatJPY(n.combinedProjectedBalance, locale)}
@@ -434,7 +353,13 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
                         <Text size="xs" c="dimmed">
                           {t("taskCreditCardWithdrawalRiskDetail")
                             .replace("{date}", n.withdrawalDate)
-                            .replace("{account}", n.withdrawalAccountName)
+                            .replace(
+                              "{account}",
+                              accountDisplayNameFromName(
+                                n.withdrawalAccountName,
+                                t,
+                              ),
+                            )
                             .replace(
                               "{amount}",
                               formatJPY(n.combinedAmount, locale),
@@ -513,13 +438,19 @@ function CompactCurrencyMenu({
   cryptoIconStyle,
   onSelect,
 }: {
-  options: { value: string; customIcon?: string | null }[];
+  options: {
+    value: string;
+    backgroundColor?: string | null;
+    customIcon?: string | null;
+    symbol?: string;
+  }[];
   displayCurrency: string;
   cryptoIconStyle: CryptoIconStyle;
   onSelect: (value: string) => void;
 }) {
   const { t } = useLang();
   const [opened, setOpened] = useState(false);
+  const selectedOption = options.find((c) => c.value === displayCurrency);
 
   return (
     <>
@@ -556,11 +487,12 @@ function CompactCurrencyMenu({
             onClick={() => setOpened((o) => !o)}
           >
             <CurrencyOptionIcon
+              backgroundColor={selectedOption?.backgroundColor}
               code={displayCurrency}
               cryptoIconStyle={cryptoIconStyle}
-              customIcon={
-                options.find((c) => c.value === displayCurrency)?.customIcon
-              }
+              size={20}
+              symbol={selectedOption?.symbol}
+              customIcon={selectedOption?.customIcon}
             />
           </ActionIcon>
         </Popover.Target>
@@ -579,8 +511,11 @@ function CompactCurrencyMenu({
               >
                 <Group gap={8} wrap="nowrap">
                   <CurrencyOptionIcon
+                    backgroundColor={opt.backgroundColor}
                     code={opt.value}
                     cryptoIconStyle={cryptoIconStyle}
+                    size={20}
+                    symbol={opt.symbol}
                     customIcon={opt.customIcon}
                   />
                   <Text size="sm">{opt.value}</Text>
@@ -608,9 +543,11 @@ function CurrencySwitcher() {
   const options = enabledCurrencies.map((c) => ({
     value: c.code,
     label: c.code,
+    backgroundColor: c.background_color,
     customIcon: c.custom_icon,
+    symbol: getEffectiveSymbol(c.code, enabledCurrencies),
   }));
-  const selectedCurrency = enabledCurrencies.find((c) => c.code === displayCurrency);
+  const selectedOption = options.find((c) => c.value === displayCurrency);
 
   if (isCompact) {
     return (
@@ -633,17 +570,27 @@ function CurrencySwitcher() {
       allowDeselect={false}
       leftSection={
         <CurrencyOptionIcon
+          backgroundColor={selectedOption?.backgroundColor}
           code={displayCurrency}
           cryptoIconStyle={cryptoIconStyle}
-          customIcon={selectedCurrency?.custom_icon}
+          symbol={selectedOption?.symbol}
+          customIcon={selectedOption?.customIcon}
         />
       }
       leftSectionPointerEvents="none"
       renderOption={({ option }) => (
         <Group gap={8} wrap="nowrap">
           <CurrencyOptionIcon
+            backgroundColor={
+              options.find((currency) => currency.value === option.value)
+                ?.backgroundColor
+            }
             code={option.value}
             cryptoIconStyle={cryptoIconStyle}
+            symbol={
+              options.find((currency) => currency.value === option.value)
+                ?.symbol
+            }
             customIcon={
               options.find((currency) => currency.value === option.value)
                 ?.customIcon

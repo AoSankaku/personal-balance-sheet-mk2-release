@@ -85,3 +85,64 @@ export function formatCurrency(
     ? maskFormattedAmountDigits(formatted)
     : formatted;
 }
+
+function normalizeCompactCurrencyPart(value: string): string {
+  return value.normalize("NFKC").replace(/\s+/g, "");
+}
+
+/** Format an amount for narrow calendar cells. */
+export function formatCompactCurrency(
+  amount: number,
+  locale: string,
+  currency: string,
+  displaySymbol?: string,
+): string {
+  const intlLocale = toIntlLocale(locale);
+  const cryptoDecimals = CRYPTO_DECIMALS[currency];
+  let formatted: string;
+  if (cryptoDecimals !== undefined) {
+    formatted =
+      amount.toLocaleString(intlLocale, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: cryptoDecimals,
+      }) + currency;
+    return isPrivacyModeEnabled()
+      ? maskFormattedAmountDigits(formatted)
+      : formatted;
+  }
+
+  const maximumFractionDigits = currency === "JPY" || currency === "KRW" ? 0 : 2;
+  if (displaySymbol && displaySymbol !== getCurrencySymbol(currency)) {
+    formatted =
+      normalizeCompactCurrencyPart(displaySymbol) +
+      amount.toLocaleString(intlLocale, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits,
+      });
+    return isPrivacyModeEnabled()
+      ? maskFormattedAmountDigits(formatted)
+      : formatted;
+  }
+
+  try {
+    formatted = new Intl.NumberFormat(intlLocale, {
+      style: "currency",
+      currency,
+      currencyDisplay: "narrowSymbol",
+      maximumFractionDigits,
+    }).formatToParts(amount).map((part) =>
+      part.type === "currency" || part.type === "literal"
+        ? normalizeCompactCurrencyPart(part.value)
+        : part.value
+    ).join("");
+  } catch {
+    formatted =
+      amount.toLocaleString(intlLocale, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }) + normalizeCompactCurrencyPart(currency);
+  }
+  return isPrivacyModeEnabled()
+    ? maskFormattedAmountDigits(formatted)
+    : formatted;
+}

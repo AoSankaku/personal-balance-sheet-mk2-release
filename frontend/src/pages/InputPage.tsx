@@ -17,8 +17,13 @@ import {
   IconPencil,
   IconShoppingCart,
 } from "@tabler/icons-react";
-import { useSearchParams, useLocation, Link } from "react-router-dom";
-import { useCallback, useRef, useState } from "react";
+import {
+  useSearchParams,
+  useLocation,
+  useNavigate,
+  Link,
+} from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CreateJournalInput } from "@balance-sheet/shared";
 import { api } from "../api/client";
 import { useLang } from "../i18n";
@@ -41,6 +46,11 @@ import { showFeedback } from "../lib/feedback";
 import { refreshAfterBudgetAdjustment } from "../lib/budgetAdjustmentRefresh";
 import { usePrivacy } from "../context/PrivacyContext";
 import { PrivacyModeBlocked } from "../components/PrivacyModeBlocked";
+import type { PlannedExpenseEntrySource } from "../types/plannedExpenseInput";
+import {
+  plannedExpenseCompletionFeedbackKey,
+} from "../lib/plannedExpenseForm";
+import { plannedExpenseJournalCurrency } from "../lib/plannedExpenseCurrency";
 import {
   savedTab,
   setSavedTab,
@@ -57,12 +67,15 @@ export default function InputPage() {
   const { privacyMode } = usePrivacy();
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const locationState = location.state as {
     loanDraft?: Partial<HouseholdForm>;
+    plannedExpenseEntry?: PlannedExpenseEntrySource;
     settledEntryIds?: number[];
     tab?: string;
   } | null;
   const locationLoanDraft = locationState?.loanDraft;
+  const locationPlannedExpenseEntry = locationState?.plannedExpenseEntry;
   const locationSettledEntryIds = locationState?.settledEntryIds;
   const fromTt = searchParams.get("from") === "tt";
   const typeParam = searchParams.get("type"); // e.g. "loan" from /fs/db
@@ -72,6 +85,7 @@ export default function InputPage() {
     budgetSettings,
     enabledCurrencies,
     displayCurrency,
+    setDisplayCurrency,
     loading,
     error,
     refresh,
@@ -79,10 +93,31 @@ export default function InputPage() {
     refreshAllocatable,
   } = useAppData();
 
+  useEffect(() => {
+    const sourceCurrency =
+      locationPlannedExpenseEntry?.inputCurrency ??
+      locationPlannedExpenseEntry?.currency;
+    if (sourceCurrency && sourceCurrency !== displayCurrency) {
+      setDisplayCurrency(sourceCurrency);
+    }
+  }, [
+    displayCurrency,
+    locationPlannedExpenseEntry?.currency,
+    locationPlannedExpenseEntry?.inputCurrency,
+    setDisplayCurrency,
+  ]);
+
   const hasFx = enabledCurrencies.length >= 2;
   const [activeTab, setActiveTab] = useState(
-    locationLoanDraft != null ? "simple" : savedTab,
+    locationLoanDraft != null || locationPlannedExpenseEntry != null
+      ? "simple"
+      : (locationState?.tab ?? savedTab),
   );
+  const [pendingPlannedExpenseCompletion, setPendingPlannedExpenseCompletion] =
+    useState<{
+      source: PlannedExpenseEntrySource;
+      input: CreateJournalInput;
+    } | null>(null);
   const [resetKeys, setResetKeys] = useState({
     simple: 0,
     multi: 0,
@@ -118,22 +153,129 @@ export default function InputPage() {
     setSimpleDraft(draft);
   }, []);
 
+  const plannedExpenseInitialDraft: SimpleFormDraft | null =
+    locationPlannedExpenseEntry != null
+      ? {
+          formValues: {
+            date:
+              locationPlannedExpenseEntry.occurrenceDate != null
+                ? dateFromInputString(locationPlannedExpenseEntry.occurrenceDate)
+                : undefined,
+            entryType: "expense",
+            description: locationPlannedExpenseEntry.name,
+            expenseCategoryId: locationPlannedExpenseEntry.expenseAccountId,
+            amount:
+              locationPlannedExpenseEntry.inputAmount ??
+              locationPlannedExpenseEntry.amount,
+          },
+          budgetDist: [],
+          showZeroCategories: false,
+        }
+      : null;
+
+  function dateFromInputString(value: string): Date {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }
+
+  function clearPlannedExpenseNavigationState() {
+    if (!locationState?.plannedExpenseEntry) return;
+    const { plannedExpenseEntry: _plannedExpenseEntry, ...rest } =
+      locationState;
+    navigate(
+      {
+        pathname: location.pathname,
+        search: location.search,
+      },
+      {
+        replace: true,
+        state: Object.keys(rest).length > 0 ? rest : null,
+      },
+    );
+  }
+
+  function getSubmittedExpenseSummary(values: CreateJournalInput) {
+    const expenseLine = values.lines.find((line) => {
+      if (line.debit <= 0) return false;
+      const account = accounts.find((a) => a.id === line.account_id);
+      return account?.type === "expense";
+    });
+    const amount = values.lines.reduce(
+      (sum, line) => sum + Math.max(line.debit, 0),
+      0,
+    );
+    return {
+      description: values.description.trim(),
+      expenseAccountId: expenseLine?.account_id ?? null,
+      amount,
+    };
+  }
+
+  async function completePlannedExpenseWithJournal(
+    source: PlannedExpenseEntrySource,
+    input: CreateJournalInput,
+  ) {
+    const result = await api.plannedExpenses.completeWithJournal(source.id, {
+      journal: input,
+      idempotency_key: source.idempotencyKey,
+      occurrence_date: source.occurrenceDate ?? null,
+      next_due_date_after_occurrence: source.nextDueDateAfterOccurrence ?? null,
+      completed_dates: source.completedDates ?? null,
+      completion_status_after_occurrence:
+        source.completionStatusAfterOccurrence === "open" ||
+        source.completionStatusAfterOccurrence === "completed"
+          ? source.completionStatusAfterOccurrence
+          : undefined,
+      checkout_item_ids: source.checkoutItemIds,
+      checkout_keep_item_ids: source.checkoutKeepItemIds,
+    });
+    clearPlannedExpenseNavigationState();
+    return result.completion;
+  }
+
   async function handleSubmit(
     values: CreateJournalInput,
     meta?: SimpleEntryMeta,
   ) {
     void meta;
+    const journalCurrency = plannedExpenseJournalCurrency(
+      activeTab === "simple"
+        ? (locationPlannedExpenseEntry?.inputCurrency ??
+          locationPlannedExpenseEntry?.currency)
+        : undefined,
+      displayCurrency,
+    );
     const input = {
       ...values,
       lines: values.lines.map((l) => ({
-        currency: displayCurrency,
+        currency: journalCurrency,
         ...l,
       })),
     };
-    await api.journal.create(input);
-    showFeedback({ message: t("transactionSaved"), color: "teal" });
+    const source =
+      activeTab === "simple" ? locationPlannedExpenseEntry : undefined;
+    if (source) {
+      const submitted = getSubmittedExpenseSummary(input);
+      const allChanged =
+        submitted.description !== source.name.trim() &&
+        submitted.expenseAccountId !== source.expenseAccountId &&
+        Math.round(submitted.amount) !==
+          Math.round(source.inputAmount ?? source.amount);
+      if (allChanged) {
+        setPendingPlannedExpenseCompletion({ source, input });
+        return;
+      }
+    }
+
+    const plannedExpenseCompletion = source
+      ? await completePlannedExpenseWithJournal(source, input)
+      : (await api.journal.create(input), "none");
     if (activeTab === "simple") setSimpleDraft(null);
     if (activeTab === "multi") setMultiDraft(null);
+    showFeedback({
+      message: t(plannedExpenseCompletionFeedbackKey(plannedExpenseCompletion)),
+      color: "teal",
+    });
     refresh();
     void refreshBudget();
     void refreshAllocatable();
@@ -237,6 +379,7 @@ export default function InputPage() {
               onSubmit={handleSubmit}
               onDepreciationSubmit={handleDepreciationSubmit}
               initialDraft={
+                plannedExpenseInitialDraft ??
                 (locationLoanDraft != null
                   ? {
                       formValues: locationLoanDraft,
@@ -336,6 +479,33 @@ export default function InputPage() {
         message={t("resetConfirm")}
         confirmLabel={t("reset")}
         confirmColor="orange"
+      />
+      <ConfirmModal
+        opened={pendingPlannedExpenseCompletion != null}
+        onClose={() => setPendingPlannedExpenseCompletion(null)}
+        onConfirm={() => {
+          if (pendingPlannedExpenseCompletion) {
+            void (async () => {
+              const completion = await completePlannedExpenseWithJournal(
+                pendingPlannedExpenseCompletion.source,
+                pendingPlannedExpenseCompletion.input,
+              );
+              setPendingPlannedExpenseCompletion(null);
+              setSimpleDraft(null);
+              showFeedback({
+                message: t(plannedExpenseCompletionFeedbackKey(completion)),
+                color: "teal",
+              });
+              refresh();
+              void refreshBudget();
+              void refreshAllocatable();
+            })();
+          }
+        }}
+        title={t("plannedExpenseCompleteSourceTitle")}
+        message={t("plannedExpenseCompleteSourceMessage")}
+        confirmLabel={t("plannedExpenseCompleteSourceConfirm")}
+        confirmColor="teal"
       />
     </Stack>
   );

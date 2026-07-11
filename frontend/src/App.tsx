@@ -1,4 +1,5 @@
 import { AppShell, Skeleton, Stack } from "@mantine/core";
+import { DatesProvider } from "@mantine/dates";
 import { Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { TopNav } from "./components/TopNav";
@@ -11,6 +12,7 @@ import { useVersionUpdateMonitor } from "./hooks/useVersionUpdateMonitor";
 import { useLang } from "./i18n";
 import { usePrivacy } from "./context/PrivacyContext";
 import { PrivacyModeBlocked } from "./components/PrivacyModeBlocked";
+import { normalizeCalendarWeekStart } from "./lib/calendarWeekStart";
 
 const OverviewPage = lazy(() => import("./pages/OverviewPage"));
 const InputPage = lazy(() => import("./pages/InputPage"));
@@ -29,9 +31,13 @@ const DangerZonePage = lazy(() => import("./pages/DangerZonePage"));
 const GuidesPage = lazy(() => import("./pages/GuidesPage"));
 const ExportPage = lazy(() => import("./pages/ExportPage"));
 const CurrencySettingsPage = lazy(() => import("./pages/CurrencySettingsPage"));
+const ProductApiSettingsPage = lazy(
+  () => import("./pages/ProductApiSettingsPage"),
+);
 const TtPage = lazy(() => import("./pages/TtPage"));
 const DbPage = lazy(() => import("./pages/DbPage"));
 const SvPage = lazy(() => import("./pages/SvPage"));
+const PlannedExpensePage = lazy(() => import("./pages/PlannedExpensePage"));
 const LongTermLoanDetailPage = lazy(
   () => import("./pages/LongTermLoanDetailPage"),
 );
@@ -49,9 +55,13 @@ function PageFallback() {
 
 export default function App() {
   useVersionUpdateMonitor();
-  const { enabledCurrencies, enabledCurrenciesLoaded } = useAppData();
-  const { hasExplicitLocale } = useLang();
+  const { budgetSettings, enabledCurrencies, enabledCurrenciesLoaded } =
+    useAppData();
+  const { hasExplicitLocale, locale } = useLang();
   const { privacyMode } = usePrivacy();
+  const calendarWeekStart = normalizeCalendarWeekStart(
+    budgetSettings?.calendar_week_start,
+  );
   const needsCurrencySetup =
     enabledCurrenciesLoaded && enabledCurrencies.length === 0;
   const needsLanguageSetup = needsCurrencySetup && !hasExplicitLocale;
@@ -79,13 +89,16 @@ export default function App() {
         <PageTitle overrideTitleKey={overrideTitleKey} />
         <FeedbackHost />
         <HardReloadPrompt />
-        <Suspense fallback={<PageFallback />}>
-          {!enabledCurrenciesLoaded ? null : needsLanguageSetup ? (
-            <LanguageSetupPage />
-          ) : needsCurrencySetup ? (
-            <CurrencySettingsPage initialSetup />
-          ) : (
-            <Routes>
+        <DatesProvider
+          settings={{ firstDayOfWeek: calendarWeekStart, locale }}
+        >
+          <Suspense fallback={<PageFallback />}>
+            {!enabledCurrenciesLoaded ? null : needsLanguageSetup ? (
+              <LanguageSetupPage />
+            ) : needsCurrencySetup ? (
+              <CurrencySettingsPage initialSetup />
+            ) : (
+              <Routes>
               <Route path="/" element={<OverviewPage />} />
               <Route
                 path="/input"
@@ -124,6 +137,36 @@ export default function App() {
                 }
               />
               <Route path="/fs/sv" element={<SvPage />} />
+              <Route
+                path="/shopping-list"
+                element={
+                  privacyMode ? (
+                    <PrivacyModeBlocked />
+                  ) : (
+                    <PlannedExpensePage kind="shopping_list" />
+                  )
+                }
+              />
+              <Route
+                path="/wishlist"
+                element={
+                  privacyMode ? (
+                    <PrivacyModeBlocked />
+                  ) : (
+                    <PlannedExpensePage kind="wishlist" />
+                  )
+                }
+              />
+              <Route
+                path="/scheduled-payments"
+                element={
+                  privacyMode ? (
+                    <PrivacyModeBlocked />
+                  ) : (
+                    <PlannedExpensePage kind="scheduled_payment" />
+                  )
+                }
+              />
               <Route path="/ledger" element={<LedgerPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route
@@ -181,9 +224,20 @@ export default function App() {
                   )
                 }
               />
-            </Routes>
-          )}
-        </Suspense>
+              <Route
+                path="/settings/product-api"
+                element={
+                  privacyMode ? (
+                    <PrivacyModeBlocked />
+                  ) : (
+                    <ProductApiSettingsPage />
+                  )
+                }
+              />
+              </Routes>
+            )}
+          </Suspense>
+        </DatesProvider>
       </AppShell.Main>
 
       <AppShell.Footer hiddenFrom="md">

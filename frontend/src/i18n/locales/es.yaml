@@ -22,6 +22,32 @@ privacyModeToggleHint: "Oculta los dígitos de los importes y bloquea la edició
 privacyMaskAccountsToggle: "Enmascarar nombres de cuentas"
 privacyMaskAccountsToggleHint: "Muestra las cuentas como Activo01, Ingreso01 y etiquetas similares."
 privacySettingsLockedMessage: "El modo de privacidad está activado. Los demás ajustes están bloqueados; solo esta sección y la guía están disponibles."
+productApiSettingsTitle: "Claves API de producto"
+productApiSettingsDescription: "Configura las claves API oficiales usadas para obtener nombres y precios de productos. Los secretos guardados nunca se muestran."
+productApiProviderRakuten: "Rakuten Ichiba"
+productApiProviderRakutenDesc: "Usa el ID de aplicación y la clave de acceso de la API Rakuten Ichiba Item Search."
+productApiProviderYahoo: "Yahoo! Shopping"
+productApiProviderYahooDesc: "Usa el ID de aplicación de la API de Yahoo! Shopping."
+productApiProviderAmazon: "Amazon"
+productApiProviderAmazonDesc: "Pensado para API de Amazon Associates, no para la SP-API orientada a vendedores. La Product Advertising API antigua quedó obsoleta el 2026-05-15."
+productApiGuideRakuten: "Crea una aplicación en Rakuten Web Service y genera un Application ID y una Access Key."
+productApiGuideYahoo: "Crea una aplicación en Yahoo! JAPAN Developer Network y genera un Client ID / ID de aplicación."
+productApiGuideAmazon: "Genera las claves desde Amazon Associates tras cumplir los requisitos de la API. No es la SP-API para vendedores. Puede requerir migrar a Creators API."
+productApiGuideOpenDocs: "Documentación oficial"
+productApiApplicationId: "ID de aplicación"
+productApiAccessKey: "Clave de acceso"
+productApiSecretKey: "Clave secreta"
+productApiPartnerTag: "Etiqueta de socio"
+productApiConfigured: "Configurado"
+productApiNotConfigured: "Sin configurar"
+productApiSave: "Guardar"
+productApiClear: "Eliminar"
+productApiSettingsLeaveBlank: "Introduce un valor nuevo"
+productApiSettingsConfiguredLast4: "Guardado, termina en"
+productApiSettingsNoInput: "Introduce al menos un valor para guardar."
+productApiSettingsSaved: "Configuración de claves API guardada."
+productApiSettingsCleared: "Configuración de claves API eliminada."
+productApiSettingsClearConfirm: "¿Eliminar esta configuración de clave API?"
 privacyModeBlockedTitle: "Modo de privacidad activado"
 privacyModeBlockedMessage: "Esta página no se puede usar con el modo de privacidad activado. Desactívalo en Configuración > General para editar datos."
 settingsSectionAccounts: "Cuentas"
@@ -1012,6 +1038,7 @@ exportDepreciationNone: "No se registran activos depreciables."
 negativeBalanceWarning: "Esta cuenta tiene un saldo negativo."
 settingsNavCurrencyTitle: "Moneda extranjera"
 settingsNavCurrencyDesc: "Activar monedas y criptomonedas para usarlas junto con JPY."
+settingsNavProductApiDesc: "Configurar claves API oficiales para buscar productos."
 currencySettingsTitle: "Configuración de moneda extranjera"
 currencySettingsFiatGroup: "Monedas fiduciarias"
 currencySettingsCryptoGroup: "Criptomonedas"
@@ -1048,6 +1075,8 @@ currencySettingsDisplayIcon: "Mostrar icono"
 currencySettingsSelectIcon: "Seleccionar un icono"
 currencySettingsSymbol: "Símbolo de moneda"
 currencySettingsDecimalPlaces: "Posiciones decimales"
+currencySettingsBackgroundColor: "Color de fondo"
+currencySettingsDefaultColor: "Predeterminado"
 currencySettingsDisableBalance: "No se puede deshabilitar: tiene saldo distinto de cero"
 currencySettingsDisableLast: "No se puede deshabilitar la última moneda: se requiere al menos una"
 tabFxExchange: "Cambio de divisas"
@@ -1061,3 +1090,182 @@ fxToAmount: "Cantidad recibida"
 loanOtherCurrencyReadOnly: "Cambia la moneda mostrada para registrar el pago"
 includeAllCurrencies: "Incluir todas las monedas"
 displayCurrencyLabel: "Mostrar moneda"
+shoppingListTitle: Lista de compras
+shoppingListPageDesc: Gestiona compras cercanas por plan de compra, con estimaciones y lista de verificación.
+shoppingPlanLabel: Plan de compra
+shoppingPlanAdd: Añadir plan de compra
+shoppingPlanName: Nombre del plan de compra
+shoppingPlanNameOrDateRequired: Se requiere nombre del plan de compra o fecha prevista
+shoppingPlanRequired: El plan de compra es obligatorio
+shoppingPlanTotal: Total de presupuesto estimado de planes de compra
+shoppingPlanEmpty: Aún no hay elementos en este plan de compra.
+shoppingPlanBudgetEstimate: Presupuesto estimado del plan de compra
+shoppingPlanNone: Sin plan de compra
+shoppingPlanType: Tratamiento del plan de compra
+shoppingPlanTypeOneTime: Compra puntual
+shoppingPlanTypeRoutine: Compra habitual
+shoppingPlanTypeOneTimeHelp: Para regalos, muebles y otras compras puntuales. El plan completo se archiva al completarse.
+shoppingPlanTypeRoutineHelp: Para alimentos y consumibles. El presupuesto y la fecha se conservan, y completar todo solo vacia los articulos.
+shoppingPlanNextTargetDate: Proxima fecha prevista
+shoppingPlanClearItems: Vaciar articulos
+shoppingPlanCheckout: Finalizar lista (introducir gasto)
+shoppingPlanDelete: Eliminar lista
+shoppingPlanDeleteConfirmTitle: Eliminar esta lista?
+shoppingPlanDeleteConfirmMessage: Se eliminaran el plan de compra y sus articulos. Esta accion no se puede deshacer.
+shoppingPlanKeepItemOnClear: Conservar este articulo al completar la lista
+shoppingPlanLastCheckoutDate: Ultimo checkout
+shoppingPlanAddItem: Anadir articulo
+shoppingPlanComplete: Compra completada
+shoppingPlanActions: Acciones
+shoppingPlanRestore: Restaurar
+shoppingPlanRestoreItem: Restaurar articulo
+shoppingPlanRestoreConfirmTitle: ¿Restaurar este plan?
+shoppingPlanRestoreConfirmMessage: Este plan de compra completado volvera a los planes activos.
+shoppingPlanRestoredNameSuffix: " (restaurado)"
+shoppingPlanUndatedFirstToggle: Poner los planes sin fecha arriba
+plannedExpenseCategory: Categoría
+plannedExpenseCategoryAdd: Añadir categoría
+plannedExpenseCategoryName: Nombre de categoría
+plannedExpenseCategoryNameOrDateRequired: Se requiere nombre de categoría o fecha prevista
+plannedExpenseCategoryRequired: La categoría es obligatoria
+plannedExpenseCategoryTotal: Total de presupuesto estimado por categoría
+plannedExpenseCategoryEmpty: Aún no hay elementos en esta categoría.
+plannedExpenseShoppingCategoryEstimate: Presupuesto estimado de categoría
+plannedExpenseItemEstimate: Estimación del elemento
+plannedExpenseCompleteCategory: Completar todo
+plannedExpenseCalendar: Calendario
+plannedExpensePaymentDetails: Detalles del pago
+plannedExpensePaymentDetailsTotal: Total de este dia
+plannedExpenseFrequency: Frecuencia
+plannedExpenseOccurrenceNumber: Ocurrencia
+plannedExpenseEnterPayment: Introducir este pago
+plannedExpenseSkipPayment: Omitir este pago
+plannedExpenseUndoCompletion: Deshacer finalizacion
+plannedExpenseOneTime: Una vez
+plannedExpenseRecurring: Recurrente
+plannedExpenseRecurrenceType: Tipo de programación
+plannedExpenseEveryMonths: Cada N meses
+plannedExpenseEveryInterval: Cada
+plannedExpenseRecurrenceUnit: Unidad
+plannedExpenseRecurrenceUnit_week: Semana(s)
+plannedExpenseRecurrenceUnit_month: Mes(es)
+plannedExpenseRecurrenceUnit_year: Ano(s)
+plannedExpenseMonthlyMode: Regla mensual
+plannedExpenseMonthlyDay: Dia del mes
+plannedExpenseMonthlyWeekday: Enesimo dia de semana
+plannedExpenseDayOfMonth: Día del mes
+plannedExpenseWeeksOfMonth: Semana(s) del mes
+plannedExpenseWeekday: Dia de semana
+plannedExpenseWeekOfMonth_1: Primero
+plannedExpenseWeekOfMonth_2: Segundo
+plannedExpenseWeekOfMonth_3: Tercero
+plannedExpenseWeekOfMonth_4: Cuarto
+plannedExpenseWeekOfMonth_5: Quinto
+weekday_short_0: Dom
+weekday_short_1: Lun
+weekday_short_2: Mar
+weekday_short_3: Mie
+weekday_short_4: Jue
+weekday_short_5: Vie
+weekday_short_6: Sab
+plannedExpenseNextDueDate: Próxima fecha
+plannedExpenseEndDate: Fecha de finalización
+plannedExpenseEndCondition: Condicion de fin
+plannedExpenseEndConditionDate: Fecha de fin
+plannedExpenseEndConditionCount: Ocurrencia final
+plannedExpenseFinalOccurrence: Ocurrencia final
+plannedExpenseUnspecifiedPlaceholder: Vacio para indefinido
+plannedExpensePlannedCountHint: "Pagos previstos: {count}"
+plannedExpenseFinalDateHint: "Fecha del pago final: {date}"
+plannedExpensePlannedCountChangeHint: "{from} pagos -> {to} pagos"
+plannedExpenseSkipPolicyTitle: Recuento al omitir
+plannedExpenseSkipPolicyMessage: Este pago tiene una condicion de finalizacion. Elige como afectara esta omision al calendario total.
+plannedExpenseSkipPolicyPostpone: Posponer un pago
+plannedExpenseSkipPolicyReduce: Reducir el recuento
+wishlistTitle: Lista de deseos
+wishlistPageDesc: Controla compras futuras por categoría personalizada con estimaciones por elemento.
+scheduledPaymentsTitle: Gastos recurrentes y pagos
+scheduledPaymentsPageDesc: Gestiona pagos únicos y gastos recurrentes por categoría con un calendario.
+plannedExpenseAdd: Añadir
+plannedExpenseEdit: Editar
+plannedExpenseName: Nombre
+plannedExpenseDuplicateShoppingItem: Ya existe un articulo con el mismo nombre y comentario
+plannedExpenseDuplicateItem: Ya existe un elemento con el mismo nombre en esta categoría
+plannedExpenseDuplicateCategory: Ya existe una categoría con el mismo nombre
+plannedExpenseBudgetAmount: Importe (presupuesto)
+plannedExpenseTargetDate: Fecha prevista / fecha límite
+plannedExpenseDueDate: Fecha de pago
+plannedExpensePriority: Prioridad
+plannedExpensePriorityLow: Baja
+plannedExpensePriorityMedium: Media
+plannedExpensePriorityHigh: Alta
+plannedExpenseStatus_open: Abierto
+plannedExpenseStatus_completed: Completado
+plannedExpenseStatus_cancelled: Cancelado
+plannedExpenseOpenCount: Elementos abiertos
+plannedExpenseOpenTotal: Total abierto
+plannedExpenseList: Lista
+plannedExpenseReorder: Reordenar
+plannedExpenseMoveUp: Subir
+plannedExpenseMoveDown: Bajar
+plannedExpenseCompletedWishlist: Deseos completados / cancelados
+plannedExpenseCompletedOneTimePayments: Pagos unicos completados
+plannedExpenseCompletedScheduledPayments: Pagos completados
+plannedExpenseRecentlyCompleted: Recien completados
+plannedExpenseEndedByDate: Fecha final alcanzada
+plannedExpenseEndedByCount: Ocurrencia final alcanzada
+plannedExpenseEmpty: Todavía no hay elementos.
+plannedExpenseNoCategory: Sin categoría de presupuesto
+plannedExpenseExpenseAccount: Cuenta de gasto
+plannedExpenseDefaultExpenseAccount: Cuenta de gasto predeterminada
+plannedExpenseNoExpenseAccount: Sin cuenta de gasto
+plannedExpenseComplete: Marcar como completado
+plannedExpenseDeleteCategoryConfirmTitle: ¿Eliminar categoría?
+plannedExpenseDeleteCategoryConfirmMessage: Esta categoría y sus elementos se eliminarán. Esta acción no se puede deshacer.
+plannedExpenseDeleteCategoryConfirm: Eliminar categoría
+plannedExpenseDeleteItemConfirmTitle: ¿Eliminar elemento?
+plannedExpenseDeleteItemConfirmMessage: Este elemento se eliminará. Esta acción no se puede deshacer.
+plannedExpenseDeleteItemConfirm: Eliminar elemento
+plannedExpenseForceComplete: Completar sin gasto
+plannedExpenseForceCompleteConfirmTitle: ¿Completar sin introducir un gasto?
+plannedExpenseForceCompleteConfirmMessage: Este elemento se marcará como completado sin crear un asiento de gasto. Úsalo solo si no se necesita un registro de gasto.
+plannedExpenseForceCompleteConfirm: Completar sin gasto
+plannedExpenseInputExpense: Introducir gasto
+plannedExpenseCompleteSourceTitle: ¿Marcar el elemento origen como completado?
+plannedExpenseCompleteSourceMessage: La descripción, la categoría y el importe se cambiaron respecto al elemento origen. ¿Marcar el elemento origen como completado?
+plannedExpenseCompleteSourceConfirm: Marcar como completado
+transactionSavedWithPlannedExpenseCompleted: Transaccion guardada y el elemento origen tambien se marco como completado.
+transactionSavedWithShoppingListArchived: Transaccion guardada y la lista de compras tambien se marco como completada.
+shoppingListArchivedFeedback: La lista de compras tambien se archivo.
+plannedExpenseUrl: URL
+plannedExpenseReferenceCurrency: Referencia
+plannedExpenseReferenceAmount: Precio de referencia
+plannedExpenseCurrencyInputConfirmTitle: ¿Convertir la moneda para la entrada?
+plannedExpenseCurrencyInputConfirmMessage: "Este plan está en {from}. ¿Convertirlo e introducirlo en la moneda seleccionada actualmente ({to})?"
+productMetadataLookup: Obtener producto
+productMetadataAutoFetchPrompt: ¿Obtener información automáticamente?
+productMetadataRefresh: Actualizar producto
+productMetadataPrice: Obtenido
+productMetadataFetched: Obtenido
+productMetadataCacheUntil: Caché hasta
+productMetadataOpen: Abrir
+productMetadataNoName: Nombre no disponible
+productSource_amazon: Amazon
+productSource_rakuten: Rakuten
+productSource_yahoo: Yahoo
+productSource_other: Otro
+productAvailability_in_stock: Disponible
+productAvailability_out_of_stock: Agotado
+productAvailability_unavailable: No disponible
+productAvailability_unknown: Desconocido
+productAvailability_api_credentials_missing: Falta clave API
+productAvailability_unsupported: No compatible
+productAvailability_error: Error al obtener
+shoppingPlanArchivedTitle: Planes de compra completados
+calendarWeekStartLabel: "Inicio de semana del calendario"
+calendarTodayButton: "Hoy"
+plannedExpenseWeekFallback: "Si no existe ese enesimo dia"
+plannedExpenseWeekFallback_skip: "Omitir este mes"
+plannedExpenseWeekFallback_last_day_of_month: "Fin de mes mas cercano"
+plannedExpenseWeekFallback_previous_week: "Semana anterior"
+plannedExpenseWeekFallback_next_month_first_week: "Primera semana del mes siguiente"

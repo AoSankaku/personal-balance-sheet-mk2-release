@@ -27,6 +27,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 import { lineAmountForDisplayMode } from "../lib/displayCurrencyAmounts";
 import { privacyChartAmount } from "../lib/privacy";
 
@@ -334,6 +335,7 @@ export function BsHistoryChart({
             <MultiSelect
               size="xs"
               data={selectData}
+              renderOption={renderAccountOption as never}
               value={selectedKeys}
               onChange={setSelectedKeys}
               maxValues={8}

@@ -22,9 +22,8 @@ import type {
 import { isShortTermLoanCategory } from "@balance-sheet/shared";
 import { useLang } from "../../i18n";
 import { formatCurrency } from "../../lib/numberFormat";
+import { renderAccountOption, type AccountOption } from "../../lib/accountSelect";
 import {
-  renderAccountOption,
-  type AccountOption,
   type BudgetDistributionItem,
   type HouseholdForm,
 } from "../SimpleEntryForm";

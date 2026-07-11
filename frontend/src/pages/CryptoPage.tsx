@@ -27,6 +27,7 @@ import { usePrivacy } from "../context/PrivacyContext";
 import { CryptoWatchModal } from "../components/CryptoWatchModal";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { showFeedback } from "../lib/feedback";
+import { accountDisplayNameFromName } from "../lib/accountUtils";
 import { formatJPY } from "../lib/numberFormat";
 
 function truncateAddress(addr: string) {
@@ -254,7 +255,7 @@ export default function CryptoPage() {
                 <Table.Tr key={w.id}>
                   <Table.Td>
                     <Text size="sm" fw={500}>
-                      {w.account_name ?? "—"}
+                      {accountDisplayNameFromName(w.account_name, t) || "—"}
                     </Text>
                   </Table.Td>
                   <Table.Td>

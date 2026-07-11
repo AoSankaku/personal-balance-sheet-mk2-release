@@ -13,6 +13,7 @@ import { useMediaQuery } from "@mantine/hooks";
 import { IconPencil, IconTrash } from "@tabler/icons-react";
 import type { Account, JournalEntry } from "@balance-sheet/shared";
 import { toIntlLocale, type TranslationKey, useLang } from "../i18n";
+import { accountDisplayNameFromName } from "../lib/accountUtils";
 import { formatCurrency } from "../lib/numberFormat";
 
 interface Props {
@@ -129,7 +130,7 @@ export function JournalTable({
     nowrap: true,
   });
   const describeAccount = (line: JournalLine, tone: DisplayTone) => ({
-    text: line.account_name,
+    text: accountDisplayNameFromName(line.account_name, t),
     tone,
   });
 
@@ -530,7 +531,7 @@ export function JournalTable({
                           {debitLines.map((l) => (
                             <Group key={l.id} gap={6} wrap="nowrap">
                               <Badge size="xs" color="blue" variant="light">
-                                {l.account_name}
+                                {accountDisplayNameFromName(l.account_name, t)}
                               </Badge>
                               <Text size="xs" className="currency-token">
                                 {formatAmount(l.debit, l.currency)}
@@ -549,7 +550,7 @@ export function JournalTable({
                           {creditLines.map((l) => (
                             <Group key={l.id} gap={6} wrap="nowrap">
                               <Badge size="xs" color="orange" variant="light">
-                                {l.account_name}
+                                {accountDisplayNameFromName(l.account_name, t)}
                               </Badge>
                               <Text size="xs" className="currency-token">
                                 {formatAmount(l.credit, l.currency)}

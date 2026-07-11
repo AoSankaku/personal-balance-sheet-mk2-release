@@ -66,9 +66,11 @@ import {
 } from "../utils/inputDrafts";
 import { countMissingCounterAccountWarnings } from "../utils/csvImportWarnings";
 import {
+  accountDisplayNameFromName,
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 
 type SortCol = "date" | "store";
 type SortDir = "asc" | "desc";
@@ -795,6 +797,7 @@ export function CsvImportTab({
               <Select
                 label={t("importSelectBankAccount")}
                 data={bankOptions}
+                renderOption={renderAccountOption as never}
                 value={selectedAccountId}
                 onChange={setSelectedAccountId}
                 required
@@ -804,6 +807,7 @@ export function CsvImportTab({
               <Select
                 label={t("importSelectCard")}
                 data={cardOptions}
+                renderOption={renderAccountOption as never}
                 value={selectedAccountId}
                 onChange={setSelectedAccountId}
                 required
@@ -1061,6 +1065,7 @@ export function CsvImportTab({
                                 <Select
                                   size="xs"
                                   data={counterOptions}
+                                  renderOption={renderAccountOption as never}
                                   value={rs?.counterAccountId ?? null}
                                   onChange={(v) => setRowCounter(i, v)}
                                   searchable={false}
@@ -1149,7 +1154,7 @@ export function CsvImportTab({
                                             .filter((line) => line.debit > 0)
                                             .map(
                                               (line) =>
-                                                `${line.account_name} ¥${line.debit.toLocaleString()}`,
+                                                `${accountDisplayNameFromName(line.account_name, t)} ¥${line.debit.toLocaleString()}`,
                                             )
                                             .join(" / ")}
                                         </Table.Td>
@@ -1158,7 +1163,7 @@ export function CsvImportTab({
                                             .filter((line) => line.credit > 0)
                                             .map(
                                               (line) =>
-                                                `${line.account_name} ¥${line.credit.toLocaleString()}`,
+                                                `${accountDisplayNameFromName(line.account_name, t)} ¥${line.credit.toLocaleString()}`,
                                             )
                                             .join(" / ")}
                                         </Table.Td>
@@ -1346,14 +1351,19 @@ export function CsvImportTab({
                 .replace("{store}", overwriteTarget.storeKey)
                 .replace(
                   "{existing}",
-                  overwriteTarget.existingMapping.account_name ??
-                    String(overwriteTarget.existingMapping.account_id),
+                  accountDisplayNameFromName(
+                    overwriteTarget.existingMapping.account_name,
+                    t,
+                  ) || String(overwriteTarget.existingMapping.account_id),
                 )
                 .replace(
                   "{new}",
-                  accounts.find(
-                    (a) => a.id === Number(overwriteTarget.accountId),
-                  )?.name ?? overwriteTarget.accountId,
+                  accountDisplayNameFromName(
+                    accounts.find(
+                      (a) => a.id === Number(overwriteTarget.accountId),
+                    )?.name,
+                    t,
+                  ) || overwriteTarget.accountId,
                 )}
             </Text>
             <Group justify="flex-end">

@@ -54,6 +54,13 @@ function normalizeCurrency(currency: string | null | undefined): string {
   return (currency || "JPY").toUpperCase();
 }
 
+function normalizeCalendarWeekStart(value: unknown): 0 | 1 | 2 | 3 | 4 | 5 | 6 {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 &&
+    value <= 6
+    ? (value as 0 | 1 | 2 | 3 | 4 | 5 | 6)
+    : 0;
+}
+
 async function loadMoneyScaleOptions(
   db: ReturnType<typeof createDb>,
 ): Promise<MoneyScaleOptions> {
@@ -677,6 +684,7 @@ router.get("/settings", async (c) => {
   return c.json({
     preferred_payment_account_ids: ids,
     preferred_filter_ids: filterIds,
+    calendar_week_start: normalizeCalendarWeekStart(row?.calendar_week_start),
     is_business_owner: Boolean(row?.is_business_owner ?? 0),
     business_advance_account_id: row?.business_advance_account_id ?? null,
     business_loss_account_id: row?.business_loss_account_id ?? null,
@@ -690,6 +698,7 @@ router.patch("/settings", async (c) => {
   const body = await c.req.json<{
     preferred_payment_account_ids?: number[];
     preferred_filter_ids?: number[];
+    calendar_week_start?: number;
     is_business_owner?: boolean;
     business_advance_account_id?: number | null;
     business_loss_account_id?: number | null;
@@ -732,6 +741,22 @@ router.patch("/settings", async (c) => {
     newFilterIds = arr.filter((id) => typeof id === "number" && id > 0);
   }
 
+  const newCalendarWeekStart =
+    "calendar_week_start" in body
+      ? body.calendar_week_start
+      : normalizeCalendarWeekStart(current?.calendar_week_start);
+  if (
+    typeof newCalendarWeekStart !== "number" ||
+    !Number.isInteger(newCalendarWeekStart) ||
+    newCalendarWeekStart < 0 ||
+    newCalendarWeekStart > 6
+  ) {
+    return c.json(
+      { error: "calendar_week_start must be an integer from 0 to 6" },
+      400,
+    );
+  }
+
   const newIsBusinessOwner =
     "is_business_owner" in body
       ? body.is_business_owner
@@ -760,6 +785,7 @@ router.patch("/settings", async (c) => {
       id: 1,
       preferred_payment_account_ids: JSON.stringify(newIds),
       preferred_filter_ids: JSON.stringify(newFilterIds),
+      calendar_week_start: newCalendarWeekStart,
       is_business_owner: newIsBusinessOwner,
       business_advance_account_id: newAdvanceAccountId,
       business_loss_account_id: newLossAccountId,
@@ -770,6 +796,7 @@ router.patch("/settings", async (c) => {
       set: {
         preferred_payment_account_ids: JSON.stringify(newIds),
         preferred_filter_ids: JSON.stringify(newFilterIds),
+        calendar_week_start: newCalendarWeekStart,
         is_business_owner: newIsBusinessOwner,
         business_advance_account_id: newAdvanceAccountId,
         business_loss_account_id: newLossAccountId,
@@ -780,6 +807,7 @@ router.patch("/settings", async (c) => {
   return c.json({
     preferred_payment_account_ids: newIds,
     preferred_filter_ids: newFilterIds,
+    calendar_week_start: normalizeCalendarWeekStart(newCalendarWeekStart),
     is_business_owner: Boolean(newIsBusinessOwner),
     business_advance_account_id: newAdvanceAccountId,
     business_loss_account_id: newLossAccountId,

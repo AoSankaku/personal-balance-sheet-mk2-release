@@ -6,6 +6,10 @@ import { fileURLToPath } from "node:url";
 
 const workerDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const schemaSql = readFileSync(join(workerDir, "drizzle/0000_init.sql"), "utf8");
+const enabledCurrencyBackgroundColorMigrationSql = readFileSync(
+  join(workerDir, "drizzle/0004_enabled_currency_background_color.sql"),
+  "utf8",
+);
 const journalRoute = readFileSync(
   join(workerDir, "src/routes/journal.ts"),
   "utf8",
@@ -61,6 +65,9 @@ describe("database hardening", () => {
   test("stores custom currency icon separately from typed symbols", () => {
     expect(schemaSql).toContain("`custom_symbol` TEXT");
     expect(schemaSql).toContain("`custom_icon` TEXT");
+    expect(enabledCurrencyBackgroundColorMigrationSql).toContain(
+      "ADD COLUMN `background_color` TEXT",
+    );
   });
 
   test("canonical schema rejects fractional money values", () => {

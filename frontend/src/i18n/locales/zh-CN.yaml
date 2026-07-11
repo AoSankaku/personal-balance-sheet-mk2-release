@@ -22,6 +22,32 @@ privacyModeToggleHint: 隐藏金额数字，并在关闭前禁止编辑。
 privacyMaskAccountsToggle: 掩蔽账户名称
 privacyMaskAccountsToggleHint: 将账户显示为“资产01”“收入01”等标签。
 privacySettingsLockedMessage: 隐私模式已开启。其他设置已锁定；只能使用本区的开关和使用指南。
+productApiSettingsTitle: 商品 API 密钥
+productApiSettingsDescription: 设置用于获取愿望清单商品名称和价格的官方 API 密钥。已保存的密钥不会显示。
+productApiProviderRakuten: 乐天市场
+productApiProviderRakutenDesc: 使用 Rakuten Ichiba Item Search API 的应用 ID 和访问密钥。
+productApiProviderYahoo: Yahoo! 购物
+productApiProviderYahooDesc: 使用 Yahoo! Shopping API 的应用 ID。
+productApiProviderAmazon: Amazon
+productApiProviderAmazonDesc: 适用于 Amazon Associates API，不是面向卖家的 SP-API。旧 Product Advertising API 已于 2026-05-15 废弃。
+productApiGuideRakuten: 在 Rakuten Web Service 创建应用，然后获取 Application ID 和 Access Key。
+productApiGuideYahoo: 在 Yahoo! JAPAN Developer Network 创建应用，然后获取 Client ID / 应用 ID。
+productApiGuideAmazon: 满足 API 使用条件后，在 Amazon Associates 发行密钥。这不是卖家用 SP-API，可能需要迁移到 Creators API。
+productApiGuideOpenDocs: 官方文档
+productApiApplicationId: 应用 ID
+productApiAccessKey: 访问密钥
+productApiSecretKey: 秘密密钥
+productApiPartnerTag: 合作伙伴标签
+productApiConfigured: 已设置
+productApiNotConfigured: 未设置
+productApiSave: 保存
+productApiClear: 删除
+productApiSettingsLeaveBlank: 输入新值
+productApiSettingsConfiguredLast4: 已保存，末尾
+productApiSettingsNoInput: 请输入至少一个要保存的值。
+productApiSettingsSaved: API 密钥设置已保存。
+productApiSettingsCleared: API 密钥设置已删除。
+productApiSettingsClearConfirm: 要删除此 API 密钥设置吗？
 privacyModeBlockedTitle: 隐私模式已开启
 privacyModeBlockedMessage: 隐私模式开启时不能使用此页面。如需编辑，请在设置 > 常规中关闭。
 settingsSectionAccounts: 账户
@@ -1012,6 +1038,7 @@ exportDepreciationNone: 没有注册的折旧资产。
 negativeBalanceWarning: 此账户余额为负数
 settingsNavCurrencyTitle: 外币
 settingsNavCurrencyDesc: 启用与 JPY 一起使用的货币和加密货币。
+settingsNavProductApiDesc: 设置用于商品查询的官方 API 密钥。
 currencySettingsTitle: 外币设置
 currencySettingsFiatGroup: 法定货币
 currencySettingsCryptoGroup: 加密货币
@@ -1048,6 +1075,8 @@ currencySettingsDisplayIcon: 显示图标
 currencySettingsSelectIcon: 选择图标
 currencySettingsSymbol: 货币符号
 currencySettingsDecimalPlaces: 小数位数
+currencySettingsBackgroundColor: 背景色
+currencySettingsDefaultColor: 默认
 currencySettingsDisableBalance: 无法禁用：余额不为零
 currencySettingsDisableLast: 无法禁用最后一个货币 — 至少需要一个
 tabFxExchange: 外汇兑换
@@ -1061,3 +1090,182 @@ fxToAmount: 收到金额
 loanOtherCurrencyReadOnly: 切换显示货币后才能录入还款
 includeAllCurrencies: 包含所有货币
 displayCurrencyLabel: 显示货币
+shoppingListTitle: 购物清单
+shoppingListPageDesc: 按购物计划、概算和勾选项管理近期食品与日用品采购。
+shoppingPlanLabel: 购物计划
+shoppingPlanAdd: 添加购物计划
+shoppingPlanName: 购物计划名称
+shoppingPlanNameOrDateRequired: 购物计划名称或计划日期为必填
+shoppingPlanRequired: 必须选择所属购物计划
+shoppingPlanTotal: 购物计划预算概算合计
+shoppingPlanEmpty: 此购物计划暂无项目。
+shoppingPlanBudgetEstimate: 购物计划预算概算
+shoppingPlanNone: 无购物计划
+shoppingPlanType: 购物计划处理方式
+shoppingPlanTypeOneTime: 单次购物
+shoppingPlanTypeRoutine: 常规购物
+shoppingPlanTypeOneTimeHelp: 适合生日礼物、家具等，完成后会归档整个购物计划。
+shoppingPlanTypeRoutineHelp: 适合食品、日用品等，保留预算和日期，全部完成时只清空项目。
+shoppingPlanNextTargetDate: 下次计划日期
+shoppingPlanClearItems: 清空项目
+shoppingPlanCheckout: 结算清单（输入支出）
+shoppingPlanDelete: 删除清单
+shoppingPlanDeleteConfirmTitle: 要删除此清单吗？
+shoppingPlanDeleteConfirmMessage: 将删除此购物计划及其项目。此操作无法撤销。
+shoppingPlanKeepItemOnClear: 完成清单时不要删除此项目
+shoppingPlanLastCheckoutDate: 上次结算
+shoppingPlanAddItem: 添加项目
+shoppingPlanComplete: 购物完成
+shoppingPlanActions: 操作
+shoppingPlanRestore: 恢复
+shoppingPlanRestoreItem: 恢复项目
+shoppingPlanRestoreConfirmTitle: 要恢复吗？
+shoppingPlanRestoreConfirmMessage: 已完成的购物计划将恢复为未完成状态。
+shoppingPlanRestoredNameSuffix: （恢复）
+shoppingPlanUndatedFirstToggle: 将无日期计划置顶
+plannedExpenseCategory: 类别
+plannedExpenseCategoryAdd: 添加类别
+plannedExpenseCategoryName: 类别名称
+plannedExpenseCategoryNameOrDateRequired: 类别名称或计划日期为必填
+plannedExpenseCategoryRequired: 必须选择所属类别
+plannedExpenseCategoryTotal: 类别预算概算合计
+plannedExpenseCategoryEmpty: 此类别暂无项目。
+plannedExpenseShoppingCategoryEstimate: 类别预算概算
+plannedExpenseItemEstimate: 项目概算
+plannedExpenseCompleteCategory: 全部完成
+plannedExpenseCalendar: 日历
+plannedExpensePaymentDetails: 支付明细
+plannedExpensePaymentDetailsTotal: 当日合计
+plannedExpenseFrequency: 频率
+plannedExpenseOccurrenceNumber: 第几次
+plannedExpenseEnterPayment: 输入这笔支付
+plannedExpenseSkipPayment: 跳过这笔支付
+plannedExpenseUndoCompletion: 撤销完成
+plannedExpenseOneTime: 仅一次
+plannedExpenseRecurring: 定期
+plannedExpenseRecurrenceType: 计划类型
+plannedExpenseEveryMonths: 每 N 个月
+plannedExpenseEveryInterval: 每
+plannedExpenseRecurrenceUnit: 单位
+plannedExpenseRecurrenceUnit_week: 周
+plannedExpenseRecurrenceUnit_month: 月
+plannedExpenseRecurrenceUnit_year: 年
+plannedExpenseMonthlyMode: 月度规则
+plannedExpenseMonthlyDay: 按日期
+plannedExpenseMonthlyWeekday: 按第 N 个星期几
+plannedExpenseDayOfMonth: 每月日期
+plannedExpenseWeeksOfMonth: 第几周
+plannedExpenseWeekday: 星期几
+plannedExpenseWeekOfMonth_1: 第一
+plannedExpenseWeekOfMonth_2: 第二
+plannedExpenseWeekOfMonth_3: 第三
+plannedExpenseWeekOfMonth_4: 第四
+plannedExpenseWeekOfMonth_5: 第五
+weekday_short_0: 日
+weekday_short_1: 一
+weekday_short_2: 二
+weekday_short_3: 三
+weekday_short_4: 四
+weekday_short_5: 五
+weekday_short_6: 六
+plannedExpenseNextDueDate: 下次日期
+plannedExpenseEndDate: 结束日期
+plannedExpenseEndCondition: 结束条件
+plannedExpenseEndConditionDate: 结束日期
+plannedExpenseEndConditionCount: 最后一次
+plannedExpenseFinalOccurrence: 最后一次
+plannedExpenseUnspecifiedPlaceholder: 留空表示未定
+plannedExpensePlannedCountHint: "计划次数：{count}"
+plannedExpenseFinalDateHint: "最后一次日期：{date}"
+plannedExpensePlannedCountChangeHint: "{from}次→{to}次"
+plannedExpenseSkipPolicyTitle: 跳过时的次数
+plannedExpenseSkipPolicyMessage: 该付款设置了结束条件。请选择这次跳过如何影响总计划。
+plannedExpenseSkipPolicyPostpone: 将跳过部分顺延
+plannedExpenseSkipPolicyReduce: 减少次数
+wishlistTitle: 心愿清单
+wishlistPageDesc: 按自定义类别和项目概算管理将来想买的东西。
+scheduledPaymentsTitle: 定期支出与支付计划
+scheduledPaymentsPageDesc: 用类别和日历管理一次性支付与定期支出。
+plannedExpenseAdd: 添加
+plannedExpenseEdit: 编辑
+plannedExpenseName: 名称
+plannedExpenseDuplicateShoppingItem: 已存在名称和备注相同的项目
+plannedExpenseDuplicateItem: 此分类中已存在同名项目
+plannedExpenseDuplicateCategory: 已存在同名分类
+plannedExpenseBudgetAmount: 金额（预算）
+plannedExpenseTargetDate: 计划日期/期限
+plannedExpenseDueDate: 支付期限
+plannedExpensePriority: 优先级
+plannedExpensePriorityLow: 低
+plannedExpensePriorityMedium: 中
+plannedExpensePriorityHigh: 高
+plannedExpenseStatus_open: 未完成
+plannedExpenseStatus_completed: 已完成
+plannedExpenseStatus_cancelled: 已取消
+plannedExpenseOpenCount: 未完成项
+plannedExpenseOpenTotal: 未完成合计
+plannedExpenseList: 列表
+plannedExpenseReorder: 重新排序
+plannedExpenseMoveUp: 上移
+plannedExpenseMoveDown: 下移
+plannedExpenseCompletedWishlist: 已完成/已取消的愿望清单
+plannedExpenseCompletedOneTimePayments: 已完成的一次性支付
+plannedExpenseCompletedScheduledPayments: 已完成支付
+plannedExpenseRecentlyCompleted: 最近完成
+plannedExpenseEndedByDate: 到达结束日期
+plannedExpenseEndedByCount: 到达最后一次
+plannedExpenseEmpty: 还没有项目。
+plannedExpenseNoCategory: 无预算分类
+plannedExpenseExpenseAccount: 费用科目
+plannedExpenseDefaultExpenseAccount: 默认费用科目
+plannedExpenseNoExpenseAccount: 无费用科目
+plannedExpenseComplete: 标记为完成
+plannedExpenseDeleteCategoryConfirmTitle: 删除类别？
+plannedExpenseDeleteCategoryConfirmMessage: 此类别及其中的项目将被删除。此操作无法撤销。
+plannedExpenseDeleteCategoryConfirm: 删除类别
+plannedExpenseDeleteItemConfirmTitle: 删除项目？
+plannedExpenseDeleteItemConfirmMessage: 此项目将被删除。此操作无法撤销。
+plannedExpenseDeleteItemConfirm: 删除项目
+plannedExpenseForceComplete: 不录入支出并完成
+plannedExpenseForceCompleteConfirmTitle: 不录入支出就完成？
+plannedExpenseForceCompleteConfirmMessage: 此项目将被标记为已完成，但不会创建支出记录。仅在不需要支出记录时使用。
+plannedExpenseForceCompleteConfirm: 不录入支出并完成
+plannedExpenseInputExpense: 输入支出
+plannedExpenseCompleteSourceTitle: 将来源项目标记为完成？
+plannedExpenseCompleteSourceMessage: 摘要、类别和金额都已从来源项目更改。是否将来源项目标记为完成？
+plannedExpenseCompleteSourceConfirm: 标记为完成
+transactionSavedWithPlannedExpenseCompleted: 交易已保存，来源项目也已标记为完成。
+transactionSavedWithShoppingListArchived: 交易已保存，购物清单也已标记为完成。
+shoppingListArchivedFeedback: 购物清单也已归档。
+plannedExpenseUrl: URL
+plannedExpenseReferenceCurrency: 参考
+plannedExpenseReferenceAmount: 参考价格
+plannedExpenseCurrencyInputConfirmTitle: 是否换算币种后录入？
+plannedExpenseCurrencyInputConfirmMessage: "此计划使用 {from}。是否换算为当前选择的币种（{to}）后录入？"
+productMetadataLookup: 获取商品信息
+productMetadataAutoFetchPrompt: 要自动获取商品信息吗？
+productMetadataRefresh: 刷新商品信息
+productMetadataPrice: 已获取价格
+productMetadataFetched: 已获取
+productMetadataCacheUntil: 缓存至
+productMetadataOpen: 打开
+productMetadataNoName: 无商品名
+productSource_amazon: Amazon
+productSource_rakuten: 乐天
+productSource_yahoo: Yahoo
+productSource_other: 其他
+productAvailability_in_stock: 可购买
+productAvailability_out_of_stock: 缺货
+productAvailability_unavailable: 不可购买
+productAvailability_unknown: 未知
+productAvailability_api_credentials_missing: 未设置API密钥
+productAvailability_unsupported: 不支持
+productAvailability_error: 获取失败
+shoppingPlanArchivedTitle: 已完成的购物计划
+calendarWeekStartLabel: 日历每周开始于
+calendarTodayButton: 今天
+plannedExpenseWeekFallback: 第 N 个星期几不存在时
+plannedExpenseWeekFallback_skip: 跳过本月
+plannedExpenseWeekFallback_last_day_of_month: 最接近的本月月末
+plannedExpenseWeekFallback_previous_week: 前一周
+plannedExpenseWeekFallback_next_month_first_week: 下月第一周

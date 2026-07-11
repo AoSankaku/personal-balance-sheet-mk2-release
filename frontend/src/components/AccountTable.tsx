@@ -49,6 +49,7 @@ import {
   systemAccountTranslationKey,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 import { formatCurrency } from "../lib/numberFormat";
 import { usePrivacy } from "../context/PrivacyContext";
 
@@ -387,6 +388,7 @@ export function AccountTable({
             label={t("replaceWith")}
             placeholder={t("selectAccount")}
             data={replacementOptions}
+            renderOption={renderAccountOption as never}
             value={replaceWithId}
             onChange={setReplaceWithId}
             searchable

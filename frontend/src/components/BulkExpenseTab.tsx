@@ -43,6 +43,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 import {
   bulkDraft,
   setBulkDraft,
@@ -366,6 +367,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
       <Select
         label={t("bulkExpensePaymentAccount")}
         data={paymentOptions}
+        renderOption={renderAccountOption as never}
         value={paymentAccountId}
         onChange={setPaymentAccountId}
         searchable={false}
@@ -449,6 +451,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
                     <Select
                       size="xs"
                       data={expenseAndRepaymentOpts}
+                      renderOption={renderAccountOption as never}
                       value={row.expenseAccountId}
                       onChange={(v) => updateRow(idx, { expenseAccountId: v })}
                       searchable={false}
@@ -522,6 +525,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
                     <Select
                       size="xs"
                       data={incomeOpts}
+                      renderOption={renderAccountOption as never}
                       value={row.incomeAccountId}
                       onChange={(v) => updateRow(idx, { incomeAccountId: v })}
                       searchable={false}

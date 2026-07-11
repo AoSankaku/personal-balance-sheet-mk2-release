@@ -18,6 +18,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 
 interface Props {
   opened: boolean;
@@ -223,6 +224,7 @@ export function BudgetCategoryModal({
                 : t("budgetTargetAccountsDesc")
             }
             data={targetAccountOptions}
+            renderOption={renderAccountOption as never}
             value={form.values.target_account_ids}
             onChange={handleTargetAccountIdsChange}
             searchable

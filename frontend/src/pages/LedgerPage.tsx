@@ -50,13 +50,14 @@ import { ConfirmModal } from "../components/ConfirmModal";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { showFeedback } from "../lib/feedback";
 import {
-  systemAccountTranslationKey,
+  accountDisplayName,
   categoryIndex,
 } from "../lib/accountUtils";
 import {
   renderAccountOption,
+  toAccountOption,
   type AccountOption,
-} from "../components/SimpleEntryForm";
+} from "../lib/accountSelect";
 import { formatCurrency } from "../lib/numberFormat";
 import { toDateStr } from "../lib/dateUtils";
 import { getPageSize } from "../components/tt/ttUtils";
@@ -183,13 +184,6 @@ export default function LedgerPage() {
       income: "typeIncome",
       expense: "typeExpense",
     };
-    const resolveLabel = (a: (typeof accounts)[0]): string => {
-      if (a.is_system) {
-        const key = systemAccountTranslationKey(a.name);
-        if (key) return t(key);
-      }
-      return a.name;
-    };
     const groups: { group: string; items: AccountOption[] }[] = [];
     for (const type of TYPE_ORDER) {
       const items = accounts
@@ -197,16 +191,14 @@ export default function LedgerPage() {
         .sort((a, b) => {
           const ai = categoryIndex(a.type, a.category, a.is_system ?? false);
           const bi = categoryIndex(b.type, b.category, b.is_system ?? false);
-          return ai !== bi ? ai - bi : a.name.localeCompare(b.name, "ja");
+          return ai !== bi
+            ? ai - bi
+            : accountDisplayName(a, t).localeCompare(
+                accountDisplayName(b, t),
+                "ja",
+              );
         })
-        .map(
-          (a): AccountOption => ({
-            value: String(a.id),
-            label: resolveLabel(a),
-            category: a.category,
-            is_system: a.is_system ?? false,
-          }),
-        );
+        .map((a): AccountOption => toAccountOption(a, t));
       if (items.length > 0) {
         groups.push({ group: t(TYPE_LABEL[type]), items });
       }

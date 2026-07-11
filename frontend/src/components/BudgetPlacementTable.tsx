@@ -1,6 +1,10 @@
 import { Badge, Group, List, ScrollArea, Stack, Table, Text, Title } from "@mantine/core";
 import type { Account, BudgetCategorySummary } from "@balance-sheet/shared";
 import { useLang } from "../i18n";
+import {
+  accountDisplayNameFromName,
+  displaySystemAccountNamesInText,
+} from "../lib/accountUtils";
 import { formatCurrency } from "../lib/numberFormat";
 import {
   calculateBudgetPlacement,
@@ -122,7 +126,7 @@ export function BudgetPlacementTable({
                     <Stack gap={2}>
                       {row.account_names.map((accountName) => (
                         <Text key={accountName} size="sm">
-                          {accountName}
+                          {accountDisplayNameFromName(accountName, t)}
                         </Text>
                       ))}
                     </Stack>
@@ -165,7 +169,11 @@ export function BudgetPlacementTable({
                               size="xs"
                               c="dimmed"
                             >
-                              {account.account_name}:{" "}
+                              {accountDisplayNameFromName(
+                                account.account_name,
+                                t,
+                              )}
+                              :{" "}
                               {formatCurrency(account.amount, locale, currency)}
                             </Text>
                           ))}
@@ -192,7 +200,7 @@ export function BudgetPlacementTable({
                     </Text>
                     {placement.unplacedAccounts.map((account) => (
                       <Text key={account.account_id} size="xs" c="dimmed">
-                        {account.account_name}
+                        {accountDisplayNameFromName(account.account_name, t)}
                       </Text>
                     ))}
                   </Table.Td>
@@ -246,7 +254,10 @@ export function BudgetPlacementTable({
           <List size="sm" spacing={2}>
             {hints.map((hint, index) => (
               <List.Item key={index}>
-                {renderHint(hint, locale, currency)}
+                {displaySystemAccountNamesInText(
+                  renderHint(hint, locale, currency),
+                  t,
+                )}
               </List.Item>
             ))}
           </List>

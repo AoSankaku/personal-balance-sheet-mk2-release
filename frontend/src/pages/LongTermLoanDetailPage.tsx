@@ -63,6 +63,7 @@ import {
   isUserSelectableAccount,
   toAccountSelectOption,
 } from "../lib/accountUtils";
+import { renderAccountOption } from "../lib/accountSelect";
 
 interface Props {
   kind: "loan" | "lend";
@@ -1392,6 +1393,7 @@ export default function LongTermLoanDetailPage({ kind }: Props) {
               label={t("loanInterestAccount")}
               placeholder={locale === "ja" ? "科目を選択" : "Select account"}
               data={interestAccountOptions}
+              renderOption={renderAccountOption as never}
               value={interestModal.interestAccountId}
               onChange={(v) =>
                 setInterestModal((m) =>
@@ -1405,6 +1407,7 @@ export default function LongTermLoanDetailPage({ kind }: Props) {
                 locale === "ja" ? "決済口座を選択" : "Select account"
               }
               data={paymentAccountOptions}
+              renderOption={renderAccountOption as never}
               value={interestModal.paymentAccountId}
               onChange={(v) =>
                 setInterestModal((m) => (m ? { ...m, paymentAccountId: v } : m))

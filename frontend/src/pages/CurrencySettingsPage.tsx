@@ -3,6 +3,7 @@ import type React from "react";
 import {
   Badge,
   Code,
+  ColorInput,
   Divider,
   Group,
   NumberInput,
@@ -27,7 +28,6 @@ import {
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
-import * as Flags from "country-flag-icons/react/3x2";
 import { Link } from "react-router-dom";
 import type { EnabledCurrency } from "@balance-sheet/shared";
 import { useAppData } from "../context/AppDataContext";
@@ -45,8 +45,10 @@ import {
 } from "../hooks/useExchangeRates";
 import { formatCurrency } from "../lib/numberFormat";
 import { CURRENCY_SYMBOLS, getEffectiveSymbol } from "../lib/currencyUtils";
+import { normalizeCurrencyBackgroundColor } from "../lib/currencyIconDisplay";
 import { CryptoCurrencyIcon } from "../components/CryptoCurrencyIcon";
 import { CustomCurrencyIcon } from "../components/CustomCurrencyIcon";
+import { CurrencyOptionIcon } from "../components/CurrencyOptionIcon";
 import type { CryptoIconStyle } from "../lib/cryptoCurrencyIcons";
 import {
   CUSTOM_CURRENCY_ICON_OPTIONS,
@@ -101,50 +103,7 @@ function formatAmount(amount: number, code: string, sym: string): string {
     : `${sign}${numStr} ${sym}`;
 }
 
-// ── Flag / Crypto icon helpers ───────────────────────────────────────────────
-
-const CURRENCY_TO_COUNTRY: Record<string, string> = {
-  JPY: "JP",
-  USD: "US",
-  EUR: "EU",
-  GBP: "GB",
-  AUD: "AU",
-  CAD: "CA",
-  CHF: "CH",
-  CNY: "CN",
-  HKD: "HK",
-  KRW: "KR",
-  SGD: "SG",
-  THB: "TH",
-  IDR: "ID",
-  MYR: "MY",
-  PHP: "PH",
-  INR: "IN",
-  SEK: "SE",
-  NOK: "NO",
-  DKK: "DK",
-  NZD: "NZ",
-  MXN: "MX",
-  BRL: "BR",
-  ZAR: "ZA",
-  TRY: "TR",
-  PLN: "PL",
-  CZK: "CZ",
-  HUF: "HU",
-};
-
-function FlagIcon({ code }: { code: string }) {
-  const country = CURRENCY_TO_COUNTRY[code];
-  if (!country) return <span style={{ width: 22, display: "inline-block" }} />;
-  const Flag = (
-    Flags as unknown as Record<
-      string,
-      React.ComponentType<{ style?: React.CSSProperties }>
-    >
-  )[country];
-  if (!Flag) return <span style={{ width: 22, display: "inline-block" }} />;
-  return <Flag style={{ width: 22, height: "auto", display: "block" }} />;
-}
+// ── Crypto icon helpers ──────────────────────────────────────────────────────
 
 function CryptoIcon({ symbol }: { symbol: string }) {
   return (
@@ -226,6 +185,19 @@ const KNOWN_CODES = new Set([
 ]);
 
 const CRYPTO_CODE_SET = new Set(CRYPTO_CURRENCIES.map((c) => c.code));
+
+const CURRENCY_COLOR_SWATCHES = [
+  "#111827",
+  "#495057",
+  "#E03131",
+  "#F08C00",
+  "#2F9E44",
+  "#0C8599",
+  "#1971C2",
+  "#5F3DC4",
+  "#C2255C",
+  "#F8F9FA",
+];
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -551,6 +523,27 @@ export default function CurrencySettingsPage({
     await refreshEnabledCurrencies();
   }
 
+  async function saveCurrencyBackgroundColor(code: string, color: string) {
+    const normalized = normalizeCurrencyBackgroundColor(color);
+    const nextColor = normalized ?? (color.trim() ? undefined : null);
+    if (nextColor === undefined) return;
+
+    const currentColor =
+      enabledCurrencies.find((currency) => currency.code === code)
+        ?.background_color ?? null;
+    if (nextColor === currentColor) return;
+
+    setLoading(`color-${code}`);
+    try {
+      await api.currencies.update(code, { background_color: nextColor });
+      await refreshEnabledCurrencies();
+    } catch {
+      // ignore
+    } finally {
+      setLoading(null);
+    }
+  }
+
   const isLastEnabled = enabledCurrencies.length <= 1;
 
   const disabledReasonBalance = t("currencySettingsDisableBalance");
@@ -572,20 +565,17 @@ export default function CurrencySettingsPage({
   }
 
   function getCurrencyIcon(code: string) {
-    if (CRYPTO_CODE_SET.has(code)) {
-      return (
-        <CryptoCurrencyIcon
-          code={code}
-          styleMode={cryptoIconStyle}
-          size={22}
-        />
-      );
-    }
-    if (FIAT_CURRENCIES.some((currency) => currency.code === code)) {
-      return <FlagIcon code={code} />;
-    }
     const custom = enabledCurrencies.find((currency) => currency.code === code);
-    return <CustomCurrencyIcon icon={custom?.custom_icon} size={22} />;
+    return (
+      <CurrencyOptionIcon
+        backgroundColor={custom?.background_color}
+        code={code}
+        cryptoIconStyle={cryptoIconStyle}
+        customIcon={custom?.custom_icon}
+        size={22}
+        symbol={getEffectiveSymbol(code, enabledCurrencies)}
+      />
+    );
   }
 
   async function reorderCurrencies(codes: string[]) {
@@ -622,14 +612,22 @@ export default function CurrencySettingsPage({
     const effectiveSym = getEffectiveSymbol(code, enabledCurrencies);
     const netAssets = netAssetsByCurrency[code] ?? 0;
     const amountLabel = formatAmount(netAssets, code, effectiveSym);
+    const canCustomizeBackground = !CRYPTO_CODE_SET.has(code);
+    const [backgroundColorDraft, setBackgroundColorDraft] = useState(
+      currency.background_color ?? "",
+    );
     const tooltipLabel = hasBalance
       ? disabledReasonBalance
       : isLastEnabled
         ? disabledReasonLast
         : null;
 
+    useEffect(() => {
+      setBackgroundColorDraft(currency.background_color ?? "");
+    }, [currency.background_color]);
+
     return (
-      <Group key={code} justify="space-between" gap="xs" wrap="nowrap">
+      <Group key={code} justify="space-between" gap="xs" wrap="wrap">
         <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
           <Group gap={2} wrap="nowrap">
             <ActionIcon
@@ -676,23 +674,45 @@ export default function CurrencySettingsPage({
             {getCurrencyLabel(code)}
           </Text>
         </Group>
-        <Tooltip
-          label={tooltipLabel ?? ""}
-          disabled={!tooltipLabel}
-          withArrow
-          withinPortal
-        >
-          <ActionIcon
-            size="sm"
-            variant="subtle"
-            color="red"
-            disabled={removeDisabled}
-            onClick={() => void toggle(code, false)}
-            aria-label={`Remove ${code}`}
+        <Group gap="xs" wrap="nowrap">
+          {canCustomizeBackground && (
+            <ColorInput
+              aria-label={`${code} ${t("currencySettingsBackgroundColor")}`}
+              disabled={loading !== null}
+              format="hex"
+              onBlur={() =>
+                void saveCurrencyBackgroundColor(code, backgroundColorDraft)
+              }
+              onChange={setBackgroundColorDraft}
+              onChangeEnd={(value) =>
+                void saveCurrencyBackgroundColor(code, value)
+              }
+              placeholder={t("currencySettingsDefaultColor")}
+              popoverProps={{ withinPortal: true }}
+              size="xs"
+              swatches={CURRENCY_COLOR_SWATCHES}
+              value={backgroundColorDraft}
+              w={142}
+            />
+          )}
+          <Tooltip
+            label={tooltipLabel ?? ""}
+            disabled={!tooltipLabel}
+            withArrow
+            withinPortal
           >
-            <IconTrash size={14} />
-          </ActionIcon>
-        </Tooltip>
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              color="red"
+              disabled={removeDisabled}
+              onClick={() => void toggle(code, false)}
+              aria-label={`Remove ${code}`}
+            >
+              <IconTrash size={14} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
       </Group>
     );
   }
@@ -918,7 +938,10 @@ export default function CurrencySettingsPage({
                 return (
                   <Group key={code} gap="xs" align="flex-end" wrap="nowrap">
                     <Group gap={6} wrap="nowrap" style={{ minWidth: 88 }}>
-                      <CustomCurrencyIcon icon={currency.custom_icon} />
+                      <CustomCurrencyIcon
+                        backgroundColor={currency.background_color}
+                        icon={currency.custom_icon}
+                      />
                       <Text size="sm" fw={700}>
                         {code}
                       </Text>
@@ -1040,7 +1063,14 @@ export default function CurrencySettingsPage({
               <CurrencyCheckbox
                 key={c.code}
                 code={c.code}
-                icon={<FlagIcon code={c.code} />}
+                icon={
+                  <CurrencyOptionIcon
+                    code={c.code}
+                    cryptoIconStyle={cryptoIconStyle}
+                    size={22}
+                    symbol={CURRENCY_SYMBOLS[c.code]}
+                  />
+                }
                 label={locale === "ja" ? `${c.nameJa} / ${c.name}` : c.name}
               />
             ))}
