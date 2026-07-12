@@ -60,6 +60,7 @@ import {
 } from "./dbPageUtils";
 import { privateIndexedLabel, privacyChartAmount } from "../lib/privacy";
 import { usePrivacy } from "../context/PrivacyContext";
+import { getAssetCompositionBar } from "../lib/assetCompositionBar";
 
 // Distinct colors cycling through account items in the donut
 const DONUT_COLORS = [
@@ -382,11 +383,14 @@ export default function AssetsPage() {
     includeAllCurrencies,
   ]);
 
-  // Ratio for the progress bar (assets vs liabilities as % of total)
-  const totalGross = totalAssets + totalLiabilities;
-  const assetsRatio =
-    totalGross > 0 ? Math.round((totalAssets / totalGross) * 100) : 100;
-  const liabRatio = 100 - assetsRatio;
+  // A balance sheet is composed as assets = liabilities + net worth.
+  const assetComposition = getAssetCompositionBar(
+    totalAssets,
+    totalLiabilities,
+  );
+  const hasAssetComposition = totalAssets !== 0 || totalLiabilities !== 0;
+  const percentageLabel = (value: number | null) =>
+    value === null ? "—" : `${value}%`;
 
   // Build daily net-worth history from journal lines (one point per unique entry date).
   // Exclude future-dated entries so the chart never shows data beyond today.
@@ -524,7 +528,7 @@ export default function AssetsPage() {
         <Group
           justify="space-between"
           align="flex-start"
-          mb={totalGross > 0 ? "lg" : 0}
+          mb={hasAssetComposition ? "lg" : 0}
         >
           <Box>
             <Group gap={6} align="center" mb={6}>
@@ -564,23 +568,68 @@ export default function AssetsPage() {
           </ThemeIcon>
         </Group>
 
-        {/* Assets-vs-liabilities ratio bar */}
-        {totalGross > 0 && (
+        {/* Total assets composed of liabilities and net worth */}
+        {hasAssetComposition && (
           <Box>
-            <Group justify="space-between" mb={6}>
+            <Group justify="space-between" mb={8}>
               <Group gap={6}>
                 <ColorSwatch
                   color="var(--mantine-color-teal-6)"
                   size={10}
                   withShadow={false}
                 />
+                <Text size="xs" fw={700} c="dimmed">
+                  {t("assets")} {totalAssets > 0 ? "100%" : "—"}
+                </Text>
+              </Group>
+              <Text size="xs" c="dimmed">
+                {t("liabilities")} + {t("netWorth")}
+              </Text>
+            </Group>
+            <Box
+              p={1}
+              style={{
+                border: "1px solid var(--mantine-color-default-border)",
+                borderRadius: rem(999),
+              }}
+            >
+              <Progress.Root
+                size="md"
+                radius="xl"
+                aria-label={`${t("assets")}: ${t("liabilities")} + ${t("netWorth")}`}
+              >
+                <Progress.Section
+                  value={assetComposition.netWorthBarShare}
+                  color={netWorth >= 0 ? "blue" : "red"}
+                />
+                <Progress.Section
+                  value={assetComposition.liabilityBarShare}
+                  color="red"
+                />
+              </Progress.Root>
+            </Box>
+            <Group justify="space-between" mt={8}>
+              <Group gap={6}>
+                <ColorSwatch
+                  color={
+                    netWorth >= 0
+                      ? "var(--mantine-color-blue-6)"
+                      : "var(--mantine-color-red-8)"
+                  }
+                  size={10}
+                  withShadow={false}
+                />
                 <Text size="xs" c="dimmed">
-                  {t("assets")} {assetsRatio}%
+                  {t("netWorth")} {percentageLabel(
+                    assetComposition.netWorthPercentage,
+                  )}
                 </Text>
               </Group>
               <Group gap={6}>
                 <Text size="xs" c="dimmed">
-                  {t("liabilities")} {liabRatio}%
+                  {t("liabilities")} {percentageLabel(
+                    assetComposition.liabilityPercentage,
+                  )}
                 </Text>
                 <ColorSwatch
                   color="var(--mantine-color-red-6)"
@@ -589,10 +638,6 @@ export default function AssetsPage() {
                 />
               </Group>
             </Group>
-            <Progress.Root size="md" radius="xl">
-              <Progress.Section value={assetsRatio} color="teal" />
-              <Progress.Section value={liabRatio} color="red" />
-            </Progress.Root>
           </Box>
         )}
       </Paper>
