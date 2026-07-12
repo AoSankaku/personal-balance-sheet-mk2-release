@@ -7,6 +7,7 @@ import {
   Select,
   Stack,
   Text,
+  ThemeIcon,
   Title,
   UnstyledButton,
   useComputedColorScheme,
@@ -18,6 +19,7 @@ import {
   IconPencil,
   IconReportMoney,
   IconSettings,
+  IconWifiOff,
 } from "@tabler/icons-react";
 import { useMediaQuery } from "@mantine/hooks";
 import { useEffect, useState } from "react";
@@ -40,6 +42,12 @@ import {
   computeCreditCardWithdrawalRiskTasks,
   type CreditCardWithdrawalRiskTask,
 } from "../lib/creditCardWithdrawalRisk";
+import {
+  computeCreditCardImportTasks,
+  type CreditCardImportTask,
+} from "../lib/creditCardImportTasks";
+import { useOfflineDrafts } from "../lib/offlineDrafts";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 
 interface AppTask {
   id: string;
@@ -188,6 +196,28 @@ function useCreditCardWithdrawalRiskTasks(): CreditCardWithdrawalRiskTask[] {
   });
 }
 
+function useCreditCardImportTasks(): CreditCardImportTask[] {
+  const { accounts, creditCardSettings, creditCardStatementCompletions } =
+    useAppData();
+
+  if (localStorage.getItem("notif:creditCard") === "false") return [];
+
+  return computeCreditCardImportTasks({
+    today: new Date(),
+    accounts,
+    creditCardSettings,
+    completions: creditCardStatementCompletions,
+  });
+}
+
+function formatTaskMonth(yearMonth: string, locale: string): string {
+  const [year, month] = yearMonth.split("-").map(Number);
+  return new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "long",
+  }).format(new Date(year, month - 1, 1));
+}
+
 function TaskMenu({ disabled = false }: { disabled?: boolean }) {
   const { t, locale } = useLang();
   const navigate = useNavigate();
@@ -196,9 +226,15 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
   const budgetTask = useBudgetNegativeTask();
   const overdueLoanTasks = useOverdueLoanTasks();
   const negativeAccountTasks = useNegativeAccountTasks();
+  const creditCardImportTasks = useCreditCardImportTasks();
   const creditCardWithdrawalRiskTasks = useCreditCardWithdrawalRiskTasks();
+  const isOnline = useOnlineStatus();
+  const offlineDrafts = useOfflineDrafts();
+  const pendingOfflineDrafts = isOnline ? offlineDrafts : [];
   const totalCount =
+    pendingOfflineDrafts.length +
     paydayTasks.length +
+    creditCardImportTasks.length +
     (budgetTask.show ? 1 : 0) +
     (overdueLoanTasks.length > 0 ? 1 : 0) +
     (negativeAccountTasks.length > 0 ? 1 : 0) +
@@ -267,6 +303,48 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
             </Text>
           ) : (
             <Stack gap={8}>
+              {pendingOfflineDrafts.length > 0 && (
+                <Stack gap={4}>
+                  <Text size="xs" c="dimmed" fw={600} px={4}>
+                    {t("taskOfflineDraftsSection")}
+                  </Text>
+                  {pendingOfflineDrafts.map((draft) => (
+                    <UnstyledButton
+                      key={draft.id}
+                      px={4}
+                      py={4}
+                      style={{ borderRadius: 4 }}
+                      onClick={() => {
+                        navigate("/input", {
+                          state: { offlineDraftId: draft.id, tab: "simple" },
+                        });
+                        setOpened(false);
+                      }}
+                    >
+                      <Stack gap={2}>
+                        <Text size="sm">
+                          {draft.draft.formValues.description ||
+                            t("offlineDraftUntitled")}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {t("taskOfflineDraftDetail")
+                            .replace(
+                              "{amount}",
+                              String(draft.draft.formValues.amount ?? "-"),
+                            )
+                            .replace(
+                              "{time}",
+                              new Intl.DateTimeFormat(locale, {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              }).format(new Date(draft.createdAt)),
+                            )}
+                        </Text>
+                      </Stack>
+                    </UnstyledButton>
+                  ))}
+                </Stack>
+              )}
               {budgetTask.show && (
                 <UnstyledButton
                   px={4}
@@ -321,6 +399,37 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
                       }}
                     >
                       <Text size="sm">{n.message}</Text>
+                    </UnstyledButton>
+                  ))}
+                </Stack>
+              )}
+              {creditCardImportTasks.length > 0 && (
+                <Stack gap={4}>
+                  <Text size="xs" c="dimmed" fw={600} px={4}>
+                    {t("taskCreditCardImportSection")}
+                  </Text>
+                  {creditCardImportTasks.map((task) => (
+                    <UnstyledButton
+                      key={task.id}
+                      px={4}
+                      py={4}
+                      style={{ borderRadius: 4 }}
+                      onClick={() => {
+                        navigate("/input", { state: { tab: "csv" } });
+                        setOpened(false);
+                      }}
+                    >
+                      <Stack gap={2}>
+                        <Text size="sm">
+                          {accountDisplayNameFromName(task.creditCardName, t)}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {t("taskCreditCardImportDetail").replace(
+                            "{month}",
+                            formatTaskMonth(task.statementMonth, locale),
+                          )}
+                        </Text>
+                      </Stack>
                     </UnstyledButton>
                   ))}
                 </Stack>
@@ -623,6 +732,7 @@ export function TopNav({
 }: TopNavProps) {
   const { t } = useLang();
   const computed = useComputedColorScheme("light");
+  const isOnline = useOnlineStatus();
 
   const navItems: NavLinkItem[] = [
     {
@@ -660,17 +770,31 @@ export function TopNav({
           }
         `}</style>
         <div className="title-version-row">
-          <Title
-            order={4}
-            style={{
-              fontSize: "clamp(0.7rem, 4vw, var(--mantine-h4-font-size))",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {t("appTitle")}
-          </Title>
+          <Group gap={5} wrap="nowrap">
+            {!isOnline && (
+              <ThemeIcon
+                color="yellow"
+                variant="light"
+                radius="xl"
+                size="sm"
+                aria-label={t("offlineModeLabel")}
+                title={t("offlineModeLabel")}
+              >
+                <IconWifiOff size={14} aria-hidden="true" />
+              </ThemeIcon>
+            )}
+            <Title
+              order={4}
+              style={{
+                fontSize: "clamp(0.7rem, 4vw, var(--mantine-h4-font-size))",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {t("appTitle")}
+            </Title>
+          </Group>
           <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap" }}>
             v{VERSION}
           </Text>

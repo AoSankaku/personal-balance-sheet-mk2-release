@@ -66,6 +66,7 @@ hardReloadAccessMessage: Cloudflare Access is asking you to sign in again. Hard 
 hardReloadVersionTitle: New version available
 hardReloadVersionMessage: A newer version has been deployed. Select Reload now to update to the latest app.
 networkOfflineError: You appear to be offline. Check your network connection and try again.
+offlineModeLabel: Offline mode
 internalServerError: Internal Server Error
 accountAdded: Account added
 accountDeleted: Account deleted
@@ -424,7 +425,9 @@ settingsSectionTasks: Tasks
 taskPaydayToggle: Payday task
 taskPaydayToggleHint: Show a task when payday income hasn't been recorded yet.
 taskCreditCardToggle: Credit card import task
-taskCreditCardToggleHint: Show a banner on the overview page when a credit card statement is ready to import.
+taskCreditCardToggleHint: Show a header task when a credit card statement is ready to import.
+taskCreditCardImportSection: Credit card statements to import
+taskCreditCardImportDetail: "Import the statement for purchases in {month}"
 taskCreditCardWithdrawalRiskToggle: Credit card withdrawal balance task
 taskCreditCardWithdrawalRiskToggleHint: Show a task from 14 days before withdrawal when linked bank balance may go negative after credit card payments.
 taskBudgetNegativeToggle: Budget over-allocation task
@@ -483,6 +486,17 @@ importDuplicateWarning: Possible duplicate
 importApplyToAll: Apply to all matching
 importConfirmButton: Import
 importSuccess: Import complete
+importZeroAmountTitle: Months with no card usage
+importZeroAmountHint: Mark the month complete when the finalized statement total is zero.
+importZeroAmountSettingsRequired: Configure the closing and confirmation dates for this card first.
+importZeroAmountBeforeConfirmation: You can mark the month as zero after its confirmation date.
+importZeroAmountMonthLabel: Purchase month
+importZeroAmountNoSelectableMonths: There are no eligible incomplete purchase months.
+importZeroAmountButton: "Mark purchases in {month} as zero"
+importZeroAmountButtonNoMonth: Mark the month as zero
+importZeroAmountConfirmTitle: Confirm a zero statement
+importZeroAmountConfirmMessage: "Mark purchases in {month} as zero and complete the statement?"
+importZeroAmountCompleted: "Purchases in {month} were completed as zero"
 importDuplicateModalTitle: Duplicate Transactions
 importSkip: Skip
 importImportAnyway: Import anyway
@@ -1264,6 +1278,13 @@ productAvailability_error: Fetch failed
 shoppingPlanArchivedTitle: Completed shopping plans
 calendarWeekStartLabel: Calendar week starts on
 calendarTodayButton: Today
+offlineBudgetSnapshotNotice: "You are offline. Showing today's budget balances saved at {time}."
+offlineInputNotice: You are offline. Simple entries are saved on this device as drafts and appear in Tasks when you reconnect.
+saveOfflineDraft: Save as draft
+offlineDraftSaved: Draft saved on this device. Complete it from Tasks after reconnecting.
+offlineDraftUntitled: Untitled draft
+taskOfflineDraftsSection: Drafts to enter after reconnecting
+taskOfflineDraftDetail: "{amount} · saved {time}"
 plannedExpenseWeekFallback: If the nth weekday does not exist
 plannedExpenseWeekFallback_skip: Skip this month
 plannedExpenseWeekFallback_last_day_of_month: Closest same-month month end

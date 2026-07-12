@@ -1,4 +1,5 @@
 import {
+  Alert,
   Box,
   Button,
   Group,
@@ -16,6 +17,7 @@ import {
   IconLayoutGrid,
   IconPencil,
   IconShoppingCart,
+  IconWifiOff,
 } from "@tabler/icons-react";
 import {
   useSearchParams,
@@ -25,7 +27,7 @@ import {
 } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CreateJournalInput } from "@balance-sheet/shared";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import {
@@ -49,6 +51,7 @@ import { PrivacyModeBlocked } from "../components/PrivacyModeBlocked";
 import type { PlannedExpenseEntrySource } from "../types/plannedExpenseInput";
 import {
   plannedExpenseCompletionFeedbackKey,
+  type PlannedExpenseCompletionResult,
 } from "../lib/plannedExpenseForm";
 import { plannedExpenseJournalCurrency } from "../lib/plannedExpenseCurrency";
 import {
@@ -59,6 +62,12 @@ import {
   setMultiDraft,
   setBudgetDraft,
 } from "../utils/inputDrafts";
+import {
+  addOfflineDraft,
+  getOfflineDrafts,
+  removeOfflineDraft,
+} from "../lib/offlineDrafts";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 
 // ─── InputPage ────────────────────────────────────────────────────────────────
 
@@ -73,11 +82,18 @@ export default function InputPage() {
     plannedExpenseEntry?: PlannedExpenseEntrySource;
     settledEntryIds?: number[];
     tab?: string;
+    offlineDraftId?: string;
   } | null;
   const locationLoanDraft = locationState?.loanDraft;
   const locationPlannedExpenseEntry = locationState?.plannedExpenseEntry;
   const locationSettledEntryIds = locationState?.settledEntryIds;
   const fromTt = searchParams.get("from") === "tt";
+  const isOnline = useOnlineStatus();
+  const locationOfflineDraft = locationState?.offlineDraftId
+    ? getOfflineDrafts().find(
+        (item) => item.id === locationState.offlineDraftId,
+      ) ?? null
+    : null;
   const typeParam = searchParams.get("type"); // e.g. "loan" from /fs/db
   const {
     accounts,
@@ -113,6 +129,9 @@ export default function InputPage() {
       ? "simple"
       : (locationState?.tab ?? savedTab),
   );
+  useEffect(() => {
+    if (!isOnline) setActiveTab("simple");
+  }, [isOnline]);
   const [pendingPlannedExpenseCompletion, setPendingPlannedExpenseCompletion] =
     useState<{
       source: PlannedExpenseEntrySource;
@@ -128,6 +147,9 @@ export default function InputPage() {
     { open: openResetConfirm, close: closeResetConfirm },
   ] = useDisclosure(false);
   const pendingResetTab = useRef<keyof typeof resetKeys | null>(null);
+  const currentSimpleDraftRef = useRef<SimpleFormDraft | null>(
+    locationOfflineDraft?.draft ?? null,
+  );
 
   function handleTabChange(tab: string | null) {
     const next = tab ?? "simple";
@@ -150,8 +172,30 @@ export default function InputPage() {
   }
 
   const handleSimpleDraftChange = useCallback((draft: SimpleFormDraft) => {
+    currentSimpleDraftRef.current = draft;
     setSimpleDraft(draft);
   }, []);
+
+  function saveCurrentOfflineDraft() {
+    const draft = currentSimpleDraftRef.current;
+    if (!draft) return false;
+    if (locationState?.offlineDraftId) {
+      removeOfflineDraft(locationState.offlineDraftId);
+    }
+    addOfflineDraft(draft);
+    setSimpleDraft(null);
+    showFeedback({ message: t("offlineDraftSaved"), color: "yellow" });
+    return true;
+  }
+
+  function clearOfflineDraftNavigationState() {
+    if (!locationState?.offlineDraftId) return;
+    const { offlineDraftId: _offlineDraftId, ...rest } = locationState;
+    navigate(
+      { pathname: location.pathname, search: location.search },
+      { replace: true, state: Object.keys(rest).length > 0 ? rest : null },
+    );
+  }
 
   const plannedExpenseInitialDraft: SimpleFormDraft | null =
     locationPlannedExpenseEntry != null
@@ -252,6 +296,10 @@ export default function InputPage() {
         ...l,
       })),
     };
+    if (activeTab === "simple" && !isOnline) {
+      saveCurrentOfflineDraft();
+      return;
+    }
     const source =
       activeTab === "simple" ? locationPlannedExpenseEntry : undefined;
     if (source) {
@@ -267,9 +315,23 @@ export default function InputPage() {
       }
     }
 
-    const plannedExpenseCompletion = source
-      ? await completePlannedExpenseWithJournal(source, input)
-      : (await api.journal.create(input), "none");
+    let plannedExpenseCompletion: PlannedExpenseCompletionResult;
+    try {
+      plannedExpenseCompletion = source
+        ? await completePlannedExpenseWithJournal(source, input)
+        : (await api.journal.create(input), "none");
+    } catch (err) {
+      const wentOffline =
+        err instanceof ApiError && err.body.error === "network_offline";
+      if (activeTab === "simple" && wentOffline && saveCurrentOfflineDraft()) {
+        return;
+      }
+      throw err;
+    }
+    if (locationState?.offlineDraftId) {
+      removeOfflineDraft(locationState.offlineDraftId);
+      clearOfflineDraftNavigationState();
+    }
     if (activeTab === "simple") setSimpleDraft(null);
     if (activeTab === "multi") setMultiDraft(null);
     showFeedback({
@@ -314,6 +376,16 @@ export default function InputPage() {
 
   return (
     <Stack gap={0}>
+      {!isOnline && (
+        <Alert
+          color="yellow"
+          variant="light"
+          icon={<IconWifiOff size={18} />}
+          mb="md"
+        >
+          {t("offlineInputNotice")}
+        </Alert>
+      )}
       {fromTt && (
         <Button
           component={Link}
@@ -336,24 +408,38 @@ export default function InputPage() {
             <Tabs.Tab value="simple" leftSection={<IconPencil size={14} />}>
               {t("tabSimple")}
             </Tabs.Tab>
-            <Tabs.Tab value="multi" leftSection={<IconLayoutGrid size={14} />}>
+            <Tabs.Tab
+              value="multi"
+              disabled={!isOnline}
+              leftSection={<IconLayoutGrid size={14} />}
+            >
               {t("tabMultiLine")}
             </Tabs.Tab>
-            <Tabs.Tab value="budget" leftSection={<IconCoin size={14} />}>
+            <Tabs.Tab
+              value="budget"
+              disabled={!isOnline}
+              leftSection={<IconCoin size={14} />}
+            >
               {t("tabBudgetAdjust")}
             </Tabs.Tab>
             <Tabs.Tab
               value="csv"
+              disabled={!isOnline}
               leftSection={<IconFileSpreadsheet size={14} />}
             >
               {t("tabCsvImport")}
             </Tabs.Tab>
-            <Tabs.Tab value="bulk" leftSection={<IconShoppingCart size={14} />}>
+            <Tabs.Tab
+              value="bulk"
+              disabled={!isOnline}
+              leftSection={<IconShoppingCart size={14} />}
+            >
               {t("tabBulkExpense")}
             </Tabs.Tab>
             {hasFx && (
               <Tabs.Tab
                 value="fx"
+                disabled={!isOnline}
                 leftSection={<IconCurrencyDollar size={14} />}
               >
                 {t("tabFxExchange")}
@@ -362,6 +448,7 @@ export default function InputPage() {
             {budgetSettings?.is_business_owner && (
               <Tabs.Tab
                 value="business_advance_process"
+                disabled={!isOnline}
                 leftSection={<IconCoin size={14} />}
               >
                 {t("tabBusinessAdvanceProcess")}
@@ -373,13 +460,15 @@ export default function InputPage() {
         <Box pt="md">
           <div style={{ display: activeTab === "simple" ? undefined : "none" }}>
             <SimpleEntryForm
-              key={resetKeys.simple}
+              key={`${resetKeys.simple}:${locationState?.offlineDraftId ?? ""}`}
               accounts={accounts}
               budgetFilters={budgetFilters}
               onSubmit={handleSubmit}
+              submitLabel={!isOnline ? t("saveOfflineDraft") : undefined}
               onDepreciationSubmit={handleDepreciationSubmit}
               initialDraft={
                 plannedExpenseInitialDraft ??
+                locationOfflineDraft?.draft ??
                 (locationLoanDraft != null
                   ? {
                       formValues: locationLoanDraft,

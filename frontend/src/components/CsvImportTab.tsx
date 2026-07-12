@@ -66,6 +66,10 @@ import {
 } from "../utils/inputDrafts";
 import { countMissingCounterAccountWarnings } from "../utils/csvImportWarnings";
 import {
+  getAutomaticStatementCompletion,
+  getSelectableZeroAmountCompletions,
+} from "../lib/creditCardStatementCompletion";
+import {
   accountDisplayNameFromName,
   isUserSelectableAccount,
   toAccountSelectOption,
@@ -84,8 +88,15 @@ export function CsvImportTab({
   onSwitchToBulk: () => void;
   onSwitchToSimple: () => void;
 }) {
-  const { t } = useLang();
-  const { accounts, journal, budgetCategories } = useAppData();
+  const { t, locale } = useLang();
+  const {
+    accounts,
+    journal,
+    budgetCategories,
+    creditCardSettings,
+    creditCardStatementCompletions,
+    refreshCreditCardStatementCompletions,
+  } = useAppData();
 
   const [parseResult, setParseResult] = useState<ParseResult | null>(
     csvDraft.parseResult,
@@ -100,6 +111,14 @@ export function CsvImportTab({
   const [sortCol, setSortCol] = useState<SortCol | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [importing, setImporting] = useState(false);
+  const [zeroAmountAccountId, setZeroAmountAccountId] = useState<
+    string | null
+  >(null);
+  const [zeroAmountStatementMonth, setZeroAmountStatementMonth] = useState<
+    string | null
+  >(null);
+  const [zeroAmountConfirmOpened, setZeroAmountConfirmOpened] = useState(false);
+  const [zeroAmountCompleting, setZeroAmountCompleting] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateIndices, setDuplicateIndices] = useState<number[]>([]);
   const [duplicateDecisions, setDuplicateDecisions] = useState<
@@ -172,6 +191,36 @@ export function CsvImportTab({
   const effectiveFormat: CsvFormat =
     manualFormat ?? parseResult?.format ?? "unknown";
   const isBankImport = isBankFormat(effectiveFormat);
+  const zeroAmountSettings = creditCardSettings.find(
+    (settings) => String(settings.account_id) === zeroAmountAccountId,
+  );
+  const zeroAmountCandidates = useMemo(
+    () =>
+      getSelectableZeroAmountCompletions(
+        new Date(),
+        zeroAmountSettings,
+        creditCardStatementCompletions,
+      ),
+    [zeroAmountSettings, creditCardStatementCompletions],
+  );
+  const zeroAmountCompletion = zeroAmountCandidates.find(
+    (candidate) => candidate.statement_month === zeroAmountStatementMonth,
+  );
+  const zeroAmountMonth = zeroAmountCompletion
+    ? new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(
+        new Date(`${zeroAmountCompletion.statement_month}-01T00:00:00`),
+      )
+    : null;
+
+  useEffect(() => {
+    setZeroAmountStatementMonth((current) =>
+      zeroAmountCandidates.some(
+        (candidate) => candidate.statement_month === current,
+      )
+        ? current
+        : (zeroAmountCandidates[0]?.statement_month ?? null),
+    );
+  }, [zeroAmountCandidates]);
 
   function applyStoreMappingsToRows(
     txs: ParsedTransaction[],
@@ -523,16 +572,22 @@ export function CsvImportTab({
       const entries: CreateJournalInput[] = [];
       const amazonRows: ParsedTransaction[] = [];
       const salaryRows: { tx: ParsedTransaction; rowState: CsvRowState }[] = [];
+      let unresolvedTransactionCount = 0;
 
       transactions.forEach((tx, i) => {
         if (isAmazonTransaction(tx.store)) {
           amazonRows.push(tx);
+          unresolvedTransactionCount++;
           return;
         }
         const rs = rowStates[i];
-        if (!rs?.counterAccountId) return;
+        if (!rs?.counterAccountId) {
+          unresolvedTransactionCount++;
+          return;
+        }
         if (isSalaryPendingRow(tx, rs)) {
           salaryRows.push({ tx, rowState: rs });
+          unresolvedTransactionCount++;
           return;
         }
         if (duplicateMatches.has(i) && (decisions[i] ?? "skip") === "skip") {
@@ -579,10 +634,21 @@ export function CsvImportTab({
         });
       });
 
+      const automaticCompletion = getAutomaticStatementCompletion({
+        today: new Date(),
+        settings: creditCardSettings.find(
+          (settings) => settings.account_id === accountId,
+        ),
+        format: effectiveFormat,
+        parsedTransactionCount: transactions.length,
+        unresolvedTransactionCount,
+      });
+
       if (
         entries.length === 0 &&
         amazonRows.length === 0 &&
-        salaryRows.length === 0
+        salaryRows.length === 0 &&
+        !automaticCompletion
       ) {
         showFeedback({
           message: "インポートする取引がありません",
@@ -593,6 +659,10 @@ export function CsvImportTab({
 
       if (entries.length > 0) {
         await api.journal.batchCreate({ entries });
+      }
+      if (automaticCompletion) {
+        await api.creditCardStatements.complete(automaticCompletion);
+        void refreshCreditCardStatementCompletions();
       }
 
       // Clear CSV draft after successful import
@@ -650,6 +720,27 @@ export function CsvImportTab({
       showFeedback({ message: "インポートに失敗しました", color: "red" });
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function completeZeroAmountStatement() {
+    if (!zeroAmountCompletion) return;
+    setZeroAmountCompleting(true);
+    try {
+      await api.creditCardStatements.complete(zeroAmountCompletion);
+      await refreshCreditCardStatementCompletions();
+      setZeroAmountConfirmOpened(false);
+      showFeedback({
+        message: t("importZeroAmountCompleted").replace(
+          "{month}",
+          zeroAmountMonth ?? zeroAmountCompletion.statement_month,
+        ),
+        color: "teal",
+      });
+    } catch {
+      showFeedback({ message: t("saveFailed"), color: "red" });
+    } finally {
+      setZeroAmountCompleting(false);
     }
   }
 
@@ -774,6 +865,65 @@ export function CsvImportTab({
           )}
         </Stack>
       </Paper>
+
+      {creditCardAccounts.length > 0 && (
+        <Paper withBorder p="lg" radius="md">
+          <Stack gap="md">
+            <Title order={5}>{t("importZeroAmountTitle")}</Title>
+            <Text size="sm" c="dimmed">
+              {t("importZeroAmountHint")}
+            </Text>
+            <Select
+              label={t("importSelectCard")}
+              data={cardOptions}
+              renderOption={renderAccountOption as never}
+              value={zeroAmountAccountId}
+              onChange={setZeroAmountAccountId}
+              searchable
+              clearable
+            />
+            {zeroAmountAccountId && !zeroAmountSettings && (
+              <Alert color="yellow">
+                {t("importZeroAmountSettingsRequired")}
+              </Alert>
+            )}
+            {zeroAmountSettings && zeroAmountCandidates.length === 0 && (
+              <Alert color="blue">{t("importZeroAmountNoSelectableMonths")}</Alert>
+            )}
+            {zeroAmountSettings && zeroAmountCandidates.length > 0 && (
+              <Select
+                label={t("importZeroAmountMonthLabel")}
+                data={zeroAmountCandidates.map((candidate) => ({
+                  value: candidate.statement_month,
+                  label: new Intl.DateTimeFormat(locale, {
+                    year: "numeric",
+                    month: "long",
+                  }).format(
+                    new Date(`${candidate.statement_month}-01T00:00:00`),
+                  ),
+                }))}
+                value={zeroAmountStatementMonth}
+                onChange={setZeroAmountStatementMonth}
+                allowDeselect={false}
+              />
+            )}
+            <Group justify="flex-end">
+              <Button
+                variant="light"
+                disabled={!zeroAmountCompletion}
+                onClick={() => setZeroAmountConfirmOpened(true)}
+              >
+                {zeroAmountMonth
+                  ? t("importZeroAmountButton").replace(
+                      "{month}",
+                      zeroAmountMonth,
+                    )
+                  : t("importZeroAmountButtonNoMonth")}
+              </Button>
+            </Group>
+          </Stack>
+        </Paper>
+      )}
 
       {/* Review section */}
       {transactions.length > 0 && (
@@ -1221,6 +1371,36 @@ export function CsvImportTab({
           </Stack>
         </Paper>
       )}
+
+      <Modal
+        opened={zeroAmountConfirmOpened}
+        onClose={() => setZeroAmountConfirmOpened(false)}
+        title={t("importZeroAmountConfirmTitle")}
+        size="sm"
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            {t("importZeroAmountConfirmMessage").replace(
+              "{month}",
+              zeroAmountMonth ?? "",
+            )}
+          </Text>
+          <Group justify="flex-end">
+            <Button
+              variant="default"
+              onClick={() => setZeroAmountConfirmOpened(false)}
+            >
+              {t("cancel") as string}
+            </Button>
+            <Button
+              loading={zeroAmountCompleting}
+              onClick={() => void completeZeroAmountStatement()}
+            >
+              {t("confirm") as string}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       {/* Empty rows warning modal */}
       <Modal

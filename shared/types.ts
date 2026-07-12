@@ -1153,6 +1153,26 @@ export interface CreateCreditCardSettingsInput {
   withdrawal_account_id?: number | null;
 }
 
+export type CreditCardStatementCompletionMethod =
+  | "csv_import"
+  | "zero_amount";
+
+export interface CreditCardStatementCompletion {
+  id: number;
+  account_id: number;
+  statement_month: string;
+  payment_month: string;
+  completion_method: CreditCardStatementCompletionMethod;
+  completed_at: string;
+}
+
+export interface CompleteCreditCardStatementInput {
+  account_id: number;
+  statement_month: string;
+  payment_month: string;
+  completion_method: CreditCardStatementCompletionMethod;
+}
+
 export interface BatchCreateJournalInput {
   entries: CreateJournalInput[];
 }
