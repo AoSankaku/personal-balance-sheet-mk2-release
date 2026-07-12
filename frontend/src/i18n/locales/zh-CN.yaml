@@ -424,7 +424,9 @@ settingsSectionTasks: 任务
 taskPaydayToggle: 发薪日任务
 taskPaydayToggleHint: 当发薪日收入尚未记录时显示任务。
 taskCreditCardToggle: 信用卡导入任务
-taskCreditCardToggleHint: 当信用卡账单可以导入时，在概览页显示提示。
+taskCreditCardToggleHint: 当信用卡账单需要导入时，在页眉任务中显示。
+taskCreditCardImportSection: 待导入的信用卡账单
+taskCreditCardImportDetail: "请导入 {month} 消费账单"
 taskCreditCardWithdrawalRiskToggle: 信用卡扣款余额任务
 taskCreditCardWithdrawalRiskToggleHint: 如果信用卡付款后关联银行账户可能为负数，从扣款日前 14 天开始显示任务。
 taskBudgetNegativeToggle: 预算超额分配任务

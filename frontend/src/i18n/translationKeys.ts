@@ -428,6 +428,8 @@ export const translationKeys = [
   "taskPaydayToggleHint",
   "taskCreditCardToggle",
   "taskCreditCardToggleHint",
+  "taskCreditCardImportSection",
+  "taskCreditCardImportDetail",
   "taskCreditCardWithdrawalRiskToggle",
   "taskCreditCardWithdrawalRiskToggleHint",
   "taskBudgetNegativeToggle",

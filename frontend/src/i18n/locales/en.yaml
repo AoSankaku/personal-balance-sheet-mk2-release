@@ -424,7 +424,9 @@ settingsSectionTasks: Tasks
 taskPaydayToggle: Payday task
 taskPaydayToggleHint: Show a task when payday income hasn't been recorded yet.
 taskCreditCardToggle: Credit card import task
-taskCreditCardToggleHint: Show a banner on the overview page when a credit card statement is ready to import.
+taskCreditCardToggleHint: Show a header task when a credit card statement is ready to import.
+taskCreditCardImportSection: Credit card statements to import
+taskCreditCardImportDetail: "Import the statement for purchases in {month}"
 taskCreditCardWithdrawalRiskToggle: Credit card withdrawal balance task
 taskCreditCardWithdrawalRiskToggleHint: Show a task from 14 days before withdrawal when linked bank balance may go negative after credit card payments.
 taskBudgetNegativeToggle: Budget over-allocation task

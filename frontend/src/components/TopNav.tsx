@@ -40,6 +40,10 @@ import {
   computeCreditCardWithdrawalRiskTasks,
   type CreditCardWithdrawalRiskTask,
 } from "../lib/creditCardWithdrawalRisk";
+import {
+  computeCreditCardImportTasks,
+  type CreditCardImportTask,
+} from "../lib/creditCardImportTasks";
 
 interface AppTask {
   id: string;
@@ -188,6 +192,29 @@ function useCreditCardWithdrawalRiskTasks(): CreditCardWithdrawalRiskTask[] {
   });
 }
 
+function useCreditCardImportTasks(): CreditCardImportTask[] {
+  const { accounts, creditCardSettings, creditCardState, journal } =
+    useAppData();
+
+  if (localStorage.getItem("notif:creditCard") === "false") return [];
+
+  return computeCreditCardImportTasks({
+    today: new Date(),
+    accounts,
+    creditCardSettings,
+    creditCardState,
+    journal,
+  });
+}
+
+function formatTaskMonth(yearMonth: string, locale: string): string {
+  const [year, month] = yearMonth.split("-").map(Number);
+  return new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "long",
+  }).format(new Date(year, month - 1, 1));
+}
+
 function TaskMenu({ disabled = false }: { disabled?: boolean }) {
   const { t, locale } = useLang();
   const navigate = useNavigate();
@@ -196,9 +223,11 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
   const budgetTask = useBudgetNegativeTask();
   const overdueLoanTasks = useOverdueLoanTasks();
   const negativeAccountTasks = useNegativeAccountTasks();
+  const creditCardImportTasks = useCreditCardImportTasks();
   const creditCardWithdrawalRiskTasks = useCreditCardWithdrawalRiskTasks();
   const totalCount =
     paydayTasks.length +
+    creditCardImportTasks.length +
     (budgetTask.show ? 1 : 0) +
     (overdueLoanTasks.length > 0 ? 1 : 0) +
     (negativeAccountTasks.length > 0 ? 1 : 0) +
@@ -321,6 +350,37 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
                       }}
                     >
                       <Text size="sm">{n.message}</Text>
+                    </UnstyledButton>
+                  ))}
+                </Stack>
+              )}
+              {creditCardImportTasks.length > 0 && (
+                <Stack gap={4}>
+                  <Text size="xs" c="dimmed" fw={600} px={4}>
+                    {t("taskCreditCardImportSection")}
+                  </Text>
+                  {creditCardImportTasks.map((task) => (
+                    <UnstyledButton
+                      key={task.id}
+                      px={4}
+                      py={4}
+                      style={{ borderRadius: 4 }}
+                      onClick={() => {
+                        navigate("/input");
+                        setOpened(false);
+                      }}
+                    >
+                      <Stack gap={2}>
+                        <Text size="sm">
+                          {accountDisplayNameFromName(task.creditCardName, t)}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {t("taskCreditCardImportDetail").replace(
+                            "{month}",
+                            formatTaskMonth(task.statementMonth, locale),
+                          )}
+                        </Text>
+                      </Stack>
                     </UnstyledButton>
                   ))}
                 </Stack>

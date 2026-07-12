@@ -424,7 +424,9 @@ settingsSectionTasks: 任務
 taskPaydayToggle: 發薪日任務
 taskPaydayToggleHint: 當發薪日收入尚未記錄時顯示任務。
 taskCreditCardToggle: 信用卡匯入任務
-taskCreditCardToggleHint: 當信用卡帳單可以匯入時，在概覽頁顯示提示。
+taskCreditCardToggleHint: 當信用卡帳單需要匯入時，在頁首任務中顯示。
+taskCreditCardImportSection: 待匯入的信用卡帳單
+taskCreditCardImportDetail: "請匯入 {month} 消費帳單"
 taskCreditCardWithdrawalRiskToggle: 信用卡扣款餘額任務
 taskCreditCardWithdrawalRiskToggleHint: 如果信用卡付款後關聯銀行帳戶可能為負數，從扣款日前 14 天開始顯示任務。
 taskBudgetNegativeToggle: 預算超額分配任務

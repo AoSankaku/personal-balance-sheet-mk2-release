@@ -1,5 +1,4 @@
 import {
-  Alert,
   Anchor,
   Badge,
   Box,
@@ -31,18 +30,12 @@ import {
 import { useState, useEffect, useMemo } from "react";
 import dayjs from "dayjs";
 import { Link } from "react-router-dom";
-import {
-  usagePeriodForStatementMonth,
-  shiftCreditCardMonth,
-  creditCardBillingOffsetMonths,
-} from "@balance-sheet/shared";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { api } from "../api/client";
 import type {
   BudgetCategorySummary,
   BudgetSummary,
-  CreditCardStateEntry,
   JournalEntry,
 } from "@balance-sheet/shared";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
@@ -383,7 +376,6 @@ export default function OverviewPage() {
     budgetSummary,
     currentYearMonth,
     setCurrentYearMonth,
-    creditCardSettings,
     accounts,
     journal,
     displayCurrency,
@@ -406,79 +398,6 @@ export default function OverviewPage() {
       ),
     [budgetCategories],
   );
-
-  const [importReminders, setImportReminders] = useState<string[]>([]);
-  const [ccState, setCcState] = useState<CreditCardStateEntry[]>([]);
-  const [ccStateLoading, setCcStateLoading] = useState(true);
-
-  // Fetch trial-balance credit card state for warning check
-  useEffect(() => {
-    api.trialBalance
-      .getCreditCardState()
-      .then(setCcState)
-      .catch(() => {})
-      .finally(() => setCcStateLoading(false));
-  }, []);
-
-  // Compute credit card import reminders.
-  // Show when: today >= confirmation_day AND the current payment month has not been
-  // recorded in the trial balance (credit_card_state) with a positive amount.
-  // Only warn if the user actually has CC usage entries in that billing period.
-  useEffect(() => {
-    if (localStorage.getItem("notif:creditCard") === "false") {
-      setImportReminders([]);
-      return;
-    }
-    if (creditCardSettings.length === 0) return;
-
-    const today = new Date();
-    const todayDay = today.getDate();
-    // The payment month the user should have recorded in the trial balance is the
-    // current calendar month (confirmation_day falls in the same month as payment day
-    // for most Japanese credit cards).
-    const currentPaymentMonth = dayjs(today).format("YYYY-MM");
-
-    const reminders: string[] = [];
-    for (const cc of creditCardSettings) {
-      if (todayDay < cc.confirmation_day) continue;
-
-      // Derive the statement (usage) period that corresponds to the current payment month.
-      const billingOffset = creditCardBillingOffsetMonths(cc);
-      const statementMonth = shiftCreditCardMonth(
-        currentPaymentMonth,
-        -billingOffset,
-      );
-      const period = usagePeriodForStatementMonth(
-        statementMonth,
-        cc.closing_day,
-      );
-
-      // Only warn if the user recorded expenses for this CC in that period.
-      const hasStatementEntries = journal.some(
-        (entry) =>
-          entry.date >= period.start &&
-          entry.date <= period.end &&
-          entry.lines.some(
-            (l) => l.account_id === cc.account_id && l.credit > 0,
-          ),
-      );
-      if (!hasStatementEntries) continue;
-
-      // Suppress warning when the trial balance has ANY saved entry for this payment month
-      // (amount=0 is also valid — the user may have intentionally recorded 0 or the balance
-      // may genuinely be zero; what matters is that an entry exists, not the amount).
-      const hasTrialBalanceEntry = ccState.some(
-        (e) =>
-          e.account_id === cc.account_id &&
-          e.payment_month === currentPaymentMonth,
-      );
-      if (hasTrialBalanceEntry) continue;
-
-      const acct = accounts.find((a) => a.id === cc.account_id);
-      if (acct) reminders.push(accountDisplayNameFromName(acct.name, t));
-    }
-    setImportReminders(reminders);
-  }, [creditCardSettings, ccState, journal, accounts, t]);
 
   // Single date state drives both month context and as-of filter
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
@@ -620,7 +539,7 @@ export default function OverviewPage() {
     setTxShowCount(5);
   }, [asOfDateStr, selectedCurrency]);
 
-  if (loading || ccStateLoading) {
+  if (loading) {
     return (
       <Stack gap="lg">
         <Group justify="center">
@@ -644,23 +563,6 @@ export default function OverviewPage() {
 
   return (
     <Stack gap="xl" className={classes.page}>
-      {/* Credit card import reminders */}
-      {importReminders.map((cardName) => (
-        <Alert
-          key={cardName}
-          color="yellow"
-          withCloseButton
-          onClose={() =>
-            setImportReminders((prev) => prev.filter((n) => n !== cardName))
-          }
-        >
-          {t("creditCardImportReminder")}: {cardName}{" "}
-          <Anchor component={Link} to="/input" size="sm">
-            → {t("importPageTitle")}
-          </Anchor>
-        </Alert>
-      ))}
-
       {/* Date navigator — picker IS the label */}
       <Group
         justify="center"

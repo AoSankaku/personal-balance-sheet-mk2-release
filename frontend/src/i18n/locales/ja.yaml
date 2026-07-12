@@ -424,7 +424,9 @@ settingsSectionTasks: タスク設定
 taskPaydayToggle: 給料日タスク
 taskPaydayToggleHint: 給料日に収入が未入力の場合、タスクを表示します。
 taskCreditCardToggle: クレジットカード明細タスク
-taskCreditCardToggleHint: クレジットカード明細のインポートが必要な場合、概要ページにバナーを表示します。
+taskCreditCardToggleHint: クレジットカード明細のインポートが必要な場合、ヘッダーのタスクに表示します。
+taskCreditCardImportSection: クレジットカード明細のインポート
+taskCreditCardImportDetail: "{month}利用分の明細をインポートしてください"
 taskCreditCardWithdrawalRiskToggle: クレジットカード引き落とし残高タスク
 taskCreditCardWithdrawalRiskToggleHint: 引き落とし日の14日前から、紐付けた口座がクレジットカード引き落とし後にマイナスになる恐れがある場合にタスクを表示します。
 taskBudgetNegativeToggle: 予算過剰割当タスク
