@@ -12,6 +12,7 @@ export const IMPORT_TABLE_ORDER = [
   "actual_balance_snapshots",
   "journal_entries",
   "credit_card_settings",
+  "credit_card_statement_completions",
   "crypto_wallets",
   "exchange_credentials",
   "product_api_credentials",

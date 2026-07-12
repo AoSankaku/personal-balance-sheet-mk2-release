@@ -72,4 +72,3 @@ export function getCachedTodayBudgetSummary(
   }
   return snapshot;
 }
-

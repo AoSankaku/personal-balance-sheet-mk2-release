@@ -117,4 +117,3 @@ export function useOfflineDrafts(): OfflineDraft[] {
 
   return drafts;
 }
-
