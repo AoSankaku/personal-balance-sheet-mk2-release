@@ -1277,6 +1277,13 @@ productAvailability_error: Échec de récupération
 shoppingPlanArchivedTitle: Plans de courses termines
 calendarWeekStartLabel: "Debut de semaine du calendrier"
 calendarTodayButton: "Aujourd'hui"
+offlineBudgetSnapshotNotice: "Vous êtes hors ligne. Affichage des soldes budgétaires du jour enregistrés à {time}."
+offlineInputNotice: Vous êtes hors ligne. Les saisies simples sont enregistrées sur cet appareil et apparaîtront dans les tâches après la reconnexion.
+saveOfflineDraft: Enregistrer comme brouillon
+offlineDraftSaved: Brouillon enregistré sur cet appareil. Terminez-le depuis les tâches après la reconnexion.
+offlineDraftUntitled: Brouillon sans titre
+taskOfflineDraftsSection: Brouillons à saisir après reconnexion
+taskOfflineDraftDetail: "{amount} · enregistré {time}"
 plannedExpenseWeekFallback: "Si ce nieme jour n'existe pas"
 plannedExpenseWeekFallback_skip: "Ignorer ce mois"
 plannedExpenseWeekFallback_last_day_of_month: "Fin du mois la plus proche"

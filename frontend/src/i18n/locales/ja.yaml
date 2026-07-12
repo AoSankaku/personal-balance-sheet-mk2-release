@@ -1277,6 +1277,13 @@ productAvailability_error: 取得失敗
 shoppingPlanArchivedTitle: 完了した買い物予定
 calendarWeekStartLabel: カレンダーの週の始まり
 calendarTodayButton: 今日
+offlineBudgetSnapshotNotice: "オフラインのため、{time} に保存した本日時点の予算残高を表示しています。"
+offlineInputNotice: オフラインです。シンプル入力は端末に仮保存され、オンライン復旧後にタスクから入力できます。
+saveOfflineDraft: 仮入力として保存
+offlineDraftSaved: 仮入力をこの端末に保存しました。オンライン復旧後にタスクから入力してください。
+offlineDraftUntitled: 名称未入力の仮入力
+taskOfflineDraftsSection: オンライン復旧後に入力する仮入力
+taskOfflineDraftDetail: "{amount} ・ 保存日時 {time}"
 plannedExpenseWeekFallback: 第N曜日が存在しない場合
 plannedExpenseWeekFallback_skip: 無視する（支払を予定しない）
 plannedExpenseWeekFallback_last_day_of_month: 最も近い同じ月の末日

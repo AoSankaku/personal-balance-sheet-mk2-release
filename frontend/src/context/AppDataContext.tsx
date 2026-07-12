@@ -24,7 +24,7 @@ import type {
   JournalEntry,
   PLReport,
 } from "@balance-sheet/shared";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import { useLang } from "../i18n";
 import { useCryptoPrices } from "../hooks/useCryptoPrices";
 import { useExchangeRates } from "../hooks/useExchangeRates";
@@ -51,6 +51,11 @@ import {
 } from "../lib/privacy";
 import { useLocation } from "react-router-dom";
 import { shouldRefreshMonthScopedData } from "../lib/overviewSummaryLoading";
+import {
+  readOfflineAppCache,
+  updateOfflineAppCache,
+  type OfflineAppCache,
+} from "../lib/offlineAppCache";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
@@ -159,7 +164,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     ensureRatesForCurrencies,
   } = useExchangeRates(prices);
 
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const initialOfflineCache = useRef(readOfflineAppCache()).current;
+  const [accounts, setAccounts] = useState<Account[]>(
+    initialOfflineCache?.accounts ?? [],
+  );
   const [journal, setJournal] = useState<JournalEntry[]>([]);
   const [pl, setPl] = useState<PLReport>({
     income: 0,
@@ -174,11 +182,13 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     ExchangeCredential[]
   >([]);
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>(
-    [],
+    initialOfflineCache?.budgetCategories ?? [],
   );
-  const [budgetFilters, setBudgetFilters] = useState<BudgetFilter[]>([]);
+  const [budgetFilters, setBudgetFilters] = useState<BudgetFilter[]>(
+    initialOfflineCache?.budgetFilters ?? [],
+  );
   const [budgetSettings, setBudgetSettings] = useState<BudgetSettings | null>(
-    null,
+    initialOfflineCache?.budgetSettings ?? null,
   );
   const [creditCardSettings, setCreditCardSettings] = useState<
     CreditCardSettings[]
@@ -189,13 +199,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [creditCardStatementCompletions, setCreditCardStatementCompletions] =
     useState<CreditCardStatementCompletion[]>([]);
   const [budgetSummary, setBudgetSummary] = useState<BudgetSummary | null>(
-    null,
+    initialOfflineCache?.todayBudget?.summary ?? null,
   );
   const [currentYearMonth, setCurrentYearMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(
+    initialOfflineCache?.enabledCurrencies === undefined,
+  );
   const [error, setError] = useState<string | null>(null);
   const [displayCurrency, setDisplayCurrencyState] = useState<string>(() => {
     try {
@@ -205,9 +217,11 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   });
   const [enabledCurrencies, setEnabledCurrencies] = useState<EnabledCurrency[]>(
-    [],
+    initialOfflineCache?.enabledCurrencies ?? [],
   );
-  const [enabledCurrenciesLoaded, setEnabledCurrenciesLoaded] = useState(false);
+  const [enabledCurrenciesLoaded, setEnabledCurrenciesLoaded] = useState(
+    initialOfflineCache?.enabledCurrencies !== undefined,
+  );
   const isInitialSetupComplete =
     enabledCurrenciesLoaded && enabledCurrencies.length > 0;
   const [cryptoIconStyle, setCryptoIconStyleState] =
@@ -248,6 +262,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       const rows = await api.currencies.list();
       setEnabledCurrencies(rows);
       setEnabledCurrenciesLoaded(true);
+      updateOfflineAppCache({ enabledCurrencies: rows });
       // If the stored displayCurrency is no longer enabled, fall back to the first enabled currency
       const codes = new Set(rows.map((r) => r.code));
       setDisplayCurrencyState((prev) => {
@@ -259,7 +274,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
     } catch {
-      // silently ignore
+      const cached = readOfflineAppCache()?.enabledCurrencies;
+      if (cached !== undefined) setEnabledCurrencies(cached);
+      setEnabledCurrenciesLoaded(true);
     }
   }, []);
 
@@ -303,6 +320,16 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         setAccountsToday(accs);
         setBudgetSummaryToday(summaryToday);
         setBudgetSummaryTotal(summaryTotal);
+        if (ym === today.slice(0, 7)) {
+          updateOfflineAppCache({
+            accounts: accs,
+            todayBudget: {
+              asOf: today,
+              capturedAt: new Date().toISOString(),
+              summary: summaryToday,
+            },
+          });
+        }
       } catch {
         // silently ignore
       }
@@ -456,6 +483,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setBudgetCategories(cats);
       setBudgetSummary(summary);
       setBudgetFilters(filters);
+      updateOfflineAppCache({
+        budgetCategories: cats,
+        budgetFilters: filters,
+      });
     } catch {
       // silently ignore budget errors — non-critical
     }
@@ -529,6 +560,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setCreditCardState(ccState);
       setCreditCardStatementCompletions(ccStatementCompletions);
       setBudgetSettings(bSettings);
+      updateOfflineAppCache({
+        accounts: accts,
+        budgetCategories: cats,
+        budgetFilters: filters,
+        budgetSettings: bSettings,
+      });
       void refreshCryptoBalances(wallets);
       void refreshAllocatable();
       // Also refresh budget summary
@@ -543,7 +580,20 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         // ignore
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("failedToLoadData"));
+      const cached: OfflineAppCache | null = readOfflineAppCache();
+      const isOfflineFailure =
+        (typeof navigator !== "undefined" && navigator.onLine === false) ||
+        (err instanceof ApiError && err.body.error === "network_offline");
+      if (isOfflineFailure && cached?.enabledCurrencies !== undefined) {
+        setAccounts(cached.accounts ?? []);
+        setBudgetCategories(cached.budgetCategories ?? []);
+        setBudgetFilters(cached.budgetFilters ?? []);
+        setBudgetSettings(cached.budgetSettings ?? null);
+        setBudgetSummary(cached.todayBudget?.summary ?? null);
+        setError(null);
+      } else {
+        setError(err instanceof Error ? err.message : t("failedToLoadData"));
+      }
     } finally {
       setLoading(false);
     }

@@ -1277,6 +1277,13 @@ productAvailability_error: 取得失敗
 shoppingPlanArchivedTitle: 已完成的購物計畫
 calendarWeekStartLabel: 行事曆每週開始於
 calendarTodayButton: 今天
+offlineBudgetSnapshotNotice: "目前處於離線狀態。正在顯示 {time} 儲存的今日預算餘額。"
+offlineInputNotice: 目前處於離線狀態。簡單輸入會作為草稿儲存在此裝置，恢復連線後可從任務中繼續輸入。
+saveOfflineDraft: 儲存為草稿
+offlineDraftSaved: 草稿已儲存在此裝置。恢復連線後請從任務中完成輸入。
+offlineDraftUntitled: 未命名草稿
+taskOfflineDraftsSection: 恢復連線後待輸入的草稿
+taskOfflineDraftDetail: "{amount} · 儲存於 {time}"
 plannedExpenseWeekFallback: 第 N 個星期幾不存在時
 plannedExpenseWeekFallback_skip: 略過本月
 plannedExpenseWeekFallback_last_day_of_month: 最接近的本月月底

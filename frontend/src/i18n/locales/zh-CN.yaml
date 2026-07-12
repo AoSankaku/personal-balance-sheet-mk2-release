@@ -1277,6 +1277,13 @@ productAvailability_error: 获取失败
 shoppingPlanArchivedTitle: 已完成的购物计划
 calendarWeekStartLabel: 日历每周开始于
 calendarTodayButton: 今天
+offlineBudgetSnapshotNotice: "当前处于离线状态。正在显示 {time} 保存的今日预算余额。"
+offlineInputNotice: 当前处于离线状态。简单输入会作为草稿保存在此设备，恢复联网后可从任务中继续输入。
+saveOfflineDraft: 保存为草稿
+offlineDraftSaved: 草稿已保存在此设备。恢复联网后请从任务中完成输入。
+offlineDraftUntitled: 未命名草稿
+taskOfflineDraftsSection: 恢复联网后待输入的草稿
+taskOfflineDraftDetail: "{amount} · 保存于 {time}"
 plannedExpenseWeekFallback: 第 N 个星期几不存在时
 plannedExpenseWeekFallback_skip: 跳过本月
 plannedExpenseWeekFallback_last_day_of_month: 最接近的本月月末

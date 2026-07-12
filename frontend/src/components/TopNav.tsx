@@ -44,6 +44,8 @@ import {
   computeCreditCardImportTasks,
   type CreditCardImportTask,
 } from "../lib/creditCardImportTasks";
+import { useOfflineDrafts } from "../lib/offlineDrafts";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 
 interface AppTask {
   id: string;
@@ -224,7 +226,11 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
   const negativeAccountTasks = useNegativeAccountTasks();
   const creditCardImportTasks = useCreditCardImportTasks();
   const creditCardWithdrawalRiskTasks = useCreditCardWithdrawalRiskTasks();
+  const isOnline = useOnlineStatus();
+  const offlineDrafts = useOfflineDrafts();
+  const pendingOfflineDrafts = isOnline ? offlineDrafts : [];
   const totalCount =
+    pendingOfflineDrafts.length +
     paydayTasks.length +
     creditCardImportTasks.length +
     (budgetTask.show ? 1 : 0) +
@@ -295,6 +301,48 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
             </Text>
           ) : (
             <Stack gap={8}>
+              {pendingOfflineDrafts.length > 0 && (
+                <Stack gap={4}>
+                  <Text size="xs" c="dimmed" fw={600} px={4}>
+                    {t("taskOfflineDraftsSection")}
+                  </Text>
+                  {pendingOfflineDrafts.map((draft) => (
+                    <UnstyledButton
+                      key={draft.id}
+                      px={4}
+                      py={4}
+                      style={{ borderRadius: 4 }}
+                      onClick={() => {
+                        navigate("/input", {
+                          state: { offlineDraftId: draft.id, tab: "simple" },
+                        });
+                        setOpened(false);
+                      }}
+                    >
+                      <Stack gap={2}>
+                        <Text size="sm">
+                          {draft.draft.formValues.description ||
+                            t("offlineDraftUntitled")}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {t("taskOfflineDraftDetail")
+                            .replace(
+                              "{amount}",
+                              String(draft.draft.formValues.amount ?? "-"),
+                            )
+                            .replace(
+                              "{time}",
+                              new Intl.DateTimeFormat(locale, {
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              }).format(new Date(draft.createdAt)),
+                            )}
+                        </Text>
+                      </Stack>
+                    </UnstyledButton>
+                  ))}
+                </Stack>
+              )}
               {budgetTask.show && (
                 <UnstyledButton
                   px={4}

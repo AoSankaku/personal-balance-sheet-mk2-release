@@ -1277,6 +1277,13 @@ productAvailability_error: Fetch failed
 shoppingPlanArchivedTitle: Completed shopping plans
 calendarWeekStartLabel: Calendar week starts on
 calendarTodayButton: Today
+offlineBudgetSnapshotNotice: "You are offline. Showing today's budget balances saved at {time}."
+offlineInputNotice: You are offline. Simple entries are saved on this device as drafts and appear in Tasks when you reconnect.
+saveOfflineDraft: Save as draft
+offlineDraftSaved: Draft saved on this device. Complete it from Tasks after reconnecting.
+offlineDraftUntitled: Untitled draft
+taskOfflineDraftsSection: Drafts to enter after reconnecting
+taskOfflineDraftDetail: "{amount} · saved {time}"
 plannedExpenseWeekFallback: If the nth weekday does not exist
 plannedExpenseWeekFallback_skip: Skip this month
 plannedExpenseWeekFallback_last_day_of_month: Closest same-month month end

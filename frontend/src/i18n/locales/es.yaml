@@ -1277,6 +1277,13 @@ productAvailability_error: Error al obtener
 shoppingPlanArchivedTitle: Planes de compra completados
 calendarWeekStartLabel: "Inicio de semana del calendario"
 calendarTodayButton: "Hoy"
+offlineBudgetSnapshotNotice: "Estás sin conexión. Se muestran los saldos presupuestarios de hoy guardados a las {time}."
+offlineInputNotice: Estás sin conexión. Las entradas simples se guardan en este dispositivo y aparecerán en Tareas al reconectar.
+saveOfflineDraft: Guardar como borrador
+offlineDraftSaved: Borrador guardado en este dispositivo. Complétalo desde Tareas después de reconectar.
+offlineDraftUntitled: Borrador sin título
+taskOfflineDraftsSection: Borradores para introducir al reconectar
+taskOfflineDraftDetail: "{amount} · guardado {time}"
 plannedExpenseWeekFallback: "Si no existe ese enesimo dia"
 plannedExpenseWeekFallback_skip: "Omitir este mes"
 plannedExpenseWeekFallback_last_day_of_month: "Fin de mes mas cercano"

@@ -1,4 +1,5 @@
 import {
+  Alert,
   Anchor,
   Badge,
   Box,
@@ -26,13 +27,14 @@ import {
   IconCalendarDollar,
   IconShoppingCart,
   IconArrowUpRight,
+  IconWifiOff,
 } from "@tabler/icons-react";
 import { useState, useEffect, useMemo } from "react";
 import dayjs from "dayjs";
 import { Link } from "react-router-dom";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import type {
   BudgetCategorySummary,
   BudgetSummary,
@@ -48,6 +50,7 @@ import {
   isOverviewSummaryLoading,
 } from "../lib/overviewSummaryLoading";
 import classes from "./OverviewPage.module.css";
+import { getCachedTodayBudgetSummary } from "../lib/offlineAppCache";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
@@ -406,6 +409,9 @@ export default function OverviewPage() {
     pending: boolean;
     summary: BudgetSummary | null;
   }>({ key: null, pending: false, summary: null });
+  const [cachedSnapshotTime, setCachedSnapshotTime] = useState<string | null>(
+    null,
+  );
 
   const selectedSummaryKey = selectedDate
     ? `${dayjs(selectedDate).format("YYYY-MM-DD")}|${selectedCurrency}`
@@ -430,6 +436,7 @@ export default function OverviewPage() {
       .summary(ym, asOfStr, selectedCurrency)
       .then((summary) => {
         if (!cancelled) {
+          setCachedSnapshotTime(null);
           setFilteredSummaryRequest({
             key: requestKey,
             pending: false,
@@ -437,12 +444,20 @@ export default function OverviewPage() {
           });
         }
       })
-      .catch(() => {
+      .catch((error) => {
         if (!cancelled) {
+          const isOfflineFailure =
+            (typeof navigator !== "undefined" && navigator.onLine === false) ||
+            (error instanceof ApiError &&
+              error.body.error === "network_offline");
+          const cached = isOfflineFailure
+            ? getCachedTodayBudgetSummary(asOfStr, selectedCurrency)
+            : null;
+          setCachedSnapshotTime(cached?.capturedAt ?? null);
           setFilteredSummaryRequest({
             key: requestKey,
             pending: false,
-            summary: null,
+            summary: cached?.summary ?? null,
           });
         }
       });
@@ -563,6 +578,21 @@ export default function OverviewPage() {
 
   return (
     <Stack gap="xl" className={classes.page}>
+      {cachedSnapshotTime && (
+        <Alert
+          color="yellow"
+          variant="light"
+          icon={<IconWifiOff size={18} />}
+        >
+          {t("offlineBudgetSnapshotNotice").replace(
+            "{time}",
+            new Intl.DateTimeFormat(locale, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            }).format(new Date(cachedSnapshotTime)),
+          )}
+        </Alert>
+      )}
       {/* Date navigator — picker IS the label */}
       <Group
         justify="center"
