@@ -419,6 +419,8 @@ refreshPrices: 刷新价格
 paydayLabel: 发薪日（每月日期）
 paydayHint: 如果每月到这一天仍未记录收入，就会显示任务。
 noTasks: 没有任务
+taskMenuTitle: 需要确认
+taskMenuCount: "{count} 项待处理"
 taskPaydayUnrecorded: 发薪日收入尚未记录
 tasks: 任务
 settingsSectionTasks: 任务
@@ -432,7 +434,9 @@ taskCreditCardWithdrawalRiskToggle: 信用卡扣款余额任务
 taskCreditCardWithdrawalRiskToggleHint: 如果信用卡付款后关联银行账户可能为负数，从扣款日前 14 天开始显示任务。
 taskBudgetNegativeToggle: 预算超额分配任务
 taskBudgetNegativeToggleHint: 当预算分配总额超过实际资产、预算数据不再可靠时显示任务。
-taskBudgetNegative: 预算分配总额超过了总资产。这可能是重复输入或遗漏输入造成的。
+taskBudgetNegative: 分配额超过了资产。请检查是否有重复或遗漏的记录。
+taskBudgetNegativeTitle: 检查预算一致性
+taskBudgetNegativeAction: 前往概览确认
 taskLoanOverdueToggle: 短期借贷逾期任务
 taskLoanOverdueToggleHint: 在指定天数内没有还款或收款时显示任务。
 taskLoanOverdueDaysLabel: 阈值（天）

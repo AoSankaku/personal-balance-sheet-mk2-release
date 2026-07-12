@@ -1,6 +1,8 @@
 import {
   ActionIcon,
   Anchor,
+  Badge,
+  Box,
   Group,
   Indicator,
   Popover,
@@ -13,7 +15,9 @@ import {
   useComputedColorScheme,
 } from "@mantine/core";
 import {
+  IconAlertTriangle,
   IconBook,
+  IconChevronRight,
   IconLayoutDashboard,
   IconListCheck,
   IconPencil,
@@ -48,6 +52,9 @@ import {
 } from "../lib/creditCardImportTasks";
 import { useOfflineDrafts } from "../lib/offlineDrafts";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import "./TopNav.css";
+
+const HEADER_ACTION_ICON_SIZE = "md";
 
 interface AppTask {
   id: string;
@@ -240,6 +247,10 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
     (negativeAccountTasks.length > 0 ? 1 : 0) +
     (creditCardWithdrawalRiskTasks.length > 0 ? 1 : 0);
   const effectiveCount = disabled ? 0 : totalCount;
+  const taskCountLabel = t("taskMenuCount").replace(
+    "{count}",
+    String(effectiveCount),
+  );
 
   useEffect(() => {
     if (disabled) setOpened(false);
@@ -277,43 +288,72 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
           >
             <ActionIcon
               variant="default"
-              size="md"
+              size={HEADER_ACTION_ICON_SIZE}
               disabled={disabled}
               onClick={() => {
                 if (disabled) return;
                 setOpened((o) => !o);
               }}
-              aria-label={t("tasks")}
+              aria-label={`${t("taskMenuTitle")}: ${taskCountLabel}`}
+              aria-expanded={opened}
+              aria-haspopup="dialog"
               title={t("tasks")}
             >
-              <IconListCheck size={16} />
+              <IconListCheck size={18} aria-hidden="true" />
             </ActionIcon>
           </Indicator>
         </Popover.Target>
 
         <Popover.Dropdown
-          p="xs"
-          miw={240}
-          maw={320}
-          style={{ wordBreak: "break-word" }}
+          p={0}
+          role="dialog"
+          aria-label={t("taskMenuTitle")}
+          className="task-menu__dropdown"
         >
-          {totalCount === 0 ? (
-            <Text size="sm" c="dimmed" px={4} py={2}>
-              {t("noTasks")}
-            </Text>
-          ) : (
-            <Stack gap={8}>
+          <Box className="task-menu__header">
+            <Group justify="space-between" wrap="nowrap">
+              <Group gap="sm" wrap="nowrap">
+                <ThemeIcon variant="light" color="blue" radius="xl" size={34}>
+                  <IconListCheck size={18} aria-hidden="true" />
+                </ThemeIcon>
+                <Box>
+                  <Text fw={700} size="sm">
+                    {t("taskMenuTitle")}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {taskCountLabel}
+                  </Text>
+                </Box>
+              </Group>
+              {effectiveCount > 0 && (
+                <Badge
+                  variant="light"
+                  color="blue"
+                  circle
+                  size="lg"
+                  aria-hidden="true"
+                >
+                  {effectiveCount}
+                </Badge>
+              )}
+            </Group>
+          </Box>
+          <Box className="task-menu__content">
+            {totalCount === 0 ? (
+              <Text size="sm" c="dimmed" ta="center" py="lg">
+                {t("noTasks")}
+              </Text>
+            ) : (
+              <Stack gap="sm">
               {pendingOfflineDrafts.length > 0 && (
                 <Stack gap={4}>
-                  <Text size="xs" c="dimmed" fw={600} px={4}>
+                  <Text className="task-menu__section-label">
                     {t("taskOfflineDraftsSection")}
                   </Text>
                   {pendingOfflineDrafts.map((draft) => (
                     <UnstyledButton
                       key={draft.id}
-                      px={4}
-                      py={4}
-                      style={{ borderRadius: 4 }}
+                      className="task-menu__item"
                       onClick={() => {
                         navigate("/input", {
                           state: { offlineDraftId: draft.id, tab: "simple" },
@@ -347,52 +387,75 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
               )}
               {budgetTask.show && (
                 <UnstyledButton
-                  px={4}
-                  py={6}
-                  style={{ borderRadius: 4 }}
+                  className="task-menu__item task-menu__budget-card"
+                  aria-label={`${t("taskBudgetNegativeTitle")}. ${t("taskBudgetNegative")}. ${t("taskBudgetNegativeAction")}`}
                   onClick={() => {
                     navigate("/");
                     setOpened(false);
                   }}
                 >
-                  <Stack gap={4}>
-                    <Text size="sm" c="red">
-                      {t("taskBudgetNegative")}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      {t("assignableMoneyTodayLabel")}:{" "}
-                      <Text
-                        span
-                        fw={600}
-                        c={budgetTask.allocatableToday >= 0 ? "teal" : "red"}
+                  <Group align="flex-start" gap="sm" wrap="nowrap">
+                    <ThemeIcon color="red" variant="light" radius="xl" size={34}>
+                      <IconAlertTriangle size={18} aria-hidden="true" />
+                    </ThemeIcon>
+                    <Stack gap={8} style={{ flex: 1, minWidth: 0 }}>
+                      <Box>
+                        <Text size="sm" fw={700}>
+                          {t("taskBudgetNegativeTitle")}
+                        </Text>
+                        <Text size="xs" c="dimmed" lh={1.5} mt={2}>
+                          {t("taskBudgetNegative")}
+                        </Text>
+                      </Box>
+                      <Group
+                        className="task-menu__metrics"
+                        gap="xs"
+                        wrap="nowrap"
                       >
-                        {formatJPY(budgetTask.allocatableToday, locale)}
-                      </Text>
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      {t("assignableMoneyTotalLabel")}:{" "}
-                      <Text
-                        span
-                        fw={600}
-                        c={budgetTask.allocatableTotal >= 0 ? "teal" : "red"}
-                      >
-                        {formatJPY(budgetTask.allocatableTotal, locale)}
-                      </Text>
-                    </Text>
-                  </Stack>
+                        <Box className="task-menu__metric">
+                          <Text size="xs" c="dimmed">
+                            {t("assignableMoneyTodayLabel")}
+                          </Text>
+                          <Text
+                            size="sm"
+                            fw={700}
+                            c={budgetTask.allocatableToday >= 0 ? "teal" : "red"}
+                          >
+                            {formatJPY(budgetTask.allocatableToday, locale)}
+                          </Text>
+                        </Box>
+                        <Box className="task-menu__metric">
+                          <Text size="xs" c="dimmed">
+                            {t("assignableMoneyTotalLabel")}
+                          </Text>
+                          <Text
+                            size="sm"
+                            fw={700}
+                            c={budgetTask.allocatableTotal >= 0 ? "teal" : "red"}
+                          >
+                            {formatJPY(budgetTask.allocatableTotal, locale)}
+                          </Text>
+                        </Box>
+                      </Group>
+                      <Group gap={4} c="blue" wrap="nowrap">
+                        <Text size="xs" fw={700}>
+                          {t("taskBudgetNegativeAction")}
+                        </Text>
+                        <IconChevronRight size={15} aria-hidden="true" />
+                      </Group>
+                    </Stack>
+                  </Group>
                 </UnstyledButton>
               )}
               {paydayTasks.length > 0 && (
                 <Stack gap={4}>
-                  <Text size="xs" c="dimmed" fw={600} px={4}>
+                  <Text className="task-menu__section-label">
                     {t("taskPaydayUnrecorded")}
                   </Text>
                   {paydayTasks.map((n) => (
                     <UnstyledButton
                       key={n.id}
-                      px={4}
-                      py={4}
-                      style={{ borderRadius: 4 }}
+                      className="task-menu__item"
                       onClick={() => {
                         navigate("/input");
                         setOpened(false);
@@ -405,15 +468,13 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
               )}
               {creditCardImportTasks.length > 0 && (
                 <Stack gap={4}>
-                  <Text size="xs" c="dimmed" fw={600} px={4}>
+                  <Text className="task-menu__section-label">
                     {t("taskCreditCardImportSection")}
                   </Text>
                   {creditCardImportTasks.map((task) => (
                     <UnstyledButton
                       key={task.id}
-                      px={4}
-                      py={4}
-                      style={{ borderRadius: 4 }}
+                      className="task-menu__item"
                       onClick={() => {
                         navigate("/input", { state: { tab: "csv" } });
                         setOpened(false);
@@ -436,23 +497,28 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
               )}
               {creditCardWithdrawalRiskTasks.length > 0 && (
                 <Stack gap={4}>
-                  <Text size="xs" c="dimmed" fw={600} px={4}>
+                  <Text className="task-menu__section-label">
                     {t("taskCreditCardWithdrawalRiskSection")}
                   </Text>
                   {creditCardWithdrawalRiskTasks.map((n) => (
                     <UnstyledButton
                       key={n.id}
-                      px={4}
-                      py={4}
-                      style={{ borderRadius: 4 }}
+                      className="task-menu__item"
                       onClick={() => {
                         navigate("/settings");
                         setOpened(false);
                       }}
                     >
                       <Stack gap={2}>
-                        <Group gap={8} wrap="nowrap">
-                          <Text size="sm" style={{ flex: 1 }}>
+                        <Group
+                          className="task-menu__inline-row"
+                          gap={8}
+                          wrap="nowrap"
+                        >
+                          <Text
+                            size="sm"
+                            style={{ flex: 1, minWidth: 0 }}
+                          >
                             {accountDisplayNameFromName(n.creditCardName, t)}
                           </Text>
                           <Text size="xs" c="red">
@@ -481,22 +547,24 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
               )}
               {overdueLoanTasks.length > 0 && (
                 <Stack gap={4}>
-                  <Text size="xs" c="dimmed" fw={600} px={4}>
+                  <Text className="task-menu__section-label">
                     {t("taskLoanOverdueSection")}
                   </Text>
                   {overdueLoanTasks.map((n) => (
                     <UnstyledButton
                       key={n.id}
-                      px={4}
-                      py={4}
-                      style={{ borderRadius: 4 }}
+                      className="task-menu__item"
                       onClick={() => {
                         navigate("/fs/db");
                         setOpened(false);
                       }}
                     >
-                      <Group gap={8} wrap="nowrap">
-                        <Text size="sm" style={{ flex: 1 }}>
+                      <Group
+                        className="task-menu__inline-row"
+                        gap={8}
+                        wrap="nowrap"
+                      >
+                        <Text size="sm" style={{ flex: 1, minWidth: 0 }}>
                           {n.message}
                         </Text>
                         <Text size="xs" c="orange">
@@ -512,15 +580,13 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
               )}
               {negativeAccountTasks.length > 0 && (
                 <Stack gap={4}>
-                  <Text size="xs" c="dimmed" fw={600} px={4}>
+                  <Text className="task-menu__section-label">
                     {t("taskAccountNegativeSection")}
                   </Text>
                   {negativeAccountTasks.map((n) => (
                     <UnstyledButton
                       key={n.id}
-                      px={4}
-                      py={4}
-                      style={{ borderRadius: 4 }}
+                      className="task-menu__item"
                       onClick={() => {
                         navigate("/settings");
                         setOpened(false);
@@ -533,8 +599,9 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
                   ))}
                 </Stack>
               )}
-            </Stack>
-          )}
+              </Stack>
+            )}
+          </Box>
         </Popover.Dropdown>
       </Popover>
     </>
@@ -590,7 +657,7 @@ function CompactCurrencyMenu({
         <Popover.Target>
           <ActionIcon
             variant="default"
-            size="md"
+            size={HEADER_ACTION_ICON_SIZE}
             aria-label={t("displayCurrencyLabel")}
             title={t("displayCurrencyLabel")}
             onClick={() => setOpened((o) => !o)}
