@@ -485,6 +485,15 @@ importDuplicateWarning: 重複の可能性
 importApplyToAll: 同じ店舗に適用
 importConfirmButton: インポート
 importSuccess: インポートが完了しました
+importZeroAmountTitle: 利用がなかった月
+importZeroAmountHint: 確定した明細が0円だった場合、その月の確認を完了できます。
+importZeroAmountSettingsRequired: このカードの締め日・確定日を設定してください。
+importZeroAmountBeforeConfirmation: 確定日以降に0円として完了できます。
+importZeroAmountButton: "{month}利用分は0円として記入したこととする"
+importZeroAmountButtonNoMonth: 0円として記入したこととする
+importZeroAmountConfirmTitle: 0円として確認を完了
+importZeroAmountConfirmMessage: "{month}利用分を0円として完了します。よろしいですか？"
+importZeroAmountCompleted: "{month}利用分を0円として完了しました"
 importDuplicateModalTitle: 重複取引の確認
 importSkip: スキップ
 importImportAnyway: インポートする

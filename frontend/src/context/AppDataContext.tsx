@@ -15,6 +15,7 @@ import type {
   BudgetSummary,
   CreditCardSettings,
   CreditCardStateEntry,
+  CreditCardStatementCompletion,
   CryptoPrices,
   CryptoWallet,
   EnabledCurrency,
@@ -70,6 +71,7 @@ interface AppDataContextValue {
   budgetSettings: BudgetSettings | null;
   creditCardSettings: CreditCardSettings[];
   creditCardState: CreditCardStateEntry[];
+  creditCardStatementCompletions: CreditCardStatementCompletion[];
   currentYearMonth: string;
   setCurrentYearMonth: (ym: string) => void;
   loading: boolean;
@@ -88,6 +90,7 @@ interface AppDataContextValue {
   refreshBudgetFilters: () => void;
   refreshCreditCardSettings: () => void;
   refreshCreditCardState: () => void;
+  refreshCreditCardStatementCompletions: () => void;
   refreshBudgetSettings: () => void;
   refreshAllocatable: () => void;
   allocatableToday: number;
@@ -183,6 +186,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [creditCardState, setCreditCardState] = useState<
     CreditCardStateEntry[]
   >([]);
+  const [creditCardStatementCompletions, setCreditCardStatementCompletions] =
+    useState<CreditCardStatementCompletion[]>([]);
   const [budgetSummary, setBudgetSummary] = useState<BudgetSummary | null>(
     null,
   );
@@ -421,6 +426,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const refreshCreditCardStatementCompletions = useCallback(async () => {
+    try {
+      const completions = await api.creditCardStatements.listCompletions();
+      setCreditCardStatementCompletions(completions);
+    } catch {
+      // silently ignore
+    }
+  }, []);
+
   const refreshBudgetSettings = useCallback(async () => {
     try {
       const s = await api.budget.getSettings();
@@ -489,6 +503,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         filters,
         ccSettings,
         ccState,
+        ccStatementCompletions,
         bSettings,
       ] = await Promise.all([
         api.accounts.list(toDateStr(new Date())),
@@ -500,6 +515,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         api.budget.listFilters(),
         api.creditCardSettings.list(),
         api.trialBalance.getCreditCardState(),
+        api.creditCardStatements.listCompletions(),
         api.budget.getSettings(),
       ]);
       setAccounts(accts);
@@ -511,6 +527,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setBudgetFilters(filters);
       setCreditCardSettings(ccSettings);
       setCreditCardState(ccState);
+      setCreditCardStatementCompletions(ccStatementCompletions);
       setBudgetSettings(bSettings);
       void refreshCryptoBalances(wallets);
       void refreshAllocatable();
@@ -672,6 +689,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         budgetSettings,
         creditCardSettings,
         creditCardState,
+        creditCardStatementCompletions,
         currentYearMonth,
         setCurrentYearMonth,
         loading,
@@ -686,6 +704,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         refreshBudgetFilters,
         refreshCreditCardSettings,
         refreshCreditCardState,
+        refreshCreditCardStatementCompletions,
         refreshBudgetSettings,
         refreshAllocatable,
         allocatableToday,

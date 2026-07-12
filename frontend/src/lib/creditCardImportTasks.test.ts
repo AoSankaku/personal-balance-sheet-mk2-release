@@ -2,8 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type {
   Account,
   CreditCardSettings,
-  CreditCardStateEntry,
-  JournalEntry,
+  CreditCardStatementCompletion,
 } from "@balance-sheet/shared";
 import { computeCreditCardImportTasks } from "./creditCardImportTasks";
 
@@ -25,34 +24,13 @@ const settings: CreditCardSettings = {
   created_at: "2026-01-01T00:00:00Z",
 };
 
-function usageEntry(date: string): JournalEntry {
-  return {
-    id: 1,
-    date,
-    description: "purchase",
-    created_at: `${date}T00:00:00Z`,
-    lines: [
-      {
-        id: 1,
-        journal_entry_id: 1,
-        account_id: account.id,
-        account_name: account.name,
-        debit: 0,
-        credit: 1_000,
-        currency: "JPY",
-      },
-    ],
-  };
-}
-
 describe("computeCreditCardImportTasks", () => {
-  test("returns the usage month for a statement that is ready to import", () => {
+  test("returns the usage month even when the statement has no usage", () => {
     const tasks = computeCreditCardImportTasks({
       today: new Date("2026-07-20T12:00:00+09:00"),
       accounts: [account],
       creditCardSettings: [settings],
-      creditCardState: [],
-      journal: [usageEntry("2026-06-10")],
+      completions: [],
     });
 
     expect(tasks).toEqual([
@@ -62,7 +40,6 @@ describe("computeCreditCardImportTasks", () => {
         creditCardName: "Main card",
         statementMonth: "2026-06",
         paymentMonth: "2026-07",
-        usagePeriod: { start: "2026-05-16", end: "2026-06-15" },
       },
     ]);
   });
@@ -73,21 +50,19 @@ describe("computeCreditCardImportTasks", () => {
         today: new Date("2026-07-19T12:00:00+09:00"),
         accounts: [account],
         creditCardSettings: [settings],
-        creditCardState: [],
-        journal: [usageEntry("2026-06-10")],
+        completions: [],
       }),
     ).toEqual([]);
   });
 
-  test("does not return a task after the payment month was saved", () => {
-    const savedState: CreditCardStateEntry = {
+  test("does not return a task after the statement was completed", () => {
+    const completion: CreditCardStatementCompletion = {
       id: 1,
       account_id: account.id,
-      account_name: account.name,
+      statement_month: "2026-06",
       payment_month: "2026-07",
-      status: "confirmed",
-      amount: 0,
-      last_updated_at: "2026-07-20T00:00:00Z",
+      completion_method: "csv_import",
+      completed_at: "2026-07-20T00:00:00Z",
     };
 
     expect(
@@ -95,20 +70,7 @@ describe("computeCreditCardImportTasks", () => {
         today: new Date("2026-07-20T12:00:00+09:00"),
         accounts: [account],
         creditCardSettings: [settings],
-        creditCardState: [savedState],
-        journal: [usageEntry("2026-06-10")],
-      }),
-    ).toEqual([]);
-  });
-
-  test("does not return a task without usage in the statement period", () => {
-    expect(
-      computeCreditCardImportTasks({
-        today: new Date("2026-07-20T12:00:00+09:00"),
-        accounts: [account],
-        creditCardSettings: [settings],
-        creditCardState: [],
-        journal: [usageEntry("2026-06-16")],
+        completions: [completion],
       }),
     ).toEqual([]);
   });
@@ -118,8 +80,7 @@ describe("computeCreditCardImportTasks", () => {
       today: new Date("2026-07-20T12:00:00+09:00"),
       accounts: [account],
       creditCardSettings: [{ ...settings, billing_offset_months: 1 }],
-      creditCardState: [],
-      journal: [usageEntry("2026-05-10")],
+      completions: [],
     });
 
     expect(tasks[0]?.statementMonth).toBe("2026-05");

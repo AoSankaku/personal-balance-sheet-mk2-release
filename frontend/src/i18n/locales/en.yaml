@@ -485,6 +485,15 @@ importDuplicateWarning: Possible duplicate
 importApplyToAll: Apply to all matching
 importConfirmButton: Import
 importSuccess: Import complete
+importZeroAmountTitle: Months with no card usage
+importZeroAmountHint: Mark the month complete when the finalized statement total is zero.
+importZeroAmountSettingsRequired: Configure the closing and confirmation dates for this card first.
+importZeroAmountBeforeConfirmation: You can mark the month as zero after its confirmation date.
+importZeroAmountButton: "Mark purchases in {month} as zero"
+importZeroAmountButtonNoMonth: Mark the month as zero
+importZeroAmountConfirmTitle: Confirm a zero statement
+importZeroAmountConfirmMessage: "Mark purchases in {month} as zero and complete the statement?"
+importZeroAmountCompleted: "Purchases in {month} were completed as zero"
 importDuplicateModalTitle: Duplicate Transactions
 importSkip: Skip
 importImportAnyway: Import anyway

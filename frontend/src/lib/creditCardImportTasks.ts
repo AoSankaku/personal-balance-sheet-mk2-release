@@ -1,14 +1,12 @@
 import type {
   Account,
   CreditCardSettings,
-  CreditCardStateEntry,
-  JournalEntry,
+  CreditCardStatementCompletion,
 } from "@balance-sheet/shared";
 import {
   creditCardBillingOffsetMonths,
   resolveCreditCardMonthDay,
   shiftCreditCardMonth,
-  usagePeriodForStatementMonth,
 } from "@balance-sheet/shared";
 
 export interface CreditCardImportTask {
@@ -17,23 +15,20 @@ export interface CreditCardImportTask {
   creditCardName: string;
   statementMonth: string;
   paymentMonth: string;
-  usagePeriod: { start: string; end: string };
 }
 
 interface ComputeCreditCardImportTasksInput {
   today: Date;
   accounts: Account[];
   creditCardSettings: CreditCardSettings[];
-  creditCardState: CreditCardStateEntry[];
-  journal: JournalEntry[];
+  completions: CreditCardStatementCompletion[];
 }
 
 export function computeCreditCardImportTasks({
   today,
   accounts,
   creditCardSettings,
-  creditCardState,
-  journal,
+  completions,
 }: ComputeCreditCardImportTasksInput): CreditCardImportTask[] {
   const paymentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const todayDay = today.getDate();
@@ -50,27 +45,12 @@ export function computeCreditCardImportTasks({
       paymentMonth,
       -creditCardBillingOffsetMonths(settings),
     );
-    const usagePeriod = usagePeriodForStatementMonth(
-      statementMonth,
-      settings.closing_day,
-    );
-    const hasUsage = journal.some(
-      (entry) =>
-        entry.date >= usagePeriod.start &&
-        entry.date <= usagePeriod.end &&
-        entry.lines.some(
-          (line) =>
-            line.account_id === settings.account_id && line.credit > 0,
-        ),
-    );
-    if (!hasUsage) return [];
-
-    const hasImportedStatement = creditCardState.some(
+    const hasCompletedStatement = completions.some(
       (entry) =>
         entry.account_id === settings.account_id &&
-        entry.payment_month === paymentMonth,
+        entry.statement_month === statementMonth,
     );
-    if (hasImportedStatement) return [];
+    if (hasCompletedStatement) return [];
 
     const account = accountById.get(settings.account_id);
     if (!account) return [];
@@ -82,7 +62,6 @@ export function computeCreditCardImportTasks({
         creditCardName: account.name,
         statementMonth,
         paymentMonth,
-        usagePeriod,
       },
     ];
   });

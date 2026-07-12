@@ -193,7 +193,7 @@ function useCreditCardWithdrawalRiskTasks(): CreditCardWithdrawalRiskTask[] {
 }
 
 function useCreditCardImportTasks(): CreditCardImportTask[] {
-  const { accounts, creditCardSettings, creditCardState, journal } =
+  const { accounts, creditCardSettings, creditCardStatementCompletions } =
     useAppData();
 
   if (localStorage.getItem("notif:creditCard") === "false") return [];
@@ -202,8 +202,7 @@ function useCreditCardImportTasks(): CreditCardImportTask[] {
     today: new Date(),
     accounts,
     creditCardSettings,
-    creditCardState,
-    journal,
+    completions: creditCardStatementCompletions,
   });
 }
 
@@ -366,7 +365,7 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
                       py={4}
                       style={{ borderRadius: 4 }}
                       onClick={() => {
-                        navigate("/input");
+                        navigate("/input", { state: { tab: "csv" } });
                         setOpened(false);
                       }}
                     >

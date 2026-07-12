@@ -708,6 +708,29 @@ export const creditCardSettings = sqliteTable("credit_card_settings", {
     .default(sql`(strftime('%Y-%m-%dT%H:%M:%SZ','now'))`),
 });
 
+export const creditCardStatementCompletions = sqliteTable(
+  "credit_card_statement_completions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    account_id: integer("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    statement_month: text("statement_month").notNull(),
+    payment_month: text("payment_month").notNull(),
+    completion_method: text("completion_method", {
+      enum: ["csv_import", "zero_amount"],
+    }).notNull(),
+    completed_at: text("completed_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    uniqueAccountStatementMonth: uniqueIndex(
+      "idx_credit_card_statement_completions_account_month_unique",
+    ).on(table.account_id, table.statement_month),
+  }),
+);
+
 export const loanSettlements = sqliteTable("loan_settlements", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   journal_entry_id: integer("journal_entry_id")
@@ -852,6 +875,10 @@ export type PlannedExpenseCompletionRequest =
   typeof plannedExpenseCompletionRequests.$inferSelect;
 export type CreditCardSettingsRow = typeof creditCardSettings.$inferSelect;
 export type NewCreditCardSettings = typeof creditCardSettings.$inferInsert;
+export type CreditCardStatementCompletion =
+  typeof creditCardStatementCompletions.$inferSelect;
+export type NewCreditCardStatementCompletion =
+  typeof creditCardStatementCompletions.$inferInsert;
 export type StoreAccountMapping = typeof storeAccountMappings.$inferSelect;
 export type NewStoreAccountMapping = typeof storeAccountMappings.$inferInsert;
 export type DepreciationSchedule = typeof depreciationSchedules.$inferSelect;

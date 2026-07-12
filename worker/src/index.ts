@@ -18,6 +18,7 @@ import { currenciesRouter } from "./routes/currencies";
 import { longTermLoanPlansRouter } from "./routes/longTermLoanPlans";
 import { plannedExpensesRouter } from "./routes/plannedExpenses";
 import { productApiCredentialsRouter } from "./routes/productApiCredentials";
+import { creditCardStatementsRouter } from "./routes/creditCardStatements";
 import {
   databaseNotInitializedResponse,
   isMissingD1TableError,
@@ -64,6 +65,7 @@ app.route("/api/crypto", cryptoRouter);
 app.route("/api/exchange-credentials", exchangeCredentialsRouter);
 app.route("/api/budget", budgetRouter);
 app.route("/api/credit-card-settings", creditCardSettingsRouter);
+app.route("/api/credit-card-statements", creditCardStatementsRouter);
 app.route("/api/store-mappings", storeMappingsRouter);
 app.route("/api/admin", adminRouter);
 app.route("/api/depreciation", depreciationRouter);

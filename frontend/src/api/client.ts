@@ -27,6 +27,8 @@ import type {
   BudgetSettings,
   CreditCardSettings,
   CreateCreditCardSettingsInput,
+  CreditCardStatementCompletion,
+  CompleteCreditCardStatementInput,
   StoreAccountMapping,
   UpsertStoreAccountMappingInput,
   DepreciationSchedule,
@@ -542,6 +544,20 @@ export const api = {
       request<{ success: boolean }>(`/credit-card-settings/${account_id}`, {
         method: "DELETE",
       }),
+  },
+  creditCardStatements: {
+    listCompletions: () =>
+      request<CreditCardStatementCompletion[]>(
+        "/credit-card-statements/completions",
+      ),
+    complete: (input: CompleteCreditCardStatementInput) =>
+      request<CreditCardStatementCompletion>(
+        "/credit-card-statements/completions",
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        },
+      ),
   },
   depreciation: {
     list: () => request<DepreciationSchedule[]>("/depreciation"),
