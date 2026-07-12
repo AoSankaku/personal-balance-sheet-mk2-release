@@ -48,6 +48,8 @@ import {
   applyPrivateAccountNames,
   buildPrivateAccountNameMap,
 } from "../lib/privacy";
+import { useLocation } from "react-router-dom";
+import { shouldRefreshMonthScopedData } from "../lib/overviewSummaryLoading";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
@@ -134,6 +136,7 @@ export function useAppData() {
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const { t, locale } = useLang();
+  const { pathname } = useLocation();
   const { privacyMode, maskAccountNames } = usePrivacy();
   const {
     prices,
@@ -448,6 +451,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   // filters are not month-specific and are refreshed by refreshBudget().
   useEffect(() => {
     if (!isInitialSetupComplete) return;
+    if (!shouldRefreshMonthScopedData(pathname)) return;
     void api.budget
       .summary(
         currentYearMonthRef.current,
@@ -456,16 +460,18 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       )
       .then(setBudgetSummary)
       .catch(() => {});
-  }, [currentYearMonth, displayCurrency, isInitialSetupComplete]);
+  }, [currentYearMonth, displayCurrency, isInitialSetupComplete, pathname]);
 
   useEffect(() => {
     if (!isInitialSetupComplete) return;
+    if (!shouldRefreshMonthScopedData(pathname)) return;
     void refreshAllocatable();
   }, [
     currentYearMonth,
     displayCurrency,
     refreshAllocatable,
     isInitialSetupComplete,
+    pathname,
   ]);
 
   // Stable callback — only depends on t (locale string) and the stable refreshCryptoBalances

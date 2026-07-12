@@ -49,11 +49,18 @@ import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { BalanceDisplay } from "../components/BalanceDisplay";
 import { accountDisplayNameFromName } from "../lib/accountUtils";
 import { formatCurrency } from "../lib/numberFormat";
+import {
+  getOverviewBudgetSkeletonCategoryIds,
+  getOverviewBudgetUsagePercentage,
+  isOverviewSummaryLoading,
+} from "../lib/overviewSummaryLoading";
 import classes from "./OverviewPage.module.css";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
 }
+
+const overviewSkeletonAmount = 888_888;
 
 function isAmountLine(line: JournalEntry["lines"][number]) {
   return line.debit !== 0 || line.credit !== 0;
@@ -160,19 +167,33 @@ function BudgetCategoryCard({
           >
             {formatCurrency(summary.available, locale, currency)}
           </Text>
-          {summary.reset_date ? (
-            <Badge size="xs" color="orange" variant="light" mt={4}>
-              {t("budgetResetBadge")} {summary.reset_date}
-            </Badge>
-          ) : summary.carryover > 0 ? (
-            <Badge size="xs" color="blue" variant="light" mt={4}>
-              {t("carryover")} +{formatCurrency(summary.carryover, locale, currency)}
-            </Badge>
-          ) : summary.carryover < 0 ? (
-            <Badge size="xs" color="red" variant="light" mt={4}>
-              {t("carryover")} {formatCurrency(summary.carryover, locale, currency)}
-            </Badge>
-          ) : null}
+          <Box mt={4}>
+            {summary.reset_date ? (
+              <Badge size="xs" color="orange" variant="light">
+                {t("budgetResetBadge")} {summary.reset_date}
+              </Badge>
+            ) : summary.carryover > 0 ? (
+              <Badge size="xs" color="blue" variant="light">
+                {t("carryover")} +
+                {formatCurrency(summary.carryover, locale, currency)}
+              </Badge>
+            ) : summary.carryover < 0 ? (
+              <Badge size="xs" color="red" variant="light">
+                {t("carryover")}{" "}
+                {formatCurrency(summary.carryover, locale, currency)}
+              </Badge>
+            ) : (
+              <Badge
+                size="xs"
+                variant="light"
+                aria-hidden="true"
+                style={{ visibility: "hidden" }}
+              >
+                {t("carryover")} +
+                {formatCurrency(overviewSkeletonAmount, locale, currency)}
+              </Badge>
+            )}
+          </Box>
         </Box>
       </Group>
       <Box pos="relative" mb={6}>
@@ -370,6 +391,21 @@ export default function OverviewPage() {
     error,
   } = useAppData();
   const selectedCurrency = normalizeCurrency(displayCurrency);
+  const budgetSkeletonCategoryIds = useMemo(
+    () => getOverviewBudgetSkeletonCategoryIds(budgetCategories),
+    [budgetCategories],
+  );
+  const budgetSkeletonCategories = useMemo(() => {
+    const categoryIds = new Set(budgetSkeletonCategoryIds);
+    return budgetCategories.filter((category) => categoryIds.has(category.id));
+  }, [budgetCategories, budgetSkeletonCategoryIds]);
+  const hasSavingsBudgetCategory = useMemo(
+    () =>
+      budgetCategories.some(
+        (category) => category.budget_group === "貯蓄",
+      ),
+    [budgetCategories],
+  );
 
   const [importReminders, setImportReminders] = useState<string[]>([]);
   const [ccState, setCcState] = useState<CreditCardStateEntry[]>([]);
@@ -446,28 +482,64 @@ export default function OverviewPage() {
 
   // Single date state drives both month context and as-of filter
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-  const [filteredSummary, setFilteredSummary] = useState<BudgetSummary | null>(
-    null,
-  );
+  const [filteredSummaryRequest, setFilteredSummaryRequest] = useState<{
+    key: string | null;
+    pending: boolean;
+    summary: BudgetSummary | null;
+  }>({ key: null, pending: false, summary: null });
+
+  const selectedSummaryKey = selectedDate
+    ? `${dayjs(selectedDate).format("YYYY-MM-DD")}|${selectedCurrency}`
+    : null;
 
   useEffect(() => {
     if (!selectedDate) {
-      setFilteredSummary(null);
+      setFilteredSummaryRequest({ key: null, pending: false, summary: null });
       return;
     }
     const ym = dayjs(selectedDate).format("YYYY-MM");
     const asOfStr = dayjs(selectedDate).format("YYYY-MM-DD");
+    const requestKey = `${asOfStr}|${selectedCurrency}`;
     setCurrentYearMonth(ym);
-    let cancelled = false;
-    void api.budget.summary(ym, asOfStr, selectedCurrency).then((s) => {
-      if (!cancelled) setFilteredSummary(s);
+    setFilteredSummaryRequest({
+      key: requestKey,
+      pending: true,
+      summary: null,
     });
+    let cancelled = false;
+    void api.budget
+      .summary(ym, asOfStr, selectedCurrency)
+      .then((summary) => {
+        if (!cancelled) {
+          setFilteredSummaryRequest({
+            key: requestKey,
+            pending: false,
+            summary,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFilteredSummaryRequest({
+            key: requestKey,
+            pending: false,
+            summary: null,
+          });
+        }
+      });
     return () => {
       cancelled = true;
     };
   }, [selectedDate, selectedCurrency, setCurrentYearMonth]);
 
-  const displaySummary = selectedDate ? filteredSummary : budgetSummary;
+  const summaryLoading = isOverviewSummaryLoading({
+    selectionKey: selectedSummaryKey,
+    requestKey: filteredSummaryRequest.key,
+    requestPending: filteredSummaryRequest.pending,
+  });
+  const displaySummary = selectedDate
+    ? filteredSummaryRequest.summary
+    : budgetSummary;
 
   const handlePrevMonth = () => {
     if (selectedDate) {
@@ -512,8 +584,10 @@ export default function OverviewPage() {
     0,
   );
 
-  const totalPct =
-    expenseTotalBudget > 0 ? (expenseTotalSpent / expenseTotalBudget) * 100 : 0;
+  const totalPct = getOverviewBudgetUsagePercentage(
+    expenseTotalBudget,
+    expenseTotalSpent,
+  );
 
   // Recent transactions
   const [txShowCount, setTxShowCount] = useState(5);
@@ -647,7 +721,85 @@ export default function OverviewPage() {
       </Group>
 
       {/* Total available balance */}
-      {displaySummary && (
+      {summaryLoading ? (
+        <Box className={classes.hero} role="status" aria-label="Loading amounts">
+          <Stack gap="lg" className={classes.heroContent}>
+            <Box className={classes.heroMetrics}>
+              <Box className={classes.primaryMetric}>
+                <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={8}>
+                  {t("availableBalance")}
+                  {selectedDate &&
+                    !dayjs(selectedDate).isSame(dayjs(), "day") && (
+                      <Text span fw={500} tt="none" c="teal" ml={6}>
+                        ·{" "}
+                        {dayjs(selectedDate).format(
+                          locale === "ja" ? "M月D日[時点]" : "[as of] MMM D",
+                        )}
+                      </Text>
+                    )}
+                </Text>
+                <Skeleton width="fit-content" radius="sm">
+                  <BalanceDisplay
+                    amount={overviewSkeletonAmount}
+                    currency={selectedCurrency}
+                    fw={900}
+                    c="dimmed"
+                  />
+                </Skeleton>
+              </Box>
+              <Box className={classes.secondaryMetric}>
+                <Text size="xs" c="dimmed" mb={5}>
+                  {t("used")}
+                </Text>
+                <Skeleton width="fit-content" radius="sm">
+                  <Text fw={700} size="lg" className="currency-token">
+                    {formatCurrency(
+                      overviewSkeletonAmount,
+                      locale,
+                      selectedCurrency,
+                    )}
+                  </Text>
+                </Skeleton>
+              </Box>
+              <Box className={classes.secondaryMetric}>
+                <Text size="xs" c="dimmed" mb={5}>
+                  {t("budget")}
+                </Text>
+                <Skeleton width="fit-content" radius="sm">
+                  <Text fw={700} size="lg" className="currency-token">
+                    {formatCurrency(
+                      overviewSkeletonAmount,
+                      locale,
+                      selectedCurrency,
+                    )}
+                  </Text>
+                </Skeleton>
+              </Box>
+            </Box>
+            <Box>
+              <Group justify="space-between" mb={8}>
+                <Skeleton width="fit-content" radius="sm">
+                  <Text size="xs" c="dimmed">
+                    0.0% {t("used")}
+                  </Text>
+                </Skeleton>
+                <Skeleton width="fit-content" radius="sm">
+                  <Text size="xs" c="dimmed" fw={700}>
+                    {formatCurrency(
+                      overviewSkeletonAmount,
+                      locale,
+                      selectedCurrency,
+                    )}
+                  </Text>
+                </Skeleton>
+              </Group>
+              <Skeleton radius="xl">
+                <Progress value={0} color="teal" size="md" radius="xl" />
+              </Skeleton>
+            </Box>
+          </Stack>
+        </Box>
+      ) : displaySummary ? (
         <Box className={classes.hero}>
           <Stack gap="lg" className={classes.heroContent}>
             <Box className={classes.heroMetrics}>
@@ -672,83 +824,152 @@ export default function OverviewPage() {
                 />
               </Box>
 
-              {expenseTotalBudget > 0 && (
-                <>
-                  <Box className={classes.secondaryMetric}>
-                    <Text size="xs" c="dimmed" mb={5}>
-                      {t("used")}
-                    </Text>
-                    <Text fw={700} size="lg" className="currency-token">
-                      {formatCurrency(
-                        expenseTotalSpent,
-                        locale,
-                        selectedCurrency,
-                      )}
-                    </Text>
-                  </Box>
-                  <Box className={classes.secondaryMetric}>
-                    <Text size="xs" c="dimmed" mb={5}>
-                      {t("budget")}
-                    </Text>
-                    <Text fw={700} size="lg" className="currency-token">
-                      {formatCurrency(
-                        expenseTotalBudget,
-                        locale,
-                        selectedCurrency,
-                      )}
-                    </Text>
-                  </Box>
-                </>
-              )}
+              <Box className={classes.secondaryMetric}>
+                <Text size="xs" c="dimmed" mb={5}>
+                  {t("used")}
+                </Text>
+                <Text fw={700} size="lg" className="currency-token">
+                  {formatCurrency(
+                    expenseTotalSpent,
+                    locale,
+                    selectedCurrency,
+                  )}
+                </Text>
+              </Box>
+              <Box className={classes.secondaryMetric}>
+                <Text size="xs" c="dimmed" mb={5}>
+                  {t("budget")}
+                </Text>
+                <Text fw={700} size="lg" className="currency-token">
+                  {formatCurrency(
+                    expenseTotalBudget,
+                    locale,
+                    selectedCurrency,
+                  )}
+                </Text>
+              </Box>
             </Box>
 
-            {expenseTotalBudget > 0 && (
-              <Box>
-                <Group justify="space-between" mb={8}>
+            <Box>
+              <Group justify="space-between" mb={8}>
+                <Text size="xs" c="dimmed">
+                  {totalPct === null ? "—" : `${totalPct.toFixed(1)}%`}{" "}
+                  {t("used")}
+                </Text>
+                <Text
+                  size="xs"
+                  c={expenseTotalAvailable >= 0 ? "teal" : "red"}
+                  fw={700}
+                >
+                  {formatCurrency(
+                    expenseTotalAvailable,
+                    locale,
+                    selectedCurrency,
+                  )}
+                </Text>
+              </Group>
+              <Box pos="relative">
+                <Progress
+                  value={totalPct === null ? 0 : Math.min(100, totalPct)}
+                  color={expenseTotalAvailable >= 0 ? "teal" : "red"}
+                  size="md"
+                  radius="xl"
+                />
+                {totalPct !== null && totalPct > 100 && (
+                  <Box pos="absolute" top={0} left={0} right={0}>
+                    <Progress
+                      value={Math.min(100, totalPct - 100)}
+                      color="red.9"
+                      size="md"
+                      radius="xl"
+                      striped
+                      animated
+                      styles={{ root: { background: "transparent" } }}
+                    />
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          </Stack>
+        </Box>
+      ) : null}
+
+      {/* Budget category cards (non-savings) */}
+      {summaryLoading ? (
+        <Box
+          className={classes.section}
+          role="status"
+          aria-label="Loading amounts"
+        >
+          <Group justify="space-between" className={classes.sectionHeader}>
+            <Text fw={700}>{t("budgetTitle")}</Text>
+          </Group>
+          <Box className={classes.categoryGrid}>
+            {budgetSkeletonCategories.map((category) => (
+              <Box key={category.id} className={classes.categoryItem}>
+                <Group justify="space-between" align="flex-start" mb={8}>
+                  <Group gap={6} style={{ flex: 1 }}>
+                    <ThemeIcon
+                      variant="light"
+                      color="teal"
+                      size={28}
+                      radius="xl"
+                    >
+                      <IconWallet size={15} />
+                    </ThemeIcon>
+                    <Text fw={600} size="sm">
+                      {category.name}
+                    </Text>
+                  </Group>
+                  <Box ta="right">
+                    <Skeleton width="fit-content" radius="sm">
+                      <Text fw={800} size="lg" c="dimmed" lh={1}>
+                        {formatCurrency(
+                          overviewSkeletonAmount,
+                          locale,
+                          selectedCurrency,
+                        )}
+                      </Text>
+                    </Skeleton>
+                    <Box mt={4}>
+                      <Skeleton width="fit-content" radius="xl">
+                        <Badge size="xs" variant="light">
+                          {t("carryover")} +
+                          {formatCurrency(
+                            overviewSkeletonAmount,
+                            locale,
+                            selectedCurrency,
+                          )}
+                        </Badge>
+                      </Skeleton>
+                    </Box>
+                  </Box>
+                </Group>
+                <Box pos="relative" mb={6}>
+                  <Skeleton radius="xl">
+                    <Progress value={0} color="teal" size="md" radius="xl" />
+                  </Skeleton>
+                </Box>
+                <Skeleton width="55%" radius="sm">
                   <Text size="xs" c="dimmed">
-                    {totalPct.toFixed(1)}% {t("used")}
-                  </Text>
-                  <Text
-                    size="xs"
-                    c={expenseTotalAvailable >= 0 ? "teal" : "red"}
-                    fw={700}
-                  >
                     {formatCurrency(
-                      expenseTotalAvailable,
+                      overviewSkeletonAmount,
+                      locale,
+                      selectedCurrency,
+                    )}{" "}
+                    /{" "}
+                    {formatCurrency(
+                      overviewSkeletonAmount,
                       locale,
                       selectedCurrency,
                     )}
                   </Text>
-                </Group>
-                <Box pos="relative">
-                  <Progress
-                    value={Math.min(100, totalPct)}
-                    color={expenseTotalAvailable >= 0 ? "teal" : "red"}
-                    size="md"
-                    radius="xl"
-                  />
-                  {totalPct > 100 && (
-                    <Box pos="absolute" top={0} left={0} right={0}>
-                      <Progress
-                        value={Math.min(100, totalPct - 100)}
-                        color="red.9"
-                        size="md"
-                        radius="xl"
-                        striped
-                        animated
-                        styles={{ root: { background: "transparent" } }}
-                      />
-                    </Box>
-                  )}
-                </Box>
+                </Skeleton>
               </Box>
-            )}
-          </Stack>
+            ))}
+          </Box>
         </Box>
-      )}
-
-      {/* Budget category cards (non-savings) */}
-      {budgetCategories.length === 0 ? (
+      ) : budgetCategories.length === 0 ? (
         <Center py="xl">
           <Stack align="center" gap="xs">
             <Text c="dimmed" size="sm">
@@ -763,9 +984,6 @@ export default function OverviewPage() {
         <Box className={classes.section}>
           <Group justify="space-between" className={classes.sectionHeader}>
             <Text fw={700}>{t("budgetTitle")}</Text>
-            <Text size="xs" c="dimmed">
-              {expenseCategories.length}
-            </Text>
           </Group>
           <Box className={classes.categoryGrid}>
             {(displaySummary?.categories ?? [])
@@ -784,116 +1002,153 @@ export default function OverviewPage() {
       )}
 
       {/* Budget including savings summary + link to savings page */}
-      {displaySummary && displaySummary.total_budget > 0 && (
-        <>
-          <Box className={classes.summaryStrip}>
-            <Group justify="space-between" align="center" wrap="wrap">
-              <Box>
-                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                  {t("budgetIncludingSavings")}
-                </Text>
+      {summaryLoading ? (
+        <Box
+          className={classes.summaryStrip}
+          role="status"
+          aria-label="Loading amounts"
+        >
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Box>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                {t("budgetIncludingSavings")}
+              </Text>
+              <Skeleton width="fit-content" radius="sm">
                 <Text size="sm" c="dimmed" mt={3}>
                   {formatCurrency(
-                    displaySummary.total_spent,
+                    overviewSkeletonAmount,
                     locale,
                     selectedCurrency,
                   )}{" "}
                   /{" "}
                   {formatCurrency(
-                    displaySummary.total_budget,
+                    overviewSkeletonAmount,
                     locale,
                     selectedCurrency,
                   )}
                 </Text>
-              </Box>
-              <Group gap="sm">
+              </Skeleton>
+            </Box>
+            <Group gap="sm">
+              <Skeleton width="fit-content" radius="sm">
                 <Text
                   fw={800}
-                  c={displaySummary.total_available >= 0 ? "teal" : "red"}
+                  c="dimmed"
                   className="currency-token"
                 >
                   {formatCurrency(
-                    displaySummary.total_available,
+                    overviewSkeletonAmount,
                     locale,
                     selectedCurrency,
                   )}
                 </Text>
-                {(displaySummary.categories ?? []).some(
-                  (s) => s.category.budget_group === "貯蓄",
-                ) && (
-                  <Button
-                    component={Link}
-                    to="/fs/sv"
-                    variant="subtle"
-                    size="xs"
-                    color="teal"
-                    leftSection={<IconPigMoney size={13} />}
-                  >
-                    {t("svViewDetails")}
-                  </Button>
-                )}
-              </Group>
+              </Skeleton>
+              {hasSavingsBudgetCategory && (
+                <Button
+                  component={Link}
+                  to="/fs/sv"
+                  variant="subtle"
+                  size="xs"
+                  color="teal"
+                  leftSection={<IconPigMoney size={13} />}
+                >
+                  {t("svViewDetails")}
+                </Button>
+              )}
             </Group>
-          </Box>
+          </Group>
+        </Box>
+      ) : displaySummary ? (
+        <Box className={classes.summaryStrip}>
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Box>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                {t("budgetIncludingSavings")}
+              </Text>
+              <Text size="sm" c="dimmed" mt={3}>
+                {formatCurrency(
+                  displaySummary.total_spent,
+                  locale,
+                  selectedCurrency,
+                )}{" "}
+                /{" "}
+                {formatCurrency(
+                  displaySummary.total_budget,
+                  locale,
+                  selectedCurrency,
+                )}
+              </Text>
+            </Box>
+            <Group gap="sm">
+              <Text
+                fw={800}
+                c={displaySummary.total_available >= 0 ? "teal" : "red"}
+                className="currency-token"
+              >
+                {formatCurrency(
+                  displaySummary.total_available,
+                  locale,
+                  selectedCurrency,
+                )}
+              </Text>
+              {hasSavingsBudgetCategory && (
+                <Button
+                  component={Link}
+                  to="/fs/sv"
+                  variant="subtle"
+                  size="xs"
+                  color="teal"
+                  leftSection={<IconPigMoney size={13} />}
+                >
+                  {t("svViewDetails")}
+                </Button>
+              )}
+            </Group>
+          </Group>
+        </Box>
+      ) : null}
 
-          <Box className={classes.quickLinks}>
-            <UnstyledButton
-              component={Link}
-              to="/shopping-list"
-              className={classes.quickLink}
-            >
-              <ThemeIcon variant="light" color="green" radius="xl" size={38}>
-                <IconShoppingCart size={19} />
-              </ThemeIcon>
-              <Text
-                fw={600}
-                size="sm"
-                truncate
-                className={classes.quickLinkLabel}
-              >
-                {t("shoppingListTitle")}
-              </Text>
-              <IconArrowUpRight size={16} color="var(--mantine-color-dimmed)" />
-            </UnstyledButton>
-            <UnstyledButton
-              component={Link}
-              to="/wishlist"
-              className={classes.quickLink}
-            >
-              <ThemeIcon variant="light" color="pink" radius="xl" size={38}>
-                <IconGift size={19} />
-              </ThemeIcon>
-              <Text
-                fw={600}
-                size="sm"
-                truncate
-                className={classes.quickLinkLabel}
-              >
-                {t("wishlistTitle")}
-              </Text>
-              <IconArrowUpRight size={16} color="var(--mantine-color-dimmed)" />
-            </UnstyledButton>
-            <UnstyledButton
-              component={Link}
-              to="/scheduled-payments"
-              className={classes.quickLink}
-            >
-              <ThemeIcon variant="light" color="blue" radius="xl" size={38}>
-                <IconCalendarDollar size={19} />
-              </ThemeIcon>
-              <Text
-                fw={600}
-                size="sm"
-                truncate
-                className={classes.quickLinkLabel}
-              >
-                {t("scheduledPaymentsTitle")}
-              </Text>
-              <IconArrowUpRight size={16} color="var(--mantine-color-dimmed)" />
-            </UnstyledButton>
-          </Box>
-        </>
-      )}
+      <Box className={classes.quickLinks}>
+        <UnstyledButton
+          component={Link}
+          to="/shopping-list"
+          className={classes.quickLink}
+        >
+          <ThemeIcon variant="light" color="green" radius="xl" size={38}>
+            <IconShoppingCart size={19} />
+          </ThemeIcon>
+          <Text fw={600} size="sm" truncate className={classes.quickLinkLabel}>
+            {t("shoppingListTitle")}
+          </Text>
+          <IconArrowUpRight size={16} color="var(--mantine-color-dimmed)" />
+        </UnstyledButton>
+        <UnstyledButton
+          component={Link}
+          to="/wishlist"
+          className={classes.quickLink}
+        >
+          <ThemeIcon variant="light" color="pink" radius="xl" size={38}>
+            <IconGift size={19} />
+          </ThemeIcon>
+          <Text fw={600} size="sm" truncate className={classes.quickLinkLabel}>
+            {t("wishlistTitle")}
+          </Text>
+          <IconArrowUpRight size={16} color="var(--mantine-color-dimmed)" />
+        </UnstyledButton>
+        <UnstyledButton
+          component={Link}
+          to="/scheduled-payments"
+          className={classes.quickLink}
+        >
+          <ThemeIcon variant="light" color="blue" radius="xl" size={38}>
+            <IconCalendarDollar size={19} />
+          </ThemeIcon>
+          <Text fw={600} size="sm" truncate className={classes.quickLinkLabel}>
+            {t("scheduledPaymentsTitle")}
+          </Text>
+          <IconArrowUpRight size={16} color="var(--mantine-color-dimmed)" />
+        </UnstyledButton>
+      </Box>
 
       {/* Recent transactions */}
       <Box className={classes.transactions}>
