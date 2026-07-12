@@ -66,6 +66,7 @@ hardReloadAccessMessage: "Cloudflare Access te pide que inicies sesión de nuevo
 hardReloadVersionTitle: "Nueva versión disponible"
 hardReloadVersionMessage: "Se ha implementado una nueva versión. Selecciona Recargar ahora para actualizar la aplicación."
 networkOfflineError: "Parece que no tienes conexión. Comprueba tu conexión de red e inténtalo de nuevo."
+offlineModeLabel: Modo sin conexión
 internalServerError: "Error Interno del Servidor"
 accountAdded: "Cuenta agregada"
 accountDeleted: "Cuenta eliminada"

@@ -66,6 +66,7 @@ hardReloadAccessMessage: "Cloudflare Access vous demande de vous reconnecter. Re
 hardReloadVersionTitle: "Nouvelle version disponible"
 hardReloadVersionMessage: "Une nouvelle version a été déployée. Sélectionnez Recharger maintenant pour mettre l'application à jour."
 networkOfflineError: "Vous semblez être hors ligne. Vérifiez votre connexion réseau, puis réessayez."
+offlineModeLabel: Mode hors ligne
 internalServerError: "Erreur interne du serveur"
 accountAdded: "Compte ajouté"
 accountDeleted: "Compte supprimé"

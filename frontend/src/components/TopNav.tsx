@@ -7,6 +7,7 @@ import {
   Select,
   Stack,
   Text,
+  ThemeIcon,
   Title,
   UnstyledButton,
   useComputedColorScheme,
@@ -18,6 +19,7 @@ import {
   IconPencil,
   IconReportMoney,
   IconSettings,
+  IconWifiOff,
 } from "@tabler/icons-react";
 import { useMediaQuery } from "@mantine/hooks";
 import { useEffect, useState } from "react";
@@ -730,6 +732,7 @@ export function TopNav({
 }: TopNavProps) {
   const { t } = useLang();
   const computed = useComputedColorScheme("light");
+  const isOnline = useOnlineStatus();
 
   const navItems: NavLinkItem[] = [
     {
@@ -767,17 +770,31 @@ export function TopNav({
           }
         `}</style>
         <div className="title-version-row">
-          <Title
-            order={4}
-            style={{
-              fontSize: "clamp(0.7rem, 4vw, var(--mantine-h4-font-size))",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {t("appTitle")}
-          </Title>
+          <Group gap={5} wrap="nowrap">
+            {!isOnline && (
+              <ThemeIcon
+                color="yellow"
+                variant="light"
+                radius="xl"
+                size="sm"
+                aria-label={t("offlineModeLabel")}
+                title={t("offlineModeLabel")}
+              >
+                <IconWifiOff size={14} aria-hidden="true" />
+              </ThemeIcon>
+            )}
+            <Title
+              order={4}
+              style={{
+                fontSize: "clamp(0.7rem, 4vw, var(--mantine-h4-font-size))",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {t("appTitle")}
+            </Title>
+          </Group>
           <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap" }}>
             v{VERSION}
           </Text>

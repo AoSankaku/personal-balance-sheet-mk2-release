@@ -66,6 +66,7 @@ hardReloadAccessMessage: Cloudflare Access is asking you to sign in again. Hard 
 hardReloadVersionTitle: New version available
 hardReloadVersionMessage: A newer version has been deployed. Select Reload now to update to the latest app.
 networkOfflineError: You appear to be offline. Check your network connection and try again.
+offlineModeLabel: Offline mode
 internalServerError: Internal Server Error
 accountAdded: Account added
 accountDeleted: Account deleted
