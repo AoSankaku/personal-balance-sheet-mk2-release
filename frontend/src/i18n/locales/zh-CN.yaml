@@ -489,6 +489,8 @@ importZeroAmountTitle: 无信用卡消费的月份
 importZeroAmountHint: 最终账单金额为零时，可将该月标记为已完成。
 importZeroAmountSettingsRequired: 请先设置此卡的结账日和确认日。
 importZeroAmountBeforeConfirmation: 确认日后可将该月按零元完成。
+importZeroAmountMonthLabel: 消费月份
+importZeroAmountNoSelectableMonths: 没有可选择的未完成消费月份。
 importZeroAmountButton: "将 {month} 消费记为零元"
 importZeroAmountButtonNoMonth: 将该月记为零元
 importZeroAmountConfirmTitle: 确认零元账单

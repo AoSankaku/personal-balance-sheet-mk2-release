@@ -1,9 +1,8 @@
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import {
-  creditCardBillingOffsetMonths,
+  paymentMonthForStatementMonth,
   resolveCreditCardMonthDay,
-  shiftCreditCardMonth,
   type CompleteCreditCardStatementInput,
 } from "@balance-sheet/shared";
 import { createDb, type Env } from "../db";
@@ -41,19 +40,35 @@ router.post("/completions", async (c) => {
   }
 
   const today = toLocalDateString();
-  const paymentMonth = today.slice(0, 7);
+  const paymentMonth = paymentMonthForStatementMonth(
+    body.statement_month,
+    settings,
+  );
   const confirmationDay = resolveCreditCardMonthDay(
     paymentMonth,
     settings.confirmation_day,
   );
-  const expectedStatementMonth = shiftCreditCardMonth(
-    paymentMonth,
-    -creditCardBillingOffsetMonths(settings),
+  const confirmationDate = `${paymentMonth}-${String(confirmationDay).padStart(2, "0")}`;
+  const settingsCreationMonth = settings.created_at.slice(0, 7);
+  const existingCompletions = await db
+    .select()
+    .from(creditCardStatementCompletions)
+    .where(eq(creditCardStatementCompletions.account_id, body.account_id));
+  const latestCompletedStatementMonth = existingCompletions.reduce<
+    string | null
+  >(
+    (latest, completion) =>
+      latest === null || completion.statement_month > latest
+        ? completion.statement_month
+        : latest,
+    null,
   );
   if (
-    Number(today.slice(8, 10)) < confirmationDay ||
+    today < confirmationDate ||
     body.payment_month !== paymentMonth ||
-    body.statement_month !== expectedStatementMonth
+    body.statement_month < settingsCreationMonth ||
+    (latestCompletedStatementMonth !== null &&
+      body.statement_month <= latestCompletedStatementMonth)
   ) {
     return c.json({ error: "statement_not_ready" }, 409);
   }
@@ -61,21 +76,11 @@ router.post("/completions", async (c) => {
   const [completion] = await db
     .insert(creditCardStatementCompletions)
     .values(body)
-    .onConflictDoUpdate({
-      target: [
-        creditCardStatementCompletions.account_id,
-        creditCardStatementCompletions.statement_month,
-      ],
-      set: {
-        payment_month: body.payment_month,
-        completion_method: body.completion_method,
-        completed_at: new Date().toISOString().replace("T", " ").slice(0, 19),
-      },
-    })
+    .onConflictDoNothing()
     .returning();
 
   if (!completion) {
-    return c.json({ error: "statement_completion_failed" }, 500);
+    return c.json({ error: "statement_already_completed" }, 409);
   }
   return c.json(completion, 201);
 });

@@ -489,6 +489,8 @@ importZeroAmountTitle: 利用がなかった月
 importZeroAmountHint: 確定した明細が0円だった場合、その月の確認を完了できます。
 importZeroAmountSettingsRequired: このカードの締め日・確定日を設定してください。
 importZeroAmountBeforeConfirmation: 確定日以降に0円として完了できます。
+importZeroAmountMonthLabel: 対象利用月
+importZeroAmountNoSelectableMonths: 選択できる未完了の利用月はありません。
 importZeroAmountButton: "{month}利用分は0円として記入したこととする"
 importZeroAmountButtonNoMonth: 0円として記入したこととする
 importZeroAmountConfirmTitle: 0円として確認を完了

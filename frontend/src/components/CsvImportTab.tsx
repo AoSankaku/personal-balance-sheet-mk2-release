@@ -67,7 +67,7 @@ import {
 import { countMissingCounterAccountWarnings } from "../utils/csvImportWarnings";
 import {
   getAutomaticStatementCompletion,
-  getZeroAmountStatementCompletion,
+  getSelectableZeroAmountCompletions,
 } from "../lib/creditCardStatementCompletion";
 import {
   accountDisplayNameFromName,
@@ -94,6 +94,7 @@ export function CsvImportTab({
     journal,
     budgetCategories,
     creditCardSettings,
+    creditCardStatementCompletions,
     refreshCreditCardStatementCompletions,
   } = useAppData();
 
@@ -111,6 +112,9 @@ export function CsvImportTab({
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [importing, setImporting] = useState(false);
   const [zeroAmountAccountId, setZeroAmountAccountId] = useState<
+    string | null
+  >(null);
+  const [zeroAmountStatementMonth, setZeroAmountStatementMonth] = useState<
     string | null
   >(null);
   const [zeroAmountConfirmOpened, setZeroAmountConfirmOpened] = useState(false);
@@ -190,15 +194,33 @@ export function CsvImportTab({
   const zeroAmountSettings = creditCardSettings.find(
     (settings) => String(settings.account_id) === zeroAmountAccountId,
   );
-  const zeroAmountCompletion = getZeroAmountStatementCompletion(
-    new Date(),
-    zeroAmountSettings,
+  const zeroAmountCandidates = useMemo(
+    () =>
+      getSelectableZeroAmountCompletions(
+        new Date(),
+        zeroAmountSettings,
+        creditCardStatementCompletions,
+      ),
+    [zeroAmountSettings, creditCardStatementCompletions],
+  );
+  const zeroAmountCompletion = zeroAmountCandidates.find(
+    (candidate) => candidate.statement_month === zeroAmountStatementMonth,
   );
   const zeroAmountMonth = zeroAmountCompletion
     ? new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(
         new Date(`${zeroAmountCompletion.statement_month}-01T00:00:00`),
       )
     : null;
+
+  useEffect(() => {
+    setZeroAmountStatementMonth((current) =>
+      zeroAmountCandidates.some(
+        (candidate) => candidate.statement_month === current,
+      )
+        ? current
+        : (zeroAmountCandidates[0]?.statement_month ?? null),
+    );
+  }, [zeroAmountCandidates]);
 
   function applyStoreMappingsToRows(
     txs: ParsedTransaction[],
@@ -865,8 +887,25 @@ export function CsvImportTab({
                 {t("importZeroAmountSettingsRequired")}
               </Alert>
             )}
-            {zeroAmountSettings && !zeroAmountCompletion && (
-              <Alert color="blue">{t("importZeroAmountBeforeConfirmation")}</Alert>
+            {zeroAmountSettings && zeroAmountCandidates.length === 0 && (
+              <Alert color="blue">{t("importZeroAmountNoSelectableMonths")}</Alert>
+            )}
+            {zeroAmountSettings && zeroAmountCandidates.length > 0 && (
+              <Select
+                label={t("importZeroAmountMonthLabel")}
+                data={zeroAmountCandidates.map((candidate) => ({
+                  value: candidate.statement_month,
+                  label: new Intl.DateTimeFormat(locale, {
+                    year: "numeric",
+                    month: "long",
+                  }).format(
+                    new Date(`${candidate.statement_month}-01T00:00:00`),
+                  ),
+                }))}
+                value={zeroAmountStatementMonth}
+                onChange={setZeroAmountStatementMonth}
+                allowDeselect={false}
+              />
             )}
             <Group justify="flex-end">
               <Button

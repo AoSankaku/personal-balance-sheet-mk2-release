@@ -489,6 +489,8 @@ importZeroAmountTitle: Months with no card usage
 importZeroAmountHint: Mark the month complete when the finalized statement total is zero.
 importZeroAmountSettingsRequired: Configure the closing and confirmation dates for this card first.
 importZeroAmountBeforeConfirmation: You can mark the month as zero after its confirmation date.
+importZeroAmountMonthLabel: Purchase month
+importZeroAmountNoSelectableMonths: There are no eligible incomplete purchase months.
 importZeroAmountButton: "Mark purchases in {month} as zero"
 importZeroAmountButtonNoMonth: Mark the month as zero
 importZeroAmountConfirmTitle: Confirm a zero statement

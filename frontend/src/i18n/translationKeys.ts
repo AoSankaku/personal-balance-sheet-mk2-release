@@ -492,6 +492,8 @@ export const translationKeys = [
   "importZeroAmountHint",
   "importZeroAmountSettingsRequired",
   "importZeroAmountBeforeConfirmation",
+  "importZeroAmountMonthLabel",
+  "importZeroAmountNoSelectableMonths",
   "importZeroAmountButton",
   "importZeroAmountButtonNoMonth",
   "importZeroAmountConfirmTitle",

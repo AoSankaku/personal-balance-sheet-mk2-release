@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 import type { CreditCardSettings } from "@balance-sheet/shared";
 import {
   getAutomaticStatementCompletion,
+  getSelectableZeroAmountCompletions,
   getZeroAmountStatementCompletion,
 } from "./creditCardStatementCompletion";
+import type { CreditCardStatementCompletion } from "@balance-sheet/shared";
 
 const settings: CreditCardSettings = {
   id: 1,
@@ -105,5 +107,74 @@ describe("credit card statement completion", () => {
       payment_month: "2026-07",
       completion_method: "zero_amount",
     });
+  });
+
+  test("offers only ready months from the card settings creation month onward", () => {
+    const targets = getSelectableZeroAmountCompletions(
+      new Date("2026-07-20T12:00:00+09:00"),
+      { ...settings, created_at: "2026-05-01T00:00:00Z" },
+      [],
+    );
+
+    expect(targets.map((target) => target.statement_month)).toEqual([
+      "2026-05",
+      "2026-06",
+    ]);
+  });
+
+  test("does not offer an incomplete month older than the latest completion", () => {
+    const completions: CreditCardStatementCompletion[] = [
+      {
+        id: 1,
+        account_id: 10,
+        statement_month: "2026-05",
+        payment_month: "2026-06",
+        completion_method: "csv_import",
+        completed_at: "2026-06-20T00:00:00Z",
+      },
+    ];
+
+    const targets = getSelectableZeroAmountCompletions(
+      new Date("2026-07-20T12:00:00+09:00"),
+      { ...settings, created_at: "2026-03-01T00:00:00Z" },
+      completions,
+    );
+
+    expect(targets.map((target) => target.statement_month)).toEqual([
+      "2026-06",
+    ]);
+  });
+
+  test("does not offer the current cycle before its confirmation day", () => {
+    const targets = getSelectableZeroAmountCompletions(
+      new Date("2026-07-19T12:00:00+09:00"),
+      { ...settings, created_at: "2026-05-01T00:00:00Z" },
+      [],
+    );
+
+    expect(targets.map((target) => target.statement_month)).toEqual([
+      "2026-05",
+    ]);
+  });
+
+  test("returns no choices when the latest ready month is already complete", () => {
+    const completions: CreditCardStatementCompletion[] = [
+      {
+        id: 1,
+        account_id: 10,
+        statement_month: "2026-06",
+        payment_month: "2026-07",
+        completion_method: "zero_amount",
+        completed_at: "2026-07-20T00:00:00Z",
+      },
+    ];
+
+    expect(
+      getSelectableZeroAmountCompletions(
+        new Date("2026-07-20T12:00:00+09:00"),
+        { ...settings, created_at: "2026-05-01T00:00:00Z" },
+        completions,
+      ),
+    ).toEqual([]);
   });
 });
