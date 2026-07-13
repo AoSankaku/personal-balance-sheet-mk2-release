@@ -49,4 +49,22 @@ describe("asset composition bar", () => {
       'border: "1px solid var(--mantine-color-teal-6)"',
     );
   });
+
+  test("renders liabilities as a receding neutral segment instead of vivid red", () => {
+    const source = readFileSync(
+      join(import.meta.dir, "../src/pages/AssetsPage.tsx"),
+      "utf8",
+    );
+    const composition = source.slice(
+      source.indexOf("{/* Total assets composed of liabilities and net worth */}"),
+      source.indexOf("{/* Assets & Liabilities cards */}"),
+    );
+
+    expect(composition).toMatch(
+      /value=\{assetComposition\.liabilityBarShare\}[\s\S]*?color="gray"/,
+    );
+    expect(composition).toContain(
+      'color="var(--mantine-color-gray-6)"',
+    );
+  });
 });

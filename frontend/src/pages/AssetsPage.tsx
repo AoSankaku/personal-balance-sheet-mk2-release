@@ -604,7 +604,7 @@ export default function AssetsPage() {
                 />
                 <Progress.Section
                   value={assetComposition.liabilityBarShare}
-                  color="red"
+                  color="gray"
                 />
               </Progress.Root>
             </Box>
@@ -632,7 +632,7 @@ export default function AssetsPage() {
                   )}
                 </Text>
                 <ColorSwatch
-                  color="var(--mantine-color-red-6)"
+                  color="var(--mantine-color-gray-6)"
                   size={10}
                   withShadow={false}
                 />

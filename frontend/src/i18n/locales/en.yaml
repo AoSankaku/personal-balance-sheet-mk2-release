@@ -419,6 +419,8 @@ refreshPrices: Refresh prices
 paydayLabel: Payday (day of month)
 paydayHint: A task will appear if no income is recorded by this day each month.
 noTasks: No tasks
+taskMenuTitle: Needs attention
+taskMenuCount: "{count} open"
 taskPaydayUnrecorded: Payday not yet recorded
 tasks: Tasks
 settingsSectionTasks: Tasks
@@ -432,7 +434,9 @@ taskCreditCardWithdrawalRiskToggle: Credit card withdrawal balance task
 taskCreditCardWithdrawalRiskToggleHint: Show a task from 14 days before withdrawal when linked bank balance may go negative after credit card payments.
 taskBudgetNegativeToggle: Budget over-allocation task
 taskBudgetNegativeToggleHint: Show a task when total budget allocations exceed your actual assets, making your budget unreliable.
-taskBudgetNegative: Your budget allocations exceed your total assets. This may be caused by a duplicate or forgotten entry — your budget figures are no longer reliable until this is corrected.
+taskBudgetNegative: Allocations exceed your assets. Check for duplicate or missing entries.
+taskBudgetNegativeTitle: Check budget consistency
+taskBudgetNegativeAction: Review overview
 taskLoanOverdueToggle: Overdue short-term loan/debt task
 taskLoanOverdueToggleHint: Show a task when no repayment/collection has occurred for the specified number of days.
 taskLoanOverdueDaysLabel: Threshold (days)
