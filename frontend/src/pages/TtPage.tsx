@@ -7,7 +7,7 @@ import {
   Stack,
   Title,
 } from "@mantine/core";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import type {
   ActualBalanceSnapshot,
@@ -21,6 +21,7 @@ import { DeviationSection } from "../components/tt/DeviationSection";
 import { BudgetCheckSection } from "../components/tt/BudgetCheckSection";
 import { UnknownFundsSection } from "../components/tt/UnknownFundsSection";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
+import type { TrialBalanceCarryForwardDraft } from "../lib/trialBalanceCarryForward";
 
 // ──────────────────────────────────────────────
 // Main page
@@ -46,6 +47,8 @@ export default function TtPage() {
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
   const [snapshotsLoaded, setSnapshotsLoaded] = useState(false);
   const [ccState, setCcState] = useState<CreditCardStateEntry[]>([]);
+  const [carryForwardDraft, setCarryForwardDraft] =
+    useState<TrialBalanceCarryForwardDraft | null>(null);
 
   useEffect(() => {
     api.trialBalance
@@ -113,6 +116,15 @@ export default function TtPage() {
     updateSegment("deviation");
   }
 
+  function handleCreateFromSnapshot(draft: TrialBalanceCarryForwardDraft) {
+    setCarryForwardDraft(draft);
+    updateSegment("actual");
+  }
+
+  const handleCarryForwardApplied = useCallback(() => {
+    setCarryForwardDraft(null);
+  }, []);
+
   if (loading) {
     return (
       <Stack gap="lg">
@@ -154,6 +166,8 @@ export default function TtPage() {
         <ActualInputSection
           onSaved={handleSnapshotSaved}
           onCreditCardStateSaved={setCcState}
+          initialCarryForwardDraft={carryForwardDraft}
+          onCarryForwardApplied={handleCarryForwardApplied}
         />
       )}
 
@@ -166,6 +180,7 @@ export default function TtPage() {
               snapshots={snapshots ?? []}
               ccState={ccState}
               onJournalCreated={reloadSnapshots}
+              onCreateFromSnapshot={handleCreateFromSnapshot}
             />
           )}
         </>

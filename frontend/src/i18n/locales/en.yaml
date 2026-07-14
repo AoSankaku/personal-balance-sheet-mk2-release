@@ -761,7 +761,7 @@ suspiciousExpenseNoAlloc: Expense not tracked in any budget category
 suspiciousExpenseMismatch: "Expense vs allocation gap: actual ¥{actual} / allocated ¥{allocated}"
 suspiciousIncomeMismatch: "Income vs distribution gap: actual ¥{actual} / distributed ¥{distributed}"
 tabTrialBalance: Trial Balance
-tabTrialBalanceDesc: Reconcile & verify account balances
+tabTrialBalanceDesc: Compare with actual amounts
 tabLoanMgmt: Loan Mgmt
 tabLoanMgmtDesc: Manage loans & borrowings
 sectionShortTermLending: Short-term Lending
@@ -869,6 +869,13 @@ ttActualModeGeneral: Assets / Liabilities
 ttActualModeCreditCard: Credit Cards
 ttActualGeneralDesc: Enter current balances for assets and non-credit-card liabilities.
 ttActualCreditCardDesc: Track credit-card balances by month so confirmed past months remain available for later reconciliation.
+ttCcStatementCompletionDesc: Complete a no-use month as zero, or force-complete a past month whose entries are already recorded.
+ttCcForceComplete: Force complete
+ttCcForceCompleteConfirm: "Force-complete {month} usage as already recorded?"
+ttCcForcedCompletionBadge: Force completed
+ttCcCancelForceComplete: Undo force completion
+ttCcCancelForceCompleteConfirm: "Undo the force completion for {month}? The import reminder may appear again."
+ttCcForceCompleteCancelled: "Force completion for {month} was undone"
 ttActualSectionAssets: Assets
 ttActualSectionLiabilities: Liabilities
 ttCcNoAccounts: No credit card accounts found.
@@ -944,6 +951,12 @@ ttDeleteSnapshot: Delete this snapshot
 ttDeleteSnapshotConfirm: Delete this snapshot and all its entries? This cannot be undone.
 ttDeleteSnapshotZeroWarning: This snapshot has no discrepancies — it is recommended to keep it as a reconciliation record.
 ttDeleteSnapshotDeleted: Snapshot deleted
+ttCreateFromSnapshot: Create a new trial from this snapshot
+ttCreateFromSnapshotNotice: The past snapshot will not be changed. The selected values will be carried to current-value input and saved as a new trial dated today.
+ttCreateFromSnapshotDifferences: Carry differences only ({count})
+ttCreateFromSnapshotAll: Carry all items ({count})
+ttCreateFromSnapshotNoDifferences: There are no differing items to carry forward.
+ttCreateFromSnapshotApplied: "Values were carried forward from the {date} snapshot. The date has been changed to today. Review the values and save them as a new trial."
 ttLastCleanSnapshot: Last verified (no discrepancy)
 ttMiscReclassWarning: Entries reclassified as misc. loss/gain cannot be reversed outside of double-entry bookkeeping.
 sysUnknownFunds: Unknown Funds

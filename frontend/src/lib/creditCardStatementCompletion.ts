@@ -231,21 +231,10 @@ export function getSelectableZeroAmountCompletions(
   const accountCompletions = completions.filter(
     (completion) => completion.account_id === settings.account_id,
   );
-  const latestCompletedStatementMonth = accountCompletions.reduce<
-    string | null
-  >(
-    (latest, completion) =>
-      latest === null || completion.statement_month > latest
-        ? completion.statement_month
-        : latest,
-    null,
-  );
   const settingsCreationMonth = /^\d{4}-\d{2}/.test(settings.created_at)
     ? settings.created_at.slice(0, 7)
     : latestReadyStatementMonth;
-  const firstSelectableMonth = latestCompletedStatementMonth
-    ? shiftCreditCardMonth(latestCompletedStatementMonth, 1)
-    : settingsCreationMonth;
+  const firstSelectableMonth = settingsCreationMonth;
   if (firstSelectableMonth > latestReadyStatementMonth) return [];
 
   const completedMonths = new Set(

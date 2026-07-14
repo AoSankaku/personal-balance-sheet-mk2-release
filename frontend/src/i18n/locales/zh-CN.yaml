@@ -761,7 +761,7 @@ suspiciousExpenseNoAlloc: 支出未在任何预算类别中跟踪
 suspiciousExpenseMismatch: "支出与分配差异：实际 ¥{actual} / 已分配 ¥{allocated}"
 suspiciousIncomeMismatch: "收入与分配差异：实际 ¥{actual} / 已分配 ¥{distributed}"
 tabTrialBalance: 试算表
-tabTrialBalanceDesc: 核对与验证账户余额
+tabTrialBalanceDesc: 与实际金额比较
 tabLoanMgmt: 贷款管理
 tabLoanMgmtDesc: 管理贷出与借入
 sectionShortTermLending: 短期贷出
@@ -869,6 +869,13 @@ ttActualModeGeneral: 资产／负债
 ttActualModeCreditCard: 信用卡
 ttActualGeneralDesc: 输入资产和非信用卡负债的当前余额。
 ttActualCreditCardDesc: 按月跟踪信用卡余额，使已确认的过去月份可用于后续核对。
+ttCcStatementCompletionDesc: 可将无消费月份按0元完成，或强制完成已录入的过去月份。
+ttCcForceComplete: 强制完成
+ttCcForceCompleteConfirm: "将{month}消费视为已录入并强制完成吗？"
+ttCcForcedCompletionBadge: 已强制完成
+ttCcCancelForceComplete: 撤销强制完成
+ttCcCancelForceCompleteConfirm: "撤销{month}消费的强制完成吗？导入提醒可能会再次显示。"
+ttCcForceCompleteCancelled: "已撤销{month}消费的强制完成"
 ttActualSectionAssets: 资产
 ttActualSectionLiabilities: 负债
 ttCcNoAccounts: 未找到信用卡账户。
@@ -944,6 +951,12 @@ ttDeleteSnapshot: 删除此快照
 ttDeleteSnapshotConfirm: 删除此快照及其所有记录？此操作不可撤销。
 ttDeleteSnapshotZeroWarning: 此快照没有差异 — 建议保留作为核对记录。
 ttDeleteSnapshotDeleted: 快照已删除
+ttCreateFromSnapshot: 根据此试算新建试算
+ttCreateFromSnapshotNotice: 不会修改过去的试算。所选数值将带入当前值输入，并以今天的日期创建新试算。
+ttCreateFromSnapshotDifferences: 仅带入有差异的项目（{count}项）
+ttCreateFromSnapshotAll: 带入所有项目（{count}项）
+ttCreateFromSnapshotNoDifferences: 没有可带入的差异项目。
+ttCreateFromSnapshotApplied: 已从{date}的试算带入数值，日期已更新为今天。请确认内容并保存为新试算。
 ttLastCleanSnapshot: 最后验证（无差异）
 ttMiscReclassWarning: 重新归类为杂项损益的分录在复式记账之外无法撤销。
 sysUnknownFunds: 不明资金

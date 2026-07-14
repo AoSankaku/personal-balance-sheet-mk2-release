@@ -1,12 +1,15 @@
 import {
+  Alert,
   ActionIcon,
   Badge,
   Box,
   Button,
   Group,
+  Modal,
   NumberInput,
   Paper,
   SegmentedControl,
+  Select,
   Stack,
   Text,
 } from "@mantine/core";
@@ -21,7 +24,9 @@ import {
 import type {
   Account,
   ActualBalanceSnapshot,
+  CompleteCreditCardStatementInput,
   CreditCardSettings,
+  CreditCardStatementCompletion,
   CreditCardStateEntry,
 } from "@balance-sheet/shared";
 import { ApiError, api } from "../../api/client";
@@ -31,6 +36,8 @@ import { showFeedback } from "../../lib/feedback";
 import { CATEGORY_TRANSLATION_KEY } from "../../lib/accountUtils";
 import { getEffectiveSymbol } from "../../lib/currencyUtils";
 import { formatCurrency } from "../../lib/numberFormat";
+import { getSelectableZeroAmountCompletions } from "../../lib/creditCardStatementCompletion";
+import type { TrialBalanceCarryForwardDraft } from "../../lib/trialBalanceCarryForward";
 import {
   useAccountDisplayName,
   type CreditCardDraftRow,
@@ -50,13 +57,24 @@ import {
 export function ActualInputSection({
   onSaved,
   onCreditCardStateSaved,
+  initialCarryForwardDraft,
+  onCarryForwardApplied,
 }: {
   onSaved: (snapshot: ActualBalanceSnapshot) => void;
   onCreditCardStateSaved: (entries: CreditCardStateEntry[]) => void;
+  initialCarryForwardDraft?: TrialBalanceCarryForwardDraft | null;
+  onCarryForwardApplied?: () => void;
 }) {
   const { t, locale } = useLang();
-  const { accounts, journal, displayCurrency, enabledCurrencies } =
-    useAppData();
+  const {
+    accounts,
+    journal,
+    displayCurrency,
+    enabledCurrencies,
+    creditCardStatementCompletions,
+    refreshCreditCardStatementCompletions,
+    refreshLatestTrialBalanceDate,
+  } = useAppData();
   const getDisplayName = useAccountDisplayName();
 
   const [date, setDate] = useState<Date | null>(new Date());
@@ -69,9 +87,24 @@ export function ActualInputSection({
   const [ccState, setCcState] = useState<CreditCardStateEntry[]>([]);
   const [ccStateLoaded, setCcStateLoaded] = useState(false);
   const [mode, setMode] = useState<"general" | "credit_card">("general");
+  const [carryForwardSourceDate, setCarryForwardSourceDate] = useState<
+    string | null
+  >(null);
   const [creditCardVisibleMonths, setCreditCardVisibleMonths] = useState<
     Record<number, number>
   >({});
+  const [completionMonths, setCompletionMonths] = useState<
+    Record<number, string | null>
+  >({});
+  const [pendingCompletion, setPendingCompletion] = useState<{
+    input: CompleteCreditCardStatementInput;
+    kind: "zero_amount" | "manual_confirmation";
+    monthLabel: string;
+  } | null>(null);
+  const [completionSaving, setCompletionSaving] = useState(false);
+  const [pendingCancellation, setPendingCancellation] =
+    useState<CreditCardStatementCompletion | null>(null);
+  const [cancellationSaving, setCancellationSaving] = useState(false);
 
   useEffect(() => {
     api.creditCardSettings
@@ -88,6 +121,23 @@ export function ActualInputSection({
         setCcStateLoaded(true);
       });
   }, []);
+
+  useEffect(() => {
+    if (!initialCarryForwardDraft) return;
+
+    setMode("general");
+    setDate(new Date());
+    setGeneralValues(
+      Object.fromEntries(
+        initialCarryForwardDraft.entries.map((entry) => [
+          entry.account_id,
+          entry.amount,
+        ]),
+      ),
+    );
+    setCarryForwardSourceDate(initialCarryForwardDraft.sourceSnapshotDate);
+    onCarryForwardApplied?.();
+  }, [initialCarryForwardDraft, onCarryForwardApplied]);
 
   const ccSettingsMap = useMemo(
     () => new Map(ccSettings.map((s) => [s.account_id, s])),
@@ -320,6 +370,7 @@ export function ActualInputSection({
         general_entries,
       });
       showFeedback({ message: t("ttActualInputSaved"), color: "teal" });
+      void refreshLatestTrialBalanceDate();
       onSaved(snapshot);
     } catch (error) {
       showFeedback({
@@ -465,6 +516,64 @@ export function ActualInputSection({
     }));
   }
 
+  function formatStatementMonth(statementMonth: string) {
+    return new Intl.DateTimeFormat(locale, {
+      year: "numeric",
+      month: "long",
+    }).format(new Date(`${statementMonth}-01T00:00:00`));
+  }
+
+  async function completePendingStatement() {
+    const pending = pendingCompletion;
+    if (!pending) return;
+    setCompletionSaving(true);
+    try {
+      await api.creditCardStatements.complete(pending.input);
+      await refreshCreditCardStatementCompletions();
+      setPendingCompletion(null);
+      showFeedback({
+        message: t(
+          pending.kind === "zero_amount"
+            ? "importZeroAmountCompleted"
+            : "creditCardStatementCompleted",
+        ).replace("{month}", pending.monthLabel),
+        color: "teal",
+      });
+    } catch (error) {
+      showFeedback({
+        message: error instanceof ApiError ? error.message : t("saveFailed"),
+        color: "red",
+      });
+    } finally {
+      setCompletionSaving(false);
+    }
+  }
+
+  async function cancelPendingManualCompletion() {
+    const completion = pendingCancellation;
+    if (!completion) return;
+    setCancellationSaving(true);
+    try {
+      await api.creditCardStatements.cancelManualCompletion(completion.id);
+      await refreshCreditCardStatementCompletions();
+      setPendingCancellation(null);
+      showFeedback({
+        message: t("ttCcForceCompleteCancelled").replace(
+          "{month}",
+          formatStatementMonth(completion.statement_month),
+        ),
+        color: "teal",
+      });
+    } catch (error) {
+      showFeedback({
+        message: error instanceof ApiError ? error.message : t("saveFailed"),
+        color: "red",
+      });
+    } finally {
+      setCancellationSaving(false);
+    }
+  }
+
   function renderCreditCardAccount(account: Account) {
     const rows = creditCardValues[account.id] ?? [];
     const setting = ccSettingsMap.get(account.id);
@@ -482,6 +591,38 @@ export function ActualInputSection({
       (row) => row.payment_month < oldestVisibleMonth,
     );
     const total = rows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+    const completionCandidates = getSelectableZeroAmountCompletions(
+      new Date(),
+      setting,
+      creditCardStatementCompletions,
+    );
+    const manualCompletions = creditCardStatementCompletions
+      .filter(
+        (completion) =>
+          completion.account_id === account.id &&
+          completion.completion_method === "manual_confirmation",
+      )
+      .sort((a, b) => b.statement_month.localeCompare(a.statement_month));
+    const storedCompletionMonth = completionMonths[account.id];
+    const selectedCompletionMonth = completionCandidates.some(
+      (candidate) => candidate.statement_month === storedCompletionMonth,
+    )
+      ? storedCompletionMonth
+      : (completionCandidates.at(-1)?.statement_month ?? null);
+    const selectedCompletion = completionCandidates.find(
+      (candidate) => candidate.statement_month === selectedCompletionMonth,
+    );
+    const openCompletionConfirm = (
+      input: CompleteCreditCardStatementInput,
+      kind: "zero_amount" | "manual_confirmation",
+    ) => {
+      if (!selectedCompletion) return;
+      setPendingCompletion({
+        input,
+        kind,
+        monthLabel: formatStatementMonth(selectedCompletion.statement_month),
+      });
+    };
     return (
       <Paper key={account.id} withBorder p="md" radius="md">
         <Stack gap="sm">
@@ -682,6 +823,109 @@ export function ActualInputSection({
             );
           })}
 
+          <Paper withBorder p="sm" radius="sm">
+            <Stack gap="xs">
+              <Text size="sm" fw={600}>
+                {t("creditCardStatementCompleteTitle")}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {t("ttCcStatementCompletionDesc")}
+              </Text>
+              {!setting ? (
+                <Text size="xs" c="yellow">
+                  {t("importZeroAmountSettingsRequired")}
+                </Text>
+              ) : completionCandidates.length === 0 ? (
+                <Text size="xs" c="dimmed">
+                  {t("importZeroAmountNoSelectableMonths")}
+                </Text>
+              ) : (
+                <>
+                  <Select
+                    label={t("importZeroAmountMonthLabel")}
+                    data={completionCandidates.map((candidate) => ({
+                      value: candidate.statement_month,
+                      label: formatStatementMonth(candidate.statement_month),
+                    }))}
+                    value={selectedCompletionMonth}
+                    onChange={(value) =>
+                      setCompletionMonths((current) => ({
+                        ...current,
+                        [account.id]: value,
+                      }))
+                    }
+                    allowDeselect={false}
+                    size="sm"
+                  />
+                  <Group gap="xs" grow>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="teal"
+                      onClick={() =>
+                        selectedCompletion &&
+                        openCompletionConfirm(
+                          {
+                            ...selectedCompletion,
+                            completion_method: "zero_amount",
+                          },
+                          "zero_amount",
+                        )
+                      }
+                    >
+                      {t("importZeroAmountButtonNoMonth")}
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="orange"
+                      onClick={() =>
+                        selectedCompletion &&
+                        openCompletionConfirm(
+                          {
+                            ...selectedCompletion,
+                            completion_method: "manual_confirmation",
+                          },
+                          "manual_confirmation",
+                        )
+                      }
+                    >
+                      {t("ttCcForceComplete")}
+                    </Button>
+                  </Group>
+                </>
+              )}
+              {manualCompletions.length > 0 && (
+                <Stack gap={6} mt="xs">
+                  {manualCompletions.map((completion) => (
+                    <Group
+                      key={completion.id}
+                      justify="space-between"
+                      wrap="nowrap"
+                    >
+                      <Group gap="xs" wrap="nowrap">
+                        <Text size="xs">
+                          {formatStatementMonth(completion.statement_month)}
+                        </Text>
+                        <Badge size="xs" color="orange" variant="light">
+                          {t("ttCcForcedCompletionBadge")}
+                        </Badge>
+                      </Group>
+                      <Button
+                        size="compact-xs"
+                        variant="subtle"
+                        color="red"
+                        onClick={() => setPendingCancellation(completion)}
+                      >
+                        {t("ttCcCancelForceComplete")}
+                      </Button>
+                    </Group>
+                  ))}
+                </Stack>
+              )}
+            </Stack>
+          </Paper>
+
           <Group justify="space-between">
             <Button
               size="xs"
@@ -727,72 +971,155 @@ export function ActualInputSection({
     mode === "general" ? hasGeneralEntries : hasCreditCardEntries;
 
   return (
-    <Stack gap="md">
-      <Text size="sm" c="dimmed">
-        {t("ttActualInputDesc")}
-      </Text>
-      <SegmentedControl
-        value={mode}
-        onChange={(value) => setMode(value as "general" | "credit_card")}
-        data={[
-          { value: "general", label: t("ttActualModeGeneral") },
-          { value: "credit_card", label: t("ttActualModeCreditCard") },
-        ]}
-      />
-      {mode === "general" ? (
-        <>
-          <DatePickerInput
-            label={t("ttActualInputDate")}
-            value={date}
-            onChange={setDate}
-            valueFormat="YYYY/MM/DD"
-            w={200}
-            size="sm"
-          />
-          <Text size="sm" c="dimmed">
-            {t("ttActualGeneralDesc")}
-          </Text>
-          {assetAccounts.length > 0 && (
-            <Paper withBorder p="md" radius="md">
-              <Text fw={600} size="sm" mb="sm">
-                {t("ttActualSectionAssets")}
-              </Text>
-              <Stack gap="sm">{assetAccounts.map(renderAccountRow)}</Stack>
-            </Paper>
-          )}
-          {liabilityAccounts.length > 0 && (
-            <Paper withBorder p="md" radius="md">
-              <Text fw={600} size="sm" mb="sm">
-                {t("ttActualSectionLiabilities")}
-              </Text>
-              <Stack gap="sm">{liabilityAccounts.map(renderAccountRow)}</Stack>
-            </Paper>
-          )}
-        </>
-      ) : (
-        <>
-          <Text size="sm" c="dimmed">
-            {t("ttActualCreditCardDesc")}
-          </Text>
-          {creditCardAccounts.length === 0 ? (
+    <>
+      <Stack gap="md">
+        <Text size="sm" c="dimmed">
+          {t("ttActualInputDesc")}
+        </Text>
+        <SegmentedControl
+          value={mode}
+          onChange={(value) => setMode(value as "general" | "credit_card")}
+          data={[
+            { value: "general", label: t("ttActualModeGeneral") },
+            { value: "credit_card", label: t("ttActualModeCreditCard") },
+          ]}
+        />
+        {mode === "general" ? (
+          <>
+            {carryForwardSourceDate && (
+              <Alert color="blue" variant="light">
+                {t("ttCreateFromSnapshotApplied").replace(
+                  "{date}",
+                  carryForwardSourceDate,
+                )}
+              </Alert>
+            )}
+            <DatePickerInput
+              label={t("ttActualInputDate")}
+              value={date}
+              onChange={setDate}
+              valueFormat="YYYY/MM/DD"
+              w={200}
+              size="sm"
+            />
             <Text size="sm" c="dimmed">
-              {t("ttCcNoAccounts")}
+              {t("ttActualGeneralDesc")}
             </Text>
-          ) : (
-            <Stack gap="sm">
-              {creditCardAccounts.map(renderCreditCardAccount)}
-            </Stack>
-          )}
-        </>
-      )}
-      <Button
-        onClick={handleSave}
-        loading={saving}
-        disabled={(mode === "general" && !date) || !hasEntries}
-        w="fit-content"
+            {assetAccounts.length > 0 && (
+              <Paper withBorder p="md" radius="md">
+                <Text fw={600} size="sm" mb="sm">
+                  {t("ttActualSectionAssets")}
+                </Text>
+                <Stack gap="sm">{assetAccounts.map(renderAccountRow)}</Stack>
+              </Paper>
+            )}
+            {liabilityAccounts.length > 0 && (
+              <Paper withBorder p="md" radius="md">
+                <Text fw={600} size="sm" mb="sm">
+                  {t("ttActualSectionLiabilities")}
+                </Text>
+                <Stack gap="sm">
+                  {liabilityAccounts.map(renderAccountRow)}
+                </Stack>
+              </Paper>
+            )}
+          </>
+        ) : (
+          <>
+            <Text size="sm" c="dimmed">
+              {t("ttActualCreditCardDesc")}
+            </Text>
+            {creditCardAccounts.length === 0 ? (
+              <Text size="sm" c="dimmed">
+                {t("ttCcNoAccounts")}
+              </Text>
+            ) : (
+              <Stack gap="sm">
+                {creditCardAccounts.map(renderCreditCardAccount)}
+              </Stack>
+            )}
+          </>
+        )}
+        <Button
+          onClick={handleSave}
+          loading={saving}
+          disabled={(mode === "general" && !date) || !hasEntries}
+          w="fit-content"
+        >
+          {t("ttActualInputSubmit")}
+        </Button>
+      </Stack>
+      <Modal
+        opened={pendingCompletion !== null}
+        onClose={() => setPendingCompletion(null)}
+        title={t("creditCardStatementCompleteTitle")}
+        size="sm"
+        centered
       >
-        {t("ttActualInputSubmit")}
-      </Button>
-    </Stack>
+        <Stack gap="md">
+          <Text size="sm">
+            {pendingCompletion
+              ? t(
+                  pendingCompletion.kind === "zero_amount"
+                    ? "importZeroAmountConfirmMessage"
+                    : "ttCcForceCompleteConfirm",
+                ).replace("{month}", pendingCompletion.monthLabel)
+              : ""}
+          </Text>
+          <Group justify="flex-end">
+            <Button
+              variant="default"
+              onClick={() => setPendingCompletion(null)}
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              color={
+                pendingCompletion?.kind === "zero_amount" ? "teal" : "orange"
+              }
+              loading={completionSaving}
+              onClick={() => void completePendingStatement()}
+            >
+              {pendingCompletion?.kind === "zero_amount"
+                ? t("importZeroAmountButtonNoMonth")
+                : t("ttCcForceComplete")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+      <Modal
+        opened={pendingCancellation !== null}
+        onClose={() => setPendingCancellation(null)}
+        title={t("ttCcCancelForceComplete")}
+        size="sm"
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            {pendingCancellation
+              ? t("ttCcCancelForceCompleteConfirm").replace(
+                  "{month}",
+                  formatStatementMonth(pendingCancellation.statement_month),
+                )
+              : ""}
+          </Text>
+          <Group justify="flex-end">
+            <Button
+              variant="default"
+              onClick={() => setPendingCancellation(null)}
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              color="red"
+              loading={cancellationSaving}
+              onClick={() => void cancelPendingManualCompletion()}
+            >
+              {t("ttCcCancelForceComplete")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </>
   );
 }

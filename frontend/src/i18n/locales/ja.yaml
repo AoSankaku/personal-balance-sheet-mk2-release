@@ -761,7 +761,7 @@ suspiciousExpenseNoAlloc: 費用が予算カテゴリに配分されていませ
 suspiciousExpenseMismatch: "費用額と予算配分の差異: 実際¥{actual} / 配分¥{allocated}"
 suspiciousIncomeMismatch: "収入額と予算分配の差異: 実際¥{actual} / 分配¥{distributed}"
 tabTrialBalance: 試算表
-tabTrialBalanceDesc: 残高照合・差異確認
+tabTrialBalanceDesc: 実際の金額と比較
 tabLoanMgmt: ローン管理
 tabLoanMgmtDesc: 貸し借りを管理
 sectionShortTermLending: 短期貸付
@@ -869,6 +869,13 @@ ttActualModeGeneral: 資産・一般負債
 ttActualModeCreditCard: クレジットカード
 ttActualGeneralDesc: 資産およびクレジットカード以外の負債の現在値を入力します。
 ttActualCreditCardDesc: クレジットカード利用額を月別に記録し、過去の確定分を後日の照合に残します。
+ttCcStatementCompletionDesc: 利用がなかった月を0円として完了したり、記入済みの過去月を強制的に完了したりできます。
+ttCcForceComplete: 強制的に完了
+ttCcForceCompleteConfirm: "{month}利用分は記入済みとして強制的に完了します。よろしいですか？"
+ttCcForcedCompletionBadge: 強制完了済み
+ttCcCancelForceComplete: 強制完了を取り消す
+ttCcCancelForceCompleteConfirm: "{month}利用分の強制完了を取り消します。インポート通知が再表示される場合があります。よろしいですか？"
+ttCcForceCompleteCancelled: "{month}利用分の強制完了を取り消しました"
 ttActualSectionAssets: 資産
 ttActualSectionLiabilities: 負債
 ttCcNoAccounts: クレジットカード科目がありません。
@@ -944,6 +951,12 @@ ttDeleteSnapshot: この試算を削除する
 ttDeleteSnapshotConfirm: この試算とすべての記録を削除しますか？この操作は元に戻せません。
 ttDeleteSnapshotZeroWarning: この試算は誤差がありません。照合記録として残しておくことを推奨します。
 ttDeleteSnapshotDeleted: 試算を削除しました
+ttCreateFromSnapshot: この試算から新しく試算を作成する
+ttCreateFromSnapshotNotice: 過去の試算は変更しません。選んだ値を現在値入力へ引き継ぎ、今日の日付で新しい試算を作成します。
+ttCreateFromSnapshotDifferences: 差異のある項目のみ引き継ぐ（{count}件）
+ttCreateFromSnapshotAll: すべての項目を引き継ぐ（{count}件）
+ttCreateFromSnapshotNoDifferences: 引き継げる差異のある項目はありません。
+ttCreateFromSnapshotApplied: "{date}の試算から値を引き継ぎました。日付は今日に更新されています。内容を確認し、新しい試算として保存してください。"
 ttLastCleanSnapshot: 最終確認（誤差なし）
 ttMiscReclassWarning: 雑益・雑損に振り替えたものは複式簿記以外では取り消せません。
 sysUnknownFunds: 不明金

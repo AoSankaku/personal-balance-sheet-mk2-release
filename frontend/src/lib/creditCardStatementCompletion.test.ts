@@ -241,7 +241,7 @@ describe("credit card statement completion", () => {
     ]);
   });
 
-  test("does not offer an incomplete month older than the latest completion", () => {
+  test("offers past incomplete gaps even when a later month is complete", () => {
     const completions: CreditCardStatementCompletion[] = [
       {
         id: 1,
@@ -260,6 +260,8 @@ describe("credit card statement completion", () => {
     );
 
     expect(targets.map((target) => target.statement_month)).toEqual([
+      "2026-03",
+      "2026-04",
       "2026-06",
     ]);
   });
@@ -276,7 +278,7 @@ describe("credit card statement completion", () => {
     ]);
   });
 
-  test("returns no choices when the latest ready month is already complete", () => {
+  test("still offers an older incomplete month when the latest ready month is complete", () => {
     const completions: CreditCardStatementCompletion[] = [
       {
         id: 1,
@@ -294,7 +296,14 @@ describe("credit card statement completion", () => {
         { ...settings, created_at: "2026-05-01T00:00:00Z" },
         completions,
       ),
-    ).toEqual([]);
+    ).toEqual([
+      {
+        account_id: 10,
+        statement_month: "2026-05",
+        payment_month: "2026-06",
+        completion_method: "zero_amount",
+      },
+    ]);
   });
 });
 

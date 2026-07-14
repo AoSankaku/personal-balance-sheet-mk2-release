@@ -569,6 +569,11 @@ export const api = {
           body: JSON.stringify(input),
         },
       ),
+    cancelManualCompletion: (id: number) =>
+      request<{ success: boolean }>(
+        `/credit-card-statements/completions/${id}`,
+        { method: "DELETE" },
+      ),
   },
   depreciation: {
     list: () => request<DepreciationSchedule[]>("/depreciation"),
