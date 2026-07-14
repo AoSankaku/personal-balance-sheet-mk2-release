@@ -978,6 +978,13 @@ export interface SaveCreditCardStateInput {
   }[];
 }
 
+export interface UpsertCreditCardStateInput {
+  account_id: number;
+  payment_month: string;
+  amount: number;
+  status: CreditCardSnapshotStatus;
+}
+
 export interface CreditCardCycleSettings {
   closing_day: number;
   confirmation_day: number;
@@ -1155,7 +1162,8 @@ export interface CreateCreditCardSettingsInput {
 
 export type CreditCardStatementCompletionMethod =
   | "csv_import"
-  | "zero_amount";
+  | "zero_amount"
+  | "manual_confirmation";
 
 export interface CreditCardStatementCompletion {
   id: number;

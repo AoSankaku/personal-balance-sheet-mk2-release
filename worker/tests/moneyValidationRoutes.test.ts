@@ -23,6 +23,22 @@ async function postJson(
   );
 }
 
+async function patchJson(
+  router: { request: HonoRequest },
+  path: string,
+  body: unknown,
+) {
+  return router.request(
+    path,
+    {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    env,
+  );
+}
+
 type HonoRequest = (
   input: string,
   requestInit?: RequestInit,
@@ -111,6 +127,21 @@ describe("money validation at API boundaries", () => {
     expect(await response.json()).toMatchObject({
       error: "invalid_money_amount",
       field: "general_entries[0].amount",
+    });
+  });
+
+  test("rejects a fractional confirmed CSV card balance before DB writes", async () => {
+    const response = await patchJson(trialBalanceRouter, "/credit-card-state", {
+      account_id: 1,
+      payment_month: "2026-07",
+      amount: 1.25,
+      status: "confirmed",
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: "invalid_money_amount",
+      field: "amount",
     });
   });
 

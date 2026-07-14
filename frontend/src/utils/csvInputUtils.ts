@@ -46,6 +46,16 @@ export function hasAmazon(transactions: ParsedTransaction[]): boolean {
   return transactions.some((tx) => isAmazonTransaction(tx.store));
 }
 
+export function getAmazonTransactionsForBulk(
+  transactions: ParsedTransaction[],
+  duplicateIndices: ReadonlySet<number>,
+): ParsedTransaction[] {
+  return transactions.filter(
+    (transaction, index) =>
+      isAmazonTransaction(transaction.store) && !duplicateIndices.has(index),
+  );
+}
+
 export function findDuplicateEntries(
   tx: ParsedTransaction,
   accountId: number,

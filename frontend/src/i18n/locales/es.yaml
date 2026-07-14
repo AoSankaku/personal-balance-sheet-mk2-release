@@ -501,6 +501,12 @@ importZeroAmountButtonNoMonth: "Marcar el mes como cero"
 importZeroAmountConfirmTitle: "Confirmar un extracto a cero"
 importZeroAmountConfirmMessage: "¿Marcar las compras de {month} como cero y completar el extracto?"
 importZeroAmountCompleted: "Las compras de {month} se completaron como cero"
+creditCardStatementCompleteTitle: Completar extracto de tarjeta
+creditCardStatementCompleteHint: "Si todos los movimientos de {month} ya se registraron manualmente, puedes completar la tarea sin añadir asientos."
+creditCardStatementMarkComplete: "Marcar como completos los asientos de {month} (completar tarea)"
+creditCardStatementCompleteConfirm: "¿Marcar todos los movimientos de {month} como registrados y completar la tarea de importación?"
+creditCardStatementCompleteAction: Marcar registro completo
+creditCardStatementCompleted: "Registro de {month} completado"
 importDuplicateModalTitle: "Transacciones duplicadas"
 importSkip: "Saltar"
 importImportAnyway: "Importar de todos modos"

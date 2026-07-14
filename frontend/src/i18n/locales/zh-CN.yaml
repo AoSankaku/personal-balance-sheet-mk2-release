@@ -501,6 +501,12 @@ importZeroAmountButtonNoMonth: 将该月记为零元
 importZeroAmountConfirmTitle: 确认零元账单
 importZeroAmountConfirmMessage: "将 {month} 消费记为零元并完成账单吗？"
 importZeroAmountCompleted: "已将 {month} 消费按零元完成"
+creditCardStatementCompleteTitle: 完成信用卡账单记录
+creditCardStatementCompleteHint: "如果{month}的所有项目都已手动记录，可以不新增分录并完成任务。"
+creditCardStatementMarkComplete: "将{month}的记录标记为完成（完成任务）"
+creditCardStatementCompleteConfirm: "将{month}的所有项目视为已记录并完成导入任务吗？"
+creditCardStatementCompleteAction: 标记记录完成
+creditCardStatementCompleted: "已完成{month}的记录"
 importDuplicateModalTitle: 重复交易
 importSkip: 跳过
 importImportAnyway: 仍然导入

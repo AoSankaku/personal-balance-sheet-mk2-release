@@ -25,7 +25,9 @@ router.post("/completions", async (c) => {
     !Number.isInteger(body.account_id) ||
     !/^\d{4}-\d{2}$/.test(body.statement_month ?? "") ||
     !/^\d{4}-\d{2}$/.test(body.payment_month ?? "") ||
-    !["csv_import", "zero_amount"].includes(body.completion_method)
+    !["csv_import", "zero_amount", "manual_confirmation"].includes(
+      body.completion_method,
+    )
   ) {
     return c.json({ error: "invalid_statement_completion" }, 400);
   }

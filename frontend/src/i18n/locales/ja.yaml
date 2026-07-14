@@ -501,6 +501,12 @@ importZeroAmountButtonNoMonth: 0円として記入したこととする
 importZeroAmountConfirmTitle: 0円として確認を完了
 importZeroAmountConfirmMessage: "{month}利用分を0円として完了します。よろしいですか？"
 importZeroAmountCompleted: "{month}利用分を0円として完了しました"
+creditCardStatementCompleteTitle: クレジットカード明細の記入完了
+creditCardStatementCompleteHint: "{month}分がすべて手動記入済みの場合は、追加記入せずにタスクを完了できます。"
+creditCardStatementMarkComplete: "{month}分の記入は完了とする（タスク完了）"
+creditCardStatementCompleteConfirm: "{month}分はすべて記入済みとして、インポートタスクを完了します。よろしいですか？"
+creditCardStatementCompleteAction: 記入完了にする
+creditCardStatementCompleted: "{month}分の記入を完了しました"
 importDuplicateModalTitle: 重複取引の確認
 importSkip: スキップ
 importImportAnyway: インポートする

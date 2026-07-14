@@ -39,6 +39,7 @@ import type {
   CreateActualBalanceSnapshotInput,
   CreditCardStateEntry,
   SaveCreditCardStateInput,
+  UpsertCreditCardStateInput,
   UnsettledLoanEntry,
   EnabledCurrency,
   LongTermLoanPlan,
@@ -607,6 +608,11 @@ export const api = {
     saveCreditCardState: (input: SaveCreditCardStateInput) =>
       request<CreditCardStateEntry[]>("/trial-balance/credit-card-state", {
         method: "POST",
+        body: JSON.stringify(input),
+      }),
+    upsertCreditCardState: (input: UpsertCreditCardStateInput) =>
+      request<CreditCardStateEntry>("/trial-balance/credit-card-state", {
+        method: "PATCH",
         body: JSON.stringify(input),
       }),
   },

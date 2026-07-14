@@ -718,7 +718,7 @@ export const creditCardStatementCompletions = sqliteTable(
     statement_month: text("statement_month").notNull(),
     payment_month: text("payment_month").notNull(),
     completion_method: text("completion_method", {
-      enum: ["csv_import", "zero_amount"],
+      enum: ["csv_import", "zero_amount", "manual_confirmation"],
     }).notNull(),
     completed_at: text("completed_at")
       .notNull()

@@ -1,6 +1,9 @@
 import { and, desc, eq, lte, sql } from "drizzle-orm";
 import { Hono } from "hono";
-import { deriveCreditCardStatus } from "@balance-sheet/shared";
+import {
+  deriveCreditCardStatus,
+  type UpsertCreditCardStateInput,
+} from "@balance-sheet/shared";
 import { createDb, type Env } from "../db";
 import {
   accounts,
@@ -220,6 +223,72 @@ router.post("/credit-card-state", async (c) => {
     );
 
   return c.json(rows, 201);
+});
+
+router.patch("/credit-card-state", async (c) => {
+  const body = await c.req.json<UpsertCreditCardStateInput>();
+  const invalidMoneyField = findInvalidMoneyField([
+    { path: "amount", value: body.amount },
+  ]);
+  if (invalidMoneyField) {
+    return c.json(invalidMoneyResponse(invalidMoneyField), 400);
+  }
+  if (
+    !Number.isInteger(body.account_id) ||
+    body.account_id <= 0 ||
+    !/^\d{4}-\d{2}$/.test(body.payment_month ?? "") ||
+    !["open", "confirmed", "paid"].includes(body.status)
+  ) {
+    return c.json({ error: "Invalid credit-card state" }, 400);
+  }
+
+  const db = createDb(c.env);
+  const now = new Date().toISOString().replace("T", " ").slice(0, 19);
+  await db
+    .insert(actualBalanceCreditCardState)
+    .values({
+      account_id: body.account_id,
+      payment_month: body.payment_month,
+      amount: body.amount,
+      status: body.status,
+      last_updated_at: now,
+    })
+    .onConflictDoUpdate({
+      target: [
+        actualBalanceCreditCardState.account_id,
+        actualBalanceCreditCardState.payment_month,
+      ],
+      set: {
+        amount: body.amount,
+        status: body.status,
+        last_updated_at: now,
+      },
+    });
+
+  const [row] = await db
+    .select({
+      id: actualBalanceCreditCardState.id,
+      account_id: actualBalanceCreditCardState.account_id,
+      account_name: accounts.name,
+      payment_month: actualBalanceCreditCardState.payment_month,
+      status: actualBalanceCreditCardState.status,
+      amount: actualBalanceCreditCardState.amount,
+      last_updated_at: actualBalanceCreditCardState.last_updated_at,
+    })
+    .from(actualBalanceCreditCardState)
+    .innerJoin(
+      accounts,
+      eq(actualBalanceCreditCardState.account_id, accounts.id),
+    )
+    .where(
+      and(
+        eq(actualBalanceCreditCardState.account_id, body.account_id),
+        eq(actualBalanceCreditCardState.payment_month, body.payment_month),
+      ),
+    )
+    .limit(1);
+  if (!row) return c.json({ error: "Failed to save credit-card state" }, 500);
+  return c.json(row);
 });
 
 // ── Snapshots (general entries only) ─────────────────────────

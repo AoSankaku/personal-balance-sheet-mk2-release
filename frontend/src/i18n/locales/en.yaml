@@ -501,6 +501,12 @@ importZeroAmountButtonNoMonth: Mark the month as zero
 importZeroAmountConfirmTitle: Confirm a zero statement
 importZeroAmountConfirmMessage: "Mark purchases in {month} as zero and complete the statement?"
 importZeroAmountCompleted: "Purchases in {month} were completed as zero"
+creditCardStatementCompleteTitle: Complete credit card statement
+creditCardStatementCompleteHint: "If every item for {month} is already recorded manually, you can complete the task without adding entries."
+creditCardStatementMarkComplete: "Mark {month} entries complete (complete task)"
+creditCardStatementCompleteConfirm: "Mark every item for {month} as recorded and complete the import task?"
+creditCardStatementCompleteAction: Mark entries complete
+creditCardStatementCompleted: "Completed the entries for {month}"
 importDuplicateModalTitle: Duplicate Transactions
 importSkip: Skip
 importImportAnyway: Import anyway

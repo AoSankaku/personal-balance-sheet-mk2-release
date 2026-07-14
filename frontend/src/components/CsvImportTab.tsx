@@ -29,7 +29,10 @@ import {
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import type { CreateJournalInput } from "@balance-sheet/shared";
+import type {
+  CompleteCreditCardStatementInput,
+  CreateJournalInput,
+} from "@balance-sheet/shared";
 import type { StoreAccountMapping } from "@balance-sheet/shared";
 import { api } from "../api/client";
 import { useLang } from "../i18n";
@@ -48,6 +51,7 @@ import {
   normalizeStore,
   isAmazonTransaction,
   hasAmazon,
+  getAmazonTransactionsForBulk,
   findDuplicateEntries,
   buildGroupedExpenseOptions,
   buildGroupedIncomeOptions,
@@ -67,6 +71,9 @@ import {
 import { countMissingCounterAccountWarnings } from "../utils/csvImportWarnings";
 import {
   getAutomaticStatementCompletion,
+  getConfirmedCsvCreditCardState,
+  getDefaultStatementMonth,
+  getManualStatementCompletion,
   getSelectableZeroAmountCompletions,
 } from "../lib/creditCardStatementCompletion";
 import {
@@ -95,6 +102,7 @@ export function CsvImportTab({
     budgetCategories,
     creditCardSettings,
     creditCardStatementCompletions,
+    refreshCreditCardState,
     refreshCreditCardStatementCompletions,
   } = useAppData();
 
@@ -119,6 +127,12 @@ export function CsvImportTab({
   >(null);
   const [zeroAmountConfirmOpened, setZeroAmountConfirmOpened] = useState(false);
   const [zeroAmountCompleting, setZeroAmountCompleting] = useState(false);
+  const [manualCompletionConfirmOpened, setManualCompletionConfirmOpened] =
+    useState(false);
+  const [manualCompletionCompleting, setManualCompletionCompleting] =
+    useState(false);
+  const [pendingManualCompletion, setPendingManualCompletion] =
+    useState<CompleteCreditCardStatementInput | null>(null);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateIndices, setDuplicateIndices] = useState<number[]>([]);
   const [duplicateDecisions, setDuplicateDecisions] = useState<
@@ -203,6 +217,23 @@ export function CsvImportTab({
       ),
     [zeroAmountSettings, creditCardStatementCompletions],
   );
+  const defaultZeroAmountStatementMonth = useMemo(
+    () =>
+      getDefaultStatementMonth({
+        format: parseResult?.format ?? "unknown",
+        transactions,
+        settings: zeroAmountSettings,
+        selectableStatementMonths: zeroAmountCandidates.map(
+          (candidate) => candidate.statement_month,
+        ),
+      }),
+    [
+      parseResult?.format,
+      transactions,
+      zeroAmountSettings,
+      zeroAmountCandidates,
+    ],
+  );
   const zeroAmountCompletion = zeroAmountCandidates.find(
     (candidate) => candidate.statement_month === zeroAmountStatementMonth,
   );
@@ -213,14 +244,23 @@ export function CsvImportTab({
     : null;
 
   useEffect(() => {
-    setZeroAmountStatementMonth((current) =>
-      zeroAmountCandidates.some(
+    setZeroAmountStatementMonth((current) => {
+      const currentIsSelectable = zeroAmountCandidates.some(
         (candidate) => candidate.statement_month === current,
-      )
-        ? current
-        : (zeroAmountCandidates[0]?.statement_month ?? null),
-    );
-  }, [zeroAmountCandidates]);
+      );
+      const hasAutoDetectedTransactions =
+        parseResult?.format !== undefined &&
+        parseResult.format !== "unknown" &&
+        transactions.length > 0;
+      if (currentIsSelectable && !hasAutoDetectedTransactions) return current;
+      return defaultZeroAmountStatementMonth;
+    });
+  }, [
+    defaultZeroAmountStatementMonth,
+    parseResult?.format,
+    transactions.length,
+    zeroAmountCandidates,
+  ]);
 
   function applyStoreMappingsToRows(
     txs: ParsedTransaction[],
@@ -397,6 +437,27 @@ export function CsvImportTab({
   }, [transactions, sortCol, sortDir, rowStates]);
 
   const accountId = selectedAccountId ? Number(selectedAccountId) : null;
+  const selectedCreditCardSettings = creditCardSettings.find(
+    (settings) => settings.account_id === accountId,
+  );
+  const selectedManualCompletion =
+    !isBankImport && accountId
+      ? getManualStatementCompletion(
+          new Date(),
+          selectedCreditCardSettings,
+        )
+      : null;
+  const confirmedCsvState = getConfirmedCsvCreditCardState({
+    format: effectiveFormat,
+    transactions,
+    settings: selectedCreditCardSettings,
+  });
+
+  async function saveConfirmedCsvState() {
+    if (!confirmedCsvState) return;
+    await api.trialBalance.upsertCreditCardState(confirmedCsvState);
+    await refreshCreditCardState();
+  }
 
   const duplicateMatches = useMemo(() => {
     if (!accountId)
@@ -408,6 +469,14 @@ export function CsvImportTab({
     });
     return matches;
   }, [transactions, accountId, journal]);
+  const amazonRowsForBulk = useMemo(
+    () =>
+      getAmazonTransactionsForBulk(
+        transactions,
+        new Set(duplicateMatches.keys()),
+      ),
+    [transactions, duplicateMatches],
+  );
 
   function isSalaryPendingRow(
     tx: ParsedTransaction,
@@ -434,9 +503,7 @@ export function CsvImportTab({
       !rowStates[i]?.skip,
   ).length;
 
-  const amazonCount = transactions.filter((tx) =>
-    isAmazonTransaction(tx.store),
-  ).length;
+  const amazonCount = amazonRowsForBulk.length;
   const salaryHoldCount = transactions.filter((tx, i) =>
     isSalaryPendingRow(tx, rowStates[i]),
   ).length;
@@ -526,6 +593,16 @@ export function CsvImportTab({
 
   const handleImportClick = useCallback(() => {
     if (!accountId) return;
+    if (
+      selectedManualCompletion &&
+      importableCount === 0 &&
+      amazonCount === 0 &&
+      salaryHoldCount === 0
+    ) {
+      setPendingManualCompletion(selectedManualCompletion);
+      setManualCompletionConfirmOpened(true);
+      return;
+    }
 
     const emptyRows = countMissingCounterAccountWarnings(
       transactions.map((tx, i) => ({
@@ -563,21 +640,28 @@ export function CsvImportTab({
     } else {
       void executeImport({});
     }
-  }, [transactions, rowStates, duplicateMatches, accountId]);
+  }, [
+    transactions,
+    rowStates,
+    duplicateMatches,
+    accountId,
+    selectedManualCompletion,
+    importableCount,
+    amazonCount,
+    salaryHoldCount,
+  ]);
 
   async function executeImport(decisions: Record<number, "skip" | "import">) {
     if (!accountId) return;
     setImporting(true);
     try {
       const entries: CreateJournalInput[] = [];
-      const amazonRows: ParsedTransaction[] = [];
+      const amazonRows = [...amazonRowsForBulk];
       const salaryRows: { tx: ParsedTransaction; rowState: CsvRowState }[] = [];
-      let unresolvedTransactionCount = 0;
+      let unresolvedTransactionCount = amazonRows.length;
 
       transactions.forEach((tx, i) => {
         if (isAmazonTransaction(tx.store)) {
-          amazonRows.push(tx);
-          unresolvedTransactionCount++;
           return;
         }
         const rs = rowStates[i];
@@ -636,13 +720,14 @@ export function CsvImportTab({
 
       const automaticCompletion = getAutomaticStatementCompletion({
         today: new Date(),
-        settings: creditCardSettings.find(
-          (settings) => settings.account_id === accountId,
-        ),
+        settings: selectedCreditCardSettings,
         format: effectiveFormat,
         parsedTransactionCount: transactions.length,
         unresolvedTransactionCount,
       });
+      const manualCompletion = selectedManualCompletion;
+
+      await saveConfirmedCsvState();
 
       if (
         entries.length === 0 &&
@@ -650,6 +735,11 @@ export function CsvImportTab({
         salaryRows.length === 0 &&
         !automaticCompletion
       ) {
+        if (manualCompletion) {
+          setPendingManualCompletion(manualCompletion);
+          setManualCompletionConfirmOpened(true);
+          return;
+        }
         showFeedback({
           message: "インポートする取引がありません",
           color: "yellow",
@@ -693,6 +783,7 @@ export function CsvImportTab({
             label: `${tx.store} ${tx.date}`,
             amount: String(tx.amount),
           })),
+          statementCompletion: manualCompletion,
         });
       }
 
@@ -741,6 +832,42 @@ export function CsvImportTab({
       showFeedback({ message: t("saveFailed"), color: "red" });
     } finally {
       setZeroAmountCompleting(false);
+    }
+  }
+
+  async function completeManualStatement() {
+    if (!pendingManualCompletion) return;
+    setManualCompletionCompleting(true);
+    try {
+      await saveConfirmedCsvState();
+      await api.creditCardStatements.complete(pendingManualCompletion);
+      await refreshCreditCardStatementCompletions();
+      setCsvDraft({
+        parseResult: null,
+        manualFormat: null,
+        selectedAccountId: null,
+        rowStates: [],
+      });
+      setParseResult(null);
+      setRowStates([]);
+      setSelectedAccountId(null);
+      setManualCompletionConfirmOpened(false);
+      setPendingManualCompletion(null);
+      const month = new Intl.DateTimeFormat(locale, {
+        year: "numeric",
+        month: "long",
+      }).format(
+        new Date(`${pendingManualCompletion.statement_month}-01T00:00:00`),
+      );
+      showFeedback({
+        message: t("creditCardStatementCompleted").replace("{month}", month),
+        color: "teal",
+      });
+      onImportDone();
+    } catch {
+      showFeedback({ message: t("saveFailed"), color: "red" });
+    } finally {
+      setManualCompletionCompleting(false);
     }
   }
 
@@ -1360,7 +1487,8 @@ export function CsvImportTab({
                   !selectedAccountId ||
                   (importableCount === 0 &&
                     amazonCount === 0 &&
-                    salaryHoldCount === 0) ||
+                    salaryHoldCount === 0 &&
+                    !selectedManualCompletion) ||
                   importing
                 }
                 loading={importing}
@@ -1371,6 +1499,45 @@ export function CsvImportTab({
           </Stack>
         </Paper>
       )}
+
+      <Modal
+        opened={manualCompletionConfirmOpened}
+        onClose={() => setManualCompletionConfirmOpened(false)}
+        title={t("creditCardStatementCompleteTitle")}
+        size="sm"
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            {t("creditCardStatementCompleteConfirm").replace(
+              "{month}",
+              pendingManualCompletion
+                ? new Intl.DateTimeFormat(locale, {
+                    year: "numeric",
+                    month: "long",
+                  }).format(
+                    new Date(
+                      `${pendingManualCompletion.statement_month}-01T00:00:00`,
+                    ),
+                  )
+                : "",
+            )}
+          </Text>
+          <Group justify="flex-end">
+            <Button
+              variant="default"
+              onClick={() => setManualCompletionConfirmOpened(false)}
+            >
+              {t("cancel") as string}
+            </Button>
+            <Button
+              loading={manualCompletionCompleting}
+              onClick={() => void completeManualStatement()}
+            >
+              {t("creditCardStatementCompleteAction")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       <Modal
         opened={zeroAmountConfirmOpened}
