@@ -36,7 +36,7 @@ function getSegmentParam(searchParams: URLSearchParams): Segment {
 
 export default function TtPage() {
   const { t } = useLang();
-  const { loading, error } = useAppData();
+  const { loading, error, refreshLatestTrialBalanceDate } = useAppData();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const segment = getSegmentParam(searchParams);
@@ -60,6 +60,7 @@ export default function TtPage() {
     try {
       const data = await api.trialBalance.listSnapshots();
       setSnapshots(data);
+      void refreshLatestTrialBalanceDate();
     } catch {
       setSnapshots([]);
     } finally {
@@ -74,6 +75,7 @@ export default function TtPage() {
     try {
       const data = await api.trialBalance.listSnapshots();
       setSnapshots(data);
+      void refreshLatestTrialBalanceDate();
     } catch {
       // keep existing
     } finally {

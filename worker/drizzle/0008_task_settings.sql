@@ -1,0 +1,23 @@
+CREATE TABLE `task_settings` (
+  `id` INTEGER PRIMARY KEY NOT NULL,
+  `payday_enabled` INTEGER NOT NULL DEFAULT 1,
+  `credit_card_import_enabled` INTEGER NOT NULL DEFAULT 1,
+  `trial_balance_enabled` INTEGER NOT NULL DEFAULT 0,
+  `trial_balance_day` INTEGER NOT NULL DEFAULT 1,
+  `credit_card_withdrawal_risk_enabled` INTEGER NOT NULL DEFAULT 1,
+  `budget_negative_enabled` INTEGER NOT NULL DEFAULT 1,
+  `loan_overdue_enabled` INTEGER NOT NULL DEFAULT 1,
+  `loan_overdue_days` INTEGER NOT NULL DEFAULT 30,
+  `account_negative_enabled` INTEGER NOT NULL DEFAULT 1,
+  `updated_at` TEXT NOT NULL DEFAULT (datetime('now')),
+  CHECK (`id` = 1),
+  CHECK (`payday_enabled` IN (0, 1)),
+  CHECK (`credit_card_import_enabled` IN (0, 1)),
+  CHECK (`trial_balance_enabled` IN (0, 1)),
+  CHECK (`trial_balance_day` BETWEEN 1 AND 31),
+  CHECK (`credit_card_withdrawal_risk_enabled` IN (0, 1)),
+  CHECK (`budget_negative_enabled` IN (0, 1)),
+  CHECK (`loan_overdue_enabled` IN (0, 1)),
+  CHECK (`loan_overdue_days` BETWEEN 1 AND 3650),
+  CHECK (`account_negative_enabled` IN (0, 1))
+);

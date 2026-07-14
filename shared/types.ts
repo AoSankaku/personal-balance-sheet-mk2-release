@@ -978,6 +978,25 @@ export interface SaveCreditCardStateInput {
   }[];
 }
 
+export interface TaskSettings {
+  payday_enabled: boolean;
+  credit_card_import_enabled: boolean;
+  trial_balance_enabled: boolean;
+  trial_balance_day: number;
+  credit_card_withdrawal_risk_enabled: boolean;
+  budget_negative_enabled: boolean;
+  loan_overdue_enabled: boolean;
+  loan_overdue_days: number;
+  account_negative_enabled: boolean;
+  /** False only when the singleton row has not been created yet. */
+  configured: boolean;
+  updated_at: string | null;
+}
+
+export type UpdateTaskSettingsInput = Partial<
+  Omit<TaskSettings, "configured" | "updated_at">
+>;
+
 export interface UpsertCreditCardStateInput {
   account_id: number;
   payment_month: string;

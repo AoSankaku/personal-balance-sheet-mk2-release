@@ -424,6 +424,12 @@ taskMenuCount: "{count} open"
 taskPaydayUnrecorded: Payday not yet recorded
 tasks: Tasks
 settingsSectionTasks: Tasks
+taskTrialBalanceToggle: Monthly trial balance task
+taskTrialBalanceToggleHint: Show a task after the selected day when actual amounts have not been compared this month.
+taskTrialBalanceDayLabel: Monthly trial balance day
+taskTrialBalanceDayHint: If the selected day does not exist in a month, the task appears on that month's last day (for example, day 31 becomes April 30 or February 28/29).
+taskTrialBalanceSection: Compare actual amounts in Trial Balance
+taskTrialBalanceDetail: "The trial balance is due on {date}. Compare it with the actual amounts."
 taskPaydayToggle: Payday task
 taskPaydayToggleHint: Show a task when payday income hasn't been recorded yet.
 taskCreditCardToggle: Credit card import task

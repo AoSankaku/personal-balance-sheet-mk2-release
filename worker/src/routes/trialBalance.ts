@@ -21,6 +21,20 @@ import {
 
 const router = new Hono<{ Bindings: Env }>();
 
+router.get("/latest-snapshot", async (c) => {
+  const db = createDb(c.env);
+  const [latest] = await db
+    .select({ snapshot_date: actualBalanceSnapshots.snapshot_date })
+    .from(actualBalanceSnapshots)
+    .orderBy(
+      desc(actualBalanceSnapshots.snapshot_date),
+      desc(actualBalanceSnapshots.snapshot_time),
+    )
+    .limit(1);
+
+  return c.json({ snapshot_date: latest?.snapshot_date ?? null });
+});
+
 async function hydrateSnapshots(
   db: ReturnType<typeof createDb>,
   snapshots: (typeof actualBalanceSnapshots.$inferSelect)[],

@@ -120,36 +120,11 @@ export default function SettingsPage() {
     refresh,
     refreshCreditCardSettings,
     refreshBudgetSettings,
+    taskSettings,
+    updateTaskSettings,
   } = useAppData();
 
   const [completedAccountsOpen, setCompletedAccountsOpen] = useState(false);
-
-  const [taskPayday, setTaskPayday] = useState(
-    () => localStorage.getItem("notif:payday") !== "false",
-  );
-  const [taskCreditCard, setTaskCreditCard] = useState(
-    () => localStorage.getItem("notif:creditCard") !== "false",
-  );
-  const [taskCreditCardWithdrawalRisk, setTaskCreditCardWithdrawalRisk] =
-    useState(
-      () => localStorage.getItem("notif:creditCardWithdrawalRisk") !== "false",
-    );
-  const [taskBudgetNegative, setTaskBudgetNegative] = useState(
-    () => localStorage.getItem("notif:budgetNegative") !== "false",
-  );
-  const [taskLoanOverdue, setTaskLoanOverdue] = useState(
-    () => localStorage.getItem("notif:loanOverdue") !== "false",
-  );
-  const [taskLoanOverdueDays, setTaskLoanOverdueDays] = useState<number>(
-    () => {
-      const raw = localStorage.getItem("notif:loanOverdueDays");
-      const parsed = raw !== null ? parseInt(raw, 10) : 30;
-      return isNaN(parsed) || parsed <= 0 ? 30 : parsed;
-    },
-  );
-  const [taskAccountNegative, setTaskAccountNegative] = useState(
-    () => localStorage.getItem("notif:accountNegative") !== "false",
-  );
 
   const [addAccountOpened, { open: openAddAccount, close: closeAddAccount }] =
     useDisclosure(false);
@@ -157,6 +132,12 @@ export default function SettingsPage() {
   const [editingAccount, setEditingAccount] = useState<Account | undefined>(
     undefined,
   );
+
+  function saveTaskSettings(input: Parameters<typeof updateTaskSettings>[0]) {
+    void updateTaskSettings(input).catch(() => {
+      showFeedback({ message: t("saveFailed"), color: "red" });
+    });
+  }
 
   function sortByCategory<
     T extends {
@@ -567,12 +548,48 @@ export default function SettingsPage() {
           <Stack gap={2}>
             <Switch
               classNames={settingsSwitchClassNames}
-              label={t("taskPaydayToggle")}
-              checked={taskPayday}
+              label={t("taskTrialBalanceToggle")}
+              checked={taskSettings.trial_balance_enabled}
               onChange={(e) => {
-                const v = e.currentTarget.checked;
-                setTaskPayday(v);
-                localStorage.setItem("notif:payday", String(v));
+                saveTaskSettings({
+                  trial_balance_enabled: e.currentTarget.checked,
+                });
+              }}
+            />
+            <Text size="xs" c="dimmed" ml={46}>
+              {t("taskTrialBalanceToggleHint")}
+            </Text>
+            {taskSettings.trial_balance_enabled && (
+              <NumberInput
+                label={t("taskTrialBalanceDayLabel")}
+                description={t("taskTrialBalanceDayHint")}
+                value={taskSettings.trial_balance_day}
+                min={1}
+                max={31}
+                allowDecimal={false}
+                ml={46}
+                w={160}
+                mt={4}
+                onChange={(value) => {
+                  const day =
+                    typeof value === "number" &&
+                    Number.isInteger(value) &&
+                    value >= 1 &&
+                    value <= 31
+                      ? value
+                      : 1;
+                  saveTaskSettings({ trial_balance_day: day });
+                }}
+              />
+            )}
+          </Stack>
+          <Stack gap={2}>
+            <Switch
+              classNames={settingsSwitchClassNames}
+              label={t("taskPaydayToggle")}
+              checked={taskSettings.payday_enabled}
+              onChange={(e) => {
+                saveTaskSettings({ payday_enabled: e.currentTarget.checked });
               }}
             />
             <Text size="xs" c="dimmed" ml={46}>
@@ -583,11 +600,11 @@ export default function SettingsPage() {
             <Switch
               classNames={settingsSwitchClassNames}
               label={t("taskCreditCardToggle")}
-              checked={taskCreditCard}
+              checked={taskSettings.credit_card_import_enabled}
               onChange={(e) => {
-                const v = e.currentTarget.checked;
-                setTaskCreditCard(v);
-                localStorage.setItem("notif:creditCard", String(v));
+                saveTaskSettings({
+                  credit_card_import_enabled: e.currentTarget.checked,
+                });
               }}
             />
             <Text size="xs" c="dimmed" ml={46}>
@@ -598,14 +615,12 @@ export default function SettingsPage() {
             <Switch
               classNames={settingsSwitchClassNames}
               label={t("taskCreditCardWithdrawalRiskToggle")}
-              checked={taskCreditCardWithdrawalRisk}
+              checked={taskSettings.credit_card_withdrawal_risk_enabled}
               onChange={(e) => {
-                const v = e.currentTarget.checked;
-                setTaskCreditCardWithdrawalRisk(v);
-                localStorage.setItem(
-                  "notif:creditCardWithdrawalRisk",
-                  String(v),
-                );
+                saveTaskSettings({
+                  credit_card_withdrawal_risk_enabled:
+                    e.currentTarget.checked,
+                });
               }}
             />
             <Text size="xs" c="dimmed" ml={46}>
@@ -616,11 +631,11 @@ export default function SettingsPage() {
             <Switch
               classNames={settingsSwitchClassNames}
               label={t("taskBudgetNegativeToggle")}
-              checked={taskBudgetNegative}
+              checked={taskSettings.budget_negative_enabled}
               onChange={(e) => {
-                const v = e.currentTarget.checked;
-                setTaskBudgetNegative(v);
-                localStorage.setItem("notif:budgetNegative", String(v));
+                saveTaskSettings({
+                  budget_negative_enabled: e.currentTarget.checked,
+                });
               }}
             />
             <Text size="xs" c="dimmed" ml={46}>
@@ -631,20 +646,20 @@ export default function SettingsPage() {
             <Switch
               classNames={settingsSwitchClassNames}
               label={t("taskLoanOverdueToggle")}
-              checked={taskLoanOverdue}
+              checked={taskSettings.loan_overdue_enabled}
               onChange={(e) => {
-                const v = e.currentTarget.checked;
-                setTaskLoanOverdue(v);
-                localStorage.setItem("notif:loanOverdue", String(v));
+                saveTaskSettings({
+                  loan_overdue_enabled: e.currentTarget.checked,
+                });
               }}
             />
             <Text size="xs" c="dimmed" ml={46}>
               {t("taskLoanOverdueToggleHint")}
             </Text>
-            {taskLoanOverdue && (
+            {taskSettings.loan_overdue_enabled && (
               <NumberInput
                 label={t("taskLoanOverdueDaysLabel")}
-                value={taskLoanOverdueDays}
+                value={taskSettings.loan_overdue_days}
                 min={1}
                 max={3650}
                 ml={46}
@@ -652,8 +667,7 @@ export default function SettingsPage() {
                 mt={4}
                 onChange={(v) => {
                   const n = typeof v === "number" && v > 0 ? v : 30;
-                  setTaskLoanOverdueDays(n);
-                  localStorage.setItem("notif:loanOverdueDays", String(n));
+                  saveTaskSettings({ loan_overdue_days: n });
                 }}
               />
             )}
@@ -662,11 +676,11 @@ export default function SettingsPage() {
             <Switch
               classNames={settingsSwitchClassNames}
               label={t("taskAccountNegativeToggle")}
-              checked={taskAccountNegative}
+              checked={taskSettings.account_negative_enabled}
               onChange={(e) => {
-                const v = e.currentTarget.checked;
-                setTaskAccountNegative(v);
-                localStorage.setItem("notif:accountNegative", String(v));
+                saveTaskSettings({
+                  account_negative_enabled: e.currentTarget.checked,
+                });
               }}
             />
             <Text size="xs" c="dimmed" ml={46}>

@@ -424,6 +424,12 @@ taskMenuCount: "{count} 項待處理"
 taskPaydayUnrecorded: 發薪日收入尚未記錄
 tasks: 任務
 settingsSectionTasks: 任務
+taskTrialBalanceToggle: 每月試算任務
+taskTrialBalanceToggleHint: 到達指定日期後，如果本月尚未與實際金額比較，則顯示任務。
+taskTrialBalanceDayLabel: 每月試算日
+taskTrialBalanceDayHint: 如果所選日期在某個月份不存在，試算任務會在該月最後一天顯示（例如，設為31日時，4月為30日，2月為28日或29日）。
+taskTrialBalanceSection: 在試算表中與實際金額比較
+taskTrialBalanceDetail: "{date}是試算預定日。請與實際金額比較。"
 taskPaydayToggle: 發薪日任務
 taskPaydayToggleHint: 當發薪日收入尚未記錄時顯示任務。
 taskCreditCardToggle: 信用卡匯入任務

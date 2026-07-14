@@ -19,6 +19,7 @@ import { longTermLoanPlansRouter } from "./routes/longTermLoanPlans";
 import { plannedExpensesRouter } from "./routes/plannedExpenses";
 import { productApiCredentialsRouter } from "./routes/productApiCredentials";
 import { creditCardStatementsRouter } from "./routes/creditCardStatements";
+import { taskSettingsRouter } from "./routes/taskSettings";
 import {
   databaseNotInitializedResponse,
   isMissingD1TableError,
@@ -75,6 +76,7 @@ app.route("/api/currencies", currenciesRouter);
 app.route("/api/long-term-loan-plans", longTermLoanPlansRouter);
 app.route("/api/planned-expenses", plannedExpensesRouter);
 app.route("/api/product-api-credentials", productApiCredentialsRouter);
+app.route("/api/task-settings", taskSettingsRouter);
 
 app.get("/api/health", (c) =>
   c.json({ status: "ok", service: "balance-sheet-worker" }),

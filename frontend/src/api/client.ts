@@ -59,6 +59,8 @@ import type {
   ProductApiCredentialStatus,
   ProductApiProvider,
   UpsertProductApiCredentialInput,
+  TaskSettings,
+  UpdateTaskSettingsInput,
 } from "@balance-sheet/shared";
 import { createInFlightRequestDeduper } from "./inFlightRequest";
 import {
@@ -192,6 +194,14 @@ const BUDGET_PREFIXES = ["/budget"];
 const PLANNED_EXPENSE_PREFIXES = ["/planned-expenses", "/budget"];
 
 export const api = {
+  taskSettings: {
+    get: () => request<TaskSettings>("/task-settings"),
+    update: (input: UpdateTaskSettingsInput) =>
+      request<TaskSettings>("/task-settings", {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }),
+  },
   accounts: {
     list: (asOf?: string) => {
       const path = asOf
@@ -592,6 +602,10 @@ export const api = {
     },
   },
   trialBalance: {
+    getLatestSnapshotDate: () =>
+      request<{ snapshot_date: string | null }>(
+        "/trial-balance/latest-snapshot",
+      ),
     listSnapshots: () =>
       request<ActualBalanceSnapshot[]>("/trial-balance/snapshots"),
     createSnapshot: (input: CreateActualBalanceSnapshotInput) =>

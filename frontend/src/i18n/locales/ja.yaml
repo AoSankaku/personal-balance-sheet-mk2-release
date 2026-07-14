@@ -424,6 +424,12 @@ taskMenuCount: "{count}件"
 taskPaydayUnrecorded: 未入力の給料日
 tasks: タスク
 settingsSectionTasks: タスク設定
+taskTrialBalanceToggle: 毎月の試算タスク
+taskTrialBalanceToggleHint: 指定日以降、今月まだ実際の金額と比較していない場合にタスクを表示します。
+taskTrialBalanceDayLabel: 毎月の試算日
+taskTrialBalanceDayHint: 設定した日がない月は、その月の月末に試算タスクを表示します（例：31日設定の場合、4月は30日、2月は28日または29日）。
+taskTrialBalanceSection: 試算表で実際の金額と比較
+taskTrialBalanceDetail: "{date}が試算予定日です。実際の金額と比較してください。"
 taskPaydayToggle: 給料日タスク
 taskPaydayToggleHint: 給料日に収入が未入力の場合、タスクを表示します。
 taskCreditCardToggle: クレジットカード明細タスク
