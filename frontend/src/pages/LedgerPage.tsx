@@ -73,6 +73,7 @@ import { summarizeBudgetAdjustmentLogsByCategory } from "../lib/budgetAdjustment
 import { refreshAfterBudgetAdjustment } from "../lib/budgetAdjustmentRefresh";
 import { usePrivacy } from "../context/PrivacyContext";
 import { completedDateRange } from "../lib/completedDateRange";
+import classes from "./LedgerPage.module.css";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
@@ -810,7 +811,7 @@ export default function LedgerPage() {
         <Stack gap="lg">
           {/* Toolbar */}
           <Group justify="space-between" align="flex-end" wrap="wrap" gap="xs">
-            <Group align="flex-end" gap="xs" wrap="wrap">
+            <div className={classes.dateRangeControls}>
               <DatePickerInput
                 type="range"
                 value={journalRange}
@@ -825,10 +826,11 @@ export default function LedgerPage() {
                 clearable
                 placeholder={t("dateRangePlaceholder")}
                 valueFormat="YYYY/MM/DD"
-                style={{ flex: "1 1 160px", maxWidth: 220 }}
+                className={classes.dateRangePicker}
                 size="sm"
               />
               <Button
+                className={classes.dateRangeButton}
                 size="sm"
                 variant="default"
                 onClick={() => {
@@ -840,6 +842,7 @@ export default function LedgerPage() {
                 {t("filterAll")}
               </Button>
               <Button
+                className={classes.dateRangeButton}
                 size="sm"
                 variant="default"
                 onClick={() => {
@@ -851,7 +854,7 @@ export default function LedgerPage() {
               >
                 {t("filterThisMonth")}
               </Button>
-            </Group>
+            </div>
             <Group gap="xs" align="center">
               <Checkbox
                 size="xs"
@@ -1112,6 +1115,7 @@ export default function LedgerPage() {
                   size="sm"
                   onClick={() => {
                     setJournalRange([null, null]);
+                    setAppliedJournalRange([null, null]);
                     setJournalPage(1);
                   }}
                 >
@@ -1158,44 +1162,48 @@ export default function LedgerPage() {
             </Group>
           </Paper>
           <Group align="flex-end" gap="xs" wrap="wrap">
-            <DatePickerInput
-              type="range"
-              placeholder={t("dateRangePlaceholder")}
-              value={budgetLogRange}
-              onChange={(v) => {
-                setBudgetLogRange(v);
-                setBudgetPage(1);
-                void fetchLogs(v);
-              }}
-              clearable
-              valueFormat="YYYY/MM/DD"
-              size="sm"
-              style={{ flex: "1 1 160px", maxWidth: 220 }}
-            />
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => {
-                const range: [Date | null, Date | null] = [null, null];
-                setBudgetLogRange(range);
-                setBudgetPage(1);
-                void fetchLogs(range);
-              }}
-            >
-              {t("filterAll")}
-            </Button>
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => {
-                const range = thisMonthRange();
-                setBudgetLogRange(range);
-                setBudgetPage(1);
-                void fetchLogs(range);
-              }}
-            >
-              {t("filterThisMonth")}
-            </Button>
+            <div className={classes.dateRangeControls}>
+              <DatePickerInput
+                type="range"
+                placeholder={t("dateRangePlaceholder")}
+                value={budgetLogRange}
+                onChange={(v) => {
+                  setBudgetLogRange(v);
+                  setBudgetPage(1);
+                  void fetchLogs(v);
+                }}
+                clearable
+                valueFormat="YYYY/MM/DD"
+                size="sm"
+                className={classes.dateRangePicker}
+              />
+              <Button
+                className={classes.dateRangeButton}
+                size="sm"
+                variant="default"
+                onClick={() => {
+                  const range: [Date | null, Date | null] = [null, null];
+                  setBudgetLogRange(range);
+                  setBudgetPage(1);
+                  void fetchLogs(range);
+                }}
+              >
+                {t("filterAll")}
+              </Button>
+              <Button
+                className={classes.dateRangeButton}
+                size="sm"
+                variant="default"
+                onClick={() => {
+                  const range = thisMonthRange();
+                  setBudgetLogRange(range);
+                  setBudgetPage(1);
+                  void fetchLogs(range);
+                }}
+              >
+                {t("filterThisMonth")}
+              </Button>
+            </div>
             <SegmentedControl
               size="sm"
               value={budgetHistoryMode}

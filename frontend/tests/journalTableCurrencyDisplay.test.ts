@@ -24,4 +24,12 @@ describe("JournalTable currency display", () => {
     expect(source).toContain("isSimpleDisplayPositive");
     expect(source).toContain('accountTypeMap.get(l.account_id) === "asset"');
   });
+
+  test("stacks double-entry account names above their amounts", () => {
+    expect(source.match(/<Stack key=\{l\.id\} gap=\{2\}>/g)).toHaveLength(2);
+    expect(source.match(/overflowWrap: "anywhere"/g)?.length).toBeGreaterThanOrEqual(
+      3,
+    );
+    expect(source.match(/justify="flex-end" wrap="nowrap"/g)).toHaveLength(2);
+  });
 });
