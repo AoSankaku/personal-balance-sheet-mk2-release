@@ -212,6 +212,9 @@ export default function LedgerPage() {
   const [filterCreatedRange, setFilterCreatedRange] = useState<
     [Date | null, Date | null]
   >([null, null]);
+  const [appliedFilterCreatedRange, setAppliedFilterCreatedRange] = useState<
+    [Date | null, Date | null]
+  >([null, null]);
   const [showTimestamp, setShowTimestamp] = useState(false);
   const [adjustmentLogs, setAdjustmentLogs] = useState<BudgetAdjustmentLog[]>(
     [],
@@ -461,7 +464,8 @@ export default function LedgerPage() {
     filterAmountMin !== "",
     filterAmountMax !== "",
     filterAccountIds.length > 0,
-    filterCreatedRange[0] !== null || filterCreatedRange[1] !== null,
+    appliedFilterCreatedRange[0] !== null ||
+      appliedFilterCreatedRange[1] !== null,
   ].filter(Boolean).length;
 
   const filteredJournal = useMemo(() => {
@@ -487,7 +491,7 @@ export default function LedgerPage() {
         if (filterAmountMax !== "" && amt > Number(filterAmountMax))
           return false;
       }
-      const [cFrom, cTo] = filterCreatedRange;
+      const [cFrom, cTo] = appliedFilterCreatedRange;
       if (cFrom || cTo) {
         const createdDate = e.created_at.slice(0, 10);
         if (cFrom && createdDate < toDateStr(cFrom)) return false;
@@ -503,7 +507,7 @@ export default function LedgerPage() {
     filterAccountIds,
     filterAmountMin,
     filterAmountMax,
-    filterCreatedRange,
+    appliedFilterCreatedRange,
     selectedCurrency,
   ]);
 
@@ -536,7 +540,7 @@ export default function LedgerPage() {
         if (filterAmountMax !== "" && amt > Number(filterAmountMax))
           return false;
       }
-      const [cFrom, cTo] = filterCreatedRange;
+      const [cFrom, cTo] = appliedFilterCreatedRange;
       if (cFrom || cTo) {
         const createdDate = e.created_at.slice(0, 10);
         if (cFrom && createdDate < toDateStr(cFrom)) return false;
@@ -553,7 +557,7 @@ export default function LedgerPage() {
     filterAccountIds,
     filterAmountMin,
     filterAmountMax,
-    filterCreatedRange,
+    appliedFilterCreatedRange,
   ]);
 
   const sortedLogs = useMemo(() => {
@@ -991,9 +995,13 @@ export default function LedgerPage() {
                       type="range"
                       label={t("filterCreatedRangeLabel")}
                       value={filterCreatedRange}
-                      onChange={(v) => {
-                        setFilterCreatedRange(v);
-                        setJournalPage(1);
+                      onChange={(value) => {
+                        setFilterCreatedRange(value);
+                        setAppliedFilterCreatedRange((current) =>
+                          completedDateRange(current, value),
+                        );
+                        if ((value[0] === null) === (value[1] === null))
+                          setJournalPage(1);
                       }}
                       clearable
                       valueFormat="YYYY/MM/DD"
@@ -1012,6 +1020,7 @@ export default function LedgerPage() {
                           setFilterAmountMax("");
                           setFilterAccountIds([]);
                           setFilterCreatedRange([null, null]);
+                          setAppliedFilterCreatedRange([null, null]);
                           setJournalPage(1);
                         }}
                       >

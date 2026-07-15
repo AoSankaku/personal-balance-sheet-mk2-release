@@ -35,4 +35,21 @@ describe("ledger date range shortcut layout", () => {
 
     expect(completeClearActions).toHaveLength(2);
   });
+
+  test("applies the created-at range only after both dates are selected", () => {
+    expect(ledgerPageSource).toContain(
+      "const [appliedFilterCreatedRange, setAppliedFilterCreatedRange]",
+    );
+    expect(
+      ledgerPageSource.match(
+        /const \[cFrom, cTo\] = appliedFilterCreatedRange;/g,
+      ),
+    ).toHaveLength(2);
+    expect(ledgerPageSource).toContain(
+      "completedDateRange(current, value)",
+    );
+    expect(ledgerPageSource).toMatch(
+      /setFilterCreatedRange\(\[null, null\]\);\s*setAppliedFilterCreatedRange\(\[null, null\]\);/,
+    );
+  });
 });
