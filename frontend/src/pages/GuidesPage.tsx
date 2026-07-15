@@ -18,7 +18,7 @@ import {
   IconBook,
   IconChevronDown,
 } from "@tabler/icons-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -257,7 +257,6 @@ export default function GuidesPage() {
   const { t, locale } = useLang();
   const [activeId, setActiveId] = useState(GUIDE_SECTIONS[0]!.id);
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const contentRef = useRef<HTMLDivElement>(null);
 
   const activeIndex = GUIDE_SECTIONS.findIndex((s) => s.id === activeId);
   const activeSection = GUIDE_SECTIONS[activeIndex]!;
@@ -269,14 +268,14 @@ export default function GuidesPage() {
 
   const handleNavigate = (index: number) => {
     setActiveId(GUIDE_SECTIONS[index]!.id);
-    contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   useEffect(() => {
     if (isMobile) {
-      contentRef.current?.scrollIntoView({
+      window.scrollTo({
+        top: 0,
+        left: 0,
         behavior: "smooth",
-        block: "start",
       });
     }
   }, [activeId, isMobile]);
@@ -304,7 +303,7 @@ export default function GuidesPage() {
             rightSection={<IconChevronDown size={14} />}
             styles={{ input: { fontWeight: 500 } }}
           />
-          <Box ref={contentRef} className={classes.markdown}>
+          <Box className={classes.markdown}>
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {activeSection.content[locale] ?? activeSection.content["en"]}
             </ReactMarkdown>
@@ -336,7 +335,7 @@ export default function GuidesPage() {
           <Divider orientation="vertical" />
 
           <Box style={{ flex: 1, minWidth: 0 }}>
-            <div ref={contentRef} className={classes.markdown}>
+            <div className={classes.markdown}>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {activeSection.content[locale] ?? activeSection.content["en"]}
               </ReactMarkdown>
