@@ -1247,6 +1247,8 @@ plannedExpenseStatus_completed: 已完成
 plannedExpenseStatus_cancelled: 已取消
 plannedExpenseOpenCount: 未完成項目
 plannedExpenseOpenTotal: 未完成合計
+plannedExpenseWishlistCount: 數量
+plannedExpenseWishlistTotal: 合計
 plannedExpenseList: 清單
 plannedExpenseReorder: 重新排序
 plannedExpenseMoveUp: 上移

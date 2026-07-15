@@ -1247,6 +1247,8 @@ plannedExpenseStatus_completed: Completado
 plannedExpenseStatus_cancelled: Cancelado
 plannedExpenseOpenCount: Elementos abiertos
 plannedExpenseOpenTotal: Total abierto
+plannedExpenseWishlistCount: Cantidad
+plannedExpenseWishlistTotal: Total
 plannedExpenseList: Lista
 plannedExpenseReorder: Reordenar
 plannedExpenseMoveUp: Subir

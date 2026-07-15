@@ -723,6 +723,8 @@ export const translationKeys = [
   "plannedExpenseStatus_cancelled",
   "plannedExpenseOpenCount",
   "plannedExpenseOpenTotal",
+  "plannedExpenseWishlistCount",
+  "plannedExpenseWishlistTotal",
   "plannedExpenseList",
   "plannedExpenseReorder",
   "plannedExpenseMoveUp",
