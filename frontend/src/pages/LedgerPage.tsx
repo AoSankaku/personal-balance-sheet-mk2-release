@@ -138,6 +138,27 @@ function parseDateInputValue(value: string): Date | null {
   return new Date(Number(y), Number(m) - 1, Number(d));
 }
 
+type BudgetSort = {
+  key: BudgetAdjustmentLogSortKey;
+  dir: "asc" | "desc";
+};
+
+function SortIcon({
+  col,
+  sort,
+}: {
+  col: BudgetAdjustmentLogSortKey;
+  sort: BudgetSort;
+}) {
+  if (sort.key !== col)
+    return <IconSelector size={12} style={{ opacity: 0.4 }} />;
+  return sort.dir === "asc" ? (
+    <IconChevronUp size={12} />
+  ) : (
+    <IconChevronDown size={12} />
+  );
+}
+
 export default function LedgerPage() {
   const { t, locale } = useLang();
   const { privacyMode } = usePrivacy();
@@ -225,10 +246,10 @@ export default function LedgerPage() {
   const [budgetPageSize, setBudgetPageSize] = useState(() =>
     getPageSize("ledger:budgetPageSize", 25),
   );
-  const [budgetSort, setBudgetSort] = useState<{
-    key: BudgetAdjustmentLogSortKey;
-    dir: "asc" | "desc";
-  }>({ key: "date", dir: "desc" });
+  const [budgetSort, setBudgetSort] = useState<BudgetSort>({
+    key: "date",
+    dir: "desc",
+  });
   const [budgetHistoryMode, setBudgetHistoryMode] = useState<
     "entries" | "categories"
   >("entries");
@@ -628,16 +649,6 @@ export default function LedgerPage() {
       prev.key === key
         ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
         : { key, dir: "desc" },
-    );
-  }
-
-  function SortIcon({ col }: { col: BudgetAdjustmentLogSortKey }) {
-    if (budgetSort.key !== col)
-      return <IconSelector size={12} style={{ opacity: 0.4 }} />;
-    return budgetSort.dir === "asc" ? (
-      <IconChevronUp size={12} />
-    ) : (
-      <IconChevronDown size={12} />
     );
   }
 
@@ -1282,7 +1293,7 @@ export default function LedgerPage() {
                           <UnstyledButton onClick={() => toggleSort("date")}>
                             <Group gap={4} wrap="nowrap">
                               {t("thDate")}
-                              <SortIcon col="date" />
+                              <SortIcon col="date" sort={budgetSort} />
                             </Group>
                           </UnstyledButton>
                         </Table.Th>
@@ -1290,7 +1301,7 @@ export default function LedgerPage() {
                           <UnstyledButton onClick={() => toggleSort("type")}>
                             <Group gap={4} wrap="nowrap">
                               {t("budgetHistoryTypeCol")}
-                              <SortIcon col="type" />
+                              <SortIcon col="type" sort={budgetSort} />
                             </Group>
                           </UnstyledButton>
                         </Table.Th>
@@ -1300,7 +1311,7 @@ export default function LedgerPage() {
                           >
                             <Group gap={4} wrap="nowrap">
                               {t("budgetCategoryLabel")}
-                              <SortIcon col="category" />
+                              <SortIcon col="category" sort={budgetSort} />
                             </Group>
                           </UnstyledButton>
                         </Table.Th>
@@ -1308,7 +1319,7 @@ export default function LedgerPage() {
                           <UnstyledButton onClick={() => toggleSort("amount")}>
                             <Group gap={4} wrap="nowrap" justify="flex-end">
                               {t("budgetHistoryAmountCol")}
-                              <SortIcon col="amount" />
+                              <SortIcon col="amount" sort={budgetSort} />
                             </Group>
                           </UnstyledButton>
                         </Table.Th>
