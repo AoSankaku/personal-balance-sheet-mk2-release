@@ -72,6 +72,7 @@ import {
 import { summarizeBudgetAdjustmentLogsByCategory } from "../lib/budgetAdjustmentCategorySummary";
 import { refreshAfterBudgetAdjustment } from "../lib/budgetAdjustmentRefresh";
 import { usePrivacy } from "../context/PrivacyContext";
+import { completedDateRange } from "../lib/completedDateRange";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
@@ -161,6 +162,8 @@ export default function LedgerPage() {
     getPageSize("ledger:journalPageSize", 25),
   );
   const [journalRange, setJournalRange] =
+    useState<[Date | null, Date | null]>(thisMonthRange);
+  const [appliedJournalRange, setAppliedJournalRange] =
     useState<[Date | null, Date | null]>(thisMonthRange);
   const [filterDesc, setFilterDesc] = useState("");
   const [filterSource, setFilterSource] = useState<string | null>(null);
@@ -461,7 +464,7 @@ export default function LedgerPage() {
   ].filter(Boolean).length;
 
   const filteredJournal = useMemo(() => {
-    const [from, to] = journalRange;
+    const [from, to] = appliedJournalRange;
     return journal.filter((e) => {
       if (!entryHasCurrency(e, selectedCurrency)) return false;
       if (from && e.date < toDateStr(from)) return false;
@@ -493,7 +496,7 @@ export default function LedgerPage() {
     });
   }, [
     journal,
-    journalRange,
+    appliedJournalRange,
     filterDesc,
     filterSource,
     filterAccountIds,
@@ -504,7 +507,7 @@ export default function LedgerPage() {
   ]);
 
   const outsideRangeCount = useMemo(() => {
-    const [from, to] = journalRange;
+    const [from, to] = appliedJournalRange;
     if (!from && !to) return 0;
     return journal.filter((e) => {
       if (!entryHasCurrency(e, selectedCurrency)) return false;
@@ -542,7 +545,7 @@ export default function LedgerPage() {
     }).length;
   }, [
     journal,
-    journalRange,
+    appliedJournalRange,
     selectedCurrency,
     filterDesc,
     filterSource,
@@ -813,7 +816,11 @@ export default function LedgerPage() {
                 value={journalRange}
                 onChange={(value) => {
                   setJournalRange(value);
-                  setJournalPage(1);
+                  setAppliedJournalRange((current) => {
+                    return completedDateRange(current, value);
+                  });
+                  if ((value[0] === null) === (value[1] === null))
+                    setJournalPage(1);
                 }}
                 clearable
                 placeholder={t("dateRangePlaceholder")}
@@ -826,6 +833,7 @@ export default function LedgerPage() {
                 variant="default"
                 onClick={() => {
                   setJournalRange([null, null]);
+                  setAppliedJournalRange([null, null]);
                   setJournalPage(1);
                 }}
               >
@@ -835,7 +843,9 @@ export default function LedgerPage() {
                 size="sm"
                 variant="default"
                 onClick={() => {
-                  setJournalRange(thisMonthRange());
+                  const range = thisMonthRange();
+                  setJournalRange(range);
+                  setAppliedJournalRange(range);
                   setJournalPage(1);
                 }}
               >
