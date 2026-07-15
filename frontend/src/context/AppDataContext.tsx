@@ -23,6 +23,8 @@ import type {
   ExchangeRates,
   JournalEntry,
   PLReport,
+  TaskSettings,
+  UpdateTaskSettingsInput,
 } from "@balance-sheet/shared";
 import { api, ApiError } from "../api/client";
 import { useLang } from "../i18n";
@@ -56,6 +58,10 @@ import {
   updateOfflineAppCache,
   type OfflineAppCache,
 } from "../lib/offlineAppCache";
+import {
+  DEFAULT_TASK_SETTINGS,
+  migrateLegacyTaskSettingsIfNeeded,
+} from "../lib/taskSettings";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
@@ -77,6 +83,8 @@ interface AppDataContextValue {
   creditCardSettings: CreditCardSettings[];
   creditCardState: CreditCardStateEntry[];
   creditCardStatementCompletions: CreditCardStatementCompletion[];
+  latestTrialBalanceDate: string | null;
+  taskSettings: TaskSettings;
   currentYearMonth: string;
   setCurrentYearMonth: (ym: string) => void;
   loading: boolean;
@@ -96,6 +104,8 @@ interface AppDataContextValue {
   refreshCreditCardSettings: () => void;
   refreshCreditCardState: () => void;
   refreshCreditCardStatementCompletions: () => void;
+  refreshLatestTrialBalanceDate: () => void;
+  updateTaskSettings: (input: UpdateTaskSettingsInput) => Promise<TaskSettings>;
   refreshBudgetSettings: () => void;
   refreshAllocatable: () => void;
   allocatableToday: number;
@@ -198,6 +208,22 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   >([]);
   const [creditCardStatementCompletions, setCreditCardStatementCompletions] =
     useState<CreditCardStatementCompletion[]>([]);
+  const [latestTrialBalanceDate, setLatestTrialBalanceDate] = useState<
+    string | null
+  >(null);
+  const [taskSettings, setTaskSettings] = useState<TaskSettings>({
+    ...DEFAULT_TASK_SETTINGS,
+    configured: false,
+    updated_at: null,
+  });
+  const taskSettingsRef = useRef(taskSettings);
+  const taskSettingsUpdateQueueRef = useRef<Promise<unknown>>(
+    Promise.resolve(),
+  );
+  const taskSettingsUpdateVersionRef = useRef(0);
+  useEffect(() => {
+    taskSettingsRef.current = taskSettings;
+  }, [taskSettings]);
   const [budgetSummary, setBudgetSummary] = useState<BudgetSummary | null>(
     initialOfflineCache?.todayBudget?.summary ?? null,
   );
@@ -462,6 +488,49 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const refreshLatestTrialBalanceDate = useCallback(async () => {
+    try {
+      const latest = await api.trialBalance.getLatestSnapshotDate();
+      setLatestTrialBalanceDate(latest.snapshot_date);
+    } catch {
+      // silently ignore
+    }
+  }, []);
+
+  const updateTaskSettings = useCallback(
+    async (input: UpdateTaskSettingsInput) => {
+      const previous = taskSettingsRef.current;
+      const updateVersion = taskSettingsUpdateVersionRef.current + 1;
+      taskSettingsUpdateVersionRef.current = updateVersion;
+      const optimistic: TaskSettings = {
+        ...previous,
+        ...input,
+        configured: true,
+      };
+      taskSettingsRef.current = optimistic;
+      setTaskSettings(optimistic);
+      const request = taskSettingsUpdateQueueRef.current.then(() =>
+        api.taskSettings.update(input),
+      );
+      taskSettingsUpdateQueueRef.current = request.catch(() => undefined);
+      try {
+        const saved = await request;
+        if (taskSettingsUpdateVersionRef.current === updateVersion) {
+          taskSettingsRef.current = saved;
+          setTaskSettings(saved);
+        }
+        return saved;
+      } catch (error) {
+        if (taskSettingsUpdateVersionRef.current === updateVersion) {
+          taskSettingsRef.current = previous;
+          setTaskSettings(previous);
+        }
+        throw error;
+      }
+    },
+    [],
+  );
+
   const refreshBudgetSettings = useCallback(async () => {
     try {
       const s = await api.budget.getSettings();
@@ -536,6 +605,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         ccState,
         ccStatementCompletions,
         bSettings,
+        latestTrialBalance,
+        serverTaskSettings,
       ] = await Promise.all([
         api.accounts.list(toDateStr(new Date())),
         api.journal.list(),
@@ -548,6 +619,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         api.trialBalance.getCreditCardState(),
         api.creditCardStatements.listCompletions(),
         api.budget.getSettings(),
+        api.trialBalance
+          .getLatestSnapshotDate()
+          .catch(() => ({ snapshot_date: null })),
+        api.taskSettings.get(),
       ]);
       setAccounts(accts);
       setJournal(entries);
@@ -560,6 +635,19 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setCreditCardState(ccState);
       setCreditCardStatementCompletions(ccStatementCompletions);
       setBudgetSettings(bSettings);
+      setLatestTrialBalanceDate(latestTrialBalance.snapshot_date);
+      let resolvedTaskSettings = serverTaskSettings;
+      try {
+        resolvedTaskSettings = await migrateLegacyTaskSettingsIfNeeded(
+          serverTaskSettings,
+          localStorage,
+          api.taskSettings.update,
+        );
+      } catch {
+        // Keep server defaults and retry migration on the next full refresh.
+      }
+      taskSettingsRef.current = resolvedTaskSettings;
+      setTaskSettings(resolvedTaskSettings);
       updateOfflineAppCache({
         accounts: accts,
         budgetCategories: cats,
@@ -740,6 +828,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         creditCardSettings,
         creditCardState,
         creditCardStatementCompletions,
+        latestTrialBalanceDate,
+        taskSettings,
         currentYearMonth,
         setCurrentYearMonth,
         loading,
@@ -755,6 +845,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         refreshCreditCardSettings,
         refreshCreditCardState,
         refreshCreditCardStatementCompletions,
+        refreshLatestTrialBalanceDate,
+        updateTaskSettings,
         refreshBudgetSettings,
         refreshAllocatable,
         allocatableToday,

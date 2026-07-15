@@ -9,6 +9,7 @@ interface Props {
   message: string;
   confirmLabel?: string;
   confirmColor?: string;
+  loading?: boolean;
 }
 
 export function ConfirmModal({
@@ -19,6 +20,7 @@ export function ConfirmModal({
   message,
   confirmLabel,
   confirmColor = "red",
+  loading = false,
 }: Props) {
   const { t } = useLang();
 
@@ -34,7 +36,7 @@ export function ConfirmModal({
         <Button variant="default" onClick={onClose}>
           {t("cancel")}
         </Button>
-        <Button color={confirmColor} onClick={handleConfirm}>
+        <Button color={confirmColor} onClick={handleConfirm} loading={loading}>
           {confirmLabel ?? t("confirm")}
         </Button>
       </Group>

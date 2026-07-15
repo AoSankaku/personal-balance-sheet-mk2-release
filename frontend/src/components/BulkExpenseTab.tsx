@@ -1,6 +1,7 @@
 import {
   Accordion,
   ActionIcon,
+  Alert,
   Badge,
   Button,
   Checkbox,
@@ -27,7 +28,10 @@ import {
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useEffect, useRef, useState } from "react";
-import type { CreateJournalInput } from "@balance-sheet/shared";
+import type {
+  CompleteCreditCardStatementInput,
+  CreateJournalInput,
+} from "@balance-sheet/shared";
 import { api } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
@@ -59,11 +63,12 @@ import {
 } from "../utils/bulkExpensePreferences";
 
 export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
-  const { t } = useLang();
+  const { t, locale } = useLang();
   const {
     accounts,
     budgetCategories,
     displayCurrencySymbol: currencySymbol,
+    refreshCreditCardStatementCompletions,
   } = useAppData();
 
   const [paymentAccountId, setPaymentAccountId] = useState<string | null>(
@@ -94,6 +99,11 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
     Array(initLen).fill(false),
   );
   const [posting, setPosting] = useState(false);
+  const [statementCompletion, setStatementCompletion] =
+    useState<CompleteCreditCardStatementInput | null>(
+      bulkDraft.statementCompletion,
+    );
+  const [completionPosting, setCompletionPosting] = useState(false);
   const [copyLastDate, setCopyLastDate] = useState(
     () =>
       shouldCopyLastDateByDefault(
@@ -104,12 +114,30 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
     skipConfirmOpened,
     { open: openSkipConfirm, close: closeSkipConfirm },
   ] = useDisclosure(false);
+  const [
+    completionConfirmOpened,
+    { open: openCompletionConfirm, close: closeCompletionConfirm },
+  ] = useDisclosure(false);
   const pendingEntries = useRef<CreateJournalInput[]>([]);
   const pendingSkipCount = useRef(0);
 
   useEffect(() => {
-    setBulkDraft({ paymentAccountId, rows, billingRows });
-  }, [paymentAccountId, rows, billingRows]);
+    setBulkDraft({
+      paymentAccountId,
+      rows,
+      billingRows,
+      statementCompletion,
+    });
+  }, [paymentAccountId, rows, billingRows, statementCompletion]);
+
+  const statementMonthLabel = statementCompletion
+    ? new Intl.DateTimeFormat(locale, {
+        year: "numeric",
+        month: "long",
+      }).format(
+        new Date(`${statementCompletion.statement_month}-01T00:00:00`),
+      )
+    : "";
 
   const paymentOptions = [
     ...buildGroupedAssetOptions(accounts, t("groupAssetAccounts")),
@@ -284,34 +312,66 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
     return { entries, skippedCount };
   }
 
+  function resetBulkForm() {
+    const fresh: BulkExpenseRow = {
+      type: "expense",
+      date: new Date(),
+      itemName: "",
+      qty: 1,
+      price: 0,
+      expenseAccountId: null,
+    };
+    const freshBilling = [{ ...DEFAULT_BILLING_ROW }];
+    setBulkDraft({
+      paymentAccountId,
+      rows: [fresh],
+      billingRows: freshBilling,
+      statementCompletion: null,
+    });
+    setRows([fresh]);
+    setBillingRows(freshBilling);
+    setBillingChecked([false]);
+    setStatementCompletion(null);
+  }
+
   async function doPost(entries: CreateJournalInput[]) {
     setPosting(true);
     try {
       await api.journal.batchCreate({ entries });
+      if (statementCompletion) {
+        await api.creditCardStatements.complete(statementCompletion);
+        await refreshCreditCardStatementCompletions();
+      }
       showFeedback({ message: t("bulkExpensePosted"), color: "teal" });
-
-      const fresh: BulkExpenseRow = {
-        type: "expense",
-        date: new Date(),
-        itemName: "",
-        qty: 1,
-        price: 0,
-        expenseAccountId: null,
-      };
-      const freshBilling = [{ ...DEFAULT_BILLING_ROW }];
-      setBulkDraft({
-        paymentAccountId,
-        rows: [fresh],
-        billingRows: freshBilling,
-      });
-      setRows([fresh]);
-      setBillingRows(freshBilling);
-      setBillingChecked([false]);
+      resetBulkForm();
       onPosted();
     } catch {
       showFeedback({ message: "記入に失敗しました", color: "red" });
     } finally {
       setPosting(false);
+    }
+  }
+
+  async function completeStatementWithoutPosting() {
+    if (!statementCompletion) return;
+    setCompletionPosting(true);
+    try {
+      await api.creditCardStatements.complete(statementCompletion);
+      await refreshCreditCardStatementCompletions();
+      resetBulkForm();
+      closeCompletionConfirm();
+      showFeedback({
+        message: t("creditCardStatementCompleted").replace(
+          "{month}",
+          statementMonthLabel,
+        ),
+        color: "teal",
+      });
+      onPosted();
+    } catch {
+      showFeedback({ message: t("saveFailed"), color: "red" });
+    } finally {
+      setCompletionPosting(false);
     }
   }
 
@@ -345,6 +405,32 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
 
   return (
     <Stack gap="md">
+      {statementCompletion && (
+        <Alert color="teal" title={t("creditCardStatementCompleteTitle")}>
+          <Stack gap="sm">
+            <Text size="sm">
+              {t("creditCardStatementCompleteHint").replace(
+                "{month}",
+                statementMonthLabel,
+              )}
+            </Text>
+            <Group justify="flex-end">
+              <Button
+                size="xs"
+                color="teal"
+                variant="light"
+                onClick={openCompletionConfirm}
+              >
+                {t("creditCardStatementMarkComplete").replace(
+                  "{month}",
+                  statementMonthLabel,
+                )}
+              </Button>
+            </Group>
+          </Stack>
+        </Alert>
+      )}
+
       <Accordion variant="contained" radius="md">
         <Accordion.Item value="amazon-notes">
           <Accordion.Control>Amazon.co.jp記入時の注意</Accordion.Control>
@@ -730,6 +816,20 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
           {t("bulkExpensePostAll")}
         </Button>
       </Group>
+
+      <ConfirmModal
+        opened={completionConfirmOpened}
+        onClose={closeCompletionConfirm}
+        onConfirm={() => void completeStatementWithoutPosting()}
+        title={t("creditCardStatementCompleteTitle")}
+        message={t("creditCardStatementCompleteConfirm").replace(
+          "{month}",
+          statementMonthLabel,
+        )}
+        confirmLabel={t("creditCardStatementCompleteAction")}
+        confirmColor="teal"
+        loading={completionPosting}
+      />
 
       <ConfirmModal
         opened={skipConfirmOpened}

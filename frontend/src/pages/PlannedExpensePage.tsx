@@ -41,8 +41,9 @@ import {
   IconChevronRight,
   IconDotsVertical,
   IconEdit,
+  IconExternalLink,
+  IconFolderOpen,
   IconGift,
-  IconGripVertical,
   IconPlayerTrackNext,
   IconPlus,
   IconRefresh,
@@ -142,6 +143,7 @@ import {
   plannedExpenseSkippedDateList,
   type PlannedExpenseCalendarOccurrence,
 } from "../lib/plannedExpenseCalendar";
+import classes from "./PlannedExpensePage.module.css";
 
 type PlannedExpensePageProps = {
   kind: PlannedExpenseKind;
@@ -240,6 +242,58 @@ function ReferenceAmount({
       {t("plannedExpenseReferenceAmount")}: {" "}
       {formatCurrency(referenceAmount, locale, selectedCurrency)}
     </Text>
+  );
+}
+
+function safeExternalUrl(value: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  try {
+    const url = new URL(
+      /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`,
+    );
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function PlannedExpenseSupplement({ item }: { item: PlannedExpense }) {
+  const href = safeExternalUrl(item.url);
+
+  return (
+    <>
+      {item.note && (
+        <Text size="xs" c="dimmed" lineClamp={2} mt={2}>
+          {item.note}
+        </Text>
+      )}
+      {href ? (
+        <Anchor
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          size="xs"
+          mt={2}
+          title={item.url ?? undefined}
+          draggable={false}
+          className={classes.plannedExpenseLink}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <IconExternalLink size={14} aria-hidden="true" />
+          <span className={classes.plannedExpenseLinkText}>{item.url}</span>
+        </Anchor>
+      ) : (
+        item.url && (
+          <Text size="xs" c="dimmed" lineClamp={1} mt={2}>
+            {item.url}
+          </Text>
+        )
+      )}
+    </>
   );
 }
 
@@ -1185,11 +1239,7 @@ function CompletedWishlistList({
                                 t={t}
                               />
                             </Group>
-                            {(item.note || item.url) && (
-                              <Text size="xs" c="dimmed" lineClamp={1} mt={2}>
-                                {item.note || item.url}
-                              </Text>
-                            )}
+                            <PlannedExpenseSupplement item={item} />
                           </Box>
                           <Group gap={4} wrap="nowrap" style={{ flex: "0 0 auto" }}>
                             <Tooltip label={t("plannedExpenseStatus_open")} withArrow>
@@ -1341,11 +1391,7 @@ function CompletedScheduledPaymentList({
                                 t("plannedExpenseNoExpenseAccount")}
                             </Text>
                           </Group>
-                          {(item.note || item.url) && (
-                            <Text size="xs" c="dimmed" lineClamp={1} mt={2}>
-                              {item.note || item.url}
-                            </Text>
-                          )}
+                          <PlannedExpenseSupplement item={item} />
                         </Box>
                         <Group gap={4} wrap="nowrap" style={{ flex: "0 0 auto" }}>
                           {item.status === "completed" && (
@@ -3194,73 +3240,19 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     return map;
   }, [calendarDays, items]);
 
-  const renderWishlistItemOrderControls = (
-    item: PlannedExpense,
-    itemIndex: number,
-    itemCount: number,
-    includeGrip: boolean,
-  ) => {
-    if (!isWishlist) return null;
-    return (
-      <Group
-        gap={2}
-        wrap="nowrap"
-        style={{ flex: "0 0 auto" }}
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        <Tooltip label={t("plannedExpenseMoveUp")} withArrow>
-          <ActionIcon
-            variant="subtle"
-            size="sm"
-            aria-label={t("plannedExpenseMoveUp")}
-            disabled={itemIndex === 0}
-            draggable={false}
-            onClick={(event) => {
-              event.stopPropagation();
-              void moveWishlistItemByStep(item, "up");
-            }}
-          >
-            <IconArrowUp size={14} />
-          </ActionIcon>
-        </Tooltip>
-        <Tooltip label={t("plannedExpenseMoveDown")} withArrow>
-          <ActionIcon
-            variant="subtle"
-            size="sm"
-            aria-label={t("plannedExpenseMoveDown")}
-            disabled={itemIndex >= itemCount - 1}
-            draggable={false}
-            onClick={(event) => {
-              event.stopPropagation();
-              void moveWishlistItemByStep(item, "down");
-            }}
-          >
-            <IconArrowDown size={14} />
-          </ActionIcon>
-        </Tooltip>
-        {includeGrip && (
-          <ActionIcon
-            variant="subtle"
-            size="sm"
-            aria-label={t("plannedExpenseReorder")}
-            style={{ cursor: "grab", flex: "0 0 auto" }}
-          >
-            <IconGripVertical size={15} />
-          </ActionIcon>
-        )}
-      </Group>
-    );
-  };
-
   const renderItemAmount = (item: PlannedExpense) => {
     const hasEstimatedAmount = !isShoppingList;
     const hasMetadataPrice = item.product_metadata?.price_amount != null;
     if (!hasEstimatedAmount && !hasMetadataPrice) return null;
     return (
-      <Stack gap={0} align="flex-end">
+      <Stack gap={1} align="flex-end" className={isWishlist ? classes.wishlistAmount : undefined}>
         {hasEstimatedAmount && (
           <>
-            <Text fw={800} size="sm">
+            <Text
+              fw={900}
+              size={isWishlist ? "lg" : "sm"}
+              className={isWishlist ? classes.wishlistAmountPrimary : undefined}
+            >
               {formatCurrency(item.estimated_amount, locale, item.currency)}
             </Text>
             <ReferenceAmount
@@ -3275,7 +3267,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         )}
         {hasMetadataPrice && (
           <>
-            <Text size="xs" c="dimmed">
+            <Text size={isWishlist ? "sm" : "xs"} c="dimmed" fw={isWishlist ? 700 : undefined}>
               {t("productMetadataPrice")}{" "}
               {formatCurrency(
                 item.product_metadata!.price_amount!,
@@ -3356,8 +3348,89 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
     </Group>
   );
 
+  const renderWishlistItemActions = (
+    item: PlannedExpense,
+    itemIndex: number,
+    itemCount: number,
+  ) => (
+    <Group gap="xs" wrap="nowrap" className={classes.wishlistItemActions}>
+      {item.status === "open" && (
+        <Button
+          size="sm"
+          variant="light"
+          color={pageColor}
+          leftSection={<IconReceipt size={17} />}
+          onClick={() => startExpenseInput(item)}
+          className={classes.wishlistPrimaryAction}
+        >
+          {t("plannedExpenseInputExpense")}
+        </Button>
+      )}
+      <Menu withinPortal position="bottom-end" shadow="md">
+        <Menu.Target>
+          <ActionIcon
+            size="lg"
+            variant="subtle"
+            color="gray"
+            aria-label={t("shoppingPlanActions")}
+            className={classes.wishlistOverflowAction}
+          >
+            <IconDotsVertical size={19} />
+          </ActionIcon>
+        </Menu.Target>
+        <Menu.Dropdown>
+          <Menu.Item
+            leftSection={<IconArrowUp size={16} />}
+            disabled={itemIndex === 0}
+            onClick={() => void moveWishlistItemByStep(item, "up")}
+          >
+            {t("plannedExpenseMoveUp")}
+          </Menu.Item>
+          <Menu.Item
+            leftSection={<IconArrowDown size={16} />}
+            disabled={itemIndex >= itemCount - 1}
+            onClick={() => void moveWishlistItemByStep(item, "down")}
+          >
+            {t("plannedExpenseMoveDown")}
+          </Menu.Item>
+          {item.url && (
+            <Menu.Item
+              leftSection={<IconRefresh size={16} />}
+              onClick={() => void refreshItemMetadata(item)}
+            >
+              {t("productMetadataRefresh")}
+            </Menu.Item>
+          )}
+          {item.status !== "completed" && (
+            <Menu.Item
+              color="orange"
+              leftSection={<IconAlertTriangle size={16} />}
+              onClick={() => requestCompleteItem(item)}
+            >
+              {t("plannedExpenseForceComplete")}
+            </Menu.Item>
+          )}
+          <Menu.Divider />
+          <Menu.Item
+            leftSection={<IconEdit size={16} />}
+            onClick={() => openEditModal(item)}
+          >
+            {t("editLabel")}
+          </Menu.Item>
+          <Menu.Item
+            color="red"
+            leftSection={<IconTrash size={16} />}
+            onClick={() => requestDeleteItem(item)}
+          >
+            {t("deleteBudgetCategory")}
+          </Menu.Item>
+        </Menu.Dropdown>
+      </Menu>
+    </Group>
+  );
+
   return (
-    <Stack gap="lg">
+    <Stack gap="lg" className={isWishlist ? classes.wishlistPage : undefined}>
       <Group gap="sm">
         <Button
           component={Link}
@@ -3370,13 +3443,17 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         </Button>
       </Group>
 
-      <Group justify="space-between" align="flex-start">
-        <Group gap="sm" align="flex-start">
+      <Group
+        justify="space-between"
+        align="flex-start"
+        className={isWishlist ? classes.wishlistHero : undefined}
+      >
+        <Group gap="sm" align="flex-start" wrap="nowrap">
           <ThemeIcon size={42} radius="md" color={pageColor} variant="light">
             <Icon size={23} />
           </ThemeIcon>
-          <Box>
-            <Text fw={800} size="xl">
+          <Box style={{ minWidth: 0 }}>
+            <Text fw={900} size="xl">
               {pageTitle}
             </Text>
             <Text size="sm" c="dimmed">
@@ -3384,14 +3461,19 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
             </Text>
           </Box>
         </Group>
-        <Group gap="xs">
-          <Button variant="light" onClick={openCreateCategoryModal}>
+        <Group gap="xs" className={isWishlist ? classes.wishlistHeroActions : undefined}>
+          <Button
+            variant="light"
+            onClick={openCreateCategoryModal}
+            className={isWishlist ? classes.wishlistSecondaryAction : undefined}
+          >
             {categoryAddLabel}
           </Button>
           {!isShoppingList && (
             <Button
               leftSection={<IconPlus size={16} />}
               onClick={() => openCreateModal()}
+              className={isWishlist ? classes.wishlistAddAction : undefined}
             >
               {t("plannedExpenseAdd")}
             </Button>
@@ -3400,22 +3482,65 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
       </Group>
 
       {!isShoppingList && (
-        <Paper withBorder px="md" py="xs" radius="md">
-          <Group gap="md" wrap="wrap">
-            <Group gap={6} wrap="nowrap">
-              <Text size="xs" c="dimmed" fw={700}>
-                {t("plannedExpenseOpenCount")}
+        <Paper
+          withBorder={!isWishlist}
+          px={isWishlist ? 0 : "md"}
+          py={isWishlist ? 0 : "xs"}
+          radius="md"
+          className={isWishlist ? classes.wishlistSummary : undefined}
+        >
+          <Group
+            gap="md"
+            wrap="wrap"
+            className={isWishlist ? classes.wishlistSummaryContent : undefined}
+          >
+            <Group
+              gap={6}
+              wrap="nowrap"
+              className={isWishlist ? classes.wishlistSummaryMetric : undefined}
+            >
+              <Text
+                size="xs"
+                c={isWishlist ? undefined : "dimmed"}
+                fw={isWishlist ? 500 : 700}
+                className={isWishlist ? classes.wishlistSummaryLabel : undefined}
+              >
+                {t(isWishlist ? "plannedExpenseWishlistCount" : "plannedExpenseOpenCount")}
               </Text>
-              <Text fw={800} size="sm">
+              <Text
+                fw={isWishlist ? 600 : 900}
+                size="sm"
+                className={isWishlist ? classes.wishlistSummaryValue : undefined}
+              >
                 {openItemCount}
               </Text>
             </Group>
-            <Divider orientation="vertical" />
-            <Group gap={6} wrap="nowrap">
-              <Text size="xs" c="dimmed" fw={700}>
-                {t("plannedExpenseOpenTotal")}
+            <Divider
+              orientation="vertical"
+              className={isWishlist ? classes.wishlistSummaryDivider : undefined}
+            />
+            <Group
+              gap={6}
+              wrap="nowrap"
+              className={isWishlist ? classes.wishlistSummaryMetric : undefined}
+            >
+              <Text
+                size="xs"
+                c={isWishlist ? undefined : "dimmed"}
+                fw={isWishlist ? 500 : 700}
+                className={isWishlist ? classes.wishlistSummaryLabel : undefined}
+              >
+                {t(isWishlist ? "plannedExpenseWishlistTotal" : "plannedExpenseOpenTotal")}
               </Text>
-              <Text fw={800} size="sm">
+              <Text
+                fw={isWishlist ? 600 : 900}
+                size="sm"
+                className={
+                  isWishlist
+                    ? `${classes.wishlistSummaryTotal} ${classes.wishlistSummaryValue}`
+                    : undefined
+                }
+              >
                 {formatCurrency(openTotal, locale, selectedCurrency)}
               </Text>
             </Group>
@@ -3886,8 +4011,19 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
         </Stack>
       ) : (
       <Stack gap="md">
-      <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
-        <Group justify="space-between" px="md" py="sm">
+      <Paper
+        withBorder={!isWishlist}
+        radius={isWishlist ? "lg" : "md"}
+        style={{ overflow: isWishlist ? "visible" : "hidden" }}
+        className={isWishlist ? classes.wishlistList : undefined}
+      >
+        {!isWishlist && (
+          <>
+        <Group
+          justify="space-between"
+          px="md"
+          py="sm"
+        >
           <Text fw={700} size="sm">
             {t("plannedExpenseList")}
           </Text>
@@ -3901,6 +4037,15 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
           </Group>
         </Group>
         <Divider />
+          </>
+        )}
+        {isWishlist && referenceCurrencyItems.length > 0 && (
+          <Group justify="flex-end" mb="xs">
+            <Badge variant="outline" color="gray">
+              {t("plannedExpenseReferenceCurrency")} {referenceCurrencyItems.length}
+            </Badge>
+          </Group>
+        )}
         {loading ? (
           <Stack p="md">
             <Skeleton height={64} />
@@ -3960,7 +4105,14 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                 : -1;
               return (
                 <Box
+                  component="section"
                   key={group.id ?? "__none"}
+                  aria-labelledby={
+                    isWishlist
+                      ? `planned-expense-category-${group.id ?? "none"}`
+                      : undefined
+                  }
+                  className={isWishlist ? classes.wishlistCategory : undefined}
                   onDragOver={(event) => {
                     if (isWishlist && wishlistDrag?.type === "category") {
                       event.preventDefault();
@@ -3977,6 +4129,137 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                   }}
                   onDragEnd={() => setWishlistDrag(null)}
                 >
+                  {isWishlist ? (
+                    <Group
+                      justify="space-between"
+                      align="flex-start"
+                      wrap="nowrap"
+                      px="md"
+                      py="md"
+                      className={classes.wishlistCategoryHeader}
+                      draggable={group.category != null}
+                      onDragStart={() => {
+                        if (group.category) {
+                          setWishlistDrag({
+                            type: "category",
+                            id: group.category.id,
+                          });
+                        }
+                      }}
+                    >
+                      <Box style={{ minWidth: 0, flex: 1 }}>
+                        <Group
+                          gap={5}
+                          wrap="nowrap"
+                          className={classes.wishlistFolderLabel}
+                        >
+                          <IconFolderOpen size={17} aria-hidden="true" />
+                          <Text component="span" size="xs" fw={800}>
+                            {t("plannedExpenseCategory")}
+                          </Text>
+                        </Group>
+                        <Text
+                          id={`planned-expense-category-${group.id ?? "none"}`}
+                          component="h2"
+                          fw={900}
+                          size="md"
+                          lineClamp={2}
+                          mt={5}
+                          m={0}
+                        >
+                          {group.name}
+                        </Text>
+                        <Text
+                          fw={900}
+                          size="lg"
+                          c={pageColor}
+                          mt={2}
+                          className={classes.wishlistCategoryTotal}
+                        >
+                          {formatCurrency(groupTotal, locale, selectedCurrency)}
+                        </Text>
+                      </Box>
+                      <Group gap={6} wrap="nowrap" style={{ flex: "0 0 auto" }}>
+                        {group.category && (
+                          <Button
+                            size="sm"
+                            variant="light"
+                            color={pageColor}
+                            leftSection={<IconPlus size={16} />}
+                            onClick={() => openCreateModal(group.category!.id)}
+                            draggable={false}
+                            className={classes.wishlistCategoryAdd}
+                          >
+                            {t("plannedExpenseAdd")}
+                          </Button>
+                        )}
+                        {group.category && (
+                          <Menu withinPortal position="bottom-end" shadow="md">
+                            <Menu.Target>
+                              <ActionIcon
+                                size="lg"
+                                variant="subtle"
+                                color="gray"
+                                aria-label={t("shoppingPlanActions")}
+                                draggable={false}
+                                className={classes.wishlistOverflowAction}
+                              >
+                                <IconDotsVertical size={19} />
+                              </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                              <Menu.Item
+                                leftSection={<IconArrowUp size={16} />}
+                                disabled={wishlistCategoryIndex <= 0}
+                                onClick={() =>
+                                  void moveWishlistCategoryByStep(
+                                    group.category!.id,
+                                    "up",
+                                  )
+                                }
+                              >
+                                {t("plannedExpenseMoveUp")}
+                              </Menu.Item>
+                              <Menu.Item
+                                leftSection={<IconArrowDown size={16} />}
+                                disabled={
+                                  wishlistCategoryIndex < 0 ||
+                                  wishlistCategoryIndex >=
+                                    wishlistCategoryOrder.length - 1
+                                }
+                                onClick={() =>
+                                  void moveWishlistCategoryByStep(
+                                    group.category!.id,
+                                    "down",
+                                  )
+                                }
+                              >
+                                {t("plannedExpenseMoveDown")}
+                              </Menu.Item>
+                              <Menu.Divider />
+                              <Menu.Item
+                                leftSection={<IconEdit size={16} />}
+                                onClick={() =>
+                                  openEditCategoryModal(group.category!)
+                                }
+                              >
+                                {t("editLabel")}
+                              </Menu.Item>
+                              <Menu.Item
+                                color="red"
+                                leftSection={<IconTrash size={16} />}
+                                onClick={() =>
+                                  requestDeleteCategory(group.category!)
+                                }
+                              >
+                                {t("deleteBudgetCategory")}
+                              </Menu.Item>
+                            </Menu.Dropdown>
+                          </Menu>
+                        )}
+                      </Group>
+                    </Group>
+                  ) : (
                   <Group
                     justify="space-between"
                     px="md"
@@ -3993,63 +4276,6 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                     }}
                   >
                     <Group gap={isShoppingList ? "sm" : "xs"}>
-                      {isWishlist && group.category && (
-                        <Group
-                          gap={2}
-                          wrap="nowrap"
-                          style={{ flex: "0 0 auto" }}
-                          onPointerDown={(event) => event.stopPropagation()}
-                        >
-                          <Tooltip label={t("plannedExpenseMoveUp")} withArrow>
-                            <ActionIcon
-                              variant="subtle"
-                              size="sm"
-                              aria-label={t("plannedExpenseMoveUp")}
-                              disabled={wishlistCategoryIndex <= 0}
-                              draggable={false}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void moveWishlistCategoryByStep(
-                                  group.category!.id,
-                                  "up",
-                                );
-                              }}
-                            >
-                              <IconArrowUp size={14} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label={t("plannedExpenseMoveDown")} withArrow>
-                            <ActionIcon
-                              variant="subtle"
-                              size="sm"
-                              aria-label={t("plannedExpenseMoveDown")}
-                              disabled={
-                                wishlistCategoryIndex < 0 ||
-                                wishlistCategoryIndex >=
-                                  wishlistCategoryOrder.length - 1
-                              }
-                              draggable={false}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void moveWishlistCategoryByStep(
-                                  group.category!.id,
-                                  "down",
-                                );
-                              }}
-                            >
-                              <IconArrowDown size={14} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <ActionIcon
-                            variant="subtle"
-                            size="sm"
-                            aria-label={t("plannedExpenseReorder")}
-                            style={{ cursor: "grab", flex: "0 0 auto" }}
-                          >
-                            <IconGripVertical size={15} />
-                          </ActionIcon>
-                        </Group>
-                      )}
                       {shoppingPlanDate && (
                         <Group gap={4} wrap="nowrap">
                           {group.category?.shopping_plan_type === "routine" && (
@@ -4146,6 +4372,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                       )}
                     </Group>
                   </Group>
+                  )}
                   {isAddingInlineShoppingItem && (
                     <Box
                       px="md"
@@ -4198,6 +4425,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                       </Group>
                     </Box>
                   )}
+                  <Box className={isWishlist ? classes.wishlistItems : undefined}>
                   {group.items.length === 0 ? (
                     isAddingInlineShoppingItem ? null : (
                     <Text size="sm" c="dimmed" px="md" py="sm">
@@ -4209,9 +4437,16 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                       const isReferenceCurrency = item.currency !== selectedCurrency;
                       return (
                         <Box
+                          component="article"
                           key={item.id}
+                          aria-labelledby={
+                            isWishlist
+                              ? `planned-expense-item-${item.id}`
+                              : undefined
+                          }
                           px="md"
                           py="sm"
+                          className={isWishlist ? classes.wishlistItem : undefined}
                           draggable={isWishlist}
                           onDragStart={(event) => {
                             if (isWishlist) {
@@ -4245,7 +4480,9 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                           onDragEnd={() => setWishlistDrag(null)}
                           style={{
                             borderBottom:
-                              "1px solid var(--mantine-color-default-border)",
+                              isWishlist
+                                ? undefined
+                                : "1px solid var(--mantine-color-default-border)",
                           }}
                         >
                           <Group
@@ -4271,24 +4508,36 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                                 />
                               )}
                               {isWishlist && (
-                                <Box visibleFrom="sm" style={{ flex: "0 0 auto" }}>
-                                  {renderWishlistItemOrderControls(
-                                    item,
-                                    itemIndex,
-                                    group.items.length,
-                                    true,
-                                  )}
-                                </Box>
+                                <ThemeIcon
+                                  size={38}
+                                  radius="md"
+                                  variant="default"
+                                  className={classes.wishlistItemIcon}
+                                >
+                                  <IconGift size={19} aria-hidden="true" />
+                                </ThemeIcon>
                               )}
                               <Box style={{ minWidth: 0, flex: 1 }}>
                                 <Text
-                                  fw={700}
-                                  size="sm"
+                                  id={
+                                    isWishlist
+                                      ? `planned-expense-item-${item.id}`
+                                      : undefined
+                                  }
+                                  component={isWishlist ? "h3" : "p"}
+                                  fw={isWishlist ? 900 : 700}
+                                  size={isWishlist ? "md" : "sm"}
                                   lineClamp={itemNameLineClamp}
-                                  style={{ wordBreak: "break-word" }}
+                                  style={{ wordBreak: "break-word", margin: 0 }}
+                                  className={isWishlist ? classes.wishlistItemName : undefined}
                                 >
                                   {item.name}
                                 </Text>
+                                {isWishlist && (
+                                  <Box hiddenFrom="sm" mt={6} className={classes.wishlistItemMobileAmount}>
+                                    {renderItemAmount(item)}
+                                  </Box>
+                                )}
                                 <Group gap={4} mt={4} mb={4} wrap="wrap">
                                   {isReferenceCurrency && (
                                     <Badge size="xs" color="gray" variant="outline">
@@ -4306,11 +4555,7 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                                     ? ` / ${t("plannedExpenseRecurring")}`
                                     : ""}
                                 </Text>
-                                {(item.note || item.url) && (
-                                  <Text size="xs" c="dimmed" lineClamp={1} mt={2}>
-                                    {item.note || item.url}
-                                  </Text>
-                                )}
+                                <PlannedExpenseSupplement item={item} />
                                 {item.product_metadata && (
                                   <Group gap="xs" mt={5}>
                                     <Badge size="xs" variant="light">
@@ -4348,33 +4593,40 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                               style={{ flex: "0 0 auto" }}
                             >
                               {renderItemAmount(item)}
-                              {renderItemActions(item)}
+                              {isWishlist
+                                ? renderWishlistItemActions(
+                                    item,
+                                    itemIndex,
+                                    group.items.length,
+                                  )
+                                : renderItemActions(item)}
                             </Stack>
                           </Group>
                           <Stack hiddenFrom="sm" gap={6} mt="xs">
-                            {(isWishlist ||
-                              !isShoppingList ||
-                              item.product_metadata?.price_amount != null) && (
+                            {(!isWishlist &&
+                              (!isShoppingList ||
+                                item.product_metadata?.price_amount != null) && (
                               <Group
                                 justify="space-between"
                                 align="center"
                                 gap="xs"
                               >
-                                {renderWishlistItemOrderControls(
+                                {renderItemAmount(item)}
+                              </Group>
+                            ))}
+                            {isWishlist
+                              ? renderWishlistItemActions(
                                   item,
                                   itemIndex,
                                   group.items.length,
-                                  false,
-                                )}
-                                {renderItemAmount(item)}
-                              </Group>
-                            )}
-                            {renderItemActions(item, "wrap")}
+                                )
+                              : renderItemActions(item, "wrap")}
                           </Stack>
                         </Box>
                       );
                     })
                   )}
+                  </Box>
                 </Box>
               );
             })}

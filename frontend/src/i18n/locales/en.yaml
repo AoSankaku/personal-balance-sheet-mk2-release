@@ -424,6 +424,12 @@ taskMenuCount: "{count} open"
 taskPaydayUnrecorded: Payday not yet recorded
 tasks: Tasks
 settingsSectionTasks: Tasks
+taskTrialBalanceToggle: Monthly trial balance task
+taskTrialBalanceToggleHint: Show a task after the selected day when actual amounts have not been compared this month.
+taskTrialBalanceDayLabel: Monthly trial balance day
+taskTrialBalanceDayHint: If the selected day does not exist in a month, the task appears on that month's last day (for example, day 31 becomes April 30 or February 28/29).
+taskTrialBalanceSection: Compare actual amounts in Trial Balance
+taskTrialBalanceDetail: "The trial balance is due on {date}. Compare it with the actual amounts."
 taskPaydayToggle: Payday task
 taskPaydayToggleHint: Show a task when payday income hasn't been recorded yet.
 taskCreditCardToggle: Credit card import task
@@ -501,6 +507,12 @@ importZeroAmountButtonNoMonth: Mark the month as zero
 importZeroAmountConfirmTitle: Confirm a zero statement
 importZeroAmountConfirmMessage: "Mark purchases in {month} as zero and complete the statement?"
 importZeroAmountCompleted: "Purchases in {month} were completed as zero"
+creditCardStatementCompleteTitle: Complete credit card statement
+creditCardStatementCompleteHint: "If every item for {month} is already recorded manually, you can complete the task without adding entries."
+creditCardStatementMarkComplete: "Mark {month} entries complete (complete task)"
+creditCardStatementCompleteConfirm: "Mark every item for {month} as recorded and complete the import task?"
+creditCardStatementCompleteAction: Mark entries complete
+creditCardStatementCompleted: "Completed the entries for {month}"
 importDuplicateModalTitle: Duplicate Transactions
 importSkip: Skip
 importImportAnyway: Import anyway
@@ -749,7 +761,7 @@ suspiciousExpenseNoAlloc: Expense not tracked in any budget category
 suspiciousExpenseMismatch: "Expense vs allocation gap: actual ¥{actual} / allocated ¥{allocated}"
 suspiciousIncomeMismatch: "Income vs distribution gap: actual ¥{actual} / distributed ¥{distributed}"
 tabTrialBalance: Trial Balance
-tabTrialBalanceDesc: Reconcile & verify account balances
+tabTrialBalanceDesc: Compare with actual amounts
 tabLoanMgmt: Loan Mgmt
 tabLoanMgmtDesc: Manage loans & borrowings
 sectionShortTermLending: Short-term Lending
@@ -857,6 +869,13 @@ ttActualModeGeneral: Assets / Liabilities
 ttActualModeCreditCard: Credit Cards
 ttActualGeneralDesc: Enter current balances for assets and non-credit-card liabilities.
 ttActualCreditCardDesc: Track credit-card balances by month so confirmed past months remain available for later reconciliation.
+ttCcStatementCompletionDesc: Complete a no-use month as zero, or force-complete a past month whose entries are already recorded.
+ttCcForceComplete: Force complete
+ttCcForceCompleteConfirm: "Force-complete {month} usage as already recorded?"
+ttCcForcedCompletionBadge: Force completed
+ttCcCancelForceComplete: Undo force completion
+ttCcCancelForceCompleteConfirm: "Undo the force completion for {month}? The import reminder may appear again."
+ttCcForceCompleteCancelled: "Force completion for {month} was undone"
 ttActualSectionAssets: Assets
 ttActualSectionLiabilities: Liabilities
 ttCcNoAccounts: No credit card accounts found.
@@ -932,6 +951,12 @@ ttDeleteSnapshot: Delete this snapshot
 ttDeleteSnapshotConfirm: Delete this snapshot and all its entries? This cannot be undone.
 ttDeleteSnapshotZeroWarning: This snapshot has no discrepancies — it is recommended to keep it as a reconciliation record.
 ttDeleteSnapshotDeleted: Snapshot deleted
+ttCreateFromSnapshot: Create a new trial from this snapshot
+ttCreateFromSnapshotNotice: The past snapshot will not be changed. The selected values will be carried to current-value input and saved as a new trial dated today.
+ttCreateFromSnapshotDifferences: Carry differences only ({count})
+ttCreateFromSnapshotAll: Carry all items ({count})
+ttCreateFromSnapshotNoDifferences: There are no differing items to carry forward.
+ttCreateFromSnapshotApplied: "Values were carried forward from the {date} snapshot. The date has been changed to today. Review the values and save them as a new trial."
 ttLastCleanSnapshot: Last verified (no discrepancy)
 ttMiscReclassWarning: Entries reclassified as misc. loss/gain cannot be reversed outside of double-entry bookkeeping.
 sysUnknownFunds: Unknown Funds
@@ -1222,6 +1247,8 @@ plannedExpenseStatus_completed: Completed
 plannedExpenseStatus_cancelled: Cancelled
 plannedExpenseOpenCount: Open items
 plannedExpenseOpenTotal: Open total
+plannedExpenseWishlistCount: Count
+plannedExpenseWishlistTotal: Total
 plannedExpenseList: List
 plannedExpenseReorder: Reorder
 plannedExpenseMoveUp: Move up

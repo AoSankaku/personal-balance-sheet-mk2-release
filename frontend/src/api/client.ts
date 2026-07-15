@@ -39,6 +39,7 @@ import type {
   CreateActualBalanceSnapshotInput,
   CreditCardStateEntry,
   SaveCreditCardStateInput,
+  UpsertCreditCardStateInput,
   UnsettledLoanEntry,
   EnabledCurrency,
   LongTermLoanPlan,
@@ -58,6 +59,8 @@ import type {
   ProductApiCredentialStatus,
   ProductApiProvider,
   UpsertProductApiCredentialInput,
+  TaskSettings,
+  UpdateTaskSettingsInput,
 } from "@balance-sheet/shared";
 import { createInFlightRequestDeduper } from "./inFlightRequest";
 import {
@@ -191,6 +194,14 @@ const BUDGET_PREFIXES = ["/budget"];
 const PLANNED_EXPENSE_PREFIXES = ["/planned-expenses", "/budget"];
 
 export const api = {
+  taskSettings: {
+    get: () => request<TaskSettings>("/task-settings"),
+    update: (input: UpdateTaskSettingsInput) =>
+      request<TaskSettings>("/task-settings", {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }),
+  },
   accounts: {
     list: (asOf?: string) => {
       const path = asOf
@@ -558,6 +569,11 @@ export const api = {
           body: JSON.stringify(input),
         },
       ),
+    cancelManualCompletion: (id: number) =>
+      request<{ success: boolean }>(
+        `/credit-card-statements/completions/${id}`,
+        { method: "DELETE" },
+      ),
   },
   depreciation: {
     list: () => request<DepreciationSchedule[]>("/depreciation"),
@@ -591,6 +607,10 @@ export const api = {
     },
   },
   trialBalance: {
+    getLatestSnapshotDate: () =>
+      request<{ snapshot_date: string | null }>(
+        "/trial-balance/latest-snapshot",
+      ),
     listSnapshots: () =>
       request<ActualBalanceSnapshot[]>("/trial-balance/snapshots"),
     createSnapshot: (input: CreateActualBalanceSnapshotInput) =>
@@ -607,6 +627,11 @@ export const api = {
     saveCreditCardState: (input: SaveCreditCardStateInput) =>
       request<CreditCardStateEntry[]>("/trial-balance/credit-card-state", {
         method: "POST",
+        body: JSON.stringify(input),
+      }),
+    upsertCreditCardState: (input: UpsertCreditCardStateInput) =>
+      request<CreditCardStateEntry>("/trial-balance/credit-card-state", {
+        method: "PATCH",
         body: JSON.stringify(input),
       }),
   },

@@ -2,14 +2,135 @@ import type {
   CompleteCreditCardStatementInput,
   CreditCardSettings,
   CreditCardStatementCompletion,
+  UpsertCreditCardStateInput,
 } from "@balance-sheet/shared";
 import {
   creditCardBillingOffsetMonths,
   resolveCreditCardMonthDay,
   paymentMonthForStatementMonth,
   shiftCreditCardMonth,
+  statementMonthForTransactionDate,
 } from "@balance-sheet/shared";
-import type { CsvFormat } from "../utils/csvParser";
+import type { CsvFormat, ParsedTransaction } from "../utils/csvParser";
+
+function mostFrequentMonth(months: string[]): string | null {
+  const counts = new Map<string, number>();
+  for (const month of months) {
+    if (!/^\d{4}-\d{2}$/.test(month)) continue;
+    counts.set(month, (counts.get(month) ?? 0) + 1);
+  }
+  return (
+    [...counts.entries()].sort(
+      ([monthA, countA], [monthB, countB]) =>
+        countB - countA || monthB.localeCompare(monthA),
+    )[0]?.[0] ?? null
+  );
+}
+
+export function getConfirmedCsvCreditCardState({
+  format,
+  transactions,
+  settings,
+}: {
+  format: CsvFormat;
+  transactions: ParsedTransaction[];
+  settings: CreditCardSettings | undefined;
+}): UpsertCreditCardStateInput | null {
+  if (
+    !settings ||
+    transactions.length === 0 ||
+    (format !== "smbc-confirmed" && format !== "rakuten-confirmed")
+  ) {
+    return null;
+  }
+
+  const paymentMonth =
+    format === "rakuten-confirmed"
+      ? mostFrequentMonth(
+          transactions.map((transaction) => transaction.paymentMonth),
+        )
+      : (() => {
+          const statementMonth = mostFrequentMonth(
+            transactions.map((transaction) =>
+              statementMonthForTransactionDate(
+                transaction.date,
+                settings.closing_day,
+              ),
+            ),
+          );
+          return statementMonth
+            ? paymentMonthForStatementMonth(statementMonth, settings)
+            : null;
+        })();
+  if (!paymentMonth) return null;
+
+  return {
+    account_id: settings.account_id,
+    payment_month: paymentMonth,
+    amount: transactions.reduce(
+      (sum, transaction) =>
+        sum +
+        (transaction.direction === "deposit"
+          ? -transaction.amount
+          : transaction.amount),
+      0,
+    ),
+    status: "confirmed",
+  };
+}
+
+export function getDefaultStatementMonth({
+  format,
+  transactions,
+  settings,
+  selectableStatementMonths,
+}: {
+  format: CsvFormat;
+  transactions: ParsedTransaction[];
+  settings: CreditCardSettings | undefined;
+  selectableStatementMonths: string[];
+}): string | null {
+  const selectableMonths = [...selectableStatementMonths].sort();
+  const latestSelectableMonth = selectableMonths.at(-1) ?? null;
+  if (
+    !settings ||
+    transactions.length === 0 ||
+    format === "unknown" ||
+    format === "smbc-bank" ||
+    format === "sbi-bank"
+  ) {
+    return latestSelectableMonth;
+  }
+
+  const selectableSet = new Set(selectableMonths);
+  const counts = new Map<string, number>();
+  for (const transaction of transactions) {
+    const statementMonth =
+      format === "smbc-confirmed"
+        ? statementMonthForTransactionDate(
+            transaction.date,
+            settings.closing_day,
+          )
+        : /^\d{4}-\d{2}$/.test(transaction.paymentMonth)
+          ? shiftCreditCardMonth(
+              transaction.paymentMonth,
+              -creditCardBillingOffsetMonths(settings),
+            )
+          : statementMonthForTransactionDate(
+              transaction.date,
+              settings.closing_day,
+            );
+    if (!selectableSet.has(statementMonth)) continue;
+    counts.set(statementMonth, (counts.get(statementMonth) ?? 0) + 1);
+  }
+
+  return (
+    [...counts.entries()].sort(
+      ([monthA, countA], [monthB, countB]) =>
+        countB - countA || monthB.localeCompare(monthA),
+    )[0]?.[0] ?? latestSelectableMonth
+  );
+}
 
 function getReadyStatementTarget(
   today: Date,
@@ -75,6 +196,17 @@ export function getZeroAmountStatementCompletion(
   return target ? { ...target, completion_method: "zero_amount" } : null;
 }
 
+export function getManualStatementCompletion(
+  today: Date,
+  settings: CreditCardSettings | undefined,
+): CompleteCreditCardStatementInput | null {
+  if (!settings) return null;
+  const target = getReadyStatementTarget(today, settings);
+  return target
+    ? { ...target, completion_method: "manual_confirmation" }
+    : null;
+}
+
 export function getSelectableZeroAmountCompletions(
   today: Date,
   settings: CreditCardSettings | undefined,
@@ -99,21 +231,10 @@ export function getSelectableZeroAmountCompletions(
   const accountCompletions = completions.filter(
     (completion) => completion.account_id === settings.account_id,
   );
-  const latestCompletedStatementMonth = accountCompletions.reduce<
-    string | null
-  >(
-    (latest, completion) =>
-      latest === null || completion.statement_month > latest
-        ? completion.statement_month
-        : latest,
-    null,
-  );
   const settingsCreationMonth = /^\d{4}-\d{2}/.test(settings.created_at)
     ? settings.created_at.slice(0, 7)
     : latestReadyStatementMonth;
-  const firstSelectableMonth = latestCompletedStatementMonth
-    ? shiftCreditCardMonth(latestCompletedStatementMonth, 1)
-    : settingsCreationMonth;
+  const firstSelectableMonth = settingsCreationMonth;
   if (firstSelectableMonth > latestReadyStatementMonth) return [];
 
   const completedMonths = new Set(

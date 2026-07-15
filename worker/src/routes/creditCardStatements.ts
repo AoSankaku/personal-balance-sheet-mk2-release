@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import {
   paymentMonthForStatementMonth,
@@ -25,7 +25,9 @@ router.post("/completions", async (c) => {
     !Number.isInteger(body.account_id) ||
     !/^\d{4}-\d{2}$/.test(body.statement_month ?? "") ||
     !/^\d{4}-\d{2}$/.test(body.payment_month ?? "") ||
-    !["csv_import", "zero_amount"].includes(body.completion_method)
+    !["csv_import", "zero_amount", "manual_confirmation"].includes(
+      body.completion_method,
+    )
   ) {
     return c.json({ error: "invalid_statement_completion" }, 400);
   }
@@ -50,25 +52,10 @@ router.post("/completions", async (c) => {
   );
   const confirmationDate = `${paymentMonth}-${String(confirmationDay).padStart(2, "0")}`;
   const settingsCreationMonth = settings.created_at.slice(0, 7);
-  const existingCompletions = await db
-    .select()
-    .from(creditCardStatementCompletions)
-    .where(eq(creditCardStatementCompletions.account_id, body.account_id));
-  const latestCompletedStatementMonth = existingCompletions.reduce<
-    string | null
-  >(
-    (latest, completion) =>
-      latest === null || completion.statement_month > latest
-        ? completion.statement_month
-        : latest,
-    null,
-  );
   if (
     today < confirmationDate ||
     body.payment_month !== paymentMonth ||
-    body.statement_month < settingsCreationMonth ||
-    (latestCompletedStatementMonth !== null &&
-      body.statement_month <= latestCompletedStatementMonth)
+    body.statement_month < settingsCreationMonth
   ) {
     return c.json({ error: "statement_not_ready" }, 409);
   }
@@ -83,6 +70,32 @@ router.post("/completions", async (c) => {
     return c.json({ error: "statement_already_completed" }, 409);
   }
   return c.json(completion, 201);
+});
+
+router.delete("/completions/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) {
+    return c.json({ error: "invalid_statement_completion" }, 400);
+  }
+
+  const db = createDb(c.env);
+  const [deleted] = await db
+    .delete(creditCardStatementCompletions)
+    .where(
+      and(
+        eq(creditCardStatementCompletions.id, id),
+        eq(
+          creditCardStatementCompletions.completion_method,
+          "manual_confirmation",
+        ),
+      ),
+    )
+    .returning({ id: creditCardStatementCompletions.id });
+
+  if (!deleted) {
+    return c.json({ error: "manual_statement_completion_not_found" }, 404);
+  }
+  return c.json({ success: true });
 });
 
 export { router as creditCardStatementsRouter };

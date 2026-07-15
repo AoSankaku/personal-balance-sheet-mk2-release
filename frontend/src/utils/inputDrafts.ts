@@ -4,6 +4,7 @@
 // survives tab switches / unmounts without needing a global store.
 
 import type { SimpleFormDraft } from "../components/SimpleEntryForm";
+import type { CompleteCreditCardStatementInput } from "@balance-sheet/shared";
 import type { CsvFormat, ParseResult } from "./csvParser";
 
 // ── Types for multi-line form ─────────────────────────────────────────────────
@@ -65,6 +66,7 @@ export interface BulkDraft {
   paymentAccountId: string | null;
   rows: BulkRow[];
   billingRows: BillingRow[];
+  statementCompletion: CompleteCreditCardStatementInput | null;
 }
 
 // ── Default values ────────────────────────────────────────────────────────────
@@ -96,6 +98,7 @@ export let bulkDraft: BulkDraft = {
   paymentAccountId: null,
   rows: [],
   billingRows: [{ ...DEFAULT_BILLING_ROW }],
+  statementCompletion: null,
 };
 
 // ── Setters (to allow external mutation of exported lets) ─────────────────────

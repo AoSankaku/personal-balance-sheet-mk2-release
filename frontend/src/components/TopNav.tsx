@@ -22,6 +22,7 @@ import {
   IconListCheck,
   IconPencil,
   IconReportMoney,
+  IconScale,
   IconSettings,
   IconWifiOff,
 } from "@tabler/icons-react";
@@ -52,6 +53,7 @@ import {
 } from "../lib/creditCardImportTasks";
 import { useOfflineDrafts } from "../lib/offlineDrafts";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { computeTrialBalanceTask } from "../lib/trialBalanceTasks";
 import "./TopNav.css";
 
 const HEADER_ACTION_ICON_SIZE = "md";
@@ -62,10 +64,10 @@ interface AppTask {
 }
 
 function usePaydayTasks(): AppTask[] {
-  const { accounts, journal } = useAppData();
+  const { accounts, journal, taskSettings } = useAppData();
   const { t } = useLang();
 
-  if (localStorage.getItem("notif:payday") === "false") return [];
+  if (!taskSettings.payday_enabled) return [];
 
   const now = new Date();
   const todayDay = now.getDate();
@@ -104,8 +106,8 @@ function useBudgetNegativeTask(): {
   allocatableToday: number;
   allocatableTotal: number;
 } {
-  const { allocatableToday, allocatableTotal } = useAppData();
-  const enabled = localStorage.getItem("notif:budgetNegative") !== "false";
+  const { allocatableToday, allocatableTotal, taskSettings } = useAppData();
+  const enabled = taskSettings.budget_negative_enabled;
   return {
     show: enabled && (allocatableToday < 0 || allocatableTotal < 0),
     allocatableToday,
@@ -118,14 +120,12 @@ interface OverdueLoanTask extends AppTask {
 }
 
 function useOverdueLoanTasks(): OverdueLoanTask[] {
-  const { accounts, journal } = useAppData();
+  const { accounts, journal, taskSettings } = useAppData();
   const { t } = useLang();
 
-  if (localStorage.getItem("notif:loanOverdue") === "false") return [];
+  if (!taskSettings.loan_overdue_enabled) return [];
 
-  const raw = localStorage.getItem("notif:loanOverdueDays");
-  const daysThreshold = raw !== null ? parseInt(raw, 10) : 30;
-  if (isNaN(daysThreshold) || daysThreshold <= 0) return [];
+  const daysThreshold = taskSettings.loan_overdue_days;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -166,10 +166,10 @@ function useOverdueLoanTasks(): OverdueLoanTask[] {
 }
 
 function useNegativeAccountTasks(): AppTask[] {
-  const { accounts } = useAppData();
+  const { accounts, taskSettings } = useAppData();
   const { t } = useLang();
 
-  if (localStorage.getItem("notif:accountNegative") === "false") return [];
+  if (!taskSettings.account_negative_enabled) return [];
 
   const tasks: AppTask[] = [];
 
@@ -189,9 +189,10 @@ function useNegativeAccountTasks(): AppTask[] {
 }
 
 function useCreditCardWithdrawalRiskTasks(): CreditCardWithdrawalRiskTask[] {
-  const { accounts, creditCardSettings, creditCardState } = useAppData();
+  const { accounts, creditCardSettings, creditCardState, taskSettings } =
+    useAppData();
 
-  if (localStorage.getItem("notif:creditCardWithdrawalRisk") === "false") {
+  if (!taskSettings.credit_card_withdrawal_risk_enabled) {
     return [];
   }
 
@@ -204,16 +205,31 @@ function useCreditCardWithdrawalRiskTasks(): CreditCardWithdrawalRiskTask[] {
 }
 
 function useCreditCardImportTasks(): CreditCardImportTask[] {
-  const { accounts, creditCardSettings, creditCardStatementCompletions } =
-    useAppData();
+  const {
+    accounts,
+    creditCardSettings,
+    creditCardStatementCompletions,
+    taskSettings,
+  } = useAppData();
 
-  if (localStorage.getItem("notif:creditCard") === "false") return [];
+  if (!taskSettings.credit_card_import_enabled) return [];
 
   return computeCreditCardImportTasks({
     today: new Date(),
     accounts,
     creditCardSettings,
     completions: creditCardStatementCompletions,
+  });
+}
+
+function useTrialBalanceTask() {
+  const { latestTrialBalanceDate, loading, taskSettings } = useAppData();
+
+  return computeTrialBalanceTask({
+    today: new Date(),
+    enabled: taskSettings.trial_balance_enabled && !loading,
+    day: taskSettings.trial_balance_day,
+    latestSnapshotDate: latestTrialBalanceDate,
   });
 }
 
@@ -235,6 +251,7 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
   const negativeAccountTasks = useNegativeAccountTasks();
   const creditCardImportTasks = useCreditCardImportTasks();
   const creditCardWithdrawalRiskTasks = useCreditCardWithdrawalRiskTasks();
+  const trialBalanceTask = useTrialBalanceTask();
   const isOnline = useOnlineStatus();
   const offlineDrafts = useOfflineDrafts();
   const pendingOfflineDrafts = isOnline ? offlineDrafts : [];
@@ -242,6 +259,7 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
     pendingOfflineDrafts.length +
     paydayTasks.length +
     creditCardImportTasks.length +
+    (trialBalanceTask ? 1 : 0) +
     (budgetTask.show ? 1 : 0) +
     (overdueLoanTasks.length > 0 ? 1 : 0) +
     (negativeAccountTasks.length > 0 ? 1 : 0) +
@@ -383,6 +401,48 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
                       </Stack>
                     </UnstyledButton>
                   ))}
+                </Stack>
+              )}
+              {trialBalanceTask && (
+                <Stack gap={4}>
+                  <Text className="task-menu__section-label">
+                    {t("taskTrialBalanceSection")}
+                  </Text>
+                  <UnstyledButton
+                    className="task-menu__item"
+                    onClick={() => {
+                      navigate("/fs/tt?segment=actual");
+                      setOpened(false);
+                    }}
+                  >
+                    <Group align="flex-start" gap="sm" wrap="nowrap">
+                      <ThemeIcon
+                        color="violet"
+                        variant="light"
+                        radius="xl"
+                        size={34}
+                      >
+                        <IconScale size={18} aria-hidden="true" />
+                      </ThemeIcon>
+                      <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+                        <Text size="sm" fw={600}>
+                          {t("taskTrialBalanceSection")}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {t("taskTrialBalanceDetail").replace(
+                            "{date}",
+                            new Intl.DateTimeFormat(locale, {
+                              dateStyle: "medium",
+                            }).format(
+                              new Date(
+                                `${trialBalanceTask.scheduledDate}T00:00:00`,
+                              ),
+                            ),
+                          )}
+                        </Text>
+                      </Stack>
+                    </Group>
+                  </UnstyledButton>
                 </Stack>
               )}
               {budgetTask.show && (

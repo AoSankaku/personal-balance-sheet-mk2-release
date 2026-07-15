@@ -424,6 +424,12 @@ taskMenuCount: "{count}件"
 taskPaydayUnrecorded: 未入力の給料日
 tasks: タスク
 settingsSectionTasks: タスク設定
+taskTrialBalanceToggle: 毎月の試算タスク
+taskTrialBalanceToggleHint: 指定日以降、今月まだ実際の金額と比較していない場合にタスクを表示します。
+taskTrialBalanceDayLabel: 毎月の試算日
+taskTrialBalanceDayHint: 設定した日がない月は、その月の月末に試算タスクを表示します（例：31日設定の場合、4月は30日、2月は28日または29日）。
+taskTrialBalanceSection: 試算表で実際の金額と比較
+taskTrialBalanceDetail: "{date}が試算予定日です。実際の金額と比較してください。"
 taskPaydayToggle: 給料日タスク
 taskPaydayToggleHint: 給料日に収入が未入力の場合、タスクを表示します。
 taskCreditCardToggle: クレジットカード明細タスク
@@ -501,6 +507,12 @@ importZeroAmountButtonNoMonth: 0円として記入したこととする
 importZeroAmountConfirmTitle: 0円として確認を完了
 importZeroAmountConfirmMessage: "{month}利用分を0円として完了します。よろしいですか？"
 importZeroAmountCompleted: "{month}利用分を0円として完了しました"
+creditCardStatementCompleteTitle: クレジットカード明細の記入完了
+creditCardStatementCompleteHint: "{month}分がすべて手動記入済みの場合は、追加記入せずにタスクを完了できます。"
+creditCardStatementMarkComplete: "{month}分の記入は完了とする（タスク完了）"
+creditCardStatementCompleteConfirm: "{month}分はすべて記入済みとして、インポートタスクを完了します。よろしいですか？"
+creditCardStatementCompleteAction: 記入完了にする
+creditCardStatementCompleted: "{month}分の記入を完了しました"
 importDuplicateModalTitle: 重複取引の確認
 importSkip: スキップ
 importImportAnyway: インポートする
@@ -749,7 +761,7 @@ suspiciousExpenseNoAlloc: 費用が予算カテゴリに配分されていませ
 suspiciousExpenseMismatch: "費用額と予算配分の差異: 実際¥{actual} / 配分¥{allocated}"
 suspiciousIncomeMismatch: "収入額と予算分配の差異: 実際¥{actual} / 分配¥{distributed}"
 tabTrialBalance: 試算表
-tabTrialBalanceDesc: 残高照合・差異確認
+tabTrialBalanceDesc: 実際の金額と比較
 tabLoanMgmt: ローン管理
 tabLoanMgmtDesc: 貸し借りを管理
 sectionShortTermLending: 短期貸付
@@ -857,6 +869,13 @@ ttActualModeGeneral: 資産・一般負債
 ttActualModeCreditCard: クレジットカード
 ttActualGeneralDesc: 資産およびクレジットカード以外の負債の現在値を入力します。
 ttActualCreditCardDesc: クレジットカード利用額を月別に記録し、過去の確定分を後日の照合に残します。
+ttCcStatementCompletionDesc: 利用がなかった月を0円として完了したり、記入済みの過去月を強制的に完了したりできます。
+ttCcForceComplete: 強制的に完了
+ttCcForceCompleteConfirm: "{month}利用分は記入済みとして強制的に完了します。よろしいですか？"
+ttCcForcedCompletionBadge: 強制完了済み
+ttCcCancelForceComplete: 強制完了を取り消す
+ttCcCancelForceCompleteConfirm: "{month}利用分の強制完了を取り消します。インポート通知が再表示される場合があります。よろしいですか？"
+ttCcForceCompleteCancelled: "{month}利用分の強制完了を取り消しました"
 ttActualSectionAssets: 資産
 ttActualSectionLiabilities: 負債
 ttCcNoAccounts: クレジットカード科目がありません。
@@ -932,6 +951,12 @@ ttDeleteSnapshot: この試算を削除する
 ttDeleteSnapshotConfirm: この試算とすべての記録を削除しますか？この操作は元に戻せません。
 ttDeleteSnapshotZeroWarning: この試算は誤差がありません。照合記録として残しておくことを推奨します。
 ttDeleteSnapshotDeleted: 試算を削除しました
+ttCreateFromSnapshot: この試算から新しく試算を作成する
+ttCreateFromSnapshotNotice: 過去の試算は変更しません。選んだ値を現在値入力へ引き継ぎ、今日の日付で新しい試算を作成します。
+ttCreateFromSnapshotDifferences: 差異のある項目のみ引き継ぐ（{count}件）
+ttCreateFromSnapshotAll: すべての項目を引き継ぐ（{count}件）
+ttCreateFromSnapshotNoDifferences: 引き継げる差異のある項目はありません。
+ttCreateFromSnapshotApplied: "{date}の試算から値を引き継ぎました。日付は今日に更新されています。内容を確認し、新しい試算として保存してください。"
 ttLastCleanSnapshot: 最終確認（誤差なし）
 ttMiscReclassWarning: 雑益・雑損に振り替えたものは複式簿記以外では取り消せません。
 sysUnknownFunds: 不明金
@@ -1222,6 +1247,8 @@ plannedExpenseStatus_completed: 完了
 plannedExpenseStatus_cancelled: キャンセル
 plannedExpenseOpenCount: 未完了件数
 plannedExpenseOpenTotal: 未完了合計
+plannedExpenseWishlistCount: 件数
+plannedExpenseWishlistTotal: 合計
 plannedExpenseList: 一覧
 plannedExpenseReorder: 並び替え
 plannedExpenseMoveUp: 上へ移動

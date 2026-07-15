@@ -360,6 +360,50 @@ export const budgetSettings = sqliteTable("budget_settings", {
   ).references(() => budgetCategories.id),
 });
 
+export const taskSettings = sqliteTable(
+  "task_settings",
+  {
+    id: integer("id").primaryKey(),
+    payday_enabled: integer("payday_enabled").notNull().default(1),
+    credit_card_import_enabled: integer("credit_card_import_enabled")
+      .notNull()
+      .default(1),
+    trial_balance_enabled: integer("trial_balance_enabled")
+      .notNull()
+      .default(0),
+    trial_balance_day: integer("trial_balance_day").notNull().default(1),
+    credit_card_withdrawal_risk_enabled: integer(
+      "credit_card_withdrawal_risk_enabled",
+    )
+      .notNull()
+      .default(1),
+    budget_negative_enabled: integer("budget_negative_enabled")
+      .notNull()
+      .default(1),
+    loan_overdue_enabled: integer("loan_overdue_enabled")
+      .notNull()
+      .default(1),
+    loan_overdue_days: integer("loan_overdue_days").notNull().default(30),
+    account_negative_enabled: integer("account_negative_enabled")
+      .notNull()
+      .default(1),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    singleton: check("chk_task_settings_singleton", sql`${table.id} = 1`),
+    trialBalanceDay: check(
+      "chk_task_settings_trial_balance_day",
+      sql`${table.trial_balance_day} BETWEEN 1 AND 31`,
+    ),
+    loanOverdueDays: check(
+      "chk_task_settings_loan_overdue_days",
+      sql`${table.loan_overdue_days} BETWEEN 1 AND 3650`,
+    ),
+  }),
+);
+
 export const productMetadataCache = sqliteTable("product_metadata_cache", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   normalized_url: text("normalized_url").notNull().unique(),
@@ -718,7 +762,7 @@ export const creditCardStatementCompletions = sqliteTable(
     statement_month: text("statement_month").notNull(),
     payment_month: text("payment_month").notNull(),
     completion_method: text("completion_method", {
-      enum: ["csv_import", "zero_amount"],
+      enum: ["csv_import", "zero_amount", "manual_confirmation"],
     }).notNull(),
     completed_at: text("completed_at")
       .notNull()
@@ -863,6 +907,7 @@ export type JournalEntryBudgetAllocation =
 export type BudgetAdjustmentLog = typeof budgetAdjustmentLogs.$inferSelect;
 export type NewBudgetAdjustmentLog = typeof budgetAdjustmentLogs.$inferInsert;
 export type BudgetSettings = typeof budgetSettings.$inferSelect;
+export type TaskSettings = typeof taskSettings.$inferSelect;
 export type ProductMetadataCache = typeof productMetadataCache.$inferSelect;
 export type NewProductMetadataCache = typeof productMetadataCache.$inferInsert;
 export type PlannedExpenseCategory =

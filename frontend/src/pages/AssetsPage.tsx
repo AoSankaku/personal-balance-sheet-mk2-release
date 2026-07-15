@@ -1071,6 +1071,13 @@ export default function AssetsPage() {
         {(
           [
             {
+              to: "/fs/tt",
+              Icon: IconScale,
+              label: t("tabTrialBalance"),
+              desc: t("tabTrialBalanceDesc"),
+              color: "violet",
+            },
+            {
               to: "/fs/bs",
               Icon: IconFileAnalytics,
               label: t("tabBalanceSheet"),
@@ -1092,13 +1099,6 @@ export default function AssetsPage() {
               color: "orange",
             },
             {
-              to: "/fs/tt",
-              Icon: IconScale,
-              label: t("tabTrialBalance"),
-              desc: t("tabTrialBalanceDesc"),
-              color: "violet",
-            },
-            {
               to: "/fs/db",
               Icon: IconCoin,
               label: t("tabLoanMgmt"),
@@ -1114,17 +1114,29 @@ export default function AssetsPage() {
             },
           ] as const
         ).map(({ to, Icon, label, desc, color }) => {
+          const isTrialBalanceBtn = to === "/fs/tt";
           const isLoanBtn = to === "/fs/db";
           const showBadge = isLoanBtn && unresolvedShortTermCount > 0;
           return (
-            <Box key={to} pos="relative" style={{ overflow: "visible" }}>
+            <Box
+              key={to}
+              pos="relative"
+              style={{
+                overflow: "visible",
+                gridColumn: isTrialBalanceBtn ? "1 / -1" : undefined,
+              }}
+            >
               <Button
                 component={Link}
                 to={to}
-                variant="default"
+                variant={isTrialBalanceBtn ? "light" : "default"}
+                color={isTrialBalanceBtn ? "violet" : undefined}
                 w="100%"
                 styles={{
-                  root: { height: "auto", padding: rem(16) },
+                  root: {
+                    height: "auto",
+                    padding: isTrialBalanceBtn ? rem(24) : rem(16),
+                  },
                   inner: { flexDirection: "column" },
                   label: {
                     display: "flex",
@@ -1135,19 +1147,24 @@ export default function AssetsPage() {
                   },
                 }}
               >
-                <ThemeIcon size={48} radius="md" color={color} variant="light">
-                  <Icon size={26} />
+                <ThemeIcon
+                  size={isTrialBalanceBtn ? 64 : 48}
+                  radius="md"
+                  color={color}
+                  variant="light"
+                >
+                  <Icon size={isTrialBalanceBtn ? 34 : 26} />
                 </ThemeIcon>
                 <Text
-                  size="sm"
-                  fw={600}
+                  size={isTrialBalanceBtn ? "lg" : "sm"}
+                  fw={isTrialBalanceBtn ? 700 : 600}
                   ta="center"
                   style={{ whiteSpace: "normal" }}
                 >
                   {label}
                 </Text>
                 <Text
-                  size="xs"
+                  size={isTrialBalanceBtn ? "sm" : "xs"}
                   c="dimmed"
                   ta="center"
                   style={{ whiteSpace: "normal" }}

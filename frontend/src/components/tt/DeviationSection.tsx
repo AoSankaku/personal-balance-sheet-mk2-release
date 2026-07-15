@@ -14,7 +14,12 @@ import {
   Table,
   Text,
 } from "@mantine/core";
-import { IconCircleCheck, IconEdit, IconTrash } from "@tabler/icons-react";
+import {
+  IconCircleCheck,
+  IconCopyPlus,
+  IconEdit,
+  IconTrash,
+} from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -40,6 +45,10 @@ import { formatCurrency, formatJPY } from "../../lib/numberFormat";
 import { toDateStr } from "../../lib/dateUtils";
 import { toAccountSelectOption } from "../../lib/accountUtils";
 import {
+  buildTrialBalanceCarryForward,
+  type TrialBalanceCarryForwardDraft,
+} from "../../lib/trialBalanceCarryForward";
+import {
   useAccountDisplayName,
   type DeviationRow,
   type JournalPreviewEntry,
@@ -55,10 +64,12 @@ export function DeviationSection({
   snapshots,
   ccState,
   onJournalCreated,
+  onCreateFromSnapshot,
 }: {
   snapshots: ActualBalanceSnapshot[];
   ccState: CreditCardStateEntry[];
   onJournalCreated: () => Promise<void> | void;
+  onCreateFromSnapshot: (draft: TrialBalanceCarryForwardDraft) => void;
 }) {
   const { t, locale } = useLang();
   const {
@@ -524,6 +535,23 @@ export function DeviationSection({
     { open: openDeleteConfirm, close: closeDeleteConfirm },
   ] = useDisclosure(false);
   const [deleting, setDeleting] = useState(false);
+  const [
+    createFromSnapshotOpen,
+    { open: openCreateFromSnapshot, close: closeCreateFromSnapshot },
+  ] = useDisclosure(false);
+
+  const carryForwardDifferenceCount =
+    snapshot?.general_entries.filter(
+      (entry) => Math.abs(entry.amount - entry.book_value) > 0.5,
+    ).length ?? 0;
+
+  function handleCreateFromSnapshot(scope: "differences" | "all") {
+    if (!snapshot) return;
+    const draft = buildTrialBalanceCarryForward(snapshot, scope);
+    if (draft.entries.length === 0) return;
+    closeCreateFromSnapshot();
+    onCreateFromSnapshot(draft);
+  }
 
   function snapshotTotalDeviation(snap: ActualBalanceSnapshot) {
     const general = snap.general_entries.reduce(
@@ -647,14 +675,24 @@ export function DeviationSection({
           size="sm"
         />
         {snapshot && (
-          <Button
-            size="sm"
-            variant="subtle"
-            color="red"
-            onClick={openDeleteConfirm}
-          >
-            {t("ttDeleteSnapshot")}
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="light"
+              leftSection={<IconCopyPlus size={16} />}
+              onClick={openCreateFromSnapshot}
+            >
+              {t("ttCreateFromSnapshot")}
+            </Button>
+            <Button
+              size="sm"
+              variant="subtle"
+              color="red"
+              onClick={openDeleteConfirm}
+            >
+              {t("ttDeleteSnapshot")}
+            </Button>
+          </>
         )}
       </Group>
 
@@ -1248,6 +1286,42 @@ export function DeviationSection({
               {t("confirm")}
             </Button>
           </Group>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={createFromSnapshotOpen}
+        onClose={closeCreateFromSnapshot}
+        title={t("ttCreateFromSnapshot")}
+      >
+        <Stack gap="md">
+          <Alert color="blue" variant="light">
+            {t("ttCreateFromSnapshotNotice")}
+          </Alert>
+          <Button
+            variant="light"
+            disabled={carryForwardDifferenceCount === 0}
+            onClick={() => handleCreateFromSnapshot("differences")}
+          >
+            {t("ttCreateFromSnapshotDifferences").replace(
+              "{count}",
+              String(carryForwardDifferenceCount),
+            )}
+          </Button>
+          {carryForwardDifferenceCount === 0 && (
+            <Text size="xs" c="dimmed" ta="center">
+              {t("ttCreateFromSnapshotNoDifferences")}
+            </Text>
+          )}
+          <Button
+            variant="default"
+            onClick={() => handleCreateFromSnapshot("all")}
+          >
+            {t("ttCreateFromSnapshotAll").replace(
+              "{count}",
+              String(snapshot?.general_entries.length ?? 0),
+            )}
+          </Button>
         </Stack>
       </Modal>
 

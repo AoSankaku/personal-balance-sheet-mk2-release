@@ -424,6 +424,12 @@ taskMenuCount: "{count} 项待处理"
 taskPaydayUnrecorded: 发薪日收入尚未记录
 tasks: 任务
 settingsSectionTasks: 任务
+taskTrialBalanceToggle: 每月试算任务
+taskTrialBalanceToggleHint: 到达指定日期后，如果本月尚未与实际金额比较，则显示任务。
+taskTrialBalanceDayLabel: 每月试算日
+taskTrialBalanceDayHint: 如果所选日期在某个月不存在，试算任务将在该月最后一天显示（例如，设为31日时，4月为30日，2月为28日或29日）。
+taskTrialBalanceSection: 在试算表中与实际金额比较
+taskTrialBalanceDetail: "{date}是试算计划日。请与实际金额比较。"
 taskPaydayToggle: 发薪日任务
 taskPaydayToggleHint: 当发薪日收入尚未记录时显示任务。
 taskCreditCardToggle: 信用卡导入任务
@@ -501,6 +507,12 @@ importZeroAmountButtonNoMonth: 将该月记为零元
 importZeroAmountConfirmTitle: 确认零元账单
 importZeroAmountConfirmMessage: "将 {month} 消费记为零元并完成账单吗？"
 importZeroAmountCompleted: "已将 {month} 消费按零元完成"
+creditCardStatementCompleteTitle: 完成信用卡账单记录
+creditCardStatementCompleteHint: "如果{month}的所有项目都已手动记录，可以不新增分录并完成任务。"
+creditCardStatementMarkComplete: "将{month}的记录标记为完成（完成任务）"
+creditCardStatementCompleteConfirm: "将{month}的所有项目视为已记录并完成导入任务吗？"
+creditCardStatementCompleteAction: 标记记录完成
+creditCardStatementCompleted: "已完成{month}的记录"
 importDuplicateModalTitle: 重复交易
 importSkip: 跳过
 importImportAnyway: 仍然导入
@@ -749,7 +761,7 @@ suspiciousExpenseNoAlloc: 支出未在任何预算类别中跟踪
 suspiciousExpenseMismatch: "支出与分配差异：实际 ¥{actual} / 已分配 ¥{allocated}"
 suspiciousIncomeMismatch: "收入与分配差异：实际 ¥{actual} / 已分配 ¥{distributed}"
 tabTrialBalance: 试算表
-tabTrialBalanceDesc: 核对与验证账户余额
+tabTrialBalanceDesc: 与实际金额比较
 tabLoanMgmt: 贷款管理
 tabLoanMgmtDesc: 管理贷出与借入
 sectionShortTermLending: 短期贷出
@@ -857,6 +869,13 @@ ttActualModeGeneral: 资产／负债
 ttActualModeCreditCard: 信用卡
 ttActualGeneralDesc: 输入资产和非信用卡负债的当前余额。
 ttActualCreditCardDesc: 按月跟踪信用卡余额，使已确认的过去月份可用于后续核对。
+ttCcStatementCompletionDesc: 可将无消费月份按0元完成，或强制完成已录入的过去月份。
+ttCcForceComplete: 强制完成
+ttCcForceCompleteConfirm: "将{month}消费视为已录入并强制完成吗？"
+ttCcForcedCompletionBadge: 已强制完成
+ttCcCancelForceComplete: 撤销强制完成
+ttCcCancelForceCompleteConfirm: "撤销{month}消费的强制完成吗？导入提醒可能会再次显示。"
+ttCcForceCompleteCancelled: "已撤销{month}消费的强制完成"
 ttActualSectionAssets: 资产
 ttActualSectionLiabilities: 负债
 ttCcNoAccounts: 未找到信用卡账户。
@@ -932,6 +951,12 @@ ttDeleteSnapshot: 删除此快照
 ttDeleteSnapshotConfirm: 删除此快照及其所有记录？此操作不可撤销。
 ttDeleteSnapshotZeroWarning: 此快照没有差异 — 建议保留作为核对记录。
 ttDeleteSnapshotDeleted: 快照已删除
+ttCreateFromSnapshot: 根据此试算新建试算
+ttCreateFromSnapshotNotice: 不会修改过去的试算。所选数值将带入当前值输入，并以今天的日期创建新试算。
+ttCreateFromSnapshotDifferences: 仅带入有差异的项目（{count}项）
+ttCreateFromSnapshotAll: 带入所有项目（{count}项）
+ttCreateFromSnapshotNoDifferences: 没有可带入的差异项目。
+ttCreateFromSnapshotApplied: 已从{date}的试算带入数值，日期已更新为今天。请确认内容并保存为新试算。
 ttLastCleanSnapshot: 最后验证（无差异）
 ttMiscReclassWarning: 重新归类为杂项损益的分录在复式记账之外无法撤销。
 sysUnknownFunds: 不明资金
@@ -1222,6 +1247,8 @@ plannedExpenseStatus_completed: 已完成
 plannedExpenseStatus_cancelled: 已取消
 plannedExpenseOpenCount: 未完成项
 plannedExpenseOpenTotal: 未完成合计
+plannedExpenseWishlistCount: 数量
+plannedExpenseWishlistTotal: 合计
 plannedExpenseList: 列表
 plannedExpenseReorder: 重新排序
 plannedExpenseMoveUp: 上移

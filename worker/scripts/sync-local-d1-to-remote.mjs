@@ -23,6 +23,7 @@ export const IMPORT_TABLE_ORDER = [
   "budget_category_accounts",
   "budget_category_account_targets",
   "budget_settings",
+  "task_settings",
   "product_metadata_cache",
   "planned_expense_categories",
   "planned_expenses",

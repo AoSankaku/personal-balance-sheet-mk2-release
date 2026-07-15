@@ -424,6 +424,12 @@ taskMenuCount: "{count} pendientes"
 taskPaydayUnrecorded: "Día de pago aún no registrado"
 tasks: "Tareas"
 settingsSectionTasks: "Tareas"
+taskTrialBalanceToggle: "Tarea mensual de saldo de prueba"
+taskTrialBalanceToggleHint: "Mostrar una tarea después del día elegido si aún no se compararon los importes reales este mes."
+taskTrialBalanceDayLabel: "Día mensual de comprobación"
+taskTrialBalanceDayHint: "Si el día seleccionado no existe en un mes, la tarea aparecerá el último día de ese mes (por ejemplo, el día 31 será el 30 de abril o el 28/29 de febrero)."
+taskTrialBalanceSection: "Comparar importes reales en el saldo de prueba"
+taskTrialBalanceDetail: "La comprobación está prevista para el {date}. Compárala con los importes reales."
 taskPaydayToggle: "Tarea de día de pago"
 taskPaydayToggleHint: "Mostrar una tarea cuando aún no se haya registrado el ingreso del día de pago."
 taskCreditCardToggle: "Tarea de importación de tarjeta"
@@ -501,6 +507,12 @@ importZeroAmountButtonNoMonth: "Marcar el mes como cero"
 importZeroAmountConfirmTitle: "Confirmar un extracto a cero"
 importZeroAmountConfirmMessage: "¿Marcar las compras de {month} como cero y completar el extracto?"
 importZeroAmountCompleted: "Las compras de {month} se completaron como cero"
+creditCardStatementCompleteTitle: Completar extracto de tarjeta
+creditCardStatementCompleteHint: "Si todos los movimientos de {month} ya se registraron manualmente, puedes completar la tarea sin añadir asientos."
+creditCardStatementMarkComplete: "Marcar como completos los asientos de {month} (completar tarea)"
+creditCardStatementCompleteConfirm: "¿Marcar todos los movimientos de {month} como registrados y completar la tarea de importación?"
+creditCardStatementCompleteAction: Marcar registro completo
+creditCardStatementCompleted: "Registro de {month} completado"
 importDuplicateModalTitle: "Transacciones duplicadas"
 importSkip: "Saltar"
 importImportAnyway: "Importar de todos modos"
@@ -749,7 +761,7 @@ suspiciousExpenseNoAlloc: "Gasto no rastreado en ninguna categoría de presupues
 suspiciousExpenseMismatch: "Brecha de gasto versus asignación: real ¥{actual} / asignado ¥{allocated}"
 suspiciousIncomeMismatch: "Brecha de ingresos versus distribución: real ¥{actual} / distribuida ¥{distributed}"
 tabTrialBalance: "Saldo de prueba"
-tabTrialBalanceDesc: "Conciliar y verificar saldos de cuentas"
+tabTrialBalanceDesc: "Comparar con importes reales"
 tabLoanMgmt: "Gestión de préstamos"
 tabLoanMgmtDesc: "Gestionar préstamos y empréstitos"
 sectionShortTermLending: "Préstamos a corto plazo"
@@ -857,6 +869,13 @@ ttActualModeGeneral: "Activos / Pasivos"
 ttActualModeCreditCard: "Tarjetas de crédito"
 ttActualGeneralDesc: "Ingrese los saldos actuales de activos y pasivos no relacionados con tarjetas de crédito."
 ttActualCreditCardDesc: "Realice un seguimiento de los saldos de las tarjetas de crédito por mes para que los meses anteriores confirmados permanezcan disponibles para una conciliación posterior."
+ttCcStatementCompletionDesc: "Completa como cero un mes sin uso o fuerza la finalización de un mes anterior ya registrado."
+ttCcForceComplete: Forzar finalización
+ttCcForceCompleteConfirm: "¿Forzar la finalización del uso de {month} como ya registrado?"
+ttCcForcedCompletionBadge: Finalización forzada
+ttCcCancelForceComplete: Deshacer finalización forzada
+ttCcCancelForceCompleteConfirm: "¿Deshacer la finalización forzada de {month}? El recordatorio de importación puede volver a aparecer."
+ttCcForceCompleteCancelled: "Se deshizo la finalización forzada de {month}"
 ttActualSectionAssets: "Activos"
 ttActualSectionLiabilities: "Pasivo"
 ttCcNoAccounts: "No se encontraron cuentas de tarjetas de crédito."
@@ -932,6 +951,12 @@ ttDeleteSnapshot: "Eliminar esta instantánea"
 ttDeleteSnapshotConfirm: "¿Eliminar esta instantánea y todas sus entradas? Esto no se puede deshacer."
 ttDeleteSnapshotZeroWarning: "Esta instantánea no tiene discrepancias; se recomienda conservarla como registro de conciliación."
 ttDeleteSnapshotDeleted: "Instantánea eliminada"
+ttCreateFromSnapshot: "Crear una nueva comprobación desde esta instantánea"
+ttCreateFromSnapshotNotice: "La instantánea anterior no se modificará. Los valores seleccionados se transferirán a la entrada de valores actuales para crear una nueva comprobación con la fecha de hoy."
+ttCreateFromSnapshotDifferences: "Transferir solo las diferencias ({count})"
+ttCreateFromSnapshotAll: "Transferir todos los elementos ({count})"
+ttCreateFromSnapshotNoDifferences: "No hay elementos con diferencias para transferir."
+ttCreateFromSnapshotApplied: "Se transfirieron los valores de la instantánea del {date}. La fecha se cambió a hoy. Revise los valores y guárdelos como una nueva comprobación."
 ttLastCleanSnapshot: "Última verificación (sin discrepancias)"
 ttMiscReclassWarning: "Entradas reclasificadas como misceláneas. la pérdida/ganancia no se puede revertir fuera de la contabilidad por partida doble."
 sysUnknownFunds: "Fondos desconocidos"
@@ -1222,6 +1247,8 @@ plannedExpenseStatus_completed: Completado
 plannedExpenseStatus_cancelled: Cancelado
 plannedExpenseOpenCount: Elementos abiertos
 plannedExpenseOpenTotal: Total abierto
+plannedExpenseWishlistCount: Cantidad
+plannedExpenseWishlistTotal: Total
 plannedExpenseList: Lista
 plannedExpenseReorder: Reordenar
 plannedExpenseMoveUp: Subir
