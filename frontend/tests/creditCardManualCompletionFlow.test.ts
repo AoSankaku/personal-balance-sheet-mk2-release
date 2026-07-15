@@ -45,4 +45,12 @@ describe("credit card manual statement completion flow", () => {
     expect(csvImport).toContain("refreshCreditCardState");
     expect(apiClient).toContain("upsertCreditCardState");
   });
+
+  test("hides the zero-amount statement form after a CSV is selected", () => {
+    const csvImport = source("src/components/CsvImportTab.tsx");
+
+    expect(csvImport).toContain(
+      "{!parseResult && creditCardAccounts.length > 0 && (",
+    );
+  });
 });

@@ -993,7 +993,7 @@ export function CsvImportTab({
         </Stack>
       </Paper>
 
-      {creditCardAccounts.length > 0 && (
+      {!parseResult && creditCardAccounts.length > 0 && (
         <Paper withBorder p="lg" radius="md">
           <Stack gap="md">
             <Title order={5}>{t("importZeroAmountTitle")}</Title>
