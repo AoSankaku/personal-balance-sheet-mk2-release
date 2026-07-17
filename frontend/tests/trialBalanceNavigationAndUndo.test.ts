@@ -23,31 +23,31 @@ describe("trial-balance primary navigation and forced-completion undo", () => {
     expect(route).toContain('"manual_confirmation"');
   });
 
-  test("describes actual-amount comparison in every supported locale", () => {
+  test("describes book-to-actual balance reconciliation in every supported locale", () => {
     const labels = {
       "ja.yaml": [
-        "tabTrialBalance: 試算表",
-        "tabTrialBalanceDesc: 実際の金額と比較",
+        "tabTrialBalance: 残高照合",
+        "tabTrialBalanceDesc: 帳簿と実際の残高を照合",
       ],
       "en.yaml": [
-        "tabTrialBalance: Trial Balance",
-        "tabTrialBalanceDesc: Compare with actual amounts",
+        "tabTrialBalance: Balance Reconciliation",
+        "tabTrialBalanceDesc: Compare book and actual balances",
       ],
       "fr.yaml": [
-        'tabTrialBalance: "Balance de vérification"',
-        'tabTrialBalanceDesc: "Comparer aux montants réels"',
+        'tabTrialBalance: "Rapprochement des soldes"',
+        'tabTrialBalanceDesc: "Comparer les soldes comptables et réels"',
       ],
       "es.yaml": [
-        'tabTrialBalance: "Saldo de prueba"',
-        'tabTrialBalanceDesc: "Comparar con importes reales"',
+        'tabTrialBalance: "Conciliación de saldos"',
+        'tabTrialBalanceDesc: "Comparar saldos contables y reales"',
       ],
       "zh-CN.yaml": [
-        "tabTrialBalance: 试算表",
-        "tabTrialBalanceDesc: 与实际金额比较",
+        "tabTrialBalance: 余额核对",
+        "tabTrialBalanceDesc: 核对账面余额与实际余额",
       ],
       "zh-TW.yaml": [
-        "tabTrialBalance: 試算表",
-        "tabTrialBalanceDesc: 與實際金額比較",
+        "tabTrialBalance: 餘額核對",
+        "tabTrialBalanceDesc: 核對帳面餘額與實際餘額",
       ],
     } as const;
 
@@ -59,7 +59,7 @@ describe("trial-balance primary navigation and forced-completion undo", () => {
     }
   });
 
-  test("places the trial-balance card first and makes it full-width and larger", () => {
+  test("keeps balance reconciliation prominent and hides the undecided report card", () => {
     const assetsPage = source("src/pages/AssetsPage.tsx");
     const trialBalanceIndex = assetsPage.indexOf('to: "/fs/tt"');
     const balanceSheetIndex = assetsPage.indexOf('to: "/fs/bs"');
@@ -68,10 +68,35 @@ describe("trial-balance primary navigation and forced-completion undo", () => {
     expect(trialBalanceIndex).toBeLessThan(balanceSheetIndex);
     expect(assetsPage).toContain('const isTrialBalanceBtn = to === "/fs/tt"');
     expect(assetsPage).toContain(
+      'variant={isTrialBalanceBtn ? "light" : "default"}',
+    );
+    expect(assetsPage).toContain(
       'gridColumn: isTrialBalanceBtn ? "1 / -1" : undefined',
     );
     expect(assetsPage).toContain(
       "padding: isTrialBalanceBtn ? rem(24) : rem(16)",
+    );
+    expect(assetsPage).toContain("size={isTrialBalanceBtn ? 64 : 48}");
+    expect(assetsPage).toContain('cols={{ base: 2, md: 4 }}');
+    expect(assetsPage).not.toContain('to: "/fs/report"');
+    expect(assetsPage).not.toContain('to: "/fs/crypto"');
+  });
+
+  test("places optional crypto fetching after manual account inputs", () => {
+    const actualInput = source("src/components/tt/ActualInputSection.tsx");
+    const assetsIndex = actualInput.indexOf("{assetAccounts.length > 0");
+    const liabilitiesIndex = actualInput.indexOf(
+      "{liabilityAccounts.length > 0",
+    );
+    const cryptoFetchIndex = actualInput.indexOf(
+      "{(cryptoAccounts.length > 0 || cryptoWallets.length > 0)",
+    );
+
+    expect(assetsIndex).toBeGreaterThan(-1);
+    expect(liabilitiesIndex).toBeGreaterThan(assetsIndex);
+    expect(cryptoFetchIndex).toBeGreaterThan(liabilitiesIndex);
+    expect(actualInput).not.toContain(
+      "mergeFetchedCryptoBalances(current, cryptoWallets, cryptoBalances)",
     );
   });
 });

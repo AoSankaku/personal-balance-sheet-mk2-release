@@ -132,7 +132,9 @@ Account deletion safety: `DELETE /api/accounts/:id` returns 409 `{error:'in_use'
 | `/fs` | `AssetsPage.tsx` | Asset summary cards (assets/liabilities/equity + income/expenses/net income), DatePickerInput for `?as_of=YYYY-MM-DD` historical view, crypto portfolio |
 | `/fs/bs` | `BsPage.tsx` | Read-only balance sheet with optional as-of date |
 | `/fs/pl` | `PlPage.tsx` | Read-only P&L with date-range filters |
-| `/fs/crypto` | `CryptoPage.tsx` | Crypto wallet management |
+| `/fs/crypto` | redirect | Legacy route redirected to `/fs/tt` |
+| `/fs/tt` | `TtPage.tsx` | Balance reconciliation, including linked crypto wallet actual balances |
+| `/fs/report` | `ExportPage.tsx` | Financial report export from the financial-statements hub |
 | `/ledger` | `LedgerPage.tsx` | Journal entries with SegmentedControl for simple/double view |
 | `/settings` | `SettingsPage.tsx` | Account CRUD, language toggle, budget categories section |
 | `/settings/budget` | `BudgetSettingsPage.tsx` | Budget filter step-builder and management |
@@ -171,14 +173,14 @@ Central context wrapping `BrowserRouter` in `main.tsx`. Provides:
 
 ```ts
 accounts, journal, pl,
-cryptoWallets, exchangeCredentials, cryptoBalances, cryptoValueMap, prices,
+cryptoWallets, exchangeCredentials, cryptoBalances, prices,
 budgetCategories, budgetFilters, budgetSummary,
 currentYearMonth, setCurrentYearMonth,
 loading, error,
 refresh(), refreshCryptoBalances(), refreshBudget(), refreshBudgetFilters()
 ```
 
-- `cryptoValueMap`: overrides journal-computed balance for `crypto` category accounts using live balance × JPY price
+- Wallet balances are reconciliation-only actual values; financial statements continue to use journal-computed balances and the shared multi-currency conversion layer.
 - `budgetSummary` auto-refreshes when `currentYearMonth` changes
 
 ### API Client (`frontend/src/api/client.ts`)
@@ -207,12 +209,14 @@ api.budget.{
 
 When adding or changing user-facing copy, update every supported locale file in `frontend/src/i18n/locales/`, not only English and Japanese. Extra locales should not rely on the English fallback for new UI strings.
 
-### Crypto Asset Watch
+### Crypto Balance Reconciliation
 
 - `CryptoChain`: `"eth" | "btc" | "sol" | "skr" | "binance"`
+- Treat an account in the `crypto` category as a separately managed investment/speculation holding. Enabling a crypto code as a currency is a different use case for daily payments or currency-separated bookkeeping. The same code (for example BTC) may legitimately appear in both roles and in multiple accounts; reconciliation must keep them distinct by `account_id` and must not merge them by currency code.
 - `crypto_wallets`: one row per account (UNIQUE on `account_id`); same address can appear with `chain = "sol"` and `chain = "skr"` to track native SOL and SPL token balance separately
 - For `chain = "binance"`, `address` stores the asset ticker (e.g. `BTC`); balance fetched via Binance REST API
 - Balance fetched server-side: ETH→cloudflare-eth.com, BTC→blockstream.info, SOL/SKR→Solana RPC (`api.mainnet-beta.solana.com`), Binance→`/api/v3/account` with HMAC-SHA256 signing via `crypto.subtle`
+- Wallet links and fetched quantities are managed in `/fs/tt` under actual-balance input. Fetched values do not overwrite balance-sheet or asset-summary ledger balances.
 - Domain resolution: `GET /api/crypto/resolve?domain=dasan.skr` — tries AllDomains API for `.skr` TLD, Bonfida SNS for `.sol`
 - Binance API credentials stored in `exchange_credentials` table (never in env vars); managed via `ExchangeCredentialModal`
 - `hooks/useCryptoPrices.ts` — polls CoinGecko every 60s for JPY prices (BTC/ETH/SOL/SKR/BNB/USDT/USDC); returns `byTicker` map

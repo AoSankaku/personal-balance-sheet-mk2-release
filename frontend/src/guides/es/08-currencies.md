@@ -7,17 +7,20 @@ titleEs: Manejo de Múltiples Monedas
 
 # Manejo de Múltiples Monedas
 
-Esta aplicación soporta múltiples monedas. Puedes establecer una moneda para cada cuenta, por lo que las cuentas bancarias en moneda extranjera y los activos en moneda extranjera pueden incluirse en el libro mayor.
+Esta aplicación permite cambiar entre las monedas habilitadas en Configuración de monedas. La moneda se guarda en cada línea del asiento, por lo que los saldos en moneda extranjera y cripto pueden administrarse por separado según la moneda.
 
 ## Idea Central
 
-Cada asiento contable se registra por moneda. Por ejemplo, un depósito de 1,000 USD en una cuenta bancaria en USD se registra en USD. La aplicación no obtiene automáticamente los tipos de cambio. Al registrar transacciones en moneda extranjera, ingresa el monto en moneda extranjera directamente. Para ver un total convertido en los estados financieros, ingresa un asiento de conversión manualmente.
+El selector de moneda de la parte superior de la pantalla determina la moneda utilizada para la entrada y la visualización. Por ejemplo, si seleccionas USD y registras un depósito de 1,000 en una cuenta bancaria en USD, el asiento se guarda en USD.
 
-## Crear una Cuenta en Moneda Extranjera
+Una cuenta no está limitada a una sola moneda. Puedes mantener saldos de varias monedas en la misma cuenta o crear cuentas separadas por moneda y finalidad. Cuando sea importante separar claramente los saldos, utiliza cuentas específicas como «Cuenta bancaria USD» y «BTC - Diario».
 
-1. En Configuración, crea una nueva cuenta.
-2. Establece la moneda de la cuenta a la moneda objetivo, como USD o EUR.
-3. Ingresa el saldo inicial en la moneda extranjera usando el formulario de saldo inicial.
+## Comenzar a Usar una Moneda Extranjera
+
+1. Habilita la moneda deseada, como USD o EUR, en Configuración de monedas.
+2. Selecciónala con el selector de moneda de la parte superior de la pantalla.
+3. Si deseas separar su saldo por finalidad, crea una cuenta específica.
+4. Usa el formulario de saldo inicial para registrar el saldo actual en la moneda seleccionada.
 
 ## Registrar Transacciones en Moneda Extranjera
 
@@ -46,18 +49,19 @@ Esta aplicación soporta asientos de intercambio de moneda que permiten una disc
 
 ## Visualización en los Estados Financieros
 
-En los totales de los estados financieros, los saldos en diferentes monedas se muestran como números simples uno al lado del otro. Por ejemplo, si tienes 100,000 JPY en una cuenta JPY y 500 USD en una cuenta USD, el total de activos muestra un número combinado de 100,000 + 500.
+Los estados financieros normalmente muestran solo los saldos de la moneda elegida en el selector. Al activar Incluir todas las monedas, los saldos de otras monedas se convierten a la moneda de visualización con los tipos configurados en Configuración de monedas y se incluyen en los totales.
 
-Cuando las monedas están mezcladas, trata los totales solo como valores de referencia. Para un total preciso, verifica los saldos convertidos manualmente o consolida en una sola moneda ingresando asientos contables de conversión.
+Los valores convertidos varían según la fuente de precios y el momento de consulta. El libro mayor conserva las cantidades en su moneda original; la conversión de visualización nunca modifica los asientos.
 
-## Cambiar una Moneda
+## Agregar o Quitar una Moneda
 
-La moneda de una cuenta que ya tiene asientos contables no se puede cambiar. Si la moneda se configuró incorrectamente, usa la función de Edición y Reemplazo Masivo para mover los asientos contables a una cuenta diferente, luego elimina la cuenta original.
-
-Agregar una nueva moneda (por ejemplo, abrir una nueva cuenta EUR) solo requiere crear una nueva cuenta configurada en EUR. Las cuentas existentes y los asientos contables no se ven afectados.
+Agregar una moneda no afecta a las cuentas ni a los asientos existentes. Una moneda con saldo pendiente no puede deshabilitarse; si ya no la necesitas, primero lleva su saldo a cero mediante transferencias o asientos de cambio de moneda.
 
 ## Criptoactivos y Moneda
 
-Los criptoactivos como BTC, ETH y SOL también se tratan como un tipo de moneda extranjera. Crea una cuenta en la categoría de cripto y establece la moneda a BTC o similar. Los asientos contables se registran entonces en esa unidad de cripto.
+Los criptoactivos admiten dos modelos de uso.
 
-Para verificar el valor equivalente en JPY, usa la Vigilancia de Criptoactivos para obtener precios de fuentes externas y multiplicarlos por la cantidad mantenida. Consulta la guía de Vigilancia de Criptoactivos para más detalles.
+- Para pagos cotidianos, habilita BTC u otra criptomoneda en Configuración de monedas, selecciónala con el selector y registra ingresos, gastos y transferencias ordinarios. Crea una cuenta de efectivo como «BTC - Diario» cuando quieras mantener su saldo separado.
+- Para inversión o especulación, crea una cuenta como «BTC - Inversión» en la categoría de activos cripto y registra compras, ventas, recompensas y comisiones como actividad de inversión.
+
+Puedes mantener el mismo BTC para ambos fines. Las cuentas separadas conservan los saldos distintos aunque el código de moneda sea el mismo, y la conciliación compara cada cuenta de forma independiente. Las cuentas de inversión pueden obtener el saldo real de la billetera; todas las cuentas, incluidas las de uso diario, permiten introducirlo manualmente. Consulta la guía de Conciliación de saldos de criptoactivos.

@@ -32,7 +32,6 @@ export default function BsPage() {
   const {
     accounts: currentAccounts,
     journal,
-    cryptoValueMap,
     loading,
     error,
     displayCurrency,
@@ -61,11 +60,6 @@ export default function BsPage() {
       convertCurrency,
       includeAllCurrencies,
     );
-  const liveCryptoValueInDisplayCurrency = (valueJpy: number) =>
-    includeAllCurrencies || displayCurrency === "JPY"
-      ? convertCurrency(valueJpy, "JPY", displayCurrency)
-      : 0;
-
   const [asOf, setAsOf] = useState<Date | null>(null);
   const [historicalAccounts, setHistoricalAccounts] = useState<
     Account[] | null
@@ -144,20 +138,14 @@ export default function BsPage() {
     [accounts],
   );
 
-  // Apply live crypto values for current (non-historical) view
   const assetsDisplay = useMemo(
     () =>
       assets.map((a) => ({
         ...a,
-        balance:
-          !asOf && cryptoValueMap.has(a.id)
-            ? liveCryptoValueInDisplayCurrency(cryptoValueMap.get(a.id) ?? 0)
-            : balanceInDisplayCurrency(a.balances),
+        balance: balanceInDisplayCurrency(a.balances),
       })),
     [
       assets,
-      cryptoValueMap,
-      asOf,
       displayCurrency,
       convertCurrency,
       includeAllCurrencies,

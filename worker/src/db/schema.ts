@@ -694,6 +694,7 @@ export const actualBalanceEntries = sqliteTable("actual_balance_entries", {
     .notNull()
     .references(() => accounts.id, { onDelete: "cascade" }),
   amount: integer("amount").notNull(),
+  currency: text("currency").notNull().default("JPY"),
   created_at: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),

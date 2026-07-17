@@ -74,7 +74,6 @@ interface AppDataContextValue {
   cryptoWallets: CryptoWallet[];
   exchangeCredentials: ExchangeCredential[];
   cryptoBalances: Map<number, number>;
-  cryptoValueMap: Map<number, number>;
   prices: CryptoPrices | null;
   budgetCategories: BudgetCategory[];
   budgetFilters: BudgetFilter[];
@@ -729,27 +728,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     refresh,
   ]);
 
-  const cryptoValueMap = useMemo(() => {
-    if (!prices) return new Map<number, number>();
-    const map = new Map<number, number>();
-    for (const w of cryptoWallets) {
-      const amount = cryptoBalances.get(w.account_id) ?? 0;
-      let price = 0;
-      if (w.chain === "eth") price = prices.ethereum;
-      else if (w.chain === "btc") price = prices.bitcoin;
-      else if (w.chain === "sol") price = prices.solana;
-      else if (w.chain === "msol")
-        price = prices.solana; // mSOL amount already SOL-equivalent from API
-      else if (w.chain === "sol_stake")
-        price = prices.solana; // native stake in SOL
-      else if (w.chain === "skr") price = prices.skr ?? 0;
-      else if (w.chain === "binance")
-        price = prices.byTicker[w.address.toUpperCase()] ?? 0;
-      map.set(w.account_id, amount * price);
-    }
-    return map;
-  }, [cryptoWallets, cryptoBalances, prices]);
-
   const privateAccountNameMap = useMemo(() => {
     if (!privacyMode || !maskAccountNames) return new Map<number, string>();
     return buildPrivateAccountNameMap(accounts, (type) => {
@@ -819,7 +797,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         cryptoWallets: displayedCryptoWallets,
         exchangeCredentials,
         cryptoBalances,
-        cryptoValueMap,
         prices,
         budgetCategories,
         budgetFilters,

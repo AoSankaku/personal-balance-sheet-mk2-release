@@ -1,15 +1,28 @@
 ---
 id: crypto
-titleJa: 暗号資産ウォッチ
-titleEn: Crypto Asset Watch
-titleEs: Vigilancia de Criptoactivos
+titleJa: 暗号資産の残高照合
+titleEn: Crypto Balance Reconciliation
+titleEs: Conciliación de Saldos de Criptoactivos
 ---
 
-# Vigilancia de Criptoactivos
+# Conciliación de Saldos de Criptoactivos
 
-La Vigilancia de Criptoactivos vincula direcciones de billetera a cuentas de criptoactivos para que puedas verificar saldos y valores equivalentes en JPY. Adminístralo desde Estados Financieros -> Cripto.
+La conciliación vincula direcciones de billetera a cuentas de criptoactivos para comparar el saldo real con el saldo del libro mayor. Adminístrala desde Estados Financieros -> Conciliación de saldos.
 
-Además de los saldos calculados a partir de asientos contables normales, la aplicación puede obtener saldos reales en cadena y reflejarlos en la valoración de criptoactivos que se muestra en los estados financieros.
+El saldo real obtenido de la cadena se utiliza únicamente para la comparación. No sobrescribe el saldo del libro mayor ni la valoración mostrada en los estados financieros.
+
+## Dos formas de utilizar criptoactivos
+
+La categoría cripto de una cuenta y su moneda cumplen funciones diferentes. La categoría indica para qué se mantiene el activo, mientras que la moneda indica la unidad utilizada en los asientos contables.
+
+| Modelo de uso | Ejemplo de configuración | Uso principal |
+| --- | --- | --- |
+| Inversión o especulación | Crear una cuenta «BTC - Inversión» en la categoría de activos cripto | Mantenerla fuera de los gastos diarios y registrar compras, ventas, transferencias, recompensas y comisiones como actividad de inversión. Se puede vincular una billetera para obtener el saldo real |
+| Moneda de pago cotidiana | Habilitar BTC en Configuración de monedas y, si resulta útil, crear una cuenta de efectivo como «BTC - Diario» | Seleccionar BTC con el selector de moneda y registrar ingresos, gastos y transferencias ordinarios en BTC |
+
+Los dos modelos pueden utilizarse a la vez. Por ejemplo, cuentas separadas «BTC - Diario» y «BTC - Inversión» permiten administrar por finalidad saldos de la misma moneda BTC. La conciliación los compara por cuenta, en lugar de combinarlos únicamente por código de moneda.
+
+La obtención automática desde una billetera está destinada a cuentas de la categoría cripto. También puedes introducir manualmente el saldo real de cada cuenta, incluidas las de uso diario, y la obtención automática no sobrescribe un valor que hayas editado manualmente.
 
 ## Principales Tipos Soportados
 
@@ -27,22 +40,22 @@ La integración con Binance está actualmente deshabilitada. Si deseas administr
 ## Agregar una Billetera
 
 1. En Configuración, crea una cuenta de activo en la categoría de cripto.
-2. Abre Estados Financieros -> Cripto.
+2. Abre Estados Financieros -> Conciliación de saldos y selecciona Entrada de saldo real.
 3. Agrega una billetera, luego elige la cadena, dirección y cuenta vinculada.
-4. Usa la obtención de saldo para verificar la cantidad disponible y el monto equivalente en JPY.
-5. Guárdalo para mostrar la billetera en la lista de criptoactivos.
+4. Usa Obtener y aplicar para introducir la cantidad disponible como saldo real.
+5. Guarda la instantánea y revisa las diferencias con el saldo del libro mayor.
 
 En general, una cuenta está vinculada a una configuración de billetera. Incluso con la misma dirección de Solana, es posible que desees tratar SOL, SKR, mSOL y activos similares por separado, así que crea cuentas separadas cuando sea necesario.
 
-## Cómo se Manejan los Valores en JPY
+## Cómo se Manejan las Monedas
 
-En la página de Cripto, la aplicación multiplica las cantidades obtenidas por los datos de precio para mostrar valores equivalentes en JPY. Los precios se obtienen de fuentes de precios externas y se pueden actualizar en la pantalla.
+Los estados financieros convierten el saldo del libro mayor con los precios disponibles para mostrar su equivalente en la moneda de visualización. Los precios proceden de fuentes externas y pueden actualizarse.
 
-Para cuentas en la categoría de cripto, la valoración mostrada en los estados financieros puede ser sobrescrita por el valor calculado a partir de la cantidad obtenida y el precio, en lugar del saldo calculado solo a partir de asientos contables. Esto te permite ver los activos totales más cercanos al valor de mercado actual.
+La cantidad obtenida de la billetera se conserva en su moneda original y solo sirve como saldo real para la conciliación; no sustituye los importes derivados de los asientos contables.
 
 ## Relación con los Asientos Contables
 
-La Vigilancia de Criptoactivos es para verificar la cantidad mantenida y la valoración. No contabiliza automáticamente cada compra, venta, intercambio, transferencia, comisión, ganancia realizada o pérdida realizada.
+La conciliación sirve para comprobar la cantidad mantenida frente al libro mayor. No contabiliza automáticamente cada compra, venta, intercambio, transferencia, comisión, ganancia realizada o pérdida realizada.
 
 Cuando compras criptoactivos, aún necesitas un asiento contable que disminuya el activo de pago y aumente la cuenta de criptoactivos. Cuando vendes, registra el aumento en efectivo/depósitos, la disminución en criptoactivos y la ganancia o pérdida si es necesario.
 
@@ -96,16 +109,16 @@ Las ventas de criptoactivos siguen la misma lógica que los valores.
 | Ganancia por venta | Ganancia por venta de criptoactivos |
 | Pérdida por venta | Pérdida por venta de criptoactivos |
 
-La Vigilancia de Criptoactivos es para verificar tenencias y valoraciones. No contabiliza automáticamente compras, ventas, intercambios o transferencias. Registra las transacciones reales por separado como asientos contables multilínea.
+La conciliación sirve para verificar las tenencias frente al libro mayor. No contabiliza automáticamente compras, ventas, intercambios o transferencias. Registra las transacciones reales por separado como asientos contables multilínea.
 
-### Diferencia entre Valoración y Valor Contable
+### Diferencia entre el Saldo Real y el Libro Mayor
 
-Cuando la Vigilancia de Criptoactivos está activa, los estados financieros muestran valoraciones a precios actuales de mercado. El saldo del libro mayor, sin embargo, se basa en los montos registrados en el momento de la adquisición. La brecha entre estos es una ganancia o pérdida no realizada y no se refleja en el libro mayor hasta que vendas.
+La pantalla de conciliación muestra por separado el saldo real obtenido y el saldo calculado a partir de los asientos. Si existe una diferencia, revisa el historial de la billetera y registra los asientos que falten; obtener el saldo no modifica el libro mayor.
 
 Para las acciones, tampoco hay revalorización automática mensual. La base del costo permanece en el libro mayor y la ganancia o pérdida real se registra en el momento de la venta.
 
 ## Notas de Finanzas Domésticas
 
-Los valores del mercado de cripto pueden cambiar bruscamente. La valoración mostrada en el Resumen y los estados financieros es una estimación para comprender el patrimonio neto actual del hogar. No reemplaza completamente la base del costo fiscal, el cálculo de ganancias/pérdidas, el promedio móvil, el promedio total o el tratamiento de comisiones.
+Los precios de mercado de los criptoactivos pueden cambiar bruscamente. Las conversiones mostradas en el Resumen y los estados financieros son estimaciones para comprender el patrimonio neto actual del hogar. No reemplazan la base del costo fiscal, el cálculo de ganancias/pérdidas, el promedio móvil, el promedio total ni el tratamiento de comisiones.
 
 Después de grandes transacciones, verifica por separado los asientos contables contra el historial del exchange y de la billetera.

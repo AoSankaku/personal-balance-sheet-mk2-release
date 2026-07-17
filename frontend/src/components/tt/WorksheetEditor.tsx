@@ -17,9 +17,17 @@ import { useLang } from "../../i18n";
 import type { WorksheetRow } from "./ttUtils";
 import { renderAccountOption, type AccountOption } from "../../lib/accountSelect";
 
-export function signedAccountImpact(entry: JournalEntry, account: Account): number {
+export function signedAccountImpact(
+  entry: JournalEntry,
+  account: Account,
+  currency?: string,
+): number {
   const raw = entry.lines
-    .filter((line) => line.account_id === account.id)
+    .filter(
+      (line) =>
+        line.account_id === account.id &&
+        (!currency || line.currency.toUpperCase() === currency.toUpperCase()),
+    )
     .reduce((sum, line) => sum + line.debit - line.credit, 0);
   const isDebitNormal = account.type === "asset" || account.type === "expense";
   return isDebitNormal ? raw : -raw;

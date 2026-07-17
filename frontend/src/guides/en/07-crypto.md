@@ -1,14 +1,27 @@
 ---
 id: crypto
-titleJa: 暗号資産ウォッチ
-titleEn: Crypto Asset Watch
+titleJa: 暗号資産の残高照合
+titleEn: Crypto Balance Reconciliation
 ---
 
-# Crypto Asset Watch
+# Crypto Balance Reconciliation
 
-Crypto Asset Watch links wallet addresses to crypto asset accounts so you can check balances and JPY-equivalent values. Manage it from Financial Statements -> Crypto.
+Link wallet addresses to crypto asset accounts to compare ledger quantities with actual holdings. Manage links from Financial Statements -> Balance Reconciliation.
 
-In addition to balances calculated from normal journal entries, the app can fetch actual on-chain balances and reflect them in the crypto asset valuation shown in financial statements.
+Fetched on-chain balances are used as actual values for reconciliation. They no longer overwrite ledger balances in financial statements; record a journal entry after reviewing any difference.
+
+## Two Ways to Use Crypto Assets
+
+An account's crypto category and its currency serve different purposes. The category describes why the asset is held, while the currency describes the unit used for journal entries.
+
+| Usage model | Example setup | Main use |
+| --- | --- | --- |
+| Investment or speculation | Create a "BTC - Investment" account in the crypto asset category | Keep it outside everyday spending and record purchases, sales, transfers, rewards, and fees as investment activity. A wallet can be linked to fetch its actual balance |
+| Everyday payment currency | Enable BTC in Currency Settings and, when useful, create a cash account such as "BTC - Everyday" | Select BTC with the currency switcher and record ordinary income, expenses, and transfers in BTC |
+
+The two models can be used together. For example, separate "BTC - Everyday" and "BTC - Investment" accounts let you manage balances for the same BTC currency by purpose. Balance Reconciliation compares them by account instead of combining them solely by currency code.
+
+Automatic wallet fetching is intended for accounts in the crypto category. You can still enter the actual balance of every account manually, including everyday-use accounts, and fetching does not overwrite a value you have manually edited.
 
 ## Main Supported Types
 
@@ -26,22 +39,22 @@ Binance integration is currently disabled. If you want to manage exchange balanc
 ## Adding A Wallet
 
 1. In Settings, create an asset account in the crypto category.
-2. Open Financial Statements -> Crypto.
+2. Open Financial Statements -> Balance Reconciliation.
 3. Add a wallet, then choose the chain, address, and linked account.
-4. Use balance fetch to check the available quantity and JPY-equivalent amount.
-5. Save it to show the wallet in the crypto asset list.
+4. Choose Fetch & Apply to enter the wallet quantity as the actual balance.
+5. Save and open Review Differences to compare it with the ledger quantity.
 
 In general, one account is linked to one wallet setting. Even with the same Solana address, you may want to treat SOL, SKR, mSOL, and similar assets separately, so create separate accounts when needed.
 
-## How JPY Values Are Handled
+## Market Conversion and Ledger Balances
 
-On the Crypto page, the app multiplies fetched quantities by price data to show JPY-equivalent values. Prices are fetched from external price sources and can be refreshed on the screen.
+When a crypto currency is enabled, ledger quantities are converted to the display currency using external price data. Configure the price provider under currency settings.
 
-For accounts in the crypto category, the valuation shown in financial statements may be overwritten by the value calculated from fetched quantity and price, instead of the balance calculated only from journal entries. This lets you view total assets closer to current market value.
+Financial statements use quantities calculated from journal entries. Fetched wallet quantities are used only for reconciliation, so unrecorded transfers or rewards do not silently enter the financial statements.
 
 ## Relationship With Journal Entries
 
-Crypto Asset Watch is for checking holding quantity and valuation. It does not automatically journal every purchase, sale, swap, transfer, fee, realized gain, or realized loss.
+Wallet linking checks actual holding quantities. It does not automatically journal purchases, sales, swaps, transfers, fees, realized gains, or realized losses.
 
 When you buy crypto assets, you still need a journal entry that decreases the payment asset and increases the crypto asset account. When you sell, record the increase in cash/deposits, decrease in crypto assets, and gain or loss if needed.
 
@@ -95,16 +108,16 @@ Crypto asset sales follow the same logic as securities.
 | Sale gain | Crypto asset sale gain |
 | Sale loss | Crypto asset sale loss |
 
-Crypto Asset Watch is for checking holdings and valuations. It does not automatically journal purchases, sales, swaps, or transfers. Record actual trades separately as multi-line journal entries.
+Crypto balance reconciliation checks holding differences. It does not automatically journal purchases, sales, swaps, or transfers. Record actual trades separately as multi-line journal entries.
 
-### Difference Between Valuation and Book Value
+### Difference Between Actual and Ledger Balances
 
-When Crypto Asset Watch is active, financial statements show valuations at current market prices. The ledger balance, however, is based on the recorded amounts at acquisition. The gap between these is an unrealized gain or loss and is not reflected in the ledger until you sell.
+If wallet and ledger quantities differ, review unrecorded transfers, staking rewards, and fees. Financial statements continue to use the ledger quantity until you record an entry that resolves the difference.
 
 For stocks, there is also no automatic monthly revaluation. The cost basis stays in the ledger and actual profit or loss is recorded at the time of sale.
 
 ## Household Finance Notes
 
-Crypto market values can change sharply. The valuation shown in Overview and financial statements is an estimate for understanding current household net worth. It does not fully replace tax cost basis, profit/loss calculation, moving average, total average, or fee treatment.
+Crypto market values can change sharply. Display-currency conversions are estimates for understanding current household net worth and do not replace tax cost basis, profit/loss calculation, moving-average, total-average, or fee treatment.
 
 After large trades, separately verify the journal entries against exchange and wallet history.

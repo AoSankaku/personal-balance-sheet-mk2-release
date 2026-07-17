@@ -760,8 +760,8 @@ budgetCheckAllocated: 已分配
 suspiciousExpenseNoAlloc: 支出未在任何预算类别中跟踪
 suspiciousExpenseMismatch: "支出与分配差异：实际 ¥{actual} / 已分配 ¥{allocated}"
 suspiciousIncomeMismatch: "收入与分配差异：实际 ¥{actual} / 已分配 ¥{distributed}"
-tabTrialBalance: 试算表
-tabTrialBalanceDesc: 与实际金额比较
+tabTrialBalance: 余额核对
+tabTrialBalanceDesc: 核对账面余额与实际余额
 tabLoanMgmt: 贷款管理
 tabLoanMgmtDesc: 管理贷出与借入
 sectionShortTermLending: 短期贷出
@@ -855,12 +855,18 @@ savingsMonthlyContributions: 月存款额（近12个月）
 savingsNoCategories: 尚未设置储蓄类别。请在设置中添加组为「储蓄」的预算类别。
 savingsShowFuturePrediction: 显示未来预测
 savingsPredictedSuffix: （预测）
-ttSegActualInput: 输入实际值
-ttSegDeviation: 误差验证
+ttSegActualInput: 实际余额
+ttSegDeviation: 查看差异
 ttSegBudgetCheck: 预算检查
 ttSegUnknownFunds: 不明资金
-ttActualInputTitle: 输入实际账户余额
+ttActualInputTitle: 输入实际余额
 ttActualInputDesc: 输入每个账户的实际余额以检查差异。留空的账户将不被检查。
+ttCryptoSyncTitle: 获取加密资产实际余额
+ttCryptoSyncDesc: 从已关联的钱包或交易所获取数量，并与账簿进行核对。
+ttCryptoSyncApply: 获取并应用
+ttCryptoSyncApplied: 已应用加密资产实际余额
+ttCryptoSyncFailed: 无法获取加密资产实际余额
+ttCryptoSyncNoLinks: 尚未关联钱包或交易所资产。
 ttActualInputDate: 基准日期
 ttActualInputSubmit: 保存并比较
 ttActualInputSaved: 快照已保存

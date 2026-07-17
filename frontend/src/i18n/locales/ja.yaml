@@ -760,8 +760,8 @@ budgetCheckAllocated: 配分
 suspiciousExpenseNoAlloc: 費用が予算カテゴリに配分されていません
 suspiciousExpenseMismatch: "費用額と予算配分の差異: 実際¥{actual} / 配分¥{allocated}"
 suspiciousIncomeMismatch: "収入額と予算分配の差異: 実際¥{actual} / 分配¥{distributed}"
-tabTrialBalance: 試算表
-tabTrialBalanceDesc: 実際の金額と比較
+tabTrialBalance: 残高照合
+tabTrialBalanceDesc: 帳簿と実際の残高を照合
 tabLoanMgmt: ローン管理
 tabLoanMgmtDesc: 貸し借りを管理
 sectionShortTermLending: 短期貸付
@@ -855,12 +855,18 @@ savingsMonthlyContributions: 月次積立額（直近12ヶ月）
 savingsNoCategories: 貯蓄カテゴリーがまだありません。設定でグループ「貯蓄」の予算カテゴリーを追加してください。
 savingsShowFuturePrediction: 未来予測を含める
 savingsPredictedSuffix: （予測）
-ttSegActualInput: 現在値入力
-ttSegDeviation: 誤差検証
+ttSegActualInput: 実残高入力
+ttSegDeviation: 差異確認
 ttSegBudgetCheck: 予算整合性チェック
 ttSegUnknownFunds: 不明金処理
 ttActualInputTitle: 実際の残高を入力
 ttActualInputDesc: 各口座の実際の残高を入力して、帳簿との差異を確認します。入力しない口座はチェック対象外になります。
+ttCryptoSyncTitle: 暗号資産の実残高取得
+ttCryptoSyncDesc: 連携したウォレットや取引所から数量を取得し、実残高として帳簿と照合します。
+ttCryptoSyncApply: 取得して反映
+ttCryptoSyncApplied: 暗号資産の実残高を反映しました
+ttCryptoSyncFailed: 暗号資産の実残高を取得できませんでした
+ttCryptoSyncNoLinks: 連携済みのウォレットまたは取引所資産はありません。
 ttActualInputDate: 基準日
 ttActualInputSubmit: 保存して比較へ
 ttActualInputSaved: 現在値を保存しました

@@ -1,6 +1,6 @@
 import { AppShell, Skeleton, Stack } from "@mantine/core";
 import { DatesProvider } from "@mantine/dates";
-import { Routes, Route } from "react-router-dom";
+import { Navigate, Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { TopNav } from "./components/TopNav";
 import { BottomNav } from "./components/BottomNav";
@@ -19,7 +19,6 @@ const InputPage = lazy(() => import("./pages/InputPage"));
 const AssetsPage = lazy(() => import("./pages/AssetsPage"));
 const BsPage = lazy(() => import("./pages/BsPage"));
 const PlPage = lazy(() => import("./pages/PlPage"));
-const CryptoPage = lazy(() => import("./pages/CryptoPage"));
 const LedgerPage = lazy(() => import("./pages/LedgerPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const BudgetSettingsPage = lazy(() => import("./pages/BudgetSettingsPage"));
@@ -107,7 +106,11 @@ export default function App() {
               <Route path="/fs" element={<AssetsPage />} />
               <Route path="/fs/bs" element={<BsPage />} />
               <Route path="/fs/pl" element={<PlPage />} />
-              <Route path="/fs/crypto" element={<CryptoPage />} />
+              <Route path="/fs/crypto" element={<Navigate to="/fs/tt" replace />} />
+              <Route
+                path="/fs/report"
+                element={privacyMode ? <PrivacyModeBlocked /> : <ExportPage />}
+              />
               <Route
                 path="/fs/tt"
                 element={privacyMode ? <PrivacyModeBlocked /> : <TtPage />}

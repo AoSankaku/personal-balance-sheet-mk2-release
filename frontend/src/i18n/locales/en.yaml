@@ -760,8 +760,8 @@ budgetCheckAllocated: Allocated
 suspiciousExpenseNoAlloc: Expense not tracked in any budget category
 suspiciousExpenseMismatch: "Expense vs allocation gap: actual ¥{actual} / allocated ¥{allocated}"
 suspiciousIncomeMismatch: "Income vs distribution gap: actual ¥{actual} / distributed ¥{distributed}"
-tabTrialBalance: Trial Balance
-tabTrialBalanceDesc: Compare with actual amounts
+tabTrialBalance: Balance Reconciliation
+tabTrialBalanceDesc: Compare book and actual balances
 tabLoanMgmt: Loan Mgmt
 tabLoanMgmtDesc: Manage loans & borrowings
 sectionShortTermLending: Short-term Lending
@@ -855,12 +855,18 @@ savingsMonthlyContributions: Monthly Contributions (last 12 months)
 savingsNoCategories: No savings categories set up yet. Add a budget category with group "貯蓄" in settings.
 savingsShowFuturePrediction: Show future prediction
 savingsPredictedSuffix: " (predicted)"
-ttSegActualInput: Enter Actuals
-ttSegDeviation: Error Verification
+ttSegActualInput: Actual Balances
+ttSegDeviation: Review Differences
 ttSegBudgetCheck: Budget Check
 ttSegUnknownFunds: Unknown Funds
-ttActualInputTitle: Enter actual account balances
+ttActualInputTitle: Enter actual balances
 ttActualInputDesc: Enter the real-world balance for each account to check for discrepancies. Accounts left blank will not be checked.
+ttCryptoSyncTitle: Fetch actual crypto balances
+ttCryptoSyncDesc: Fetch quantities from linked wallets or exchanges and reconcile them with the ledger.
+ttCryptoSyncApply: Fetch & Apply
+ttCryptoSyncApplied: Actual crypto balances applied
+ttCryptoSyncFailed: Could not fetch actual crypto balances
+ttCryptoSyncNoLinks: No wallet or exchange asset is linked.
 ttActualInputDate: As of date
 ttActualInputSubmit: Save & Compare
 ttActualInputSaved: Snapshot saved

@@ -17,7 +17,12 @@ import {
 import {
   findInvalidMoneyField,
   invalidMoneyResponse,
+  normalizeMoneyCurrency,
 } from "../lib/moneyValidation";
+import {
+  decodeActualBalanceAmount,
+  prepareActualBalanceEntry,
+} from "../lib/actualBalanceAmounts";
 
 const router = new Hono<{ Bindings: Env }>();
 
@@ -55,6 +60,7 @@ async function hydrateSnapshots(
       account_type: accounts.type,
       account_category: accounts.category,
       amount: actualBalanceEntries.amount,
+      currency: actualBalanceEntries.currency,
     })
     .from(actualBalanceEntries)
     .innerJoin(accounts, eq(actualBalanceEntries.account_id, accounts.id))
@@ -86,6 +92,7 @@ async function hydrateSnapshots(
       .where(
         and(
           eq(journalLines.account_id, row.account_id),
+          eq(journalLines.currency, row.currency),
           lte(journalEntries.date, snapshotDate),
         ),
       );
@@ -104,6 +111,7 @@ async function hydrateSnapshots(
           account_id: number;
           account_name: string;
           amount: number;
+          currency: string;
           book_value: number;
         }[],
       },
@@ -121,9 +129,13 @@ async function hydrateSnapshots(
       snapshot_id: row.snapshot_id,
       account_id: row.account_id,
       account_name: row.account_name,
-      amount: row.amount,
+      amount: decodeActualBalanceAmount(row.amount, row.currency),
+      currency: row.currency,
       book_value:
-        generalBookValueMap.get(`${row.snapshot_id}:${row.account_id}`) ?? 0,
+        decodeActualBalanceAmount(
+          generalBookValueMap.get(`${row.snapshot_id}:${row.account_id}`) ?? 0,
+          row.currency,
+        ),
     });
   }
 
@@ -324,7 +336,11 @@ router.post("/snapshots", async (c) => {
   const body = await c.req.json<{
     snapshot_date: string;
     snapshot_time?: string;
-    general_entries?: { account_id: number; amount: number }[];
+    general_entries?: {
+      account_id: number;
+      amount: number;
+      currency?: string;
+    }[];
   }>();
 
   if (!body.snapshot_date || !/^\d{4}-\d{2}-\d{2}$/.test(body.snapshot_date)) {
@@ -337,6 +353,7 @@ router.post("/snapshots", async (c) => {
     generalEntries.map((entry, index) => ({
       path: `general_entries[${index}].amount`,
       value: entry.amount,
+      currency: normalizeMoneyCurrency(entry.currency),
     })),
   );
   if (invalidMoneyField) {
@@ -391,11 +408,7 @@ router.post("/snapshots", async (c) => {
   if (!snapshot) return c.json({ error: "Failed to create snapshot" }, 500);
 
   await db.insert(actualBalanceEntries).values(
-    generalEntries.map((entry) => ({
-      snapshot_id: snapshot.id,
-      account_id: entry.account_id,
-      amount: entry.amount,
-    })),
+    generalEntries.map((entry) => prepareActualBalanceEntry(snapshot.id, entry)),
   );
 
   const [hydrated] = await hydrateSnapshots(db, [snapshot]);

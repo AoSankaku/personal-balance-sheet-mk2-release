@@ -760,8 +760,8 @@ budgetCheckAllocated: 已分配
 suspiciousExpenseNoAlloc: 支出未在任何預算類別中追蹤
 suspiciousExpenseMismatch: "支出與分配差異：實際 ¥{actual} / 已分配 ¥{allocated}"
 suspiciousIncomeMismatch: "收入與分配差異：實際 ¥{actual} / 已分配 ¥{distributed}"
-tabTrialBalance: 試算表
-tabTrialBalanceDesc: 與實際金額比較
+tabTrialBalance: 餘額核對
+tabTrialBalanceDesc: 核對帳面餘額與實際餘額
 tabLoanMgmt: 貸款管理
 tabLoanMgmtDesc: 管理貸出與借入
 sectionShortTermLending: 短期貸出
@@ -855,12 +855,18 @@ savingsMonthlyContributions: 月存款額（近12個月）
 savingsNoCategories: 尚未設定儲蓄類別。請在設定中新增組別為「儲蓄」的預算類別。
 savingsShowFuturePrediction: 顯示未來預測
 savingsPredictedSuffix: （預測）
-ttSegActualInput: 輸入實際值
-ttSegDeviation: 誤差驗證
+ttSegActualInput: 實際餘額
+ttSegDeviation: 查看差異
 ttSegBudgetCheck: 預算檢查
 ttSegUnknownFunds: 不明資金
-ttActualInputTitle: 輸入實際帳戶餘額
+ttActualInputTitle: 輸入實際餘額
 ttActualInputDesc: 輸入每個帳戶的實際餘額以檢查差異。留空的帳戶將不被檢查。
+ttCryptoSyncTitle: 取得加密資產實際餘額
+ttCryptoSyncDesc: 從已連結的錢包或交易所取得數量，並與帳簿進行核對。
+ttCryptoSyncApply: 取得並套用
+ttCryptoSyncApplied: 已套用加密資產實際餘額
+ttCryptoSyncFailed: 無法取得加密資產實際餘額
+ttCryptoSyncNoLinks: 尚未連結錢包或交易所資產。
 ttActualInputDate: 基準日期
 ttActualInputSubmit: 儲存並比較
 ttActualInputSaved: 快照已儲存

@@ -14,8 +14,8 @@ import {
   Text,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
-import { IconTrash } from "@tabler/icons-react";
-import { useEffect, useMemo, useState } from "react";
+import { IconRefresh, IconTrash } from "@tabler/icons-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   deriveCreditCardStatus,
   shiftCreditCardMonth,
@@ -38,6 +38,11 @@ import { getEffectiveSymbol } from "../../lib/currencyUtils";
 import { formatCurrency } from "../../lib/numberFormat";
 import { getSelectableZeroAmountCompletions } from "../../lib/creditCardStatementCompletion";
 import type { TrialBalanceCarryForwardDraft } from "../../lib/trialBalanceCarryForward";
+import { CryptoWatchModal } from "../CryptoWatchModal";
+import {
+  currencyForCryptoWallet,
+  mergeFetchedCryptoBalances,
+} from "./cryptoBalanceSync";
 import {
   useAccountDisplayName,
   type CreditCardDraftRow,
@@ -69,8 +74,12 @@ export function ActualInputSection({
   const {
     accounts,
     journal,
+    cryptoWallets,
+    cryptoBalances,
     displayCurrency,
     enabledCurrencies,
+    refresh,
+    refreshCryptoBalances,
     creditCardStatementCompletions,
     refreshCreditCardStatementCompletions,
     refreshLatestTrialBalanceDate,
@@ -105,6 +114,9 @@ export function ActualInputSection({
   const [pendingCancellation, setPendingCancellation] =
     useState<CreditCardStatementCompletion | null>(null);
   const [cancellationSaving, setCancellationSaving] = useState(false);
+  const [cryptoModalOpened, setCryptoModalOpened] = useState(false);
+  const [cryptoSyncing, setCryptoSyncing] = useState(false);
+  const manuallyEditedGeneralAccountIds = useRef(new Set<number>());
 
   useEffect(() => {
     api.creditCardSettings
@@ -127,6 +139,9 @@ export function ActualInputSection({
 
     setMode("general");
     setDate(new Date());
+    manuallyEditedGeneralAccountIds.current = new Set(
+      initialCarryForwardDraft.entries.map((entry) => entry.account_id),
+    );
     setGeneralValues(
       Object.fromEntries(
         initialCarryForwardDraft.entries.map((entry) => [
@@ -155,14 +170,20 @@ export function ActualInputSection({
 
   const normalizeCurrency = (currency: string | null | undefined) =>
     (currency || "JPY").toUpperCase();
+  const walletByAccountId = useMemo(
+    () => new Map(cryptoWallets.map((wallet) => [wallet.account_id, wallet])),
+    [cryptoWallets],
+  );
   const accountCurrency = (account: Account) =>
-    normalizeCurrency(
-      Object.keys(account.balances ?? {}).find(
+    walletByAccountId.has(account.id)
+      ? currencyForCryptoWallet(walletByAccountId.get(account.id)!)
+      : normalizeCurrency(
+          Object.keys(account.balances ?? {}).find(
           (currency) => Math.abs(account.balances?.[currency] ?? 0) > 0.001,
-        ) ||
-        Object.keys(account.balances ?? {})[0] ||
-        displayCurrency,
-    );
+          ) ||
+          Object.keys(account.balances ?? {})[0] ||
+          displayCurrency,
+        );
   const currencySymbolFor = (currency: string | null | undefined) =>
     getEffectiveSymbol(normalizeCurrency(currency), enabledCurrencies);
   const formatAccountAmount = (amount: number, account: Account) =>
@@ -209,15 +230,14 @@ export function ActualInputSection({
     return result;
   }, [dateStr, journal, accounts]);
 
-  // Assets (exclude property, crypto, system) + liabilities (except credit cards)
+  // Assets (except property/system) + liabilities (except credit cards)
   const inputableAccounts = useMemo(
     () =>
       accounts.filter(
         (a) =>
           !a.is_system &&
           ((a.type === "asset" &&
-            a.category !== "property" &&
-            a.category !== "crypto") ||
+            a.category !== "property") ||
             (a.type === "liability" && a.category !== "credit_card")),
       ),
     [accounts],
@@ -236,6 +256,16 @@ export function ActualInputSection({
   const assetAccounts = inputableAccounts.filter((a) => a.type === "asset");
   const liabilityAccounts = inputableAccounts.filter(
     (a) => a.type === "liability",
+  );
+  const cryptoAccounts = accounts.filter(
+    (account) =>
+      !account.is_system &&
+      account.type === "asset" &&
+      account.category === "crypto",
+  );
+  const linkedCryptoAccountIds = useMemo(
+    () => new Set(cryptoWallets.map((wallet) => wallet.account_id)),
+    [cryptoWallets],
   );
 
   // ccStateMap: (account_id:payment_month) → amount — used for placeholders
@@ -352,7 +382,13 @@ export function ActualInputSection({
       const general_entries = inputableAccounts.flatMap((account) => {
         const value = generalValues[account.id];
         if (value === "" || value === undefined || value === null) return [];
-        return [{ account_id: account.id, amount: Number(value) }];
+        return [
+          {
+            account_id: account.id,
+            amount: Number(value),
+            currency: accountCurrency(account),
+          },
+        ];
       });
       if (general_entries.length === 0) return;
 
@@ -380,6 +416,51 @@ export function ActualInputSection({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleApplyCryptoBalances() {
+    if (cryptoWallets.length === 0) return;
+    setCryptoSyncing(true);
+    try {
+      const results = await Promise.all(
+        cryptoWallets.map((wallet) =>
+          api.crypto.balance(wallet.address, wallet.chain),
+        ),
+      );
+      const fetched = new Map<number, number>();
+      cryptoWallets.forEach((wallet, index) => {
+        fetched.set(wallet.account_id, results[index]!.amount);
+      });
+      setGeneralValues((current) =>
+        mergeFetchedCryptoBalances(
+          current,
+          cryptoWallets,
+          fetched,
+          manuallyEditedGeneralAccountIds.current,
+        ),
+      );
+      void refreshCryptoBalances();
+      showFeedback({ message: t("ttCryptoSyncApplied"), color: "teal" });
+    } catch {
+      showFeedback({ message: t("ttCryptoSyncFailed"), color: "red" });
+    } finally {
+      setCryptoSyncing(false);
+    }
+  }
+
+  async function handleDeleteCryptoWallet(id: number) {
+    try {
+      await api.crypto.delete(id);
+      showFeedback({ message: t("deleteWallet"), color: "orange" });
+      refresh();
+    } catch {
+      showFeedback({ message: t("deleteFailed"), color: "red" });
+    }
+  }
+
+  function handleCryptoWalletAdded() {
+    showFeedback({ message: t("walletLinked"), color: "teal" });
+    refresh();
   }
 
   if (inputableAccounts.length === 0 && creditCardAccounts.length === 0) {
@@ -415,11 +496,20 @@ export function ActualInputSection({
         </Stack>
         <NumberInput
           value={value}
-          onChange={(v) => setGeneralValues((prev) => ({ ...prev, [a.id]: v }))}
-          placeholder={formatAccountAmount(Math.round(bookValue), a)}
+          onChange={(v) => {
+            manuallyEditedGeneralAccountIds.current.add(a.id);
+            setGeneralValues((prev) => ({ ...prev, [a.id]: v }));
+          }}
+          placeholder={formatAccountAmount(bookValue, a)}
           min={0}
           thousandSeparator=","
           prefix={currencySymbolFor(accountCurrency(a))}
+          decimalScale={
+            enabledCurrencies.find(
+              (currency) => currency.code === accountCurrency(a),
+            )?.decimal_places ?? undefined
+          }
+          inputMode="decimal"
           w={160}
           size="sm"
           hideControls
@@ -1023,6 +1113,103 @@ export function ActualInputSection({
                 </Stack>
               </Paper>
             )}
+            {(cryptoAccounts.length > 0 || cryptoWallets.length > 0) && (
+              <Paper withBorder p="md" radius="md">
+                <Stack gap="sm">
+                  <Group justify="space-between" align="flex-start">
+                    <Stack gap={2} style={{ flex: 1 }}>
+                      <Text fw={600} size="sm">
+                        {t("ttCryptoSyncTitle")}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {t("ttCryptoSyncDesc")}
+                      </Text>
+                    </Stack>
+                    <Group gap="xs">
+                      <Button
+                        size="xs"
+                        variant="light"
+                        leftSection={<IconRefresh size={14} />}
+                        loading={cryptoSyncing}
+                        disabled={cryptoWallets.length === 0}
+                        onClick={() => void handleApplyCryptoBalances()}
+                      >
+                        {t("ttCryptoSyncApply")}
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="default"
+                        disabled={
+                          cryptoAccounts.every((account) =>
+                            linkedCryptoAccountIds.has(account.id),
+                          )
+                        }
+                        onClick={() => setCryptoModalOpened(true)}
+                      >
+                        {t("addWallet")}
+                      </Button>
+                    </Group>
+                  </Group>
+                  {cryptoWallets.length === 0 ? (
+                    <Text size="xs" c="dimmed">
+                      {t("ttCryptoSyncNoLinks")}
+                    </Text>
+                  ) : (
+                    <Stack gap={6}>
+                      {cryptoWallets.map((wallet) => {
+                        const account = accounts.find(
+                          (candidate) => candidate.id === wallet.account_id,
+                        );
+                        const fetchedBalance = cryptoBalances.get(
+                          wallet.account_id,
+                        );
+                        return (
+                          <Group
+                            key={wallet.id}
+                            justify="space-between"
+                            wrap="nowrap"
+                          >
+                            <Stack gap={0} style={{ minWidth: 0 }}>
+                              <Group gap="xs">
+                                <Text size="sm" fw={500} truncate>
+                                  {account
+                                    ? getDisplayName(account.name)
+                                    : wallet.account_name}
+                                </Text>
+                                <Badge size="xs" variant="light">
+                                  {currencyForCryptoWallet(wallet)}
+                                </Badge>
+                              </Group>
+                              <Text size="xs" c="dimmed" ff="monospace" truncate>
+                                {wallet.address}
+                              </Text>
+                            </Stack>
+                            <Group gap="xs" wrap="nowrap">
+                              <Text size="sm">
+                                {fetchedBalance !== undefined && account
+                                  ? formatAccountAmount(fetchedBalance, account)
+                                  : "—"}
+                              </Text>
+                              <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                color="red"
+                                aria-label={t("deleteWallet")}
+                                onClick={() =>
+                                  void handleDeleteCryptoWallet(wallet.id)
+                                }
+                              >
+                                <IconTrash size={14} />
+                              </ActionIcon>
+                            </Group>
+                          </Group>
+                        );
+                      })}
+                    </Stack>
+                  )}
+                </Stack>
+              </Paper>
+            )}
           </>
         ) : (
           <>
@@ -1120,6 +1307,13 @@ export function ActualInputSection({
           </Group>
         </Stack>
       </Modal>
+      <CryptoWatchModal
+        opened={cryptoModalOpened}
+        onClose={() => setCryptoModalOpened(false)}
+        onAdded={handleCryptoWalletAdded}
+        assetAccounts={cryptoAccounts}
+        linkedAccountIds={linkedCryptoAccountIds}
+      />
     </>
   );
 }

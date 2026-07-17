@@ -1,15 +1,28 @@
 ---
 id: crypto
-titleJa: 暗号資産ウォッチ
-titleEn: Crypto Asset Watch
-titleFr: Surveillance des actifs cryptographiques
+titleJa: 暗号資産の残高照合
+titleEn: Crypto Balance Reconciliation
+titleFr: Rapprochement des soldes cryptographiques
 ---
 
-# Surveillance des actifs cryptographiques
+# Rapprochement des soldes cryptographiques
 
-La Surveillance des actifs cryptographiques lie les adresses de portefeuille aux comptes d'actifs cryptographiques afin que vous puissiez vérifier les soldes et les équivalents en JPY. Gérez-la depuis États financiers -> Crypto.
+Le rapprochement lie les adresses de portefeuille aux comptes d'actifs cryptographiques afin de comparer le solde réel au solde comptable. Gérez-le depuis États financiers -> Rapprochement des soldes.
 
-En plus des soldes calculés à partir des écritures de journal normales, l'application peut récupérer les soldes réels sur la chaîne et les refléter dans l'évaluation des actifs cryptographiques affichée dans les états financiers.
+Le solde réel récupéré sur la chaîne sert uniquement à la comparaison. Il ne remplace ni le solde comptable ni l'évaluation affichée dans les états financiers.
+
+## Deux façons d'utiliser les actifs cryptographiques
+
+La catégorie crypto d'un compte et sa devise ont des rôles différents. La catégorie indique pourquoi l'actif est détenu, tandis que la devise indique l'unité utilisée dans les écritures comptables.
+
+| Modèle d'utilisation | Exemple de configuration | Utilisation principale |
+| --- | --- | --- |
+| Investissement ou spéculation | Créer un compte « BTC - Investissement » dans la catégorie d'actifs crypto | Le tenir à l'écart des dépenses quotidiennes et enregistrer les achats, ventes, transferts, récompenses et frais comme des opérations d'investissement. Un portefeuille peut être lié pour récupérer le solde réel |
+| Devise de paiement quotidienne | Activer BTC dans les paramètres de devises et, si utile, créer un compte de liquidités tel que « BTC - Quotidien » | Sélectionner BTC avec le sélecteur de devise et enregistrer les revenus, dépenses et transferts ordinaires en BTC |
+
+Les deux modèles peuvent être utilisés ensemble. Par exemple, des comptes distincts « BTC - Quotidien » et « BTC - Investissement » permettent de gérer par objectif les soldes de la même devise BTC. Le rapprochement les compare par compte au lieu de les regrouper uniquement par code de devise.
+
+La récupération automatique depuis un portefeuille est destinée aux comptes de la catégorie crypto. Vous pouvez toujours saisir manuellement le solde réel de chaque compte, y compris les comptes d'usage quotidien, et la récupération ne remplace pas une valeur que vous avez modifiée manuellement.
 
 ## Principaux types pris en charge
 
@@ -27,22 +40,22 @@ L'intégration Binance est actuellement désactivée. Si vous souhaitez gérer l
 ## Ajouter un portefeuille
 
 1. Dans Paramètres, créez un compte d'actif dans la catégorie crypto.
-2. Ouvrez États financiers -> Crypto.
+2. Ouvrez États financiers -> Rapprochement des soldes, puis choisissez Saisie du solde réel.
 3. Ajoutez un portefeuille, puis choisissez la chaîne, l'adresse et le compte lié.
-4. Utilisez la récupération de solde pour vérifier la quantité disponible et le montant équivalent en JPY.
-5. Enregistrez-le pour afficher le portefeuille dans la liste des actifs cryptographiques.
+4. Utilisez Récupérer et appliquer pour saisir la quantité disponible comme solde réel.
+5. Enregistrez l'instantané, puis examinez les écarts avec le solde comptable.
 
 En général, un compte est lié à un seul paramètre de portefeuille. Même avec la même adresse Solana, vous pouvez souhaiter traiter SOL, SKR, mSOL et les actifs similaires séparément, donc créez des comptes séparés si nécessaire.
 
-## Comment les valeurs en JPY sont gérées
+## Comment les devises sont gérées
 
-Sur la page Crypto, l'application multiplie les quantités récupérées par les données de prix pour afficher les valeurs équivalentes en JPY. Les prix sont récupérés depuis des sources de prix externes et peuvent être actualisés à l'écran.
+Les états financiers convertissent le solde comptable avec les prix disponibles afin d'afficher son équivalent dans la devise d'affichage. Les prix proviennent de sources externes et peuvent être actualisés.
 
-Pour les comptes de la catégorie crypto, l'évaluation affichée dans les états financiers peut être remplacée par la valeur calculée à partir de la quantité récupérée et du prix, au lieu du solde calculé uniquement à partir des écritures de journal. Cela vous permet de visualiser le total des actifs plus proche de la valeur marchande actuelle.
+La quantité récupérée du portefeuille reste dans sa devise d'origine et sert uniquement de solde réel pour le rapprochement ; elle ne remplace pas les montants issus des écritures de journal.
 
 ## Relation avec les écritures de journal
 
-La Surveillance des actifs cryptographiques sert à vérifier la quantité détenue et l'évaluation. Elle ne journalise pas automatiquement chaque achat, vente, échange, transfert, frais, gain réalisé ou perte réalisée.
+Le rapprochement sert à vérifier la quantité détenue par rapport au livre comptable. Il ne journalise pas automatiquement chaque achat, vente, échange, transfert, frais, gain réalisé ou perte réalisée.
 
 Lorsque vous achetez des actifs cryptographiques, vous avez toujours besoin d'une écriture de journal qui diminue l'actif de paiement et augmente le compte d'actif cryptographique. Lorsque vous vendez, enregistrez l'augmentation des liquidités/dépôts, la diminution des actifs cryptographiques, et le gain ou la perte si nécessaire.
 
@@ -96,16 +109,16 @@ Les ventes d'actifs cryptographiques suivent la même logique que les valeurs mo
 | Gain de vente | Gain sur vente d'actifs cryptographiques |
 | Perte de vente | Perte sur vente d'actifs cryptographiques |
 
-La Surveillance des actifs cryptographiques sert à vérifier les avoirs et les évaluations. Elle ne journalise pas automatiquement les achats, ventes, échanges ou transferts. Enregistrez les transactions réelles séparément comme des écritures de journal multilignes.
+Le rapprochement sert à vérifier les avoirs par rapport au livre comptable. Il ne journalise pas automatiquement les achats, ventes, échanges ou transferts. Enregistrez les transactions réelles séparément comme des écritures de journal multilignes.
 
-### Différence entre évaluation et valeur comptable
+### Différence entre solde réel et solde comptable
 
-Lorsque la Surveillance des actifs cryptographiques est active, les états financiers affichent les évaluations aux prix actuels du marché. Le solde du journal, cependant, est basé sur les montants enregistrés à l'acquisition. L'écart entre ceux-ci est un gain ou une perte non réalisé(e) et n'est pas reflété dans le journal jusqu'à la vente.
+L'écran de rapprochement affiche séparément le solde réel récupéré et le solde calculé à partir des écritures. En cas d'écart, vérifiez l'historique du portefeuille et enregistrez les écritures manquantes ; la récupération du solde ne modifie pas le livre comptable.
 
 Pour les actions, il n'y a pas non plus de réévaluation mensuelle automatique. La base de coût reste dans le journal et le profit ou la perte réel(le) est enregistré(e) au moment de la vente.
 
 ## Notes sur les finances personnelles
 
-Les valeurs du marché des cryptomonnaies peuvent changer radicalement. L'évaluation affichée dans l'Aperçu et les états financiers est une estimation pour comprendre la valeur nette actuelle du ménage. Elle ne remplace pas entièrement la base de coût fiscal, le calcul des profits/pertes, la moyenne mobile, la moyenne totale ou le traitement des frais.
+Les prix de marché des cryptomonnaies peuvent changer radicalement. Les conversions affichées dans l'Aperçu et les états financiers sont des estimations pour comprendre la valeur nette actuelle du ménage. Elles ne remplacent pas la base de coût fiscal, le calcul des profits/pertes, la moyenne mobile, la moyenne totale ni le traitement des frais.
 
 Après des transactions importantes, vérifiez séparément les écritures de journal par rapport à l'historique de l'échange et du portefeuille.

@@ -6,17 +6,20 @@ titleEn: Multi-Currency Handling
 
 # Multi-Currency Handling
 
-This app supports multiple currencies. You can set a currency for each account, so foreign-currency bank accounts and foreign-currency assets can be included in the ledger.
+This app lets you switch among currencies enabled in Currency Settings. Currency is stored on journal lines, so foreign-currency and crypto balances can be managed separately by currency.
 
 ## Core Idea
 
-Each journal entry is recorded per currency. For example, a deposit of 1,000 USD into a USD bank account is recorded in USD. The app does not automatically fetch exchange rates. When recording foreign-currency transactions, enter the foreign-currency amount directly. To see a converted total in financial statements, enter a conversion entry manually.
+The currency switcher at the top of the screen selects the currency used for input and display. For example, if you select USD and record a deposit of 1,000 into a USD bank account, the entry is stored in USD.
 
-## Creating a Foreign-Currency Account
+An account is not restricted to one currency. You can keep balances in multiple currencies in the same account, or create separate accounts by currency and purpose. When clear separation matters, dedicated accounts such as "USD Bank Account" and "BTC - Everyday" make balances easier to understand.
 
-1. In Settings, create a new account.
-2. Set the account currency to the target currency, such as USD or EUR.
-3. Enter the opening balance in the foreign currency using the opening balance form.
+## Starting to Use a Foreign Currency
+
+1. Enable the target currency, such as USD or EUR, in Currency Settings.
+2. Select it with the currency switcher at the top of the screen.
+3. If you want to separate its balance by purpose, create a dedicated account.
+4. Use the opening balance form to record the current balance in the selected currency.
 
 ## Recording Foreign-Currency Transactions
 
@@ -45,18 +48,19 @@ This app supports currency exchange entries that allow a debit/credit amount mis
 
 ## Display in Financial Statements
 
-In financial statement totals, balances in different currencies are shown as plain numbers side by side. For example, if you have 100,000 JPY in a JPY account and 500 USD in a USD account, the asset total shows a combined number of 100,000 + 500.
+Financial statements normally show only balances in the currency selected with the currency switcher. When Include All Currencies is enabled, balances in other currencies are converted into the display currency using the rates configured in Currency Settings and then included in totals.
 
-When currencies are mixed, treat totals as reference values only. For an accurate total, check converted balances manually or consolidate into a single currency by entering conversion journal entries.
+Converted values vary with the price source and retrieval time. The ledger retains the original currency quantities; display conversion never rewrites journal entries.
 
-## Changing a Currency
+## Adding or Removing a Currency
 
-The currency of an account that already has journal entries cannot be changed. If the currency was set incorrectly, use the Bulk Edit & Replace feature to move journal entries to a different account, then delete the original account.
-
-Adding a new currency (for example, opening a new EUR account) only requires creating a new account set to EUR. Existing accounts and journal entries are not affected.
+Adding a currency does not affect existing accounts or journal entries. A currency with a remaining balance cannot be disabled, so first bring its balance to zero with transfers or currency-exchange entries when it is no longer needed.
 
 ## Crypto Assets and Currency
 
-Crypto assets such as BTC, ETH, and SOL are also treated as a type of foreign currency. Create an account in the crypto category and set the currency to BTC or similar. Journal entries are then recorded in that crypto unit.
+Crypto assets support two usage models.
 
-To check JPY-equivalent value, use Crypto Asset Watch to fetch prices from external sources and multiply by the holding quantity. See the Crypto Asset Watch guide for details.
+- For everyday payments, enable BTC or another crypto currency in Currency Settings, select it with the currency switcher, and record ordinary income, expenses, and transfers. Create a cash account such as "BTC - Everyday" when you want its balance kept separate.
+- For investment or speculation, create an account such as "BTC - Investment" in the crypto asset category and record purchases, sales, rewards, and fees as investment activity.
+
+You can hold the same BTC for both purposes. Separate accounts keep the balances distinct even though the currency code is the same, and Balance Reconciliation compares each account independently. Investment accounts can fetch actual wallet balances, while every account, including everyday-use accounts, supports manual actual-balance entry. See the Crypto Balance Reconciliation guide for details.

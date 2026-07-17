@@ -104,16 +104,25 @@ describe("privacy formatting", () => {
     expect(plannedExpenseRoutes).toContain('path="/scheduled-payments"');
   });
 
-  test("blocks crypto wallet edits in privacy mode", () => {
-    const source = readFileSync(
-      new URL("../src/pages/CryptoPage.tsx", import.meta.url),
+  test("blocks wallet reconciliation controls in privacy mode", () => {
+    const appSource = readFileSync(
+      new URL("../src/App.tsx", import.meta.url),
       "utf8",
     );
+    const actualInputSource = readFileSync(
+      new URL("../src/components/tt/ActualInputSection.tsx", import.meta.url),
+      "utf8",
+    );
+    const reconciliationRoute = appSource.slice(
+      appSource.indexOf('path="/fs/tt"'),
+      appSource.indexOf('path="/fs/db"'),
+    );
 
-    expect(source).toContain('from "../context/PrivacyContext"');
-    expect(source).toContain("const { privacyMode } = usePrivacy()");
-    expect(source).toContain("if (privacyMode) return");
-    expect(source).toContain("{!privacyMode && (");
+    expect(reconciliationRoute).toContain(
+      "privacyMode ? <PrivacyModeBlocked /> : <TtPage />",
+    );
+    expect(actualInputSource).toContain("<CryptoWatchModal");
+    expect(actualInputSource).toContain("api.crypto.delete(id)");
   });
 
   test("allows account-name masking only while privacy mode is on", () => {

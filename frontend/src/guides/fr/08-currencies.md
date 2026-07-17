@@ -7,17 +7,20 @@ titleFr: Gestion multidevise
 
 # Gestion multidevise
 
-Cette application prend en charge plusieurs devises. Vous pouvez définir une devise pour chaque compte, afin que les comptes bancaires en devises étrangères et les actifs en devises étrangères puissent être inclus dans le journal.
+Cette application permet de basculer entre les devises activées dans les paramètres de devises. La devise est enregistrée sur chaque ligne d'écriture, ce qui permet de gérer séparément les soldes en devises étrangères et en cryptomonnaies.
 
 ## Concept clé
 
-Chaque écriture de journal est enregistrée par devise. Par exemple, un dépôt de 1 000 USD sur un compte bancaire en USD est enregistré en USD. L'application ne récupère pas automatiquement les taux de change. Lors de l'enregistrement de transactions en devises étrangères, saisissez le montant en devise étrangère directement. Pour voir un total converti dans les états financiers, saisissez une écriture de conversion manuellement.
+Le sélecteur de devise en haut de l'écran choisit la devise utilisée pour la saisie et l'affichage. Par exemple, si vous sélectionnez USD et enregistrez un dépôt de 1 000 sur un compte bancaire en USD, l'écriture est sauvegardée en USD.
 
-## Créer un compte en devise étrangère
+Un compte n'est pas limité à une seule devise. Vous pouvez conserver plusieurs soldes en devises dans le même compte ou créer des comptes distincts par devise et par usage. Lorsqu'une séparation claire est importante, utilisez des comptes dédiés tels que « Compte bancaire USD » et « BTC - Quotidien ».
 
-1. Dans Paramètres, créez un nouveau compte.
-2. Définissez la devise du compte sur la devise cible, par exemple USD ou EUR.
-3. Saisissez le solde d'ouverture dans la devise étrangère en utilisant le formulaire de solde d'ouverture.
+## Commencer à utiliser une devise étrangère
+
+1. Activez la devise voulue, par exemple USD ou EUR, dans les paramètres de devises.
+2. Sélectionnez-la avec le sélecteur de devise en haut de l'écran.
+3. Si vous souhaitez séparer son solde par usage, créez un compte dédié.
+4. Utilisez le formulaire de solde d'ouverture pour enregistrer le solde actuel dans la devise sélectionnée.
 
 ## Enregistrer des transactions en devises étrangères
 
@@ -46,18 +49,19 @@ Cette application prend en charge les écritures de change qui permettent un éc
 
 ## Affichage dans les états financiers
 
-Dans les totaux des états financiers, les soldes dans différentes devises sont affichés comme des nombres simples côte à côte. Par exemple, si vous avez 100 000 JPY sur un compte JPY et 500 USD sur un compte USD, le total des actifs affiche un nombre combiné de 100 000 + 500.
+Les états financiers affichent normalement uniquement les soldes dans la devise choisie avec le sélecteur. Lorsque l'option Inclure toutes les devises est activée, les autres soldes sont convertis dans la devise d'affichage avec les taux configurés dans les paramètres de devises, puis inclus dans les totaux.
 
-Lorsque les devises sont mélangées, traitez les totaux comme des valeurs de référence uniquement. Pour un total précis, vérifiez les soldes convertis manuellement ou consolidez en une seule devise en saisissant des écritures de journal de conversion.
+Les valeurs converties varient selon la source des prix et l'heure de récupération. Le livre conserve les quantités dans leur devise d'origine ; la conversion d'affichage ne modifie jamais les écritures.
 
-## Modifier une devise
+## Ajouter ou supprimer une devise
 
-La devise d'un compte qui a déjà des écritures de journal ne peut pas être modifiée. Si la devise a été mal définie, utilisez la fonctionnalité d'édition et remplacement en masse pour déplacer les écritures de journal vers un compte différent, puis supprimez le compte d'origine.
-
-L'ajout d'une nouvelle devise (par exemple, l'ouverture d'un nouveau compte en EUR) nécessite uniquement la création d'un nouveau compte défini sur EUR. Les comptes existants et les écritures de journal ne sont pas affectés.
+L'ajout d'une devise n'affecte ni les comptes ni les écritures existants. Une devise qui présente encore un solde ne peut pas être désactivée ; si elle n'est plus nécessaire, ramenez d'abord son solde à zéro par des transferts ou des écritures de change.
 
 ## Actifs cryptographiques et devise
 
-Les actifs cryptographiques tels que BTC, ETH et SOL sont également traités comme un type de devise étrangère. Créez un compte dans la catégorie crypto et définissez la devise sur BTC ou similaire. Les écritures de journal sont ensuite enregistrées dans cette unité cryptographique.
+Les actifs cryptographiques prennent en charge deux modèles d'utilisation.
 
-Pour vérifier la valeur équivalente en JPY, utilisez la Surveillance des actifs cryptographiques pour récupérer les prix depuis des sources externes et multiplier par la quantité détenue. Consultez le guide de Surveillance des actifs cryptographiques pour plus de détails.
+- Pour les paiements quotidiens, activez BTC ou une autre cryptomonnaie dans les paramètres de devises, sélectionnez-la avec le sélecteur, puis enregistrez les revenus, dépenses et transferts ordinaires. Créez un compte de liquidités tel que « BTC - Quotidien » si vous souhaitez isoler ce solde.
+- Pour l'investissement ou la spéculation, créez un compte tel que « BTC - Investissement » dans la catégorie d'actifs crypto et enregistrez les achats, ventes, récompenses et frais comme des opérations d'investissement.
+
+Vous pouvez détenir le même BTC pour les deux usages. Des comptes séparés gardent les soldes distincts même si le code de devise est identique, et le rapprochement compare chaque compte indépendamment. Les comptes d'investissement peuvent récupérer le solde réel du portefeuille ; chaque compte, y compris ceux d'usage quotidien, permet aussi une saisie manuelle. Consultez le guide de Rapprochement des soldes cryptographiques.
