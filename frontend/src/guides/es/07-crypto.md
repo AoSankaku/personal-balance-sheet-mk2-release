@@ -9,7 +9,7 @@ titleEs: Conciliación de Saldos de Criptoactivos
 
 La conciliación vincula direcciones de billetera a cuentas de criptoactivos para comparar el saldo real con el saldo del libro mayor. Adminístrala desde Estados Financieros -> Conciliación de saldos.
 
-El saldo real obtenido de la cadena se utiliza únicamente para la comparación. No sobrescribe el saldo del libro mayor ni la valoración mostrada en los estados financieros.
+De la cadena solo se obtienen las cantidades mantenidas para la conciliación. No se obtienen valores de mercado ni ganancias o pérdidas no realizadas, y nunca se sobrescriben los saldos contables de los estados financieros.
 
 ## Dos formas de utilizar criptoactivos
 
@@ -22,7 +22,7 @@ La categoría cripto de una cuenta y su moneda cumplen funciones diferentes. La 
 
 Los dos modelos pueden utilizarse a la vez. Por ejemplo, cuentas separadas «BTC - Diario» y «BTC - Inversión» permiten administrar por finalidad saldos de la misma moneda BTC. La conciliación los compara por cuenta, en lugar de combinarlos únicamente por código de moneda.
 
-La obtención automática desde una billetera está destinada a cuentas de la categoría cripto. También puedes introducir manualmente el saldo real de cada cuenta, incluidas las de uso diario, y la obtención automática no sobrescribe un valor que hayas editado manualmente.
+Los saldos de billetera se obtienen de forma explícita solo para cuentas de la categoría cripto cuando la criptomoneda correspondiente, como BTC, está seleccionada en el encabezado. Una actualización normal de la página no los obtiene. También puedes introducir manualmente el saldo real de cada cuenta, incluidas las de uso diario, y la obtención no sobrescribe un valor editado manualmente.
 
 ## Principales Tipos Soportados
 
@@ -40,7 +40,7 @@ La integración con Binance está actualmente deshabilitada. Si deseas administr
 ## Agregar una Billetera
 
 1. En Configuración, crea una cuenta de activo en la categoría de cripto.
-2. Abre Estados Financieros -> Conciliación de saldos y selecciona Entrada de saldo real.
+2. Selecciona la criptomoneda objetivo en el encabezado, abre Estados Financieros -> Conciliación de saldos y elige Entrada de saldo real.
 3. Agrega una billetera, luego elige la cadena, dirección y cuenta vinculada.
 4. Usa Obtener y aplicar para introducir la cantidad disponible como saldo real.
 5. Guarda la instantánea y revisa las diferencias con el saldo del libro mayor.

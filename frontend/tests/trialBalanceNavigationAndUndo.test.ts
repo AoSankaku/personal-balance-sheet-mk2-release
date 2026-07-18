@@ -89,7 +89,7 @@ describe("trial-balance primary navigation and forced-completion undo", () => {
       "{liabilityAccounts.length > 0",
     );
     const cryptoFetchIndex = actualInput.indexOf(
-      "{(cryptoAccounts.length > 0 || cryptoWallets.length > 0)",
+      "{selectedCryptoChains.length > 0 && cryptoAccounts.length > 0",
     );
 
     expect(assetsIndex).toBeGreaterThan(-1);
@@ -98,5 +98,27 @@ describe("trial-balance primary navigation and forced-completion undo", () => {
     expect(actualInput).not.toContain(
       "mergeFetchedCryptoBalances(current, cryptoWallets, cryptoBalances)",
     );
+  });
+
+  test("fetches wallet quantities only for the crypto currency selected in the header", () => {
+    const actualInput = source("src/components/tt/ActualInputSection.tsx");
+    const context = source("src/context/AppDataContext.tsx");
+    const walletModal = source("src/components/CryptoWatchModal.tsx");
+
+    expect(actualInput).toContain(
+      "walletsForCurrency(cryptoWallets, selectedCurrency)",
+    );
+    expect(actualInput).toContain("visibleCryptoWallets.map((wallet)");
+    expect(actualInput).toContain("currency: selectedCurrency");
+    expect(actualInput).toContain(
+      "normalizeCurrency(line.currency) !== selectedCurrency",
+    );
+    expect(actualInput).not.toContain("refreshCryptoBalances");
+    expect(context).not.toContain("refreshCryptoBalances");
+    expect(context).not.toContain("cryptoBalances");
+    expect(walletModal).toContain("currency: string");
+    expect(walletModal).not.toContain("formatJPY");
+    expect(walletModal).not.toContain("estMarketValue");
+    expect(walletModal).not.toContain("coinPrice");
   });
 });

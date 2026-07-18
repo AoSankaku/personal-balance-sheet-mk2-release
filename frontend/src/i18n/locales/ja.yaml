@@ -862,11 +862,11 @@ ttSegUnknownFunds: 不明金処理
 ttActualInputTitle: 実際の残高を入力
 ttActualInputDesc: 各口座の実際の残高を入力して、帳簿との差異を確認します。入力しない口座はチェック対象外になります。
 ttCryptoSyncTitle: 暗号資産の実残高取得
-ttCryptoSyncDesc: 連携したウォレットや取引所から数量を取得し、実残高として帳簿と照合します。
+ttCryptoSyncDesc: ヘッダーで選択中の暗号資産と一致するウォレットだけから数量を取得し、帳簿と照合します。時価は取得しません。
 ttCryptoSyncApply: 取得して反映
 ttCryptoSyncApplied: 暗号資産の実残高を反映しました
 ttCryptoSyncFailed: 暗号資産の実残高を取得できませんでした
-ttCryptoSyncNoLinks: 連携済みのウォレットまたは取引所資産はありません。
+ttCryptoSyncNoLinks: 選択中の暗号資産に連携済みのウォレットはありません。
 ttActualInputDate: 基準日
 ttActualInputSubmit: 保存して比較へ
 ttActualInputSaved: 現在値を保存しました

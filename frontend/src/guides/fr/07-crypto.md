@@ -9,7 +9,7 @@ titleFr: Rapprochement des soldes cryptographiques
 
 Le rapprochement lie les adresses de portefeuille aux comptes d'actifs cryptographiques afin de comparer le solde réel au solde comptable. Gérez-le depuis États financiers -> Rapprochement des soldes.
 
-Le solde réel récupéré sur la chaîne sert uniquement à la comparaison. Il ne remplace ni le solde comptable ni l'évaluation affichée dans les états financiers.
+Seules les quantités détenues sont récupérées sur la chaîne pour le rapprochement. Les valeurs de marché et les gains ou pertes latents ne sont pas récupérés, et les soldes comptables des états financiers ne sont jamais remplacés.
 
 ## Deux façons d'utiliser les actifs cryptographiques
 
@@ -22,7 +22,7 @@ La catégorie crypto d'un compte et sa devise ont des rôles différents. La cat
 
 Les deux modèles peuvent être utilisés ensemble. Par exemple, des comptes distincts « BTC - Quotidien » et « BTC - Investissement » permettent de gérer par objectif les soldes de la même devise BTC. Le rapprochement les compare par compte au lieu de les regrouper uniquement par code de devise.
 
-La récupération automatique depuis un portefeuille est destinée aux comptes de la catégorie crypto. Vous pouvez toujours saisir manuellement le solde réel de chaque compte, y compris les comptes d'usage quotidien, et la récupération ne remplace pas une valeur que vous avez modifiée manuellement.
+Les soldes de portefeuille sont récupérés explicitement uniquement pour les comptes de la catégorie crypto lorsque la cryptomonnaie correspondante, telle que BTC, est sélectionnée dans l'en-tête. Une actualisation normale de la page ne les récupère pas. Vous pouvez toujours saisir manuellement le solde réel de chaque compte, y compris les comptes d'usage quotidien, et la récupération ne remplace pas une valeur modifiée manuellement.
 
 ## Principaux types pris en charge
 
@@ -40,7 +40,7 @@ L'intégration Binance est actuellement désactivée. Si vous souhaitez gérer l
 ## Ajouter un portefeuille
 
 1. Dans Paramètres, créez un compte d'actif dans la catégorie crypto.
-2. Ouvrez États financiers -> Rapprochement des soldes, puis choisissez Saisie du solde réel.
+2. Sélectionnez la cryptomonnaie cible dans l'en-tête, ouvrez États financiers -> Rapprochement des soldes, puis choisissez Saisie du solde réel.
 3. Ajoutez un portefeuille, puis choisissez la chaîne, l'adresse et le compte lié.
 4. Utilisez Récupérer et appliquer pour saisir la quantité disponible comme solde réel.
 5. Enregistrez l'instantané, puis examinez les écarts avec le solde comptable.

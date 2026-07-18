@@ -862,11 +862,11 @@ ttSegUnknownFunds: 不明资金
 ttActualInputTitle: 输入实际余额
 ttActualInputDesc: 输入每个账户的实际余额以检查差异。留空的账户将不被检查。
 ttCryptoSyncTitle: 获取加密资产实际余额
-ttCryptoSyncDesc: 从已关联的钱包或交易所获取数量，并与账簿进行核对。
+ttCryptoSyncDesc: 仅从与页眉当前所选加密币种一致的钱包获取数量，并与账簿核对。不获取市场价值。
 ttCryptoSyncApply: 获取并应用
 ttCryptoSyncApplied: 已应用加密资产实际余额
 ttCryptoSyncFailed: 无法获取加密资产实际余额
-ttCryptoSyncNoLinks: 尚未关联钱包或交易所资产。
+ttCryptoSyncNoLinks: 当前所选加密币种尚未关联钱包。
 ttActualInputDate: 基准日期
 ttActualInputSubmit: 保存并比较
 ttActualInputSaved: 快照已保存

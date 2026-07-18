@@ -8,7 +8,7 @@ titleEn: Crypto Balance Reconciliation
 
 Link wallet addresses to crypto asset accounts to compare ledger quantities with actual holdings. Manage links from Financial Statements -> Balance Reconciliation.
 
-Fetched on-chain balances are used as actual values for reconciliation. They no longer overwrite ledger balances in financial statements; record a journal entry after reviewing any difference.
+Only holding quantities are fetched from the blockchain for reconciliation. Market values and unrealized gains or losses are not fetched, and financial-statement ledger balances are never overwritten. Record a journal entry after reviewing any difference.
 
 ## Two Ways to Use Crypto Assets
 
@@ -21,7 +21,7 @@ An account's crypto category and its currency serve different purposes. The cate
 
 The two models can be used together. For example, separate "BTC - Everyday" and "BTC - Investment" accounts let you manage balances for the same BTC currency by purpose. Balance Reconciliation compares them by account instead of combining them solely by currency code.
 
-Automatic wallet fetching is intended for accounts in the crypto category. You can still enter the actual balance of every account manually, including everyday-use accounts, and fetching does not overwrite a value you have manually edited.
+Wallet balances are fetched explicitly only for crypto-category accounts when the matching crypto currency, such as BTC, is selected in the header. Normal page refreshes do not fetch them. You can still enter every account's actual balance manually, including everyday-use accounts, and fetching does not overwrite a value you have manually edited.
 
 ## Main Supported Types
 
@@ -39,7 +39,7 @@ Binance integration is currently disabled. If you want to manage exchange balanc
 ## Adding A Wallet
 
 1. In Settings, create an asset account in the crypto category.
-2. Open Financial Statements -> Balance Reconciliation.
+2. Select the target crypto currency in the header, then open Financial Statements -> Balance Reconciliation.
 3. Add a wallet, then choose the chain, address, and linked account.
 4. Choose Fetch & Apply to enter the wallet quantity as the actual balance.
 5. Save and open Review Differences to compare it with the ledger quantity.

@@ -862,11 +862,11 @@ ttSegUnknownFunds: Unknown Funds
 ttActualInputTitle: Enter actual balances
 ttActualInputDesc: Enter the real-world balance for each account to check for discrepancies. Accounts left blank will not be checked.
 ttCryptoSyncTitle: Fetch actual crypto balances
-ttCryptoSyncDesc: Fetch quantities from linked wallets or exchanges and reconcile them with the ledger.
+ttCryptoSyncDesc: Fetch quantities only from wallets matching the crypto currency selected in the header and reconcile them with the ledger. Market values are not fetched.
 ttCryptoSyncApply: Fetch & Apply
 ttCryptoSyncApplied: Actual crypto balances applied
 ttCryptoSyncFailed: Could not fetch actual crypto balances
-ttCryptoSyncNoLinks: No wallet or exchange asset is linked.
+ttCryptoSyncNoLinks: No wallet is linked for the selected crypto currency.
 ttActualInputDate: As of date
 ttActualInputSubmit: Save & Compare
 ttActualInputSaved: Snapshot saved

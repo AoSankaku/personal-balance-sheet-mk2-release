@@ -40,8 +40,10 @@ import { getSelectableZeroAmountCompletions } from "../../lib/creditCardStatemen
 import type { TrialBalanceCarryForwardDraft } from "../../lib/trialBalanceCarryForward";
 import { CryptoWatchModal } from "../CryptoWatchModal";
 import {
+  cryptoChainsForCurrency,
   currencyForCryptoWallet,
   mergeFetchedCryptoBalances,
+  walletsForCurrency,
 } from "./cryptoBalanceSync";
 import {
   useAccountDisplayName,
@@ -75,11 +77,9 @@ export function ActualInputSection({
     accounts,
     journal,
     cryptoWallets,
-    cryptoBalances,
     displayCurrency,
     enabledCurrencies,
     refresh,
-    refreshCryptoBalances,
     creditCardStatementCompletions,
     refreshCreditCardStatementCompletions,
     refreshLatestTrialBalanceDate,
@@ -116,7 +116,20 @@ export function ActualInputSection({
   const [cancellationSaving, setCancellationSaving] = useState(false);
   const [cryptoModalOpened, setCryptoModalOpened] = useState(false);
   const [cryptoSyncing, setCryptoSyncing] = useState(false);
+  const [fetchedCryptoBalances, setFetchedCryptoBalances] = useState<
+    Map<number, number>
+  >(new Map());
   const manuallyEditedGeneralAccountIds = useRef(new Set<number>());
+
+  const normalizeCurrency = (currency: string | null | undefined) =>
+    (currency || "JPY").trim().toUpperCase();
+  const selectedCurrency = normalizeCurrency(displayCurrency);
+
+  useEffect(() => {
+    setGeneralValues({});
+    setFetchedCryptoBalances(new Map());
+    manuallyEditedGeneralAccountIds.current = new Set();
+  }, [selectedCurrency]);
 
   useEffect(() => {
     api.creditCardSettings
@@ -168,46 +181,24 @@ export function ActualInputSection({
   const _today = new Date();
   const todayStr = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}-${String(_today.getDate()).padStart(2, "0")}`;
 
-  const normalizeCurrency = (currency: string | null | undefined) =>
-    (currency || "JPY").toUpperCase();
-  const walletByAccountId = useMemo(
-    () => new Map(cryptoWallets.map((wallet) => [wallet.account_id, wallet])),
-    [cryptoWallets],
-  );
-  const accountCurrency = (account: Account) =>
-    walletByAccountId.has(account.id)
-      ? currencyForCryptoWallet(walletByAccountId.get(account.id)!)
-      : normalizeCurrency(
-          Object.keys(account.balances ?? {}).find(
-          (currency) => Math.abs(account.balances?.[currency] ?? 0) > 0.001,
-          ) ||
-          Object.keys(account.balances ?? {})[0] ||
-          displayCurrency,
-        );
   const currencySymbolFor = (currency: string | null | undefined) =>
     getEffectiveSymbol(normalizeCurrency(currency), enabledCurrencies);
-  const formatAccountAmount = (amount: number, account: Account) =>
+  const formatAccountAmount = (amount: number) =>
     formatCurrency(
       amount,
       locale,
-      accountCurrency(account),
-      currencySymbolFor(accountCurrency(account)),
+      selectedCurrency,
+      currencySymbolFor(selectedCurrency),
     );
 
   // Compute per-account book values from local journal filtered to dateStr.
   // This re-evaluates whenever the user changes the date picker.
   const bookValueMap = useMemo(() => {
     const raw = new Map<number, number>(); // sum of (debit - credit)
-    const accountMap = new Map(accounts.map((account) => [account.id, account]));
     for (const entry of journal) {
       if (dateStr && entry.date > dateStr) continue;
       for (const line of entry.lines) {
-        const account = accountMap.get(line.account_id);
-        if (
-          account &&
-          normalizeCurrency(line.currency) !==
-            accountCurrency(account)
-        ) {
+        if (normalizeCurrency(line.currency) !== selectedCurrency) {
           continue;
         }
         raw.set(
@@ -228,7 +219,7 @@ export function ActualInputSection({
       result.set(a.id, isDebitNormal ? r : -r);
     }
     return result;
-  }, [dateStr, journal, accounts]);
+  }, [dateStr, journal, accounts, selectedCurrency]);
 
   // Assets (except property/system) + liabilities (except credit cards)
   const inputableAccounts = useMemo(
@@ -266,6 +257,14 @@ export function ActualInputSection({
   const linkedCryptoAccountIds = useMemo(
     () => new Set(cryptoWallets.map((wallet) => wallet.account_id)),
     [cryptoWallets],
+  );
+  const visibleCryptoWallets = useMemo(
+    () => walletsForCurrency(cryptoWallets, selectedCurrency),
+    [cryptoWallets, selectedCurrency],
+  );
+  const selectedCryptoChains = useMemo(
+    () => cryptoChainsForCurrency(selectedCurrency),
+    [selectedCurrency],
   );
 
   // ccStateMap: (account_id:payment_month) → amount — used for placeholders
@@ -386,7 +385,7 @@ export function ActualInputSection({
           {
             account_id: account.id,
             amount: Number(value),
-            currency: accountCurrency(account),
+            currency: selectedCurrency,
           },
         ];
       });
@@ -419,27 +418,27 @@ export function ActualInputSection({
   }
 
   async function handleApplyCryptoBalances() {
-    if (cryptoWallets.length === 0) return;
+    if (visibleCryptoWallets.length === 0) return;
     setCryptoSyncing(true);
     try {
       const results = await Promise.all(
-        cryptoWallets.map((wallet) =>
+        visibleCryptoWallets.map((wallet) =>
           api.crypto.balance(wallet.address, wallet.chain),
         ),
       );
       const fetched = new Map<number, number>();
-      cryptoWallets.forEach((wallet, index) => {
+      visibleCryptoWallets.forEach((wallet, index) => {
         fetched.set(wallet.account_id, results[index]!.amount);
       });
+      setFetchedCryptoBalances(fetched);
       setGeneralValues((current) =>
         mergeFetchedCryptoBalances(
           current,
-          cryptoWallets,
+          visibleCryptoWallets,
           fetched,
           manuallyEditedGeneralAccountIds.current,
         ),
       );
-      void refreshCryptoBalances();
       showFeedback({ message: t("ttCryptoSyncApplied"), color: "teal" });
     } catch {
       showFeedback({ message: t("ttCryptoSyncFailed"), color: "red" });
@@ -473,7 +472,8 @@ export function ActualInputSection({
 
   function renderAccountRow(a: Account) {
     const value = generalValues[a.id] ?? "";
-    const bookValue = bookValueMap.get(a.id) ?? a.balance ?? 0;
+    const bookValue =
+      bookValueMap.get(a.id) ?? a.balances?.[selectedCurrency] ?? 0;
     return (
       <Group key={a.id} justify="space-between" align="center">
         <Stack gap={0} style={{ flex: 1 }}>
@@ -491,7 +491,7 @@ export function ActualInputSection({
                 )
               : a.category}
             {" · "}
-            {`${t("ttDeviationBookValue")}: ${formatAccountAmount(bookValue, a)}`}
+            {`${t("ttDeviationBookValue")}: ${formatAccountAmount(bookValue)}`}
           </Text>
         </Stack>
         <NumberInput
@@ -500,13 +500,13 @@ export function ActualInputSection({
             manuallyEditedGeneralAccountIds.current.add(a.id);
             setGeneralValues((prev) => ({ ...prev, [a.id]: v }));
           }}
-          placeholder={formatAccountAmount(bookValue, a)}
+          placeholder={formatAccountAmount(bookValue)}
           min={0}
           thousandSeparator=","
-          prefix={currencySymbolFor(accountCurrency(a))}
+          prefix={currencySymbolFor(selectedCurrency)}
           decimalScale={
             enabledCurrencies.find(
-              (currency) => currency.code === accountCurrency(a),
+              (currency) => currency.code === selectedCurrency,
             )?.decimal_places ?? undefined
           }
           inputMode="decimal"
@@ -726,7 +726,7 @@ export function ActualInputSection({
               </Text>
             </Stack>
             <Text size="sm" fw={700}>
-              {formatAccountAmount(total, account)}
+              {formatAccountAmount(total)}
             </Text>
           </Group>
 
@@ -805,7 +805,7 @@ export function ActualInputSection({
                         }
                         min={0}
                         thousandSeparator=","
-                        prefix={currencySymbolFor(accountCurrency(account))}
+                        prefix={currencySymbolFor(selectedCurrency)}
                         hideControls
                         size="md"
                         inputMode="numeric"
@@ -815,7 +815,7 @@ export function ActualInputSection({
                             `${account.id}:${row.payment_month}`,
                           );
                           return dbVal !== undefined
-                            ? formatAccountAmount(Math.round(dbVal), account)
+                            ? formatAccountAmount(Math.round(dbVal))
                             : undefined;
                         })()}
                       />
@@ -870,7 +870,7 @@ export function ActualInputSection({
                         }
                         min={0}
                         thousandSeparator=","
-                        prefix={currencySymbolFor(accountCurrency(account))}
+                        prefix={currencySymbolFor(selectedCurrency)}
                         hideControls
                         size="md"
                         inputMode="numeric"
@@ -880,7 +880,7 @@ export function ActualInputSection({
                             `${account.id}:${row.payment_month}`,
                           );
                           return dbVal !== undefined
-                            ? formatAccountAmount(Math.round(dbVal), account)
+                            ? formatAccountAmount(Math.round(dbVal))
                             : undefined;
                         })()}
                       />
@@ -1038,7 +1038,7 @@ export function ActualInputSection({
                 </Text>
               )}
               <Text size="xs" c="dimmed">
-                {t("ccSlotTotal")}: {formatAccountAmount(total, account)}
+                {t("ccSlotTotal")}: {formatAccountAmount(total)}
               </Text>
             </Stack>
           </Group>
@@ -1113,7 +1113,7 @@ export function ActualInputSection({
                 </Stack>
               </Paper>
             )}
-            {(cryptoAccounts.length > 0 || cryptoWallets.length > 0) && (
+            {selectedCryptoChains.length > 0 && cryptoAccounts.length > 0 && (
               <Paper withBorder p="md" radius="md">
                 <Stack gap="sm">
                   <Group justify="space-between" align="flex-start">
@@ -1131,7 +1131,7 @@ export function ActualInputSection({
                         variant="light"
                         leftSection={<IconRefresh size={14} />}
                         loading={cryptoSyncing}
-                        disabled={cryptoWallets.length === 0}
+                        disabled={visibleCryptoWallets.length === 0}
                         onClick={() => void handleApplyCryptoBalances()}
                       >
                         {t("ttCryptoSyncApply")}
@@ -1150,17 +1150,17 @@ export function ActualInputSection({
                       </Button>
                     </Group>
                   </Group>
-                  {cryptoWallets.length === 0 ? (
+                  {visibleCryptoWallets.length === 0 ? (
                     <Text size="xs" c="dimmed">
                       {t("ttCryptoSyncNoLinks")}
                     </Text>
                   ) : (
                     <Stack gap={6}>
-                      {cryptoWallets.map((wallet) => {
+                      {visibleCryptoWallets.map((wallet) => {
                         const account = accounts.find(
                           (candidate) => candidate.id === wallet.account_id,
                         );
-                        const fetchedBalance = cryptoBalances.get(
+                        const fetchedBalance = fetchedCryptoBalances.get(
                           wallet.account_id,
                         );
                         return (
@@ -1187,7 +1187,7 @@ export function ActualInputSection({
                             <Group gap="xs" wrap="nowrap">
                               <Text size="sm">
                                 {fetchedBalance !== undefined && account
-                                  ? formatAccountAmount(fetchedBalance, account)
+                                  ? formatAccountAmount(fetchedBalance)
                                   : "—"}
                               </Text>
                               <ActionIcon
@@ -1313,6 +1313,7 @@ export function ActualInputSection({
         onAdded={handleCryptoWalletAdded}
         assetAccounts={cryptoAccounts}
         linkedAccountIds={linkedCryptoAccountIds}
+        currency={selectedCurrency}
       />
     </>
   );

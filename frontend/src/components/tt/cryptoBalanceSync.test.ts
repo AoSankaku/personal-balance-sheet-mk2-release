@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import type { CryptoWallet } from "@balance-sheet/shared";
 import {
+  cryptoChainsForCurrency,
   currencyForCryptoWallet,
+  walletsForCurrency,
   mergeFetchedCryptoBalances,
 } from "./cryptoBalanceSync";
 
@@ -35,6 +37,37 @@ describe("currencyForCryptoWallet", () => {
     expect(currencyForCryptoWallet(wallet(1, "binance", "usdt"))).toBe(
       "USDT",
     );
+  });
+});
+
+describe("currency-scoped wallet reconciliation", () => {
+  const wallets = [
+    wallet(1, "btc"),
+    wallet(2, "eth"),
+    wallet(3, "sol"),
+    wallet(4, "sol_stake"),
+    wallet(5, "skr"),
+  ];
+
+  it("selects only wallets matching the header currency", () => {
+    expect(walletsForCurrency(wallets, "btc").map((item) => item.account_id)).toEqual([
+      1,
+    ]);
+    expect(walletsForCurrency(wallets, "SOL").map((item) => item.account_id)).toEqual([
+      3,
+      4,
+    ]);
+    expect(walletsForCurrency(wallets, "JPY")).toEqual([]);
+  });
+
+  it("limits wallet chain choices to the selected crypto currency", () => {
+    expect(cryptoChainsForCurrency("BTC")).toEqual(["btc"]);
+    expect(cryptoChainsForCurrency("SOL")).toEqual([
+      "sol",
+      "msol",
+      "sol_stake",
+    ]);
+    expect(cryptoChainsForCurrency("JPY")).toEqual([]);
   });
 });
 

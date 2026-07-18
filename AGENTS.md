@@ -177,10 +177,10 @@ cryptoWallets, exchangeCredentials, cryptoBalances, prices,
 budgetCategories, budgetFilters, budgetSummary,
 currentYearMonth, setCurrentYearMonth,
 loading, error,
-refresh(), refreshCryptoBalances(), refreshBudget(), refreshBudgetFilters()
+refresh(), refreshBudget(), refreshBudgetFilters()
 ```
 
-- Wallet balances are reconciliation-only actual values; financial statements continue to use journal-computed balances and the shared multi-currency conversion layer.
+- Wallet quantities are fetched only by an explicit action in balance reconciliation while the matching crypto currency is selected in the header. Normal context refreshes never fetch wallet balances. Financial statements continue to use journal-computed balances and the shared multi-currency conversion layer.
 - `budgetSummary` auto-refreshes when `currentYearMonth` changes
 
 ### API Client (`frontend/src/api/client.ts`)
@@ -216,7 +216,7 @@ When adding or changing user-facing copy, update every supported locale file in 
 - `crypto_wallets`: one row per account (UNIQUE on `account_id`); same address can appear with `chain = "sol"` and `chain = "skr"` to track native SOL and SPL token balance separately
 - For `chain = "binance"`, `address` stores the asset ticker (e.g. `BTC`); balance fetched via Binance REST API
 - Balance fetched server-side: ETH→cloudflare-eth.com, BTC→blockstream.info, SOL/SKR→Solana RPC (`api.mainnet-beta.solana.com`), Binance→`/api/v3/account` with HMAC-SHA256 signing via `crypto.subtle`
-- Wallet links and fetched quantities are managed in `/fs/tt` under actual-balance input. Fetched values do not overwrite balance-sheet or asset-summary ledger balances.
+- Wallet links and fetched quantities are managed in `/fs/tt` under actual-balance input. Only wallets matching the currently selected header currency are shown or fetched. Fetching returns quantities only, never market values, and does not overwrite manually edited actual balances or any ledger balance.
 - Domain resolution: `GET /api/crypto/resolve?domain=dasan.skr` — tries AllDomains API for `.skr` TLD, Bonfida SNS for `.sol`
 - Binance API credentials stored in `exchange_credentials` table (never in env vars); managed via `ExchangeCredentialModal`
 - `hooks/useCryptoPrices.ts` — polls CoinGecko every 60s for JPY prices (BTC/ETH/SOL/SKR/BNB/USDT/USDC); returns `byTicker` map
