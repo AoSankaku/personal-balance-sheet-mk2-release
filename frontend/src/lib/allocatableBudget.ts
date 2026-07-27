@@ -33,9 +33,36 @@ export function sumBudgetClaims(availableValues: number[]): number {
   );
 }
 
+export function sumBudgetOverspending(availableValues: number[]): number {
+  return availableValues.reduce(
+    (sum, available) => sum + Math.max(-available, 0),
+    0,
+  );
+}
+
+export interface BudgetFundingSummary {
+  allocatableCash: number;
+  positiveBudgetClaims: number;
+  unfundedOverspending: number;
+  fundingGap: number;
+}
+
+export function summarizeBudgetFunding(
+  cashBalance: number,
+  budgetAvailableValues: number[],
+): BudgetFundingSummary {
+  const positiveBudgetClaims = sumBudgetClaims(budgetAvailableValues);
+  return {
+    allocatableCash: cashBalance,
+    positiveBudgetClaims,
+    unfundedOverspending: sumBudgetOverspending(budgetAvailableValues),
+    fundingGap: cashBalance - positiveBudgetClaims,
+  };
+}
+
 export function computeAllocatableBudget(
   cashBalance: number,
   budgetAvailableValues: number[],
 ): number {
-  return cashBalance - sumBudgetClaims(budgetAvailableValues);
+  return summarizeBudgetFunding(cashBalance, budgetAvailableValues).fundingGap;
 }

@@ -231,6 +231,63 @@ describe("calculateBudgetPlacement", () => {
     expect(result.placementGroups[0]?.expected).toBe(32_700);
   });
 
+  test("uses only positive balances as targets and reports overruns separately", () => {
+    const result = calculateBudgetPlacement({
+      accounts: [
+        {
+          id: 1,
+          name: "Main bank",
+          balance: 20_000,
+          balances: { JPY: 20_000 },
+          category: "cash",
+          include_in_allocatable: true,
+        },
+      ],
+      categorySummaries: [
+        {
+          category: {
+            id: 10,
+            name: "Required spending",
+            target_accounts: [{ account_id: 1, ratio: 100 }],
+          },
+          available: 30_000,
+        },
+        {
+          category: {
+            id: 11,
+            name: "Free spending",
+            target_accounts: [{ account_id: 1, ratio: 100 }],
+          },
+          available: -20_000,
+        },
+      ],
+      currency: "JPY",
+    });
+
+    expect(result.placementGroups[0]?.expected).toBe(30_000);
+    expect(result.placementGroups[0]?.difference).toBe(-10_000);
+    expect(result.placementGroups[0]?.categories).toEqual([
+      {
+        budget_category_id: 10,
+        budget_category_name: "Required spending",
+        amount: 30_000,
+      },
+      {
+        budget_category_id: 11,
+        budget_category_name: "Free spending",
+        amount: 0,
+      },
+    ]);
+    expect(result.unfundedOverspending).toBe(20_000);
+    expect(result.overspendingCategories).toEqual([
+      {
+        budget_category_id: 11,
+        budget_category_name: "Free spending",
+        amount: 20_000,
+      },
+    ]);
+  });
+
   test("generates transfer and allocation hints from placement differences", () => {
     const hints = generateBudgetPlacementHints({
       placementGroups: [

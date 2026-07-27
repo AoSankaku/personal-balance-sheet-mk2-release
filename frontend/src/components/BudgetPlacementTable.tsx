@@ -1,5 +1,16 @@
-import { Badge, Group, List, ScrollArea, Stack, Table, Text, Title } from "@mantine/core";
+import {
+  Alert,
+  Badge,
+  Group,
+  List,
+  ScrollArea,
+  Stack,
+  Table,
+  Text,
+  Title,
+} from "@mantine/core";
 import type { Account, BudgetCategorySummary } from "@balance-sheet/shared";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { useLang } from "../i18n";
 import {
   accountDisplayNameFromName,
@@ -81,6 +92,21 @@ export function BudgetPlacementTable({
   const hints = generateBudgetPlacementHints(placement);
   const hasUnplaced =
     placement.unplacedBudget !== 0 || placement.unplacedAccounts.length > 0;
+  const unplacedActual = placement.unplacedAccounts.reduce(
+    (sum, account) => sum + account.amount,
+    0,
+  );
+  const totalExpected =
+    placement.placementGroups.reduce(
+      (sum, group) => sum + group.expected,
+      0,
+    ) + placement.unplacedBudget;
+  const totalActual =
+    placement.placementGroups.reduce(
+      (sum, group) => sum + group.actual,
+      0,
+    ) + unplacedActual;
+  const totalDifference = totalActual - totalExpected;
 
   return (
     <Stack gap="md">
@@ -97,6 +123,38 @@ export function BudgetPlacementTable({
           </Badge>
         )}
       </Group>
+
+      {placement.unfundedOverspending > 0 && (
+        <Alert
+          color="orange"
+          variant="light"
+          icon={<IconAlertTriangle size={18} />}
+          title={t("budgetPlacementUnfundedOverspending")}
+        >
+          <Stack gap={4}>
+            <Text size="sm">
+              {formatCurrency(
+                placement.unfundedOverspending,
+                locale,
+                currency,
+              )}
+            </Text>
+            <Text size="xs">
+              {t("budgetPlacementUnfundedOverspendingHint")}
+            </Text>
+            {placement.overspendingCategories.map((category) => (
+              <Text
+                key={category.budget_category_id}
+                size="xs"
+                c="dimmed"
+              >
+                {category.budget_category_name}:{" "}
+                {formatCurrency(category.amount, locale, currency)}
+              </Text>
+            ))}
+          </Stack>
+        </Alert>
+      )}
 
       {placement.placementGroups.length === 0 && !hasUnplaced ? (
         <Text size="sm" c="dimmed">
@@ -211,10 +269,7 @@ export function BudgetPlacementTable({
                     <Stack gap={2} align="flex-end">
                       <Text size="sm">
                         {formatCurrency(
-                          placement.unplacedAccounts.reduce(
-                            (sum, account) => sum + account.amount,
-                            0,
-                          ),
+                          unplacedActual,
                           locale,
                           currency,
                         )}
@@ -242,6 +297,26 @@ export function BudgetPlacementTable({
                 </Table.Tr>
               )}
             </Table.Tbody>
+            <Table.Tfoot>
+              <Table.Tr>
+                <Table.Th>{t("budgetPlacementTotal")}</Table.Th>
+                <Table.Th className="currency-cell">
+                  {formatCurrency(totalExpected, locale, currency)}
+                </Table.Th>
+                <Table.Th className="currency-cell">
+                  {formatCurrency(totalActual, locale, currency)}
+                </Table.Th>
+                <Table.Th className="currency-cell">
+                  <Text
+                    size="sm"
+                    fw={700}
+                    c={totalDifference >= 0 ? "teal" : "orange"}
+                  >
+                    {formatSignedCurrency(totalDifference, locale, currency)}
+                  </Text>
+                </Table.Th>
+              </Table.Tr>
+            </Table.Tfoot>
           </Table>
         </ScrollArea>
       )}

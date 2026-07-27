@@ -14,6 +14,9 @@ describe("task menu design", () => {
     expect(nav).toContain('t("taskBudgetNegativeTitle")');
     expect(nav).toContain('t("taskBudgetNegativeAction")');
     expect(nav).toContain("task-menu__budget-card");
+    expect(nav).toContain(
+      'navigate("/fs/tt?segment=budget&basis=today")',
+    );
   });
 
   test("exposes menu state and mobile-friendly interaction styling", () => {
@@ -48,6 +51,9 @@ describe("task menu design", () => {
       "taskMenuCount",
       "taskBudgetNegativeTitle",
       "taskBudgetNegativeAction",
+      "budgetPlacementUnfundedOverspending",
+      "budgetPlacementUnfundedOverspendingHint",
+      "budgetPlacementTotal",
     ];
 
     for (const key of requiredKeys) {

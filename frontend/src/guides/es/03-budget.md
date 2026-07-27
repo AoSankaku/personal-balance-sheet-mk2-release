@@ -42,6 +42,8 @@ La tabla de Colocación del Presupuesto aparece en Configuración -> Configuraci
 | Real | Saldo real de efectivo/bancario para las cuentas objetivo |
 | Diferencia | Real - Objetivo |
 
+Los objetivos siguen la misma regla que el dinero asignable: solo se suman los saldos positivos de las categorías. Los saldos negativos no reducen los objetivos y se muestran por separado como exceso de presupuesto sin financiar. En el Balance de Comprobación se puede alternar entre la base de hoy y la que incluye ingresos futuros; la notificación de falta de fondos abre la vista de hoy.
+
 Si un presupuesto se vincula a múltiples cuentas, o múltiples presupuestos se vinculan a una cuenta, los presupuestos y cuentas relacionados se fusionan en un grupo. Cuando existen diferencias, las sugerencias muestran cuánto mover entre grupos de cuentas, o cuánto presupuesto agregar o reducir.
 
 ## Transferencias y Movimiento de Presupuesto

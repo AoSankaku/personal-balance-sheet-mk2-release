@@ -42,6 +42,8 @@ Le tableau de placement budgétaire apparaît dans Paramètres -> Paramètres bu
 | Réel | Solde réel en liquidités/bancaire pour les comptes cibles |
 | Différence | Réel - Cible |
 
+Les cibles suivent la même règle que l'argent allouable : seuls les soldes positifs des catégories sont additionnés. Les soldes négatifs ne réduisent pas les cibles et apparaissent séparément comme dépassement budgétaire non financé. Dans la balance de vérification, il est possible de basculer entre la base du jour et celle qui inclut les revenus futurs ; la notification de manque de fonds ouvre la vue du jour.
+
 Si un budget est lié à plusieurs comptes, ou si plusieurs budgets sont liés à un seul compte, les budgets et comptes associés sont fusionnés en un seul groupe. Lorsqu'il existe des différences, des indices montrent combien déplacer entre les groupes de comptes, ou combien de budget ajouter ou réduire.
 
 ## Transferts et mouvement budgétaire
