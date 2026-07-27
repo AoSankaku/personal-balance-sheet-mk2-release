@@ -169,11 +169,49 @@ bun run --cwd worker db:migrate:remote
 
 This repository uses Wrangler D1 migrations stored under `worker/drizzle/`. Wrangler records applied migration filenames, so an applied migration file must never be edited. Schema changes must be added as a new numbered SQL file. Do not rely on `db:generate`; required SQL is maintained manually.
 
+### Backing up and restoring with D1 Time Travel
+
+[D1 Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/) is always on for databases using D1's production storage backend. It does not create a manually retained snapshot. Instead, it lets you restore the database to a bookmark or point in time within the retention window: 30 days on the Workers Paid plan or 7 days on the Workers Free plan.
+
+Set `D1_DATABASE_ID` in the current shell and authenticate Wrangler first. Confirm that the database reports `version: production`:
+
+```sh
+bun run --cwd worker wrangler:remote -- d1 info balance-sheet-db
+```
+
+Immediately before applying a production migration, retrieve the current bookmark and save the displayed value in the deployment log or another secure location:
+
+```sh
+bun run --cwd worker wrangler:remote -- d1 time-travel info balance-sheet-db
+```
+
+This bookmark identifies the database state before the update. It remains usable only during the Time Travel retention window. For a backup that must be retained longer, also create and securely store a D1 export.
+
+To restore the database, first stop deployments and prevent application writes. Restoration overwrites the database in place and cancels in-flight queries and transactions. Restore using the saved bookmark:
+
+```sh
+bun run --cwd worker wrangler:remote -- d1 time-travel restore balance-sheet-db --bookmark="<saved-bookmark>"
+```
+
+Alternatively, restore to the nearest available state at or before an RFC3339 timestamp:
+
+```sh
+bun run --cwd worker wrangler:remote -- d1 time-travel restore balance-sheet-db --timestamp="2026-07-27T12:34:56+09:00"
+```
+
+Review the target and confirm the destructive operation at Wrangler's prompt. Save the `previous bookmark` printed after restoration; it can be used to undo the restore while it remains within the retention window:
+
+```sh
+bun run --cwd worker wrangler:remote -- d1 time-travel restore balance-sheet-db --bookmark="<previous-bookmark>"
+```
+
+A restore also returns the schema and `d1_migrations` table to that point in time. Before allowing writes again, either deploy the application version compatible with the restored schema or correct and reapply the pending migrations. Then verify the application data and critical `/api/*` endpoints.
+
 ### Updating to a version that requires a DB migration
 
 Apply the production migration before deploying Worker code that depends on the new schema. The recommended manual update sequence is:
 
-1. Back up the production D1 database from the Cloudflare dashboard or with Wrangler D1 export.
+1. Record the current D1 Time Travel bookmark as described above. Also create a D1 export if a longer-lived backup is required.
 2. Retrieve the target version and install its locked dependencies.
 3. Apply its pending migrations to local D1 and build the frontend.
 4. Set `D1_DATABASE_ID` as described above, verify the Worker build, and apply the pending migrations to production D1.

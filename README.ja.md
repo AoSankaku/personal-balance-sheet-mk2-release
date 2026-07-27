@@ -167,11 +167,49 @@ bun run --cwd worker db:migrate:remote
 
 このリポジトリでは、`worker/drizzle/`に保存したWrangler D1 migrationsを使用します。Wranglerは適用済みのマイグレーションファイル名を記録するため、一度適用したファイルは編集しないでください。スキーマ変更は、新しい番号のSQLファイルとして追加します。`db:generate`には依存せず、必要なSQLは手動で管理します。
 
+### D1 Time Travelを使ったバックアップと復元
+
+[D1 Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/)は、D1のproduction storage backendを使用するデータベースで常時有効です。手動で保持するスナップショットを作成する機能ではなく、保持期間内のbookmarkまたは時刻を指定してデータベースを復元します。保持期間はWorkers Paidプランで30日、Workers Freeプランで7日です。
+
+最初に、現在のシェルへ`D1_DATABASE_ID`を設定し、Wranglerで認証してください。データベースの`version`が`production`であることを確認します。
+
+```sh
+bun run --cwd worker wrangler:remote -- d1 info balance-sheet-db
+```
+
+本番マイグレーションの直前に現在のbookmarkを取得し、表示された値をデプロイ記録などの安全な場所へ保存します。
+
+```sh
+bun run --cwd worker wrangler:remote -- d1 time-travel info balance-sheet-db
+```
+
+このbookmarkが、アップデート前のデータベース状態を示す復元ポイントになります。bookmarkを利用できるのはTime Travelの保持期間内だけです。それより長期間保存する必要がある場合は、D1 exportも作成して安全に保管してください。
+
+復元する場合は、最初にデプロイを停止し、アプリケーションからの書き込みを止めます。復元はデータベースをその場で上書きし、実行中のクエリとトランザクションをキャンセルする破壊的操作です。保存したbookmarkを指定して復元します。
+
+```sh
+bun run --cwd worker wrangler:remote -- d1 time-travel restore balance-sheet-db --bookmark="<saved-bookmark>"
+```
+
+または、RFC 3339形式の時刻以前で最も近い状態へ復元できます。
+
+```sh
+bun run --cwd worker wrangler:remote -- d1 time-travel restore balance-sheet-db --timestamp="2026-07-27T12:34:56+09:00"
+```
+
+対象を確認し、Wranglerのプロンプトで破壊的操作を承認してください。復元後に表示される`previous bookmark`は必ず保存します。保持期間内であれば、その値を指定して復元操作自体を取り消せます。
+
+```sh
+bun run --cwd worker wrangler:remote -- d1 time-travel restore balance-sheet-db --bookmark="<previous-bookmark>"
+```
+
+復元すると、スキーマと`d1_migrations`テーブルも指定時点の状態へ戻ります。書き込みを再開する前に、復元後のスキーマと互換性があるアプリケーションバージョンをデプロイするか、問題を修正して未適用のマイグレーションを再適用してください。その後、アプリケーションデータと重要な`/api/*`エンドポイントを確認します。
+
 ### DBマイグレーションが必要なバージョンへのアップデート
 
 新しいスキーマに依存するWorkerコードをデプロイする前に、本番D1へマイグレーションを適用してください。手動アップデートでは、次の順序を推奨します。
 
-1. CloudflareダッシュボードまたはWrangler D1 exportで、本番D1をバックアップする
+1. 前述の手順で現在のD1 Time Travel bookmarkを記録する。長期保存が必要ならD1 exportも作成する
 2. 更新先のバージョンを取得し、ロックファイルどおりに依存関係をインストールする
 3. ローカルD1へ未適用のマイグレーションを適用し、フロントエンドをビルドする
 4. 前述の手順で`D1_DATABASE_ID`を設定し、Workerのビルド確認後に本番D1へ未適用のマイグレーションを適用する
