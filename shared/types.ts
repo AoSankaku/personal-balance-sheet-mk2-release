@@ -158,6 +158,37 @@ export interface JournalEntry {
     settled_by_journal_entry_id?: number | null;
     settled_at?: string | null;
   } | null;
+  /** Opening entries settled by this repayment/collection entry. */
+  loan_settlement_source_journal_entry_ids?: number[];
+  budget_funding?: BudgetFundingRecord | null;
+}
+
+export type BudgetFundingKind = "borrow" | "repay" | "lend" | "collect";
+
+export interface BudgetFundingAllocationInput {
+  budget_category_id: number | null;
+  amount: number;
+  currency?: string;
+}
+
+export interface BudgetFundingInput {
+  kind: BudgetFundingKind;
+  /** Principal amount used to validate an explicitly saved split. */
+  principal_amount: number;
+  allocations?: BudgetFundingAllocationInput[];
+  /** Opening loan/lending entries whose saved funding split is reversed. */
+  source_journal_entry_ids?: number[];
+}
+
+export interface BudgetFundingRecord {
+  kind: BudgetFundingKind;
+  allocations: Array<{
+    id: number;
+    budget_category_id: number | null;
+    amount: number;
+    currency: string;
+    source_journal_entry_id?: number | null;
+  }>;
 }
 
 export interface CreateJournalLineInput {
@@ -192,6 +223,8 @@ export interface CreateJournalInput {
   loan_settlement_opening?: boolean;
   /** IDs of opening loan_settlements entries that are being settled by this repayment/collection */
   loan_settlement_journal_entry_ids?: number[];
+  /** Explicit, stable budget funding split for loan/lending principal. */
+  budget_funding?: BudgetFundingInput;
   /** When true, skip the debit=credit balance check (used for currency exchange entries) */
   is_currency_exchange?: boolean;
 }
@@ -376,6 +409,12 @@ export interface BudgetCategorySummary {
   total_budget: number;
   spent: number;
   available: number;
+  /** Net temporary financing included in available: borrowed minus lent. */
+  funding_adjustment?: number;
+  /** Outstanding borrowed funding assigned to this category after its latest reset. */
+  borrowed_funding?: number;
+  /** Outstanding lent funding assigned to this category after its latest reset. */
+  lent_funding?: number;
   /** Number of distinct months with non-zero contributions (budget adjustment log entries) */
   months_with_contributions: number;
 }

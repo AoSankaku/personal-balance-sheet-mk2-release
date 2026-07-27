@@ -334,6 +334,17 @@ noUnsettledEntries: No unsettled entries
 loanDifferenceIncome: Gain (income account)
 loanDifferenceLoss: Loss (expense account)
 loanDifferenceAccountLabel: Difference account
+loanFundingBreakdownTitle: Budget funding breakdown
+loanFundingBreakdownHint: Choose which budget categories this principal funds or constrains. The remainder is saved as unallocated funding.
+loanFundingUnallocated: Unallocated funding
+loanFundingCurrentUnallocated: Covered by current unallocated
+loanFundingSuggestedConstraint: Suggested category constraint
+loanFundingExceedsPrincipal: The category amounts exceed the principal.
+loanFundingSettlementAutomatic: The saved funding breakdown of the selected source entries will be reversed automatically.
+loanFundingResetBoundaryHint: If a category was reset after the source entry, repayment or collection will not restore that category; the funds return as unallocated.
+loanFundingOwnFunds: Own funds
+loanFundingBorrowed: Borrowed funding
+loanFundingLent: Lending constraint
 completedAccountsSection: Completed accounts
 tabInitialBalance: Initial Balance
 initialBalanceHint: Record opening balances for accounts when starting out.

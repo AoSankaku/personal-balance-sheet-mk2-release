@@ -35,6 +35,12 @@ En la página de Entrada, elige Préstamo/Pago en la entrada simple. Hay cuatro 
 
 Para pedir prestado o prestar, elige la cuenta de préstamo objetivo y la cuenta de activo o gasto contraparte. Para pagar o cobrar, selecciona la transacción que se está liquidando para que la aplicación sepa qué préstamo se resolvió.
 
+## Desglose de financiación presupuestaria
+
+Prestar y pedir prestado no son gastos ni ingresos, pero cambian el efectivo que respalda los presupuestos. En el formulario, indica qué parte del principal financia o inmoviliza temporalmente cada categoría; el resto se guarda como fondos no asignados. Por ejemplo, si hay 40 sin asignar y prestas 50, el formulario sugiere inmovilizar 10 en categorías. Tú eliges explícitamente qué categoría se ve afectada.
+
+El desglose queda fijo al guardar la transacción y no se recalcula al modificar otra transacción antigua. En pagos y cobros a corto plazo se revierte el desglose guardado de la transacción de origen seleccionada. Si la categoría se restableció después del origen, el restablecimiento termina la relación anterior: la categoría no se restaura y el efectivo recuperado vuelve como no asignado.
+
 ## Pagos o Cobros con Diferencias
 
 El monto del pago o cobro puede no coincidir exactamente con el monto original debido a comisiones, descuentos, diferencias cambiarias, redondeos, regalos o razones similares.

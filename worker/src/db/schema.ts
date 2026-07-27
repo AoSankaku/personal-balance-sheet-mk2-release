@@ -336,6 +336,55 @@ export const budgetAdjustmentLogs = sqliteTable("budget_adjustment_logs", {
   ),
 }));
 
+export const budgetFundingAllocations = sqliteTable(
+  "budget_funding_allocations",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    journal_entry_id: integer("journal_entry_id")
+      .notNull()
+      .references(() => journalEntries.id, { onDelete: "cascade" }),
+    budget_category_id: integer("budget_category_id").references(
+      () => budgetCategories.id,
+      { onDelete: "set null" },
+    ),
+    kind: text("kind", {
+      enum: ["borrow", "repay", "lend", "collect"],
+    }).notNull(),
+    amount: integer("amount").notNull(),
+    currency: text("currency").notNull().default("JPY"),
+    source_journal_entry_id: integer("source_journal_entry_id").references(
+      () => journalEntries.id,
+      { onDelete: "set null" },
+    ),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    entryIndex: index("idx_budget_funding_allocations_entry").on(
+      table.journal_entry_id,
+    ),
+    categoryCurrencyIndex: index(
+      "idx_budget_funding_allocations_category_currency",
+    ).on(table.budget_category_id, table.currency),
+    sourceIndex: index("idx_budget_funding_allocations_source").on(
+      table.source_journal_entry_id,
+    ),
+    kindCheck: check(
+      "chk_budget_funding_allocations_kind",
+      sql`${table.kind} IN ('borrow', 'repay', 'lend', 'collect')`,
+    ),
+    amountInteger: check(
+      "chk_budget_funding_allocations_amount_integer",
+      sql`typeof(${table.amount}) = 'integer'`,
+    ),
+    amountPositive: check(
+      "chk_budget_funding_allocations_amount_positive",
+      sql`${table.amount} > 0`,
+    ),
+  }),
+);
+
 export const budgetSettings = sqliteTable("budget_settings", {
   id: integer("id").primaryKey(),
   // Ordered JSON array of account IDs (up to 5)
@@ -942,6 +991,10 @@ export type NewActualBalanceCreditCardState =
   typeof actualBalanceCreditCardState.$inferInsert;
 export type LoanSettlement = typeof loanSettlements.$inferSelect;
 export type NewLoanSettlement = typeof loanSettlements.$inferInsert;
+export type BudgetFundingAllocation =
+  typeof budgetFundingAllocations.$inferSelect;
+export type NewBudgetFundingAllocation =
+  typeof budgetFundingAllocations.$inferInsert;
 export type AccountCompletion = typeof accountCompletions.$inferSelect;
 export type NewAccountCompletion = typeof accountCompletions.$inferInsert;
 export type EnabledCurrencyRow = typeof enabledCurrencies.$inferSelect;

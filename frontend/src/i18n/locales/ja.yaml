@@ -334,6 +334,17 @@ noUnsettledEntries: 未完済の取引はありません
 loanDifferenceIncome: 差益（収益科目）
 loanDifferenceLoss: 差損（費用科目）
 loanDifferenceAccountLabel: 差額科目
+loanFundingBreakdownTitle: 予算資金の内訳
+loanFundingBreakdownHint: この元本をどの予算カテゴリに充当・拘束するか指定します。残額は未配分資金として固定保存されます。
+loanFundingUnallocated: 未配分資金
+loanFundingCurrentUnallocated: 現在の未配分で吸収
+loanFundingSuggestedConstraint: カテゴリ一時拘束の目安
+loanFundingExceedsPrincipal: 予算カテゴリへの指定額が元本を超えています。
+loanFundingSettlementAutomatic: 選択した元取引に保存された予算資金の内訳を自動的に反転します。
+loanFundingResetBoundaryHint: 元取引後にカテゴリがリセットされている場合、そのカテゴリは回収・返済で復元されず、資金は未配分へ戻ります。
+loanFundingOwnFunds: 自己資金相当
+loanFundingBorrowed: 借入充当
+loanFundingLent: 貸付拘束
 completedAccountsSection: 完了した科目
 tabInitialBalance: 初期残高入力
 initialBalanceHint: 口座の初期残高を記録します。初回セットアップ時に使用します。

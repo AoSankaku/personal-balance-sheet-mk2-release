@@ -35,6 +35,12 @@ Sur la page Saisie, choisissez Prêt/Remboursement en saisie simplifiée. Il y a
 
 Pour un emprunt ou un prêt, choisissez le compte de prêt cible et le compte d'actif ou de dépense correspondant. Pour un remboursement ou un recouvrement, sélectionnez la transaction à solder afin que l'application sache quel prêt a été résolu.
 
+## Ventilation du financement budgétaire
+
+Prêter et emprunter ne constituent ni une dépense ni un revenu, mais modifient la trésorerie qui garantit les budgets. Dans le formulaire, indiquez la part du principal qui finance ou immobilise temporairement chaque catégorie ; le solde est enregistré comme fonds non affectés. Par exemple, avec 40 non affectés et un prêt de 50, le formulaire suggère une immobilisation de 10. Vous choisissez explicitement la catégorie concernée.
+
+La ventilation est figée lors de l’enregistrement et n’est pas recalculée après la modification d’une autre écriture ancienne. Pour les opérations à court terme, le remboursement ou le recouvrement inverse la ventilation enregistrée de l’écriture d’origine sélectionnée. Si la catégorie a été réinitialisée entre-temps, cette relation antérieure prend fin : la catégorie n’est pas rétablie et la trésorerie récupérée redevient non affectée.
+
 ## Remboursements ou recouvrements avec écarts
 
 Le montant du remboursement ou du recouvrement peut ne pas correspondre exactement au montant d'origine en raison de frais, remises, écarts de change, arrondis, dons ou raisons similaires.

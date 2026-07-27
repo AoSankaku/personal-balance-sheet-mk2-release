@@ -334,6 +334,17 @@ noUnsettledEntries: 没有未结清的分录
 loanDifferenceIncome: 收益（收入账户）
 loanDifferenceLoss: 损失（支出账户）
 loanDifferenceAccountLabel: 差额账户
+loanFundingBreakdownTitle: 预算资金明细
+loanFundingBreakdownHint: 指定该本金用于或占用哪些预算类别。剩余金额将固定保存为未分配资金。
+loanFundingUnallocated: 未分配资金
+loanFundingCurrentUnallocated: 由当前未分配资金吸收
+loanFundingSuggestedConstraint: 建议的类别临时占用
+loanFundingExceedsPrincipal: 分配到预算类别的金额超过了本金。
+loanFundingSettlementAutomatic: 将自动冲销所选原始交易中保存的预算资金明细。
+loanFundingResetBoundaryHint: 如果类别在原始交易后已重置，偿还或收回时不会恢复该类别，资金将回到未分配状态。
+loanFundingOwnFunds: 自有资金
+loanFundingBorrowed: 借入资金
+loanFundingLent: 出借占用
 completedAccountsSection: 已完结的账户
 tabInitialBalance: 初始余额
 initialBalanceHint: 记录账户的期初余额。初次设置时使用。

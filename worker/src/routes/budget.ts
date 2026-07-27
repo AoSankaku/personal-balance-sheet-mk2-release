@@ -1,4 +1,5 @@
 import { eq, and, sql, inArray, ne } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { Hono } from "hono";
 import { createDb, type Env } from "../db";
 import {
@@ -13,6 +14,7 @@ import {
   journalEntries,
   journalEntryBudgetAllocations,
   budgetAdjustmentLogs,
+  budgetFundingAllocations,
   budgetSettings,
   accounts,
 } from "../db/schema";
@@ -36,6 +38,7 @@ import {
   sumBudgetAdjustmentLogsAfterResetsByPeriod,
   type DateRange,
 } from "../lib/budgetSummary";
+import { sumBudgetFundingAfterResetsByPeriod } from "../lib/budgetFunding";
 import { filterBudgetCategoriesForVisibility } from "../lib/budgetCategoryArchive";
 import {
   findInvalidMoneyField,
@@ -49,6 +52,10 @@ import {
 type D1QueryResult<T> = { results?: T[] };
 
 const router = new Hono<{ Bindings: Env }>();
+const sourceFundingEntries = alias(
+  journalEntries,
+  "source_budget_funding_entries",
+);
 
 function normalizeCurrency(currency: string | null | undefined): string {
   return (currency || "JPY").toUpperCase();
@@ -1137,7 +1144,14 @@ async function computeBudgetSummaries(
   const firstTargetYm = targetMonths[0]!;
   const lastTargetYm = targetMonths.at(-1)!;
 
-  const [allCats, links, targetRows, oldestBudgetLog, oldestEntryAlloc] =
+  const [
+    allCats,
+    links,
+    targetRows,
+    oldestBudgetLog,
+    oldestEntryAlloc,
+    oldestFunding,
+  ] =
     await Promise.all([
       db
         .select()
@@ -1161,6 +1175,16 @@ async function computeBudgetSummaries(
           eq(journalEntryBudgetAllocations.journal_entry_id, journalEntries.id),
         )
         .where(eq(journalEntryBudgetAllocations.currency, currency)),
+      db
+        .select({
+          min_ym: sql<string>`MIN(substr(${journalEntries.date}, 1, 7))`,
+        })
+        .from(budgetFundingAllocations)
+        .innerJoin(
+          journalEntries,
+          eq(budgetFundingAllocations.journal_entry_id, journalEntries.id),
+        )
+        .where(eq(budgetFundingAllocations.currency, currency)),
     ]);
 
   const cats = filterBudgetCategoriesForVisibility(allCats);
@@ -1168,6 +1192,7 @@ async function computeBudgetSummaries(
   const oldestYm = [
     oldestBudgetLog[0]?.min_ym,
     oldestEntryAlloc[0]?.min_ym,
+    oldestFunding[0]?.min_ym,
   ]
     .filter((value): value is string => Boolean(value))
     .sort()[0];
@@ -1202,6 +1227,45 @@ async function computeBudgetSummaries(
           )
       : [];
   const decodedAdhocLogRows = adhocLogRows.map((row) => ({
+    ...row,
+    amount: fromStorageMoneyAmount(row.amount, currency, scaleOptions),
+  }));
+
+  const fundingRows =
+    allMonths.length > 0
+      ? await db
+          .select({
+            journal_entry_id: budgetFundingAllocations.journal_entry_id,
+            budget_category_id:
+              budgetFundingAllocations.budget_category_id,
+            kind: budgetFundingAllocations.kind,
+            amount: budgetFundingAllocations.amount,
+            date: journalEntries.date,
+            created_at: budgetFundingAllocations.created_at,
+            source_date: sourceFundingEntries.date,
+            source_created_at: sourceFundingEntries.created_at,
+          })
+          .from(budgetFundingAllocations)
+          .innerJoin(
+            journalEntries,
+            eq(budgetFundingAllocations.journal_entry_id, journalEntries.id),
+          )
+          .leftJoin(
+            sourceFundingEntries,
+            eq(
+              budgetFundingAllocations.source_journal_entry_id,
+              sourceFundingEntries.id,
+            ),
+          )
+          .where(
+            and(
+              eq(budgetFundingAllocations.currency, currency),
+              sql`${journalEntries.date} >= ${calculationStartYm + "-01"}`,
+              sql`${journalEntries.date} <= ${monthEndDate(lastTargetYm)}`,
+            ),
+          )
+      : [];
+  const decodedFundingRows = fundingRows.map((row) => ({
     ...row,
     amount: fromStorageMoneyAmount(row.amount, currency, scaleOptions),
   }));
@@ -1275,9 +1339,24 @@ async function computeBudgetSummaries(
       decodedAdhocLogRows,
       monthDateRangeMap,
     );
+    const fundingSumMap = sumBudgetFundingAfterResetsByPeriod(
+      decodedFundingRows,
+      decodedAdhocLogRows,
+      monthDateRangeMap,
+    );
 
     function adhocFor(catId: number, yearMonthKey: string): number {
       return adhocSumMap.get(`${catId}:${yearMonthKey}`) ?? 0;
+    }
+
+    function fundingFor(catId: number, yearMonthKey: string) {
+      return (
+        fundingSumMap.get(`${catId}:${yearMonthKey}`) ?? {
+          net: 0,
+          borrowed: 0,
+          lent: 0,
+        }
+      );
     }
 
     function resetPointFor(catId: number, yearMonthKey: string) {
@@ -1316,7 +1395,9 @@ async function computeBudgetSummaries(
         .map((link) => link.account_id);
       const currentRange = monthDateRangeMap.get(ym)!;
       const currentResetPoint = resetPointFor(cat.id, ym);
-      const budgetBase = adhocFor(cat.id, ym);
+      const currentFunding = fundingFor(cat.id, ym);
+      const ownBudgetBase = adhocFor(cat.id, ym);
+      const budgetBase = ownBudgetBase + currentFunding.net;
       const spent = calculateSpentFromBudgetAllocations(
         cat.id,
         entryAllocsForMonth(ym).filter((entryAlloc) =>
@@ -1325,9 +1406,13 @@ async function computeBudgetSummaries(
       );
 
       let carryover = 0;
+      let fundingCarryover = 0;
+      let borrowedFundingCarryover = 0;
+      let lentFundingCarryover = 0;
       for (const monthKey of monthsForTarget.slice(0, -1)) {
         const resetPoint = resetPointFor(cat.id, monthKey);
-        const base = adhocFor(cat.id, monthKey);
+        const monthlyFunding = fundingFor(cat.id, monthKey);
+        const base = adhocFor(cat.id, monthKey) + monthlyFunding.net;
         const monthlySpent = calculateSpentFromBudgetAllocations(
           cat.id,
           entryAllocsForMonth(monthKey).filter((entryAlloc) =>
@@ -1340,9 +1425,24 @@ async function computeBudgetSummaries(
           spent: monthlySpent,
           isInPositiveRolloverWindow: true,
         });
+        fundingCarryover =
+          (resetPoint ? 0 : fundingCarryover) + monthlyFunding.net;
+        borrowedFundingCarryover =
+          (resetPoint ? 0 : borrowedFundingCarryover) +
+          monthlyFunding.borrowed;
+        lentFundingCarryover =
+          (resetPoint ? 0 : lentFundingCarryover) + monthlyFunding.lent;
       }
 
       const visibleCarryover = currentResetPoint ? 0 : carryover;
+      const fundingAdjustment =
+        (currentResetPoint ? 0 : fundingCarryover) + currentFunding.net;
+      const borrowedFunding =
+        (currentResetPoint ? 0 : borrowedFundingCarryover) +
+        currentFunding.borrowed;
+      const lentFunding =
+        (currentResetPoint ? 0 : lentFundingCarryover) +
+        currentFunding.lent;
       const totalBudget = budgetBase + visibleCarryover;
       let monthsWithContributions = 0;
       for (const monthKey of monthsForTarget.slice(0, -1)) {
@@ -1380,6 +1480,9 @@ async function computeBudgetSummaries(
         total_budget: totalBudget,
         spent,
         available: totalBudget - spent,
+        funding_adjustment: fundingAdjustment,
+        borrowed_funding: borrowedFunding,
+        lent_funding: lentFunding,
         months_with_contributions: monthsWithContributions,
       });
     }

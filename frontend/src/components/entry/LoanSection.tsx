@@ -21,6 +21,7 @@ import type {
 } from "@balance-sheet/shared";
 import { isShortTermLoanCategory } from "@balance-sheet/shared";
 import { useLang } from "../../i18n";
+import { suggestLendingFundingSplit } from "../../lib/budgetFundingAllocation";
 import { formatCurrency } from "../../lib/numberFormat";
 import { renderAccountOption, type AccountOption } from "../../lib/accountSelect";
 import {
@@ -56,6 +57,12 @@ interface Props {
   setLoanCounterBudgetDist: React.Dispatch<
     React.SetStateAction<BudgetDistributionItem[]>
   >;
+  loanFundingCategoryAmounts: Record<number, number>;
+  setLoanFundingCategoryAmounts: React.Dispatch<
+    React.SetStateAction<Record<number, number>>
+  >;
+  currentUnallocatedFunding: number;
+  showFundingSuggestion: boolean;
   handleLoanCounterAccountChange: (v: string | null) => void;
 }
 
@@ -81,6 +88,10 @@ export function LoanSection({
   setDiffBudgetDist,
   loanCounterBudgetDist,
   setLoanCounterBudgetDist,
+  loanFundingCategoryAmounts,
+  setLoanFundingCategoryAmounts,
+  currentUnallocatedFunding,
+  showFundingSuggestion,
   handleLoanCounterAccountChange,
 }: Props) {
   const { t } = useLang();
@@ -88,11 +99,33 @@ export function LoanSection({
 
   const loanAccountId = form.values.loanAccountId;
   const loanDirection = form.values.loanDirection;
+  const automaticFundingReversal =
+    (loanDirection === "decrease" || loanDirection === "collect") &&
+    settledEntryIds.length > 0;
+  const assignedFunding = Object.values(loanFundingCategoryAmounts).reduce(
+    (sum, amount) => sum + (Number(amount) || 0),
+    0,
+  );
+  const unallocatedFunding = form.values.amount - assignedFunding;
+  const lendingSuggestion = suggestLendingFundingSplit(
+    form.values.amount,
+    currentUnallocatedFunding,
+  );
 
   const counterAcctType =
     form.values.loanCounterAccountId != null
       ? accounts.find((a) => a.id === form.values.loanCounterAccountId)?.type
       : undefined;
+  const counterAccount =
+    form.values.loanCounterAccountId != null
+      ? accounts.find((a) => a.id === form.values.loanCounterAccountId)
+      : undefined;
+  const showLendingSuggestion =
+    showFundingSuggestion &&
+    loanDirection === "lend" &&
+    counterAccount?.type === "asset" &&
+    counterAccount.category === "cash" &&
+    counterAccount.include_in_allocatable !== false;
 
   const counterLabel =
     loanDirection === "increase"
@@ -132,6 +165,7 @@ export function LoanSection({
             form.setFieldValue("loanAccountId", null);
             setUnsettledEntries([]);
             setSettledEntryIds([]);
+            setLoanFundingCategoryAmounts({});
           }}
           style={{ minWidth: 320 }}
         />
@@ -289,6 +323,90 @@ export function LoanSection({
         thousandSeparator=","
         {...form.getInputProps("amount")}
       />
+
+      <Stack gap="xs">
+        <Text size="sm" fw={600}>
+          {t("loanFundingBreakdownTitle")}
+        </Text>
+        {automaticFundingReversal ? (
+          <Text size="xs" c="dimmed">
+            {t("loanFundingSettlementAutomatic")}
+          </Text>
+        ) : (
+          <>
+            <Text size="xs" c="dimmed">
+              {t("loanFundingBreakdownHint")}
+            </Text>
+            {showLendingSuggestion && (
+              <Group gap="xs" wrap="wrap">
+                <Badge size="sm" variant="light" color="gray">
+                  {t("loanFundingCurrentUnallocated")}:{" "}
+                  {formatCurrency(
+                    lendingSuggestion.absorbedByUnallocated,
+                    locale,
+                    selectedCurrency,
+                    currencySymbol,
+                  )}
+                </Badge>
+                <Badge size="sm" variant="light" color="orange">
+                  {t("loanFundingSuggestedConstraint")}:{" "}
+                  {formatCurrency(
+                    lendingSuggestion.suggestedCategoryConstraint,
+                    locale,
+                    selectedCurrency,
+                    currencySymbol,
+                  )}
+                </Badge>
+              </Group>
+            )}
+            {budgetCategories.map((category) => (
+              <Group key={category.id} justify="space-between" gap="xs">
+                <Text size="sm">{category.name}</Text>
+                <NumberInput
+                  w={150}
+                  size="xs"
+                  min={0}
+                  max={Math.max(0, form.values.amount)}
+                  prefix={currencySymbol}
+                  thousandSeparator=","
+                  value={loanFundingCategoryAmounts[category.id] ?? 0}
+                  onChange={(value) =>
+                    setLoanFundingCategoryAmounts((current) => ({
+                      ...current,
+                      [category.id]: Number(value) || 0,
+                    }))
+                  }
+                />
+              </Group>
+            ))}
+            <Group justify="space-between">
+              <Text size="sm" fw={600}>
+                {t("loanFundingUnallocated")}
+              </Text>
+              <Text
+                size="sm"
+                fw={600}
+                c={unallocatedFunding >= 0 ? "teal" : "red"}
+              >
+                {formatCurrency(
+                  unallocatedFunding,
+                  locale,
+                  selectedCurrency,
+                  currencySymbol,
+                )}
+              </Text>
+            </Group>
+            {unallocatedFunding < 0 && (
+              <Text size="xs" c="red">
+                {t("loanFundingExceedsPrincipal")}
+              </Text>
+            )}
+          </>
+        )}
+        <Text size="xs" c="dimmed">
+          {t("loanFundingResetBoundaryHint")}
+        </Text>
+      </Stack>
 
       {(loanDirection === "decrease" || loanDirection === "collect") &&
         (() => {
