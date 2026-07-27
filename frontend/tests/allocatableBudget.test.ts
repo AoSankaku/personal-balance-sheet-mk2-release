@@ -89,13 +89,12 @@ describe("allocatable budget cash balance", () => {
     ).toBe(false);
   });
 
-  test("sums positive budget balances and negative overruns as budget claims", () => {
-    expect(sumBudgetClaims([100_000, -40_000, 0, 25_000])).toBe(165_000);
+  test("does not turn negative budget overruns into a second claim", () => {
+    expect(sumBudgetClaims([100_000, -40_000, 0, 25_000])).toBe(125_000);
   });
 
-  test("subtracts negative budget overruns from allocatable money", () => {
-    expect(computeAllocatableBudget(500_000, [100_000, -40_000])).toBe(
-      360_000,
-    );
+  test("counts overspending once through the lower cash balance", () => {
+    expect(computeAllocatableBudget(40_000, [30_000, 0])).toBe(10_000);
+    expect(computeAllocatableBudget(20_000, [30_000, -20_000])).toBe(-10_000);
   });
 });

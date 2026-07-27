@@ -21,7 +21,7 @@ Create categories from Settings -> Budget Settings. A category can have a group,
 
 ## Rollover, Reset, And Caps
 
-Regular budgets roll over in full, whether positive or negative. A negative budget is an overrun, so it reduces allocatable money instead of increasing it.
+Regular budgets roll over in full, whether positive or negative. A negative budget is an overrun, but it is not counted as a second budget claim because the cash outflow already reflects it. It also does not increase allocatable money.
 
 If historical imports or corrections make a balance unrealistic, use Input -> Budget Adjustment -> Budget Reset to bring that category to zero. The Overview page shows a dated reset badge for the month. Balance caps can send excess budget to another category.
 
