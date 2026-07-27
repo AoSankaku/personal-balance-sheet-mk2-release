@@ -8,6 +8,7 @@ import {
   resetReloadPromptForTests,
 } from "../src/lib/reloadPrompt";
 import {
+  checkForNewAppVersion,
   isLikelyCloudflareAccessResponse,
   shouldPromptForNewVersion,
 } from "../src/lib/appVersion";
@@ -39,6 +40,60 @@ describe("hard reload prompt detection", () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  test("detects a manual redirect to Cloudflare Access before CORS blocks it", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (_input, init) => {
+      expect(init?.credentials).toBe("same-origin");
+      expect(init?.redirect).toBe("manual");
+      return {
+        body: null,
+        bodyUsed: false,
+        headers: new Headers(),
+        ok: false,
+        redirected: false,
+        status: 0,
+        statusText: "",
+        type: "opaqueredirect",
+        url: "",
+      } as Response;
+    };
+
+    try {
+      await expect(api.accounts.list()).rejects.toMatchObject({
+        name: "ApiError",
+        message: "cloudflare_access_session_expired",
+        status: 401,
+        body: { error: "cloudflare_access_session_expired" },
+      });
+      expect(getReloadPromptSnapshot()?.reason).toBe(
+        "cloudflare-access-session",
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("detects an Access redirect while checking version.json", async () => {
+    const fetcher = (async (_input, init) => {
+      expect(init?.credentials).toBe("same-origin");
+      expect(init?.redirect).toBe("manual");
+      return {
+        clone: () => new Response(),
+        headers: new Headers(),
+        ok: false,
+        redirected: false,
+        status: 0,
+        type: "opaqueredirect",
+        url: "",
+      } as Response;
+    }) as typeof fetch;
+
+    expect(await checkForNewAppVersion(fetcher)).toBe(false);
+    expect(getReloadPromptSnapshot()?.reason).toBe(
+      "cloudflare-access-session",
+    );
   });
 
   test("does not treat ordinary JSON API errors as Cloudflare Access expiry", () => {

@@ -73,6 +73,7 @@ const dedupeBudgetSummaryRequest = createInFlightRequestDeduper();
 const dedupeCachedRequest = createInFlightRequestDeduper();
 const sessionResponseCache = new Map<string, unknown>();
 const NETWORK_OFFLINE_ERROR = "network_offline";
+const CLOUDFLARE_ACCESS_SESSION_ERROR = "cloudflare_access_session_expired";
 
 export class ApiError extends Error {
   constructor(
@@ -91,6 +92,12 @@ function createOfflineApiError() {
   });
 }
 
+function createCloudflareAccessSessionError() {
+  return new ApiError(CLOUDFLARE_ACCESS_SESSION_ERROR, 401, {
+    error: CLOUDFLARE_ACCESS_SESSION_ERROR,
+  });
+}
+
 function isBrowserOffline() {
   return typeof navigator !== "undefined" && navigator.onLine === false;
 }
@@ -103,7 +110,16 @@ async function apiFetch(input: RequestInfo | URL, init?: RequestInit) {
   if (isBrowserOffline()) throw createOfflineApiError();
 
   try {
-    return await fetch(input, init);
+    const response = await fetch(input, {
+      ...init,
+      credentials: "same-origin",
+      redirect: "manual",
+    });
+    if (response.type === "opaqueredirect") {
+      showReloadPrompt({ reason: "cloudflare-access-session" });
+      throw createCloudflareAccessSessionError();
+    }
+    return response;
   } catch (error) {
     if (isLikelyNetworkFailure(error)) throw createOfflineApiError();
     throw error;
@@ -122,15 +138,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       isLikelyCloudflareAccessResponse({
         status: res.status,
         redirected: res.redirected,
+        responseType: res.type,
         url: res.url,
         contentType,
         bodyText,
       })
     ) {
       showReloadPrompt({ reason: "cloudflare-access-session" });
-      throw new ApiError("cloudflare_access_session_expired", 401, {
-        error: "cloudflare_access_session_expired",
-      });
+      throw createCloudflareAccessSessionError();
     }
 
     throw new ApiError(
@@ -519,15 +534,14 @@ export const api = {
           isLikelyCloudflareAccessResponse({
             status: res.status,
             redirected: res.redirected,
+            responseType: res.type,
             url: res.url,
             contentType,
             bodyText,
           })
         ) {
           showReloadPrompt({ reason: "cloudflare-access-session" });
-          throw new ApiError("cloudflare_access_session_expired", 401, {
-            error: "cloudflare_access_session_expired",
-          });
+          throw createCloudflareAccessSessionError();
         }
       }
 
