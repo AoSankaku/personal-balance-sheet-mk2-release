@@ -165,7 +165,37 @@ export D1_DATABASE_ID="<your-d1-database-id>"
 bun run --cwd worker db:migrate:remote
 ```
 
-このリポジトリではWrangler D1 migrationsを使用します。`worker/drizzle/0000_init.sql`が正規のスキーマファイルです。`db:generate`には依存せず、必要なSQLは手動で更新してください。
+このリポジトリでは、`worker/drizzle/`に保存したWrangler D1 migrationsを使用します。Wranglerは適用済みのマイグレーションファイル名を記録するため、一度適用したファイルは編集しないでください。スキーマ変更は、新しい番号のSQLファイルとして追加します。`db:generate`には依存せず、必要なSQLは手動で管理します。
+
+### DBマイグレーションが必要なバージョンへのアップデート
+
+新しいスキーマに依存するWorkerコードをデプロイする前に、本番D1へマイグレーションを適用してください。手動アップデートでは、次の順序を推奨します。
+
+1. CloudflareダッシュボードまたはWrangler D1 exportで、本番D1をバックアップする
+2. 更新先のバージョンを取得し、ロックファイルどおりに依存関係をインストールする
+3. ローカルD1へ未適用のマイグレーションを適用し、フロントエンドをビルドする
+4. 前述の手順で`D1_DATABASE_ID`を設定し、Workerのビルド確認後に本番D1へ未適用のマイグレーションを適用する
+5. リモートマイグレーションが成功してから、新しいWorkerをデプロイする
+
+```sh
+git pull --ff-only
+bun install --frozen-lockfile
+bun run --cwd worker db:migrate
+bun run build:frontend
+
+# これらのコマンドの前に、現在のシェルへD1_DATABASE_IDを設定してください。
+bun run build:worker
+bun run --cwd worker db:migrate:remote
+
+# リモートマイグレーションの成功後にのみ実行してください。
+bun run --cwd worker deploy
+```
+
+Wranglerは`d1_migrations`に記録済みのマイグレーションをスキップし、未適用のファイルだけを適用します。リモートマイグレーションに失敗した場合は、新しいWorkerをデプロイせず、マイグレーションエラーを解消するかバックアップを復元してください。
+
+Git連携したCloudflare Workers Buildsを使用する場合は、リモートマイグレーションが成功するまで、新しいリビジョンを本番ブランチへpushまたはmergeしないでください。成功後は手動デプロイコマンドを重ねて実行せず、Workers Buildsによるデプロイを使用します。
+
+通常のバージョンアップに`db:sync:remote`を使用しないでください。このコマンドは本番のアプリケーションデータをローカルD1の内容で置き換えるもので、後述の明示的な同期作業専用です。
 
 ### 手動ビルドとデプロイ
 

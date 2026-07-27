@@ -167,7 +167,37 @@ Apply migrations:
 bun run --cwd worker db:migrate:remote
 ```
 
-This repository uses Wrangler D1 migrations. `worker/drizzle/0000_init.sql` is the canonical schema file. Do not rely on `db:generate`; update required SQL manually.
+This repository uses Wrangler D1 migrations stored under `worker/drizzle/`. Wrangler records applied migration filenames, so an applied migration file must never be edited. Schema changes must be added as a new numbered SQL file. Do not rely on `db:generate`; required SQL is maintained manually.
+
+### Updating to a version that requires a DB migration
+
+Apply the production migration before deploying Worker code that depends on the new schema. The recommended manual update sequence is:
+
+1. Back up the production D1 database from the Cloudflare dashboard or with Wrangler D1 export.
+2. Retrieve the target version and install its locked dependencies.
+3. Apply its pending migrations to local D1 and build the frontend.
+4. Set `D1_DATABASE_ID` as described above, verify the Worker build, and apply the pending migrations to production D1.
+5. Deploy the new Worker only after the remote migration succeeds.
+
+```sh
+git pull --ff-only
+bun install --frozen-lockfile
+bun run --cwd worker db:migrate
+bun run build:frontend
+
+# Set D1_DATABASE_ID in the current shell before running these commands.
+bun run build:worker
+bun run --cwd worker db:migrate:remote
+
+# Run only after the remote migration succeeds.
+bun run --cwd worker deploy
+```
+
+Wrangler skips migrations already recorded in `d1_migrations` and applies only pending files. If the remote migration fails, do not deploy the new Worker; resolve the migration error or restore the backup first.
+
+For a Git-connected Cloudflare Workers Build, do not push or merge the new revision into the production branch until the remote migration has succeeded. After that, let Workers Builds deploy the revision instead of also running the manual deploy command.
+
+Do not use `db:sync:remote` for a normal version update. That command replaces production application data with local D1 data and is intended only for the explicit synchronization workflow described below.
 
 ### Manual build and deployment
 
