@@ -103,27 +103,6 @@ function formatAmount(amount: number, code: string, sym: string): string {
     : `${sign}${numStr} ${sym}`;
 }
 
-// ── Crypto icon helpers ──────────────────────────────────────────────────────
-
-function CryptoIcon({ symbol }: { symbol: string }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 22,
-        height: 22,
-        fontSize: 14,
-        lineHeight: 1,
-        flexShrink: 0,
-      }}
-    >
-      {symbol}
-    </span>
-  );
-}
-
 // ── Currency lists ────────────────────────────────────────────────────────────
 
 const FIAT_CURRENCIES: { code: string; name: string; nameJa: string }[] = [
@@ -204,6 +183,146 @@ const CURRENCY_COLOR_SWATCHES = [
 type CurrencySettingsPageProps = {
   initialSetup?: boolean;
 };
+
+type CurrencyListRowProps = {
+  currency: EnabledCurrency;
+  index: number;
+  currencyCount: number;
+  hasBalance: boolean;
+  isLastEnabled: boolean;
+  loading: string | null;
+  amountLabel: string;
+  currencyLabel: string;
+  icon: React.ReactNode;
+  backgroundColorLabel: string;
+  defaultColorLabel: string;
+  disabledReasonBalance: string;
+  disabledReasonLast: string;
+  onMove: (index: number, direction: -1 | 1) => Promise<void>;
+  onRemove: (code: string) => Promise<void>;
+  onSaveBackgroundColor: (code: string, color: string) => Promise<void>;
+};
+
+function CurrencyListRow({
+  currency,
+  index,
+  currencyCount,
+  hasBalance,
+  isLastEnabled,
+  loading,
+  amountLabel,
+  currencyLabel,
+  icon,
+  backgroundColorLabel,
+  defaultColorLabel,
+  disabledReasonBalance,
+  disabledReasonLast,
+  onMove,
+  onRemove,
+  onSaveBackgroundColor,
+}: CurrencyListRowProps) {
+  const code = currency.code;
+  const removeDisabled = loading !== null || hasBalance || isLastEnabled;
+  const orderDisabled = loading !== null;
+  const canCustomizeBackground = !CRYPTO_CODE_SET.has(code);
+  const [backgroundColorDraft, setBackgroundColorDraft] = useState(
+    currency.background_color ?? "",
+  );
+  const tooltipLabel = hasBalance
+    ? disabledReasonBalance
+    : isLastEnabled
+      ? disabledReasonLast
+      : null;
+
+  useEffect(() => {
+    setBackgroundColorDraft(currency.background_color ?? "");
+  }, [currency.background_color]);
+
+  return (
+    <Group justify="space-between" gap="xs" wrap="wrap">
+      <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
+        <Group gap={2} wrap="nowrap">
+          <ActionIcon
+            size="sm"
+            variant="subtle"
+            disabled={orderDisabled || index === 0}
+            onClick={() => void onMove(index, -1)}
+            aria-label={`Move ${code} up`}
+          >
+            <IconArrowUp size={14} />
+          </ActionIcon>
+          <ActionIcon
+            size="sm"
+            variant="subtle"
+            disabled={orderDisabled || index === currencyCount - 1}
+            onClick={() => void onMove(index, 1)}
+            aria-label={`Move ${code} down`}
+          >
+            <IconArrowDown size={14} />
+          </ActionIcon>
+        </Group>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 22,
+            height: 22,
+            flexShrink: 0,
+          }}
+        >
+          {icon}
+        </span>
+        <Text span fw={700} size="sm" style={{ width: 42 }}>
+          {code}
+        </Text>
+        <Code fz="xs" style={{ minWidth: 68, textAlign: "right", flexShrink: 0 }}>
+          {amountLabel}
+        </Code>
+        <Text size="sm" c="dimmed" truncate style={{ minWidth: 0 }}>
+          {currencyLabel}
+        </Text>
+      </Group>
+      <Group gap="xs" wrap="nowrap">
+        {canCustomizeBackground && (
+          <ColorInput
+            aria-label={`${code} ${backgroundColorLabel}`}
+            disabled={loading !== null}
+            format="hex"
+            onBlur={() =>
+              void onSaveBackgroundColor(code, backgroundColorDraft)
+            }
+            onChange={setBackgroundColorDraft}
+            onChangeEnd={(value) => void onSaveBackgroundColor(code, value)}
+            placeholder={defaultColorLabel}
+            popoverProps={{ withinPortal: true }}
+            size="xs"
+            swatches={CURRENCY_COLOR_SWATCHES}
+            value={backgroundColorDraft}
+            w={142}
+          />
+        )}
+        <Tooltip
+          label={tooltipLabel ?? ""}
+          disabled={!tooltipLabel}
+          withArrow
+          withinPortal
+        >
+          <ActionIcon
+            size="sm"
+            variant="subtle"
+            color="red"
+            disabled={removeDisabled}
+            onClick={() => void onRemove(code)}
+            aria-label={`Remove ${code}`}
+          >
+            <IconTrash size={14} />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
+    </Group>
+  );
+}
 
 export default function CurrencySettingsPage({
   initialSetup = false,
@@ -598,133 +717,6 @@ export default function CurrencySettingsPage({
     await reorderCurrencies(codes);
   }
 
-  function CurrencyListRow({
-    currency,
-    index,
-  }: {
-    currency: EnabledCurrency;
-    index: number;
-  }) {
-    const code = currency.code;
-    const hasBalance = nonZeroCurrencies.has(code);
-    const removeDisabled = loading !== null || hasBalance || isLastEnabled;
-    const orderDisabled = loading !== null;
-    const effectiveSym = getEffectiveSymbol(code, enabledCurrencies);
-    const netAssets = netAssetsByCurrency[code] ?? 0;
-    const amountLabel = formatAmount(netAssets, code, effectiveSym);
-    const canCustomizeBackground = !CRYPTO_CODE_SET.has(code);
-    const [backgroundColorDraft, setBackgroundColorDraft] = useState(
-      currency.background_color ?? "",
-    );
-    const tooltipLabel = hasBalance
-      ? disabledReasonBalance
-      : isLastEnabled
-        ? disabledReasonLast
-        : null;
-
-    useEffect(() => {
-      setBackgroundColorDraft(currency.background_color ?? "");
-    }, [currency.background_color]);
-
-    return (
-      <Group key={code} justify="space-between" gap="xs" wrap="wrap">
-        <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
-          <Group gap={2} wrap="nowrap">
-            <ActionIcon
-              size="sm"
-              variant="subtle"
-              disabled={orderDisabled || index === 0}
-              onClick={() => void moveCurrency(index, -1)}
-              aria-label={`Move ${code} up`}
-            >
-              <IconArrowUp size={14} />
-            </ActionIcon>
-            <ActionIcon
-              size="sm"
-              variant="subtle"
-              disabled={orderDisabled || index === enabledCurrencies.length - 1}
-              onClick={() => void moveCurrency(index, 1)}
-              aria-label={`Move ${code} down`}
-            >
-              <IconArrowDown size={14} />
-            </ActionIcon>
-          </Group>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 22,
-              height: 22,
-              flexShrink: 0,
-            }}
-          >
-            {getCurrencyIcon(code)}
-          </span>
-          <Text span fw={700} size="sm" style={{ width: 42 }}>
-            {code}
-          </Text>
-          <Code
-            fz="xs"
-            style={{ minWidth: 68, textAlign: "right", flexShrink: 0 }}
-          >
-            {amountLabel}
-          </Code>
-          <Text size="sm" c="dimmed" truncate style={{ minWidth: 0 }}>
-            {getCurrencyLabel(code)}
-          </Text>
-        </Group>
-        <Group gap="xs" wrap="nowrap">
-          {canCustomizeBackground && (
-            <ColorInput
-              aria-label={`${code} ${t("currencySettingsBackgroundColor")}`}
-              disabled={loading !== null}
-              format="hex"
-              onBlur={() =>
-                void saveCurrencyBackgroundColor(code, backgroundColorDraft)
-              }
-              onChange={setBackgroundColorDraft}
-              onChangeEnd={(value) =>
-                void saveCurrencyBackgroundColor(code, value)
-              }
-              placeholder={t("currencySettingsDefaultColor")}
-              popoverProps={{ withinPortal: true }}
-              size="xs"
-              swatches={CURRENCY_COLOR_SWATCHES}
-              value={backgroundColorDraft}
-              w={142}
-            />
-          )}
-          <Tooltip
-            label={tooltipLabel ?? ""}
-            disabled={!tooltipLabel}
-            withArrow
-            withinPortal
-          >
-            <ActionIcon
-              size="sm"
-              variant="subtle"
-              color="red"
-              disabled={removeDisabled}
-              onClick={() => void toggle(code, false)}
-              aria-label={`Remove ${code}`}
-            >
-              <IconTrash size={14} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
-      </Group>
-    );
-  }
-
-  function CurrencyCheckbox(_: {
-    code: string;
-    label: string;
-    icon: React.ReactNode;
-  }) {
-    return null;
-  }
-
   return (
     <Stack gap="md" maw={640}>
       {!initialSetup && (
@@ -1010,6 +1002,24 @@ export default function CurrencySettingsPage({
                 key={currency.code}
                 currency={currency}
                 index={index}
+                currencyCount={enabledCurrencies.length}
+                hasBalance={nonZeroCurrencies.has(currency.code)}
+                isLastEnabled={isLastEnabled}
+                loading={loading}
+                amountLabel={formatAmount(
+                  netAssetsByCurrency[currency.code] ?? 0,
+                  currency.code,
+                  getEffectiveSymbol(currency.code, enabledCurrencies),
+                )}
+                currencyLabel={getCurrencyLabel(currency.code)}
+                icon={getCurrencyIcon(currency.code)}
+                backgroundColorLabel={t("currencySettingsBackgroundColor")}
+                defaultColorLabel={t("currencySettingsDefaultColor")}
+                disabledReasonBalance={disabledReasonBalance}
+                disabledReasonLast={disabledReasonLast}
+                onMove={moveCurrency}
+                onRemove={(code) => toggle(code, false)}
+                onSaveBackgroundColor={saveCurrencyBackgroundColor}
               />
             ))}
           </Stack>
@@ -1050,70 +1060,6 @@ export default function CurrencySettingsPage({
           </ActionIcon>
         </Group>
       </Stack>
-
-      <Divider />
-
-      {false && (
-        <>
-          <Stack gap="xs">
-            <Text fw={600} size="sm">
-              {t("currencySettingsFiatGroup")}
-            </Text>
-            {FIAT_CURRENCIES.map((c) => (
-              <CurrencyCheckbox
-                key={c.code}
-                code={c.code}
-                icon={
-                  <CurrencyOptionIcon
-                    code={c.code}
-                    cryptoIconStyle={cryptoIconStyle}
-                    size={22}
-                    symbol={CURRENCY_SYMBOLS[c.code]}
-                  />
-                }
-                label={locale === "ja" ? `${c.nameJa} / ${c.name}` : c.name}
-              />
-            ))}
-          </Stack>
-
-          <Divider />
-
-          {/* ── Crypto currencies ── */}
-          <Stack gap="xs">
-            <Text fw={600} size="sm">
-              {t("currencySettingsCryptoGroup")}
-            </Text>
-            {CRYPTO_CURRENCIES.map((c) => (
-              <CurrencyCheckbox
-                key={c.code}
-                code={c.code}
-                icon={<CryptoIcon symbol={c.icon} />}
-                label={locale === "ja" ? `${c.nameJa} / ${c.name}` : c.name}
-              />
-            ))}
-          </Stack>
-
-          {/* ── Custom currencies ── */}
-          {customEnabled.length > 0 && (
-            <>
-              <Divider />
-              <Stack gap="xs">
-                <Text fw={600} size="sm">
-                  {locale === "ja" ? "カスタム通貨" : "Custom Currencies"}
-                </Text>
-                {customEnabled.map((c) => (
-                  <CurrencyCheckbox
-                    key={c.code}
-                    code={c.code}
-                    icon={<CustomCurrencyIcon icon={c.custom_icon} />}
-                    label={`${c.code} (${resolveCustomCurrencySymbol(c.custom_symbol, c.custom_icon)})`}
-                  />
-                ))}
-              </Stack>
-            </>
-          )}
-        </>
-      )}
 
       <Divider />
 

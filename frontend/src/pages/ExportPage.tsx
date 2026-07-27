@@ -28,7 +28,7 @@ import {
   IconSun,
 } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import type { Account, DepreciationSchedule } from "@balance-sheet/shared";
 import { api } from "../api/client";
 import { toIntlLocale, useLang } from "../i18n";
@@ -92,6 +92,7 @@ function TotalRow({ label, amount }: { label: string; amount: number }) {
 }
 
 export default function ExportPage() {
+  const { pathname } = useLocation();
   const { t, locale } = useLang();
   const { accounts: allAccounts, journal } = useAppData();
   const printStyleRef = useRef<HTMLStyleElement | null>(null);
@@ -711,8 +712,15 @@ ${deprSection}
 
   return (
     <Stack gap="lg">
-      <Anchor component={Link} to="/settings" size="sm" c="dimmed">
-        {t("settingsSubpageBack")}
+      <Anchor
+        component={Link}
+        to={pathname.startsWith("/fs/") ? "/fs" : "/settings"}
+        size="sm"
+        c="dimmed"
+      >
+        {pathname.startsWith("/fs/")
+          ? `← ${t("navFS")}`
+          : t("settingsSubpageBack")}
       </Anchor>
       <Title order={3}>{t("settingsNavExportTitle")}</Title>
 

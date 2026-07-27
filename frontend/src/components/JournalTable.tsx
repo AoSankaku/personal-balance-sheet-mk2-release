@@ -527,40 +527,56 @@ export function JournalTable({
                         )}
                       </Table.Td>
                       <Table.Td className="currency-cell">
-                        <Stack gap={2}>
+                        <Stack gap="xs">
                           {debitLines.map((l) => (
-                            <Group key={l.id} gap={6} wrap="nowrap">
-                              <Badge size="xs" color="blue" variant="light">
+                            <Stack key={l.id} gap={2}>
+                              <Text
+                                size="xs"
+                                fw={600}
+                                c="blue.7"
+                                ta="left"
+                                style={{ overflowWrap: "anywhere" }}
+                              >
                                 {accountDisplayNameFromName(l.account_name, t)}
-                              </Badge>
-                              <Text size="xs" className="currency-token">
-                                {formatAmount(l.debit, l.currency)}
                               </Text>
-                              {l.currency && l.currency !== "JPY" && (
-                                <Badge size="xs" color="teal" variant="outline">
-                                  {l.currency}
-                                </Badge>
-                              )}
-                            </Group>
+                              <Group gap={6} justify="flex-end" wrap="nowrap">
+                                <Text size="xs" className="currency-token">
+                                  {formatAmount(l.debit, l.currency)}
+                                </Text>
+                                {l.currency && l.currency !== "JPY" && (
+                                  <Badge size="xs" color="teal" variant="outline">
+                                    {l.currency}
+                                  </Badge>
+                                )}
+                              </Group>
+                            </Stack>
                           ))}
                         </Stack>
                       </Table.Td>
                       <Table.Td className="currency-cell">
-                        <Stack gap={2}>
+                        <Stack gap="xs">
                           {creditLines.map((l) => (
-                            <Group key={l.id} gap={6} wrap="nowrap">
-                              <Badge size="xs" color="orange" variant="light">
+                            <Stack key={l.id} gap={2}>
+                              <Text
+                                size="xs"
+                                fw={600}
+                                c="orange.7"
+                                ta="left"
+                                style={{ overflowWrap: "anywhere" }}
+                              >
                                 {accountDisplayNameFromName(l.account_name, t)}
-                              </Badge>
-                              <Text size="xs" className="currency-token">
-                                {formatAmount(l.credit, l.currency)}
                               </Text>
-                              {l.currency && l.currency !== "JPY" && (
-                                <Badge size="xs" color="teal" variant="outline">
-                                  {l.currency}
-                                </Badge>
-                              )}
-                            </Group>
+                              <Group gap={6} justify="flex-end" wrap="nowrap">
+                                <Text size="xs" className="currency-token">
+                                  {formatAmount(l.credit, l.currency)}
+                                </Text>
+                                {l.currency && l.currency !== "JPY" && (
+                                  <Badge size="xs" color="teal" variant="outline">
+                                    {l.currency}
+                                  </Badge>
+                                )}
+                              </Group>
+                            </Stack>
                           ))}
                         </Stack>
                       </Table.Td>

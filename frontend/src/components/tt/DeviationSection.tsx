@@ -43,6 +43,7 @@ import { showFeedback } from "../../lib/feedback";
 import { getEffectiveSymbol } from "../../lib/currencyUtils";
 import { formatCurrency, formatJPY } from "../../lib/numberFormat";
 import { toDateStr } from "../../lib/dateUtils";
+import { hasMaterialBalanceDifference } from "../../lib/balanceReconciliation";
 import { toAccountSelectOption } from "../../lib/accountUtils";
 import {
   buildTrialBalanceCarryForward,
@@ -113,6 +114,10 @@ export function DeviationSection({
     );
   const formatDisplayCurrency = (amount: number) =>
     formatCurrency(amount, locale, displayCurrency, displayCurrencySymbol);
+  const hasDifference = (
+    difference: number,
+    currency: string | null | undefined,
+  ) => hasMaterialBalanceDifference(difference, currency, enabledCurrencies);
   const [confirmOpen, { open: openConfirm, close: closeConfirm }] =
     useDisclosure(false);
   const [processing, setProcessing] = useState(false);
@@ -197,7 +202,8 @@ export function DeviationSection({
     return snapshot.general_entries.map((entry) => ({
       account_id: entry.account_id,
       account_name: entry.account_name,
-      currency: accountCurrency(accountMap.get(entry.account_id)),
+      currency:
+        entry.currency || accountCurrency(accountMap.get(entry.account_id)),
       book_value: entry.book_value,
       actual_value: entry.amount,
       deviation: entry.amount - entry.book_value,
@@ -275,9 +281,9 @@ export function DeviationSection({
           row.status === "paid" &&
           diffCreditCardMonths(row.payment_month, currentCreditCardMonth) >=
             3 &&
-          Math.abs(row.deviation) < 0.5,
+          !hasDifference(row.deviation, row.currency),
       ),
-    [creditCardRows, currentCreditCardMonth],
+    [creditCardRows, currentCreditCardMonth, enabledCurrencies],
   );
   const visibleCreditCardRows = showResolvedCreditCardRows
     ? creditCardRows
@@ -319,6 +325,14 @@ export function DeviationSection({
     0,
   );
   const totalDeviation = totalGeneralDeviation + totalCcDeviation;
+  const hasGeneralDifferences = generalRows.some((row) =>
+    hasDifference(row.deviation, row.currency),
+  );
+  const hasCreditCardDifferences = creditCardRows.some((row) =>
+    hasDifference(row.deviation, row.currency),
+  );
+  const isSelectedClean =
+    !hasGeneralDifferences && !hasCreditCardDifferences;
 
   const matchingJournalMap = useMemo(() => {
     const map = new Map<string, MatchingJournalEntry[]>();
@@ -328,7 +342,7 @@ export function DeviationSection({
     ).getTime();
 
     for (const row of generalRows) {
-      if (Math.abs(row.deviation) < 0.5) continue;
+      if (!hasDifference(row.deviation, row.currency)) continue;
       const account = accounts.find((a) => a.id === row.account_id);
       if (!account) continue;
 
@@ -340,14 +354,17 @@ export function DeviationSection({
         )
         .map((entry) => ({
           entry,
-          delta: signedAccountImpact(entry, account),
+          delta: signedAccountImpact(entry, account, row.currency),
           distanceToFix: 0,
         }))
         .map((candidate) => ({
           ...candidate,
           distanceToFix: Math.abs(candidate.delta + row.deviation),
         }))
-        .filter((candidate) => candidate.distanceToFix < 0.5)
+        .filter(
+          (candidate) =>
+            !hasDifference(candidate.distanceToFix, row.currency),
+        )
         .sort((a, b) => {
           if (a.distanceToFix !== b.distanceToFix) {
             return a.distanceToFix - b.distanceToFix;
@@ -368,7 +385,7 @@ export function DeviationSection({
     }
 
     return map;
-  }, [generalRows, snapshot, accounts, journal]);
+  }, [generalRows, snapshot, accounts, journal, enabledCurrencies]);
 
   const totalAdjustment = generalRows.reduce(
     (s, r) =>
@@ -381,6 +398,12 @@ export function DeviationSection({
     0,
   );
   const adjustedTotalDeviation = totalGeneralDeviation + totalAdjustment;
+  const hasAdjustedGeneralDifferences = generalRows.some((row) =>
+    hasDifference(
+      row.deviation + (adjustmentMap.get(row.account_id) ?? 0),
+      row.currency,
+    ),
+  );
 
   // Entries where credit_card_billing_offset_months > 0, grouped by account + offset month
   const offsetCcGroups = useMemo(() => {
@@ -456,7 +479,7 @@ export function DeviationSection({
   const journalPreview: JournalPreviewEntry[] = useMemo(() => {
     if (!snapshot || !unknownFundsAccount) return [];
     return generalRows
-      .filter((r) => Math.abs(r.deviation) > 0.5)
+      .filter((r) => hasDifference(r.deviation, r.currency))
       .map((r) => {
         const acct = accounts.find((a) => a.id === r.account_id);
         const displayName = getDisplayName(r.account_name);
@@ -490,10 +513,19 @@ export function DeviationSection({
           debit_account: debitName,
           credit_account: creditName,
           amount: Math.abs(r.deviation),
+          currency: normalizeCurrency(r.currency),
           date: snapshot.snapshot_date,
         };
       });
-  }, [generalRows, snapshot, unknownFundsAccount, accounts, t, getDisplayName]);
+  }, [
+    generalRows,
+    snapshot,
+    unknownFundsAccount,
+    accounts,
+    t,
+    getDisplayName,
+    enabledCurrencies,
+  ]);
 
   async function handleProcessUnknownFunds() {
     if (!snapshot || !unknownFundsAccount) return;
@@ -514,8 +546,18 @@ export function DeviationSection({
               ? `不明金処理 - ${preview.debit_account !== t("sysUnknownFunds") ? preview.debit_account : preview.credit_account}`
               : `Unknown funds - ${preview.debit_account !== t("sysUnknownFunds") ? preview.debit_account : preview.credit_account}`,
           lines: [
-            { account_id: debitAcct.id, debit: preview.amount, credit: 0 },
-            { account_id: creditAcct.id, debit: 0, credit: preview.amount },
+            {
+              account_id: debitAcct.id,
+              debit: preview.amount,
+              credit: 0,
+              currency: preview.currency,
+            },
+            {
+              account_id: creditAcct.id,
+              debit: 0,
+              credit: preview.amount,
+              currency: preview.currency,
+            },
           ],
           budget_source: "multiline",
         });
@@ -542,39 +584,33 @@ export function DeviationSection({
 
   const carryForwardDifferenceCount =
     snapshot?.general_entries.filter(
-      (entry) => Math.abs(entry.amount - entry.book_value) > 0.5,
+      (entry) =>
+        hasDifference(entry.amount - entry.book_value, entry.currency),
     ).length ?? 0;
 
   function handleCreateFromSnapshot(scope: "differences" | "all") {
     if (!snapshot) return;
-    const draft = buildTrialBalanceCarryForward(snapshot, scope);
+    const draft = buildTrialBalanceCarryForward(
+      snapshot,
+      scope,
+      enabledCurrencies,
+    );
     if (draft.entries.length === 0) return;
     closeCreateFromSnapshot();
     onCreateFromSnapshot(draft);
-  }
-
-  function snapshotTotalDeviation(snap: ActualBalanceSnapshot) {
-    const general = snap.general_entries.reduce(
-      (sum, entry) => sum + (entry.amount - entry.book_value),
-      0,
-    );
-    // CC deviation is based on the current standalone CC state (not per-snapshot)
-    const ccDeviation = creditCardRows.reduce(
-      (sum, row) => sum + row.deviation,
-      0,
-    );
-    return general + ccDeviation;
   }
 
   const latestCleanSnapshot = useMemo(() => {
     const todayStr = toDateStr(new Date());
     for (const snap of snapshots) {
       if (snap.snapshot_date > todayStr) continue;
-      const totalDev = snapshotTotalDeviation(snap);
-      if (Math.abs(totalDev) < 0.5) return snap;
+      const hasSnapshotDifference = snap.general_entries.some((entry) =>
+        hasDifference(entry.amount - entry.book_value, entry.currency),
+      );
+      if (!hasSnapshotDifference && !hasCreditCardDifferences) return snap;
     }
     return null;
-  }, [snapshots, ccSettingsMap, journal, accounts]);
+  }, [snapshots, hasCreditCardDifferences, enabledCurrencies]);
 
   async function handleDeleteSnapshot() {
     if (!snapshot) return;
@@ -648,8 +684,6 @@ export function DeviationSection({
     );
   }
 
-  const isSelectedClean = Math.abs(totalDeviation) < 0.5;
-
   return (
     <Stack gap="md">
       {latestCleanSnapshot && (
@@ -706,7 +740,7 @@ export function DeviationSection({
               <Text
                 fw={700}
                 c={
-                  Math.abs(totalGeneralDeviation) < 0.5
+                  !hasGeneralDifferences
                     ? "dimmed"
                     : totalGeneralDeviation > 0
                       ? "teal"
@@ -724,7 +758,7 @@ export function DeviationSection({
               <Text
                 fw={700}
                 c={
-                  Math.abs(totalCcDeviation) < 0.5
+                  !hasCreditCardDifferences
                     ? "dimmed"
                     : totalCcDeviation > 0
                       ? "teal"
@@ -742,7 +776,7 @@ export function DeviationSection({
               <Text
                 fw={700}
                 c={
-                  Math.abs(totalDeviation) < 0.5
+                  isSelectedClean
                     ? "dimmed"
                     : totalDeviation > 0
                       ? "teal"
@@ -814,7 +848,7 @@ export function DeviationSection({
                         <Table.Tr
                           key={row.match_key}
                           style={
-                            Math.abs(row.deviation) > 0.5
+                            hasDifference(row.deviation, row.currency)
                               ? { background: "var(--mantine-color-red-light)" }
                               : undefined
                           }
@@ -908,7 +942,7 @@ export function DeviationSection({
                           <Table.Td
                             className="currency-cell"
                             c={
-                              Math.abs(row.deviation) < 0.5
+                              !hasDifference(row.deviation, row.currency)
                                 ? "dimmed"
                                 : row.deviation > 0
                                   ? "teal"
@@ -937,7 +971,10 @@ export function DeviationSection({
                             <Table.Td
                               className="currency-cell"
                               c={
-                                Math.abs(adjustedDeviation) < 0.5
+                                !hasDifference(
+                                  adjustedDeviation,
+                                  row.currency,
+                                )
                                   ? "dimmed"
                                   : adjustedDeviation > 0
                                     ? "teal"
@@ -960,7 +997,7 @@ export function DeviationSection({
                       <Table.Td
                         className="currency-cell"
                         c={
-                          Math.abs(totalGeneralDeviation) < 0.5
+                          !hasGeneralDifferences
                             ? "dimmed"
                             : totalGeneralDeviation > 0
                               ? "teal"
@@ -980,7 +1017,7 @@ export function DeviationSection({
                         <Table.Td
                           className="currency-cell"
                           c={
-                            Math.abs(adjustedTotalDeviation) < 0.5
+                            !hasAdjustedGeneralDifferences
                               ? "dimmed"
                               : adjustedTotalDeviation > 0
                                 ? "teal"
@@ -1091,7 +1128,7 @@ export function DeviationSection({
                         <Table.Td
                           className="currency-cell"
                           c={
-                            Math.abs(row.deviation) < 0.5
+                            !hasDifference(row.deviation, row.currency)
                               ? "dimmed"
                               : row.deviation > 0
                                 ? "teal"
@@ -1111,7 +1148,7 @@ export function DeviationSection({
                       <Table.Td
                         className="currency-cell"
                         c={
-                          Math.abs(totalCcDeviation) < 0.5
+                          !hasCreditCardDifferences
                             ? "dimmed"
                             : totalCcDeviation > 0
                               ? "teal"
@@ -1128,7 +1165,7 @@ export function DeviationSection({
             )}
           </Paper>
 
-          {Math.abs(totalDeviation) < 0.5 ? (
+          {isSelectedClean ? (
             <Alert
               color="teal"
               icon={<IconCircleCheck size={16} />}
@@ -1136,7 +1173,7 @@ export function DeviationSection({
             >
               {t("ttNoDeviation")}
             </Alert>
-          ) : totalGeneralDeviation !== 0 ? (
+          ) : hasGeneralDifferences ? (
             <Group gap="sm">
               <Button
                 color="orange"

@@ -9,7 +9,7 @@ Binance との連携機能は現在使用していないため、このディレ
 ## 復元手順
 
 1. `ExchangeCredentialModal.tsx` を `frontend/src/components/` に戻す
-2. 使用箇所（例: `CryptoPage.tsx`）で import と表示を再有効化する
+2. 使用箇所（例: `ActualInputSection.tsx`）で import と表示を再有効化する
 3. `CryptoWatchModal.tsx` のチェーン選択肢に `binance` を追加する
 4. `hooks/useCryptoPrices.ts` の BNB 価格取得は引き続き動作している
 5. `context/AppDataContext.tsx` の binance chain 処理も引き続き動作している

@@ -73,8 +73,6 @@ interface AppDataContextValue {
   pl: PLReport;
   cryptoWallets: CryptoWallet[];
   exchangeCredentials: ExchangeCredential[];
-  cryptoBalances: Map<number, number>;
-  cryptoValueMap: Map<number, number>;
   prices: CryptoPrices | null;
   budgetCategories: BudgetCategory[];
   budgetFilters: BudgetFilter[];
@@ -90,7 +88,6 @@ interface AppDataContextValue {
   loading: boolean;
   error: string | null;
   refresh: () => void;
-  refreshCryptoBalances: () => void;
   /** Manually refresh crypto prices. Returns false if still on cooldown. */
   refreshCryptoPrices: () => Promise<boolean>;
   /** Force refresh crypto prices regardless of cooldown (use after switching provider). */
@@ -185,9 +182,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     net_income: 0,
   });
   const [cryptoWallets, setCryptoWallets] = useState<CryptoWallet[]>([]);
-  const [cryptoBalances, setCryptoBalances] = useState<Map<number, number>>(
-    new Map(),
-  );
   const [exchangeCredentials, setExchangeCredentials] = useState<
     ExchangeCredential[]
   >([]);
@@ -425,33 +419,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   // Guard: attempt seed exactly once per browser session
   const seedAttempted = useRef(false);
 
-  // Stable ref so refreshCryptoBalances never needs cryptoWallets as a dep
-  const cryptoWalletsRef = useRef<CryptoWallet[]>([]);
-  useEffect(() => {
-    cryptoWalletsRef.current = cryptoWallets;
-  }, [cryptoWallets]);
-
-  // Stable callback — no deps, reads current wallets via ref when none passed
-  const refreshCryptoBalances = useCallback(
-    async (wallets?: CryptoWallet[]) => {
-      const targets = wallets ?? cryptoWalletsRef.current;
-      if (targets.length === 0) return;
-      try {
-        const results = await Promise.all(
-          targets.map((w) => api.crypto.balance(w.address, w.chain)),
-        );
-        const map = new Map<number, number>();
-        for (let i = 0; i < targets.length; i++) {
-          map.set(targets[i]!.account_id, results[i]!.amount);
-        }
-        setCryptoBalances(map);
-      } catch {
-        // silently ignore — balances remain from previous fetch
-      }
-    },
-    [],
-  ); // no state deps → stable reference
-
   const refreshBudgetFilters = useCallback(async () => {
     try {
       const filters = await api.budget.listFilters();
@@ -588,7 +555,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     pathname,
   ]);
 
-  // Stable callback — only depends on t (locale string) and the stable refreshCryptoBalances
+  // Full app-data refresh. Wallet quantities remain opt-in in balance reconciliation.
   const refresh = useCallback(async () => {
     try {
       setLoading(true);
@@ -654,7 +621,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         budgetFilters: filters,
         budgetSettings: bSettings,
       });
-      void refreshCryptoBalances(wallets);
       void refreshAllocatable();
       // Also refresh budget summary
       try {
@@ -685,7 +651,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [t, refreshCryptoBalances, refreshAllocatable]); // both stable → refresh is stable too
+  }, [t, refreshAllocatable]);
 
   // Load the setup gate first. Full app data is fetched only after setup is complete.
   useEffect(() => {
@@ -728,27 +694,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     locale,
     refresh,
   ]);
-
-  const cryptoValueMap = useMemo(() => {
-    if (!prices) return new Map<number, number>();
-    const map = new Map<number, number>();
-    for (const w of cryptoWallets) {
-      const amount = cryptoBalances.get(w.account_id) ?? 0;
-      let price = 0;
-      if (w.chain === "eth") price = prices.ethereum;
-      else if (w.chain === "btc") price = prices.bitcoin;
-      else if (w.chain === "sol") price = prices.solana;
-      else if (w.chain === "msol")
-        price = prices.solana; // mSOL amount already SOL-equivalent from API
-      else if (w.chain === "sol_stake")
-        price = prices.solana; // native stake in SOL
-      else if (w.chain === "skr") price = prices.skr ?? 0;
-      else if (w.chain === "binance")
-        price = prices.byTicker[w.address.toUpperCase()] ?? 0;
-      map.set(w.account_id, amount * price);
-    }
-    return map;
-  }, [cryptoWallets, cryptoBalances, prices]);
 
   const privateAccountNameMap = useMemo(() => {
     if (!privacyMode || !maskAccountNames) return new Map<number, string>();
@@ -818,8 +763,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         pl,
         cryptoWallets: displayedCryptoWallets,
         exchangeCredentials,
-        cryptoBalances,
-        cryptoValueMap,
         prices,
         budgetCategories,
         budgetFilters,
@@ -835,7 +778,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         loading,
         error,
         refresh,
-        refreshCryptoBalances,
         refreshCryptoPrices,
         forceRefreshCryptoPrices,
         forceRefreshRates,

@@ -48,4 +48,19 @@ describe("currency option icon display", () => {
     expect(settingsPage).toContain("ColorInput");
     expect(settingsPage).toContain("currencySettingsBackgroundColor");
   });
+
+  test("keeps currency color inputs mounted when the settings page rerenders", () => {
+    const settingsPage = readFileSync(
+      join(frontendRoot, "src/pages/CurrencySettingsPage.tsx"),
+      "utf8",
+    );
+
+    const rowComponentIndex = settingsPage.indexOf("function CurrencyListRow");
+    const pageComponentIndex = settingsPage.indexOf(
+      "export default function CurrencySettingsPage",
+    );
+
+    expect(rowComponentIndex).toBeGreaterThanOrEqual(0);
+    expect(rowComponentIndex).toBeLessThan(pageComponentIndex);
+  });
 });

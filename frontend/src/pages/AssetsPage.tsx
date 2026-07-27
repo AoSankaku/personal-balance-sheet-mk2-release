@@ -23,7 +23,6 @@ import {
   IconBuildingBank,
   IconCoin,
   IconCreditCard,
-  IconCurrencyBitcoin,
   IconFileAnalytics,
   IconHandStop,
   IconInfoCircle,
@@ -82,7 +81,6 @@ export default function AssetsPage() {
   const {
     accounts,
     journal,
-    cryptoValueMap,
     loading,
     error,
     displayCurrency,
@@ -119,11 +117,6 @@ export default function AssetsPage() {
       convertCurrency,
       includeAllCurrencies,
     );
-  const liveCryptoValueInDisplayCurrency = (valueJpy: number) =>
-    includeAllCurrencies || displayCurrency === "JPY"
-      ? convertCurrency(valueJpy, "JPY", displayCurrency)
-      : 0;
-
   // Exclude the 不明金 system account and depreciable assets from regular asset computations.
   // Depreciable assets are shown as a separate section (固定資産).
   const assets = useMemo(
@@ -191,11 +184,9 @@ export default function AssetsPage() {
     () =>
       assets.map((a) => ({
         ...a,
-        balance: cryptoValueMap.has(a.id)
-          ? liveCryptoValueInDisplayCurrency(cryptoValueMap.get(a.id) ?? 0)
-          : balanceInDisplayCurrency(a.balances),
+        balance: balanceInDisplayCurrency(a.balances),
       })),
-    [assets, cryptoValueMap, displayCurrency, convertCurrency, includeAllCurrencies],
+    [assets, displayCurrency, convertCurrency, includeAllCurrencies],
   );
 
   const depreciableAssetsTotal = useMemo(
@@ -1067,7 +1058,7 @@ export default function AssetsPage() {
       </Paper>
 
       {/* Sub-page navigation */}
-      <SimpleGrid cols={{ base: 2, sm: 3 }} mt="sm">
+      <SimpleGrid cols={{ base: 2, md: 4 }} mt="sm">
         {(
           [
             {
@@ -1090,13 +1081,6 @@ export default function AssetsPage() {
               label: t("tabPL"),
               desc: t("tabPLDesc"),
               color: "teal",
-            },
-            {
-              to: "/fs/crypto",
-              Icon: IconCurrencyBitcoin,
-              label: t("navCrypto"),
-              desc: t("navCryptoDesc"),
-              color: "orange",
             },
             {
               to: "/fs/db",

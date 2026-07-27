@@ -934,6 +934,7 @@ export interface ActualBalanceGeneralEntry {
   account_id: number;
   account_name: string;
   amount: number;
+  currency: string;
   /** Book value at snapshot time (computed from journal_lines) */
   book_value: number;
 }
@@ -956,6 +957,7 @@ export interface CreateActualBalanceSnapshotInput {
   general_entries: {
     account_id: number;
     amount: number;
+    currency?: string;
   }[];
 }
 

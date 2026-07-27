@@ -1,4 +1,8 @@
-import type { ActualBalanceSnapshot } from "@balance-sheet/shared";
+import type {
+  ActualBalanceSnapshot,
+  EnabledCurrency,
+} from "@balance-sheet/shared";
+import { hasMaterialBalanceDifference } from "./balanceReconciliation";
 
 export type TrialBalanceCarryForwardScope = "differences" | "all";
 
@@ -14,6 +18,7 @@ export interface TrialBalanceCarryForwardDraft {
 export function buildTrialBalanceCarryForward(
   snapshot: ActualBalanceSnapshot,
   scope: TrialBalanceCarryForwardScope,
+  enabledCurrencies: EnabledCurrency[] = [],
 ): TrialBalanceCarryForwardDraft {
   return {
     sourceSnapshotId: snapshot.id,
@@ -21,7 +26,12 @@ export function buildTrialBalanceCarryForward(
     entries: snapshot.general_entries
       .filter(
         (entry) =>
-          scope === "all" || Math.abs(entry.amount - entry.book_value) > 0.5,
+          scope === "all" ||
+          hasMaterialBalanceDifference(
+            entry.amount - entry.book_value,
+            entry.currency,
+            enabledCurrencies,
+          ),
       )
       .map((entry) => ({
         account_id: entry.account_id,

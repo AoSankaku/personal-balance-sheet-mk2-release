@@ -1,0 +1,30 @@
+.dateRangeControls {
+  display: grid;
+  grid-template-columns: 13.75rem repeat(2, max-content);
+  align-items: end;
+  gap: var(--mantine-spacing-xs);
+}
+
+.dateRangePicker {
+  width: 100%;
+  min-width: 0;
+}
+
+.dateRangeButton {
+  width: auto;
+}
+
+@media (max-width: 36em) {
+  .dateRangeControls {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dateRangePicker {
+    grid-column: 1 / -1;
+  }
+
+  .dateRangeButton {
+    width: 100%;
+  }
+}

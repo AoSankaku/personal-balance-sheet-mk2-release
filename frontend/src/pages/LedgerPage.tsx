@@ -72,6 +72,8 @@ import {
 import { summarizeBudgetAdjustmentLogsByCategory } from "../lib/budgetAdjustmentCategorySummary";
 import { refreshAfterBudgetAdjustment } from "../lib/budgetAdjustmentRefresh";
 import { usePrivacy } from "../context/PrivacyContext";
+import { completedDateRange } from "../lib/completedDateRange";
+import classes from "./LedgerPage.module.css";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
@@ -136,6 +138,27 @@ function parseDateInputValue(value: string): Date | null {
   return new Date(Number(y), Number(m) - 1, Number(d));
 }
 
+type BudgetSort = {
+  key: BudgetAdjustmentLogSortKey;
+  dir: "asc" | "desc";
+};
+
+function SortIcon({
+  col,
+  sort,
+}: {
+  col: BudgetAdjustmentLogSortKey;
+  sort: BudgetSort;
+}) {
+  if (sort.key !== col)
+    return <IconSelector size={12} style={{ opacity: 0.4 }} />;
+  return sort.dir === "asc" ? (
+    <IconChevronUp size={12} />
+  ) : (
+    <IconChevronDown size={12} />
+  );
+}
+
 export default function LedgerPage() {
   const { t, locale } = useLang();
   const { privacyMode } = usePrivacy();
@@ -161,6 +184,8 @@ export default function LedgerPage() {
     getPageSize("ledger:journalPageSize", 25),
   );
   const [journalRange, setJournalRange] =
+    useState<[Date | null, Date | null]>(thisMonthRange);
+  const [appliedJournalRange, setAppliedJournalRange] =
     useState<[Date | null, Date | null]>(thisMonthRange);
   const [filterDesc, setFilterDesc] = useState("");
   const [filterSource, setFilterSource] = useState<string | null>(null);
@@ -208,6 +233,9 @@ export default function LedgerPage() {
   const [filterCreatedRange, setFilterCreatedRange] = useState<
     [Date | null, Date | null]
   >([null, null]);
+  const [appliedFilterCreatedRange, setAppliedFilterCreatedRange] = useState<
+    [Date | null, Date | null]
+  >([null, null]);
   const [showTimestamp, setShowTimestamp] = useState(false);
   const [adjustmentLogs, setAdjustmentLogs] = useState<BudgetAdjustmentLog[]>(
     [],
@@ -218,10 +246,10 @@ export default function LedgerPage() {
   const [budgetPageSize, setBudgetPageSize] = useState(() =>
     getPageSize("ledger:budgetPageSize", 25),
   );
-  const [budgetSort, setBudgetSort] = useState<{
-    key: BudgetAdjustmentLogSortKey;
-    dir: "asc" | "desc";
-  }>({ key: "date", dir: "desc" });
+  const [budgetSort, setBudgetSort] = useState<BudgetSort>({
+    key: "date",
+    dir: "desc",
+  });
   const [budgetHistoryMode, setBudgetHistoryMode] = useState<
     "entries" | "categories"
   >("entries");
@@ -457,11 +485,12 @@ export default function LedgerPage() {
     filterAmountMin !== "",
     filterAmountMax !== "",
     filterAccountIds.length > 0,
-    filterCreatedRange[0] !== null || filterCreatedRange[1] !== null,
+    appliedFilterCreatedRange[0] !== null ||
+      appliedFilterCreatedRange[1] !== null,
   ].filter(Boolean).length;
 
   const filteredJournal = useMemo(() => {
-    const [from, to] = journalRange;
+    const [from, to] = appliedJournalRange;
     return journal.filter((e) => {
       if (!entryHasCurrency(e, selectedCurrency)) return false;
       if (from && e.date < toDateStr(from)) return false;
@@ -483,7 +512,7 @@ export default function LedgerPage() {
         if (filterAmountMax !== "" && amt > Number(filterAmountMax))
           return false;
       }
-      const [cFrom, cTo] = filterCreatedRange;
+      const [cFrom, cTo] = appliedFilterCreatedRange;
       if (cFrom || cTo) {
         const createdDate = e.created_at.slice(0, 10);
         if (cFrom && createdDate < toDateStr(cFrom)) return false;
@@ -493,18 +522,18 @@ export default function LedgerPage() {
     });
   }, [
     journal,
-    journalRange,
+    appliedJournalRange,
     filterDesc,
     filterSource,
     filterAccountIds,
     filterAmountMin,
     filterAmountMax,
-    filterCreatedRange,
+    appliedFilterCreatedRange,
     selectedCurrency,
   ]);
 
   const outsideRangeCount = useMemo(() => {
-    const [from, to] = journalRange;
+    const [from, to] = appliedJournalRange;
     if (!from && !to) return 0;
     return journal.filter((e) => {
       if (!entryHasCurrency(e, selectedCurrency)) return false;
@@ -532,7 +561,7 @@ export default function LedgerPage() {
         if (filterAmountMax !== "" && amt > Number(filterAmountMax))
           return false;
       }
-      const [cFrom, cTo] = filterCreatedRange;
+      const [cFrom, cTo] = appliedFilterCreatedRange;
       if (cFrom || cTo) {
         const createdDate = e.created_at.slice(0, 10);
         if (cFrom && createdDate < toDateStr(cFrom)) return false;
@@ -542,14 +571,14 @@ export default function LedgerPage() {
     }).length;
   }, [
     journal,
-    journalRange,
+    appliedJournalRange,
     selectedCurrency,
     filterDesc,
     filterSource,
     filterAccountIds,
     filterAmountMin,
     filterAmountMax,
-    filterCreatedRange,
+    appliedFilterCreatedRange,
   ]);
 
   const sortedLogs = useMemo(() => {
@@ -620,16 +649,6 @@ export default function LedgerPage() {
       prev.key === key
         ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
         : { key, dir: "desc" },
-    );
-  }
-
-  function SortIcon({ col }: { col: BudgetAdjustmentLogSortKey }) {
-    if (budgetSort.key !== col)
-      return <IconSelector size={12} style={{ opacity: 0.4 }} />;
-    return budgetSort.dir === "asc" ? (
-      <IconChevronUp size={12} />
-    ) : (
-      <IconChevronDown size={12} />
     );
   }
 
@@ -807,41 +826,50 @@ export default function LedgerPage() {
         <Stack gap="lg">
           {/* Toolbar */}
           <Group justify="space-between" align="flex-end" wrap="wrap" gap="xs">
-            <Group align="flex-end" gap="xs" wrap="wrap">
+            <div className={classes.dateRangeControls}>
               <DatePickerInput
                 type="range"
                 value={journalRange}
                 onChange={(value) => {
                   setJournalRange(value);
-                  setJournalPage(1);
+                  setAppliedJournalRange((current) => {
+                    return completedDateRange(current, value);
+                  });
+                  if ((value[0] === null) === (value[1] === null))
+                    setJournalPage(1);
                 }}
                 clearable
                 placeholder={t("dateRangePlaceholder")}
                 valueFormat="YYYY/MM/DD"
-                style={{ flex: "1 1 160px", maxWidth: 220 }}
+                className={classes.dateRangePicker}
                 size="sm"
               />
               <Button
+                className={classes.dateRangeButton}
                 size="sm"
                 variant="default"
                 onClick={() => {
                   setJournalRange([null, null]);
+                  setAppliedJournalRange([null, null]);
                   setJournalPage(1);
                 }}
               >
                 {t("filterAll")}
               </Button>
               <Button
+                className={classes.dateRangeButton}
                 size="sm"
                 variant="default"
                 onClick={() => {
-                  setJournalRange(thisMonthRange());
+                  const range = thisMonthRange();
+                  setJournalRange(range);
+                  setAppliedJournalRange(range);
                   setJournalPage(1);
                 }}
               >
                 {t("filterThisMonth")}
               </Button>
-            </Group>
+            </div>
             <Group gap="xs" align="center">
               <Checkbox
                 size="xs"
@@ -978,9 +1006,13 @@ export default function LedgerPage() {
                       type="range"
                       label={t("filterCreatedRangeLabel")}
                       value={filterCreatedRange}
-                      onChange={(v) => {
-                        setFilterCreatedRange(v);
-                        setJournalPage(1);
+                      onChange={(value) => {
+                        setFilterCreatedRange(value);
+                        setAppliedFilterCreatedRange((current) =>
+                          completedDateRange(current, value),
+                        );
+                        if ((value[0] === null) === (value[1] === null))
+                          setJournalPage(1);
                       }}
                       clearable
                       valueFormat="YYYY/MM/DD"
@@ -999,6 +1031,7 @@ export default function LedgerPage() {
                           setFilterAmountMax("");
                           setFilterAccountIds([]);
                           setFilterCreatedRange([null, null]);
+                          setAppliedFilterCreatedRange([null, null]);
                           setJournalPage(1);
                         }}
                       >
@@ -1102,6 +1135,7 @@ export default function LedgerPage() {
                   size="sm"
                   onClick={() => {
                     setJournalRange([null, null]);
+                    setAppliedJournalRange([null, null]);
                     setJournalPage(1);
                   }}
                 >
@@ -1148,44 +1182,48 @@ export default function LedgerPage() {
             </Group>
           </Paper>
           <Group align="flex-end" gap="xs" wrap="wrap">
-            <DatePickerInput
-              type="range"
-              placeholder={t("dateRangePlaceholder")}
-              value={budgetLogRange}
-              onChange={(v) => {
-                setBudgetLogRange(v);
-                setBudgetPage(1);
-                void fetchLogs(v);
-              }}
-              clearable
-              valueFormat="YYYY/MM/DD"
-              size="sm"
-              style={{ flex: "1 1 160px", maxWidth: 220 }}
-            />
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => {
-                const range: [Date | null, Date | null] = [null, null];
-                setBudgetLogRange(range);
-                setBudgetPage(1);
-                void fetchLogs(range);
-              }}
-            >
-              {t("filterAll")}
-            </Button>
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => {
-                const range = thisMonthRange();
-                setBudgetLogRange(range);
-                setBudgetPage(1);
-                void fetchLogs(range);
-              }}
-            >
-              {t("filterThisMonth")}
-            </Button>
+            <div className={classes.dateRangeControls}>
+              <DatePickerInput
+                type="range"
+                placeholder={t("dateRangePlaceholder")}
+                value={budgetLogRange}
+                onChange={(v) => {
+                  setBudgetLogRange(v);
+                  setBudgetPage(1);
+                  void fetchLogs(v);
+                }}
+                clearable
+                valueFormat="YYYY/MM/DD"
+                size="sm"
+                className={classes.dateRangePicker}
+              />
+              <Button
+                className={classes.dateRangeButton}
+                size="sm"
+                variant="default"
+                onClick={() => {
+                  const range: [Date | null, Date | null] = [null, null];
+                  setBudgetLogRange(range);
+                  setBudgetPage(1);
+                  void fetchLogs(range);
+                }}
+              >
+                {t("filterAll")}
+              </Button>
+              <Button
+                className={classes.dateRangeButton}
+                size="sm"
+                variant="default"
+                onClick={() => {
+                  const range = thisMonthRange();
+                  setBudgetLogRange(range);
+                  setBudgetPage(1);
+                  void fetchLogs(range);
+                }}
+              >
+                {t("filterThisMonth")}
+              </Button>
+            </div>
             <SegmentedControl
               size="sm"
               value={budgetHistoryMode}
@@ -1255,7 +1293,7 @@ export default function LedgerPage() {
                           <UnstyledButton onClick={() => toggleSort("date")}>
                             <Group gap={4} wrap="nowrap">
                               {t("thDate")}
-                              <SortIcon col="date" />
+                              <SortIcon col="date" sort={budgetSort} />
                             </Group>
                           </UnstyledButton>
                         </Table.Th>
@@ -1263,7 +1301,7 @@ export default function LedgerPage() {
                           <UnstyledButton onClick={() => toggleSort("type")}>
                             <Group gap={4} wrap="nowrap">
                               {t("budgetHistoryTypeCol")}
-                              <SortIcon col="type" />
+                              <SortIcon col="type" sort={budgetSort} />
                             </Group>
                           </UnstyledButton>
                         </Table.Th>
@@ -1273,7 +1311,7 @@ export default function LedgerPage() {
                           >
                             <Group gap={4} wrap="nowrap">
                               {t("budgetCategoryLabel")}
-                              <SortIcon col="category" />
+                              <SortIcon col="category" sort={budgetSort} />
                             </Group>
                           </UnstyledButton>
                         </Table.Th>
@@ -1281,7 +1319,7 @@ export default function LedgerPage() {
                           <UnstyledButton onClick={() => toggleSort("amount")}>
                             <Group gap={4} wrap="nowrap" justify="flex-end">
                               {t("budgetHistoryAmountCol")}
-                              <SortIcon col="amount" />
+                              <SortIcon col="amount" sort={budgetSort} />
                             </Group>
                           </UnstyledButton>
                         </Table.Th>

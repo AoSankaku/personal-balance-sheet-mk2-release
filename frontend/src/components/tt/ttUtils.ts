@@ -75,6 +75,7 @@ export interface JournalPreviewEntry {
   debit_account: string;
   credit_account: string;
   amount: number;
+  currency: string;
   date: string;
 }
 

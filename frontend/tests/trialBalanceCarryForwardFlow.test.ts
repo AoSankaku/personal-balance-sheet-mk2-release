@@ -9,7 +9,8 @@ describe("create a new trial balance from an existing snapshot", () => {
     const deviation = source("src/components/tt/DeviationSection.tsx");
 
     expect(deviation).toContain('t("ttCreateFromSnapshot")');
-    expect(deviation).toContain("buildTrialBalanceCarryForward(snapshot, scope)");
+    expect(deviation).toContain("buildTrialBalanceCarryForward(");
+    expect(deviation).toContain("enabledCurrencies");
     expect(deviation).toContain('handleCreateFromSnapshot("differences")');
     expect(deviation).toContain('handleCreateFromSnapshot("all")');
     expect(deviation).toContain("onCreateFromSnapshot");

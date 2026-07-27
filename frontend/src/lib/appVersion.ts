@@ -4,6 +4,7 @@ import { showReloadPrompt } from "./reloadPrompt";
 export interface AccessResponseProbe {
   status: number;
   redirected: boolean;
+  responseType?: ResponseType;
   url: string;
   contentType: string;
   bodyText: string;
@@ -16,6 +17,8 @@ export interface VersionPayload {
 export function isLikelyCloudflareAccessResponse(
   probe: AccessResponseProbe,
 ) {
+  if (probe.responseType === "opaqueredirect") return true;
+
   const url = probe.url.toLowerCase();
   const contentType = probe.contentType.toLowerCase();
   const body = probe.bodyText.slice(0, 4096).toLowerCase();
@@ -49,11 +52,26 @@ export async function fetchLatestAppVersion(
 ) {
   const response = await fetcher(`/version.json?t=${cacheBust}`, {
     cache: "no-store",
+    credentials: "same-origin",
     headers: { Accept: "application/json" },
+    redirect: "manual",
   });
 
   const contentType = response.headers.get("content-type") ?? "";
   if (!response.ok || !contentType.toLowerCase().includes("application/json")) {
+    const bodyText = await response.clone().text().catch(() => "");
+    if (
+      isLikelyCloudflareAccessResponse({
+        status: response.status,
+        redirected: response.redirected,
+        responseType: response.type,
+        url: response.url,
+        contentType,
+        bodyText,
+      })
+    ) {
+      showReloadPrompt({ reason: "cloudflare-access-session" });
+    }
     return null;
   }
 

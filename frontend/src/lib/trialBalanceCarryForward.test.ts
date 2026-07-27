@@ -14,6 +14,7 @@ const snapshot: ActualBalanceSnapshot = {
       account_id: 10,
       account_name: "Cash",
       amount: 12_500,
+      currency: "JPY",
       book_value: 12_000,
     },
     {
@@ -22,6 +23,7 @@ const snapshot: ActualBalanceSnapshot = {
       account_id: 20,
       account_name: "Bank",
       amount: 80_000,
+      currency: "JPY",
       book_value: 80_000,
     },
     {
@@ -30,6 +32,7 @@ const snapshot: ActualBalanceSnapshot = {
       account_id: 30,
       account_name: "Wallet",
       amount: 5_000.4,
+      currency: "JPY",
       book_value: 5_000,
     },
   ],
