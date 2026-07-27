@@ -192,6 +192,39 @@ function BudgetCategoryCard({
           </Box>
         </Box>
       </Group>
+      {((summary.borrowed_funding ?? 0) !== 0 ||
+        (summary.lent_funding ?? 0) !== 0) && (
+        <Group gap="xs" mb={8} wrap="wrap">
+          <Badge size="xs" variant="light" color="gray">
+            {t("loanFundingOwnFunds")}:{" "}
+            {formatCurrency(
+              summary.available - (summary.funding_adjustment ?? 0),
+              locale,
+              currency,
+            )}
+          </Badge>
+          {(summary.borrowed_funding ?? 0) !== 0 && (
+            <Badge size="xs" variant="light" color="blue">
+              {t("loanFundingBorrowed")}: +
+              {formatCurrency(
+                summary.borrowed_funding ?? 0,
+                locale,
+                currency,
+              )}
+            </Badge>
+          )}
+          {(summary.lent_funding ?? 0) !== 0 && (
+            <Badge size="xs" variant="light" color="orange">
+              {t("loanFundingLent")}: -
+              {formatCurrency(
+                summary.lent_funding ?? 0,
+                locale,
+                currency,
+              )}
+            </Badge>
+          )}
+        </Group>
+      )}
       <Box pos="relative" mb={6}>
         <Progress
           value={Math.min(100, pct)}

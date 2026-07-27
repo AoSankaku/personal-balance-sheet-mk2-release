@@ -519,6 +519,18 @@ export function JournalModal({
         budgetDist,
         showZeroCategories: false,
         incomeDist,
+        settledEntryIds:
+          editEntry.loan_settlement_source_journal_entry_ids ?? [],
+        loanFundingCategoryAmounts: Object.fromEntries(
+          (editEntry.budget_funding?.allocations ?? [])
+            .filter(
+              (allocation) => allocation.budget_category_id != null,
+            )
+            .map((allocation) => [
+              allocation.budget_category_id!,
+              allocation.amount,
+            ]),
+        ),
       },
       nonConvertibleReason: null,
     };

@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   computeAllocatableBudget,
   isAllocatableCashAccount,
+  summarizeBudgetFunding,
   sumBudgetClaims,
   sumAllocatableCashBalances,
 } from "../src/lib/allocatableBudget";
@@ -96,5 +97,14 @@ describe("allocatable budget cash balance", () => {
   test("counts overspending once through the lower cash balance", () => {
     expect(computeAllocatableBudget(40_000, [30_000, 0])).toBe(10_000);
     expect(computeAllocatableBudget(20_000, [30_000, -20_000])).toBe(-10_000);
+  });
+
+  test("reports positive claims and unfunded overspending separately", () => {
+    expect(summarizeBudgetFunding(20_000, [30_000, -20_000])).toEqual({
+      allocatableCash: 20_000,
+      positiveBudgetClaims: 30_000,
+      unfundedOverspending: 20_000,
+      fundingGap: -10_000,
+    });
   });
 });

@@ -450,7 +450,7 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
                   className="task-menu__item task-menu__budget-card"
                   aria-label={`${t("taskBudgetNegativeTitle")}. ${t("taskBudgetNegative")}. ${t("taskBudgetNegativeAction")}`}
                   onClick={() => {
-                    navigate("/");
+                    navigate("/fs/tt?segment=budget&basis=today");
                     setOpened(false);
                   }}
                 >

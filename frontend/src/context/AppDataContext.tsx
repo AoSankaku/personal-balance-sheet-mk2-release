@@ -69,6 +69,7 @@ function normalizeCurrency(currency: string | null | undefined) {
 
 interface AppDataContextValue {
   accounts: Account[];
+  accountsToday: Account[];
   journal: JournalEntry[];
   pl: PLReport;
   cryptoWallets: CryptoWallet[];
@@ -77,6 +78,8 @@ interface AppDataContextValue {
   budgetCategories: BudgetCategory[];
   budgetFilters: BudgetFilter[];
   budgetSummary: BudgetSummary | null;
+  budgetSummaryToday: BudgetSummary | null;
+  budgetSummaryTotal: BudgetSummary | null;
   budgetSettings: BudgetSettings | null;
   creditCardSettings: CreditCardSettings[];
   creditCardState: CreditCardStateEntry[];
@@ -734,6 +737,17 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     [accounts, privacyMode, maskAccountNames, accountTypeLabel],
   );
 
+  const displayedAccountsToday = useMemo(
+    () =>
+      applyPrivateAccountNames(
+        accountsToday,
+        privacyMode,
+        maskAccountNames,
+        accountTypeLabel,
+      ),
+    [accountsToday, privacyMode, maskAccountNames, accountTypeLabel],
+  );
+
   const displayedJournal = useMemo(() => {
     if (privateAccountNameMap.size === 0) return journal;
     return journal.map((entry) => ({
@@ -759,6 +773,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     <AppDataContext.Provider
       value={{
         accounts: displayedAccounts,
+        accountsToday: displayedAccountsToday,
         journal: displayedJournal,
         pl,
         cryptoWallets: displayedCryptoWallets,
@@ -767,6 +782,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         budgetCategories,
         budgetFilters,
         budgetSummary,
+        budgetSummaryToday,
+        budgetSummaryTotal,
         budgetSettings,
         creditCardSettings,
         creditCardState,

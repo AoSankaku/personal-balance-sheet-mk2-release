@@ -34,6 +34,12 @@ On the Input page, choose Loan/Repay in simple entry. There are four directions:
 
 For borrowing or lending, choose the target loan account and the counterpart asset or expense account. For repayment or collection, select the transaction being settled so the app knows which loan was resolved.
 
+## Budget Funding Breakdown
+
+Lending and borrowing are not expenses or income, but they change the cash backing your budgets. In the loan form, specify how much of the principal funds or temporarily constrains each budget category; the remainder is saved as unallocated funding. For example, if 40 is unallocated and you lend 50, the form suggests a category constraint of 10. You explicitly choose which category is constrained.
+
+The breakdown is fixed when the entry is saved. Editing an older, unrelated entry does not recalculate it. For short-term repayments and collections, the saved breakdown of the selected source entry is reversed. If a category was reset after the source entry, that reset ends the old funding relationship: a later repayment or collection does not restore the category, and the returned cash is treated as unallocated.
+
 ## Repayments Or Collections With Differences
 
 The repayment or collection amount may not exactly match the original amount because of fees, discounts, exchange differences, rounding, gifts, or similar reasons.

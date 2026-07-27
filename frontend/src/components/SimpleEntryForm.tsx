@@ -47,6 +47,10 @@ import { useAppData } from "../context/AppDataContext";
 import { showFeedback } from "../lib/feedback";
 import { api, ApiError } from "../api/client";
 import {
+  buildBudgetFundingAllocations,
+  fundingKindForLoanDirection,
+} from "../lib/budgetFundingAllocation";
+import {
   accountDisplayName,
   categoryIndex,
   CATEGORY_TRANSLATION_KEY,
@@ -125,6 +129,7 @@ export interface SimpleFormDraft {
   settledEntryIds?: number[];
   diffBudgetDist?: BudgetDistributionItem[];
   loanCounterBudgetDist?: BudgetDistributionItem[];
+  loanFundingCategoryAmounts?: Record<number, number>;
   depreciation?: {
     enabled: boolean;
     scheduleId?: number;
@@ -174,6 +179,7 @@ export function SimpleEntryForm({
     budgetSettings,
     displayCurrency,
     displayCurrencySymbol: currencySymbol,
+    allocatableToday,
   } = useAppData();
   const isMobile = useMediaQuery("(max-width: 48em)");
   const selectedCurrency = displayCurrency || "JPY";
@@ -258,6 +264,9 @@ export function SimpleEntryForm({
   const [loanCounterBudgetDist, setLoanCounterBudgetDist] = useState<
     BudgetDistributionItem[]
   >(initialDraft?.loanCounterBudgetDist ?? []);
+  const [loanFundingCategoryAmounts, setLoanFundingCategoryAmounts] = useState<
+    Record<number, number>
+  >(initialDraft?.loanFundingCategoryAmounts ?? {});
 
   // ── Depreciation state ──────────────────────────────────────────────────
   const [depreciationEnabled, setDepreciationEnabled] = useState(
@@ -634,6 +643,7 @@ export function SimpleEntryForm({
       settledEntryIds,
       diffBudgetDist,
       loanCounterBudgetDist,
+      loanFundingCategoryAmounts,
       depreciation: {
         enabled: depreciationEnabled,
         scheduleId: initialDraft?.depreciation?.scheduleId,
@@ -662,6 +672,7 @@ export function SimpleEntryForm({
     depreciationMonthlyAmount,
     initialDraft?.depreciation?.scheduleId,
     loanCounterBudgetDist,
+    loanFundingCategoryAmounts,
   ]);
 
   // Load unsettled entries when direction is repay/collect and a short-term account is selected
@@ -1108,6 +1119,28 @@ export function SimpleEntryForm({
       // Determine if this is an opening event
       const isOpening =
         values.loanDirection === "increase" || values.loanDirection === "lend";
+      let explicitFundingAllocations;
+      try {
+        explicitFundingAllocations = buildBudgetFundingAllocations(
+          loanAmount,
+          new Map(
+            Object.entries(loanFundingCategoryAmounts).map(
+              ([categoryId, fundingAmount]) => [
+                Number(categoryId),
+                Number(fundingAmount) || 0,
+              ],
+            ),
+          ),
+        );
+      } catch {
+        showFeedback({
+          message: t("loanFundingExceedsPrincipal"),
+          color: "red",
+        });
+        return;
+      }
+      const automaticSettlement =
+        !isOpening && isShortTerm && settledEntryIds.length > 0;
 
       await onSubmit({
         date: transactionDate,
@@ -1119,6 +1152,16 @@ export function SimpleEntryForm({
         loan_settlement_opening: isOpening && isShortTerm ? true : undefined,
         loan_settlement_journal_entry_ids:
           hasSettlements && isShortTerm ? settledEntryIds : undefined,
+        budget_funding: {
+          kind: fundingKindForLoanDirection(values.loanDirection),
+          principal_amount: loanAmount,
+          allocations: automaticSettlement
+            ? undefined
+            : explicitFundingAllocations,
+          source_journal_entry_ids: automaticSettlement
+            ? settledEntryIds
+            : undefined,
+        },
       });
 
       if (!isEditing) {
@@ -1126,6 +1169,7 @@ export function SimpleEntryForm({
         setSettledEntryIds([]);
         setDiffBudgetDist([]);
         setLoanCounterBudgetDist([]);
+        setLoanFundingCategoryAmounts({});
         form.reset();
         if (defaultPaymentAccount) {
           form.setFieldValue("expensePaidFromId", defaultPaymentAccount.id);
@@ -1812,6 +1856,10 @@ export function SimpleEntryForm({
             setDiffBudgetDist={setDiffBudgetDist}
             loanCounterBudgetDist={loanCounterBudgetDist}
             setLoanCounterBudgetDist={setLoanCounterBudgetDist}
+            loanFundingCategoryAmounts={loanFundingCategoryAmounts}
+            setLoanFundingCategoryAmounts={setLoanFundingCategoryAmounts}
+            currentUnallocatedFunding={allocatableToday}
+            showFundingSuggestion={!isEditing}
             handleLoanCounterAccountChange={handleLoanCounterAccountChange}
           />
         )}

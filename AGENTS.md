@@ -56,6 +56,7 @@ cd worker && bun run db:migrate:remote
 | `budget_allocations` | id, budget_category_id, year_month, fixed_amount, income_ratio, adhoc_amount, created_at | Monthly per-category allocations |
 | `journal_entry_budget_allocations` | id, journal_entry_id, budget_category_id, amount, currency, source | Explicit expense-side budget allocations per journal entry |
 | `budget_adjustment_logs` | id, budget_category_id, year_month, amount, currency, date, adjustment_type, note, journal_entry_id, created_at | Manual, reset, income, and transfer budget adjustments |
+| `budget_funding_allocations` | id, journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, created_at | Explicit loan/lending funding split. A null category is the fixed unallocated portion; repayments/collections can reference and reverse an opening entry |
 | `budget_filters` | id, name, is_active, is_used, created_at | Virtual income-distribution pipelines |
 | `budget_filter_steps` | id, filter_id, step_order, step_type, created_at | Steps: fixed/capped/remainder |
 | `budget_filter_step_allocations` | id, step_id, budget_category_id, amount, ratio, created_at | Per-step category allocations |
@@ -100,9 +101,11 @@ Account types: `asset | liability | equity | income | expense`. There is **no ba
 ### Budget Model
 Budget categories are **virtual buckets** layered on top of physical accounts. Each category links to one or more expense accounts via `budget_category_accounts`; explicit per-entry consumption is stored in `journal_entry_budget_allocations`. Monthly allocations and adjustment logs define how much should flow to each bucket. Budget filters are automated pipelines that distribute income across categories via fixed/capped/remainder steps. All budget balances roll over in full, including negative overruns. Negative budget balances do not increase allocatable money, but they are not counted as additional budget claims because the cash outflow already reflects the overrun; only positive available balances constrain allocatable cash.
 
-Cash/bank accounts can be excluded from budget allocation sources with `accounts.include_in_allocatable=false`. Budget categories can also link to target holding accounts via `budget_category_account_targets`; budget placement groups connected categories/accounts and compares expected budget balances with actual cash balances. Placement guidance is informational and does not move money by itself. Simple transfer input can optionally create `transfer` budget adjustment logs to move budget between categories or consume/disappear it.
+Cash/bank accounts can be excluded from budget allocation sources with `accounts.include_in_allocatable=false`. Budget categories can also link to target holding accounts via `budget_category_account_targets`; budget placement groups connected categories/accounts and compares positive expected budget balances with actual cash balances. Negative category balances do not offset placement targets and are displayed separately as unfunded overspending. Placement guidance is informational and does not move money by itself. Simple transfer input can optionally create `transfer` budget adjustment logs to move budget between categories or consume/disappear it.
 
 Budget reset is represented as a `budget_adjustment_logs` row with `adjustment_type='reset'` that brings a category balance to zero at the reset point. Budget adjustments can carry an optional `note`.
+
+Loan and lending principal uses explicit `budget_funding_allocations`, separate from expense consumption. The saved category/unallocated split is stable and is not recomputed when older entries change. A repayment or collection linked to an opening entry reverses that saved split only when the opening is after the latest category reset preceding the settlement. If a reset intervenes, the category is not restored; the returning cash remains unallocated.
 
 ### API Routes (Hono, `worker/src/routes/`)
 

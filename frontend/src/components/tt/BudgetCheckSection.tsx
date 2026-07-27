@@ -4,6 +4,7 @@ import {
   Group,
   Pagination,
   Paper,
+  SegmentedControl,
   Select,
   Stack,
   Table,
@@ -13,6 +14,7 @@ import {
 import { DatePickerInput } from "@mantine/dates";
 import { IconAlertTriangle, IconCircleCheck } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useLang } from "../../i18n";
 import { useAppData } from "../../context/AppDataContext";
 import { formatJPY } from "../../lib/numberFormat";
@@ -28,12 +30,24 @@ export function BudgetCheckSection() {
   const { t, locale } = useLang();
   const {
     accounts,
+    accountsToday,
     journal,
     budgetCategories,
     budgetSettings,
     budgetSummary,
+    budgetSummaryToday,
+    budgetSummaryTotal,
     displayCurrency,
   } = useAppData();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const placementBasis =
+    searchParams.get("basis") === "today" ? "today" : "total";
+  const placementAccounts =
+    placementBasis === "today" ? accountsToday : accounts;
+  const placementSummary =
+    placementBasis === "today"
+      ? budgetSummaryToday
+      : (budgetSummaryTotal ?? budgetSummary);
   const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([
     null,
     null,
@@ -156,9 +170,30 @@ export function BudgetCheckSection() {
       </Group>
 
       <Paper withBorder radius="md" p="md">
+        <Group justify="flex-end" mb="md">
+          <SegmentedControl
+            size="xs"
+            value={placementBasis}
+            data={[
+              {
+                value: "today",
+                label: t("assignableMoneyTodayLabel"),
+              },
+              {
+                value: "total",
+                label: t("assignableMoneyTotalLabel"),
+              },
+            ]}
+            onChange={(value) => {
+              const nextParams = new URLSearchParams(searchParams);
+              nextParams.set("basis", value);
+              setSearchParams(nextParams, { replace: true });
+            }}
+          />
+        </Group>
         <BudgetPlacementTable
-          accounts={accounts}
-          categorySummaries={budgetSummary?.categories ?? []}
+          accounts={placementAccounts}
+          categorySummaries={placementSummary?.categories ?? []}
           currency={displayCurrency || "JPY"}
         />
       </Paper>

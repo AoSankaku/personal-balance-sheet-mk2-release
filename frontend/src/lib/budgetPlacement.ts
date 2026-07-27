@@ -1,3 +1,8 @@
+import {
+  sumBudgetClaims,
+  sumBudgetOverspending,
+} from "./allocatableBudget";
+
 export interface BudgetPlacementAccount {
   id: number;
   name: string;
@@ -57,6 +62,12 @@ export interface BudgetPlacementCategoryDetail {
   amount: number;
 }
 
+export interface BudgetOverspendingDetail {
+  budget_category_id: number;
+  budget_category_name: string;
+  amount: number;
+}
+
 function isValidPlacementAccount(
   account: BudgetPlacementAccount | undefined,
 ): boolean {
@@ -80,6 +91,8 @@ export function calculateBudgetPlacement({
   unplacedBudget: number;
   unplacedAccounts: BudgetPlacementAccountDetail[];
   unplacedDifference: number;
+  unfundedOverspending: number;
+  overspendingCategories: BudgetOverspendingDetail[];
 } {
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const categoryById = new Map<
@@ -89,6 +102,16 @@ export function calculateBudgetPlacement({
   const categoryToAccounts = new Map<number, Set<number>>();
   const accountToCategories = new Map<number, Set<number>>();
   let unplacedBudget = 0;
+  const overspendingCategories = categorySummaries
+    .filter((summary) => summary.available < 0)
+    .map((summary) => ({
+      budget_category_id: summary.category.id,
+      budget_category_name: summary.category.name,
+      amount: Math.max(-summary.available, 0),
+    }));
+  const unfundedOverspending = sumBudgetOverspending(
+    categorySummaries.map((summary) => summary.available),
+  );
 
   for (const summary of categorySummaries) {
     const targetAccountIds = [
@@ -103,7 +126,7 @@ export function calculateBudgetPlacement({
       ),
     ];
     if (targetAccountIds.length === 0) {
-      unplacedBudget += summary.available;
+      unplacedBudget += Math.max(summary.available, 0);
       continue;
     }
 
@@ -161,12 +184,12 @@ export function calculateBudgetPlacement({
       return {
         budget_category_id: categoryId,
         budget_category_name: category.name,
-        amount: category.available,
+        amount: Math.max(category.available, 0),
       };
     });
-    const expected = categories.reduce((sum, category) => {
-      return sum + category.amount;
-    }, 0);
+    const expected = sumBudgetClaims(
+      categories.map((category) => category.amount),
+    );
     const accountDetails = accountIds.map((accountId) => {
       const account = accountById.get(accountId);
       return {
@@ -223,6 +246,8 @@ export function calculateBudgetPlacement({
     unplacedBudget,
     unplacedAccounts,
     unplacedDifference: unplacedActual - unplacedBudget,
+    unfundedOverspending,
+    overspendingCategories,
   };
 }
 

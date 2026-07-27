@@ -334,6 +334,17 @@ noUnsettledEntries: 没有未结清的分录
 loanDifferenceIncome: 收益（收入账户）
 loanDifferenceLoss: 损失（支出账户）
 loanDifferenceAccountLabel: 差额账户
+loanFundingBreakdownTitle: 预算资金明细
+loanFundingBreakdownHint: 指定该本金用于或占用哪些预算类别。剩余金额将固定保存为未分配资金。
+loanFundingUnallocated: 未分配资金
+loanFundingCurrentUnallocated: 由当前未分配资金吸收
+loanFundingSuggestedConstraint: 建议的类别临时占用
+loanFundingExceedsPrincipal: 分配到预算类别的金额超过了本金。
+loanFundingSettlementAutomatic: 将自动冲销所选原始交易中保存的预算资金明细。
+loanFundingResetBoundaryHint: 如果类别在原始交易后已重置，偿还或收回时不会恢复该类别，资金将回到未分配状态。
+loanFundingOwnFunds: 自有资金
+loanFundingBorrowed: 借入资金
+loanFundingLent: 出借占用
 completedAccountsSection: 已完结的账户
 tabInitialBalance: 初始余额
 initialBalanceHint: 记录账户的期初余额。初次设置时使用。
@@ -394,6 +405,9 @@ budgetPlacementExpected: 目标
 budgetPlacementActual: 实际
 budgetPlacementDifference: 差异
 budgetPlacementUnplaced: 未放置
+budgetPlacementUnfundedOverspending: 未弥补的预算超支
+budgetPlacementUnfundedOverspendingHint: 负预算余额单独显示，不再抵减目标金额。
+budgetPlacementTotal: 合计
 budgetPlacementEmpty: 尚未配置目标账户。
 budgetPlacementHintsTitle: 提示
 budgetHistoryTypeCol: 类型
@@ -440,9 +454,9 @@ taskCreditCardWithdrawalRiskToggle: 信用卡扣款余额任务
 taskCreditCardWithdrawalRiskToggleHint: 如果信用卡付款后关联银行账户可能为负数，从扣款日前 14 天开始显示任务。
 taskBudgetNegativeToggle: 预算超额分配任务
 taskBudgetNegativeToggleHint: 当预算分配总额超过实际资产、预算数据不再可靠时显示任务。
-taskBudgetNegative: 分配额超过了资产。请检查是否有重复或遗漏的记录。
-taskBudgetNegativeTitle: 检查预算一致性
-taskBudgetNegativeAction: 前往概览确认
+taskBudgetNegative: 已预留预算超过了可分配的现金。
+taskBudgetNegativeTitle: 检查预算资金缺口
+taskBudgetNegativeAction: 查看预算对账
 taskLoanOverdueToggle: 短期借贷逾期任务
 taskLoanOverdueToggleHint: 在指定天数内没有还款或收款时显示任务。
 taskLoanOverdueDaysLabel: 阈值（天）

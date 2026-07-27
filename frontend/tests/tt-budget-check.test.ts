@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 import type { Account, JournalEntry } from "@balance-sheet/shared";
 import { getSuspiciousReasons } from "../src/components/tt/ttUtils";
+
+const frontendRoot = join(import.meta.dir, "..");
+const source = (path: string) =>
+  readFileSync(join(frontendRoot, path), "utf8");
 
 function account(overrides: Partial<Account>): Account {
   return {
@@ -116,5 +122,23 @@ describe("getSuspiciousReasons", () => {
     );
 
     expect(reasons).toHaveLength(1);
+  });
+});
+
+describe("budget check presentation", () => {
+  test("uses the notification basis and shows overruns separately", () => {
+    const section = source("src/components/tt/BudgetCheckSection.tsx");
+    const placement = source("src/components/BudgetPlacementTable.tsx");
+
+    expect(section).toContain('searchParams.get("basis")');
+    expect(section).toContain("accountsToday");
+    expect(section).toContain("budgetSummaryToday");
+    expect(section).toContain('t("assignableMoneyTodayLabel")');
+    expect(section).toContain('t("assignableMoneyTotalLabel")');
+    expect(placement).toContain('t("budgetPlacementUnfundedOverspending")');
+    expect(placement).toContain(
+      't("budgetPlacementUnfundedOverspendingHint")',
+    );
+    expect(placement).toContain('t("budgetPlacementTotal")');
   });
 });
