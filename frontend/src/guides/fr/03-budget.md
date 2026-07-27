@@ -22,7 +22,7 @@ Créez des catégories depuis Paramètres -> Paramètres budgétaires. Une caté
 
 ## Report, réinitialisation et plafonds
 
-Les budgets réguliers sont reportés intégralement, qu'ils soient positifs ou négatifs. Un budget négatif est un dépassement, il réduit donc l'argent allouable au lieu de l'augmenter.
+Les budgets réguliers sont reportés intégralement, qu'ils soient positifs ou négatifs. Un budget négatif représente un dépassement, mais il n'est pas compté comme une seconde réserve puisque la sortie de trésorerie le reflète déjà. Il n'augmente pas non plus l'argent allouable.
 
 Si des importations historiques ou des corrections rendent un solde irréaliste, utilisez Saisie -> Ajustement budgétaire -> Réinitialisation budgétaire pour ramener cette catégorie à zéro. La page Aperçu montre un badge de réinitialisation daté pour le mois. Les plafonds de solde peuvent envoyer l'excédent budgétaire vers une autre catégorie.
 

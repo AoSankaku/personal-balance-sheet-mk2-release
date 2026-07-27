@@ -22,7 +22,7 @@ Crea categorías desde Configuración -> Configuración de Presupuesto. Una cate
 
 ## Reintegro, Reinicio y Límites
 
-Los presupuestos regulares se reintegran en su totalidad, ya sean positivos o negativos. Un presupuesto negativo es un excedente, por lo que reduce el dinero asignable en lugar de aumentarlo.
+Los presupuestos regulares se trasladan en su totalidad, tanto si son positivos como negativos. Un presupuesto negativo representa un exceso de gasto, pero no se cuenta como una segunda reserva porque la salida de efectivo ya lo refleja. Tampoco aumenta el dinero asignable.
 
 Si las importaciones históricas o correcciones hacen que un saldo sea poco realista, usa Entrada -> Ajuste de Presupuesto -> Reinicio de Presupuesto para llevar esa categoría a cero. La página de Resumen muestra una insignia de reinicio con fecha para el mes. Los límites de saldo pueden enviar el exceso de presupuesto a otra categoría.
 

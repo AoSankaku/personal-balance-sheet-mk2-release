@@ -28,7 +28,7 @@ export function sumAllocatableCashBalances(
 
 export function sumBudgetClaims(availableValues: number[]): number {
   return availableValues.reduce(
-    (sum, available) => sum + Math.abs(available),
+    (sum, available) => sum + Math.max(available, 0),
     0,
   );
 }
