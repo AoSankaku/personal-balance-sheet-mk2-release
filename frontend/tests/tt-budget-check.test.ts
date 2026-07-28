@@ -2,8 +2,18 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
 
-import type { Account, JournalEntry } from "@balance-sheet/shared";
-import { getSuspiciousReasons } from "../src/components/tt/ttUtils";
+import type {
+  Account,
+  BudgetAdjustmentLog,
+  JournalEntry,
+} from "@balance-sheet/shared";
+import {
+  getSuspiciousReasons,
+} from "../src/components/tt/ttUtils";
+import {
+  findLatestBudgetResetBoundary,
+  isLoanBudgetFundingMissing,
+} from "../src/lib/budgetFundingCompleteness";
 
 const frontendRoot = join(import.meta.dir, "..");
 const source = (path: string) =>
@@ -33,6 +43,23 @@ function entry(overrides: Partial<JournalEntry>): JournalEntry {
     lines: overrides.lines ?? [],
     budget_allocations: overrides.budget_allocations,
     income_budget_allocations: overrides.income_budget_allocations,
+  };
+}
+
+function resetLog(
+  overrides: Partial<BudgetAdjustmentLog> = {},
+): BudgetAdjustmentLog {
+  return {
+    id: overrides.id ?? 1,
+    budget_category_id: overrides.budget_category_id ?? 1,
+    budget_category_name: overrides.budget_category_name ?? "生活費",
+    year_month: overrides.year_month ?? "2026-07",
+    amount: overrides.amount ?? 0,
+    currency: overrides.currency ?? "JPY",
+    date: overrides.date ?? "2026-07-10",
+    created_at: overrides.created_at ?? "2026-07-10 09:00:00",
+    type: overrides.type ?? "reset",
+    adjustment_type: overrides.adjustment_type ?? "reset",
   };
 }
 
@@ -140,5 +167,175 @@ describe("budget check presentation", () => {
       't("budgetPlacementUnfundedOverspendingHint")',
     );
     expect(placement).toContain('t("budgetPlacementTotal")');
+  });
+
+  test("places the date filter inside the consistency check area", () => {
+    const section = source("src/components/tt/BudgetCheckSection.tsx");
+
+    expect(section.indexOf('t("budgetConsistencyTitle")')).toBeLessThan(
+      section.indexOf("<DatePickerInput"),
+    );
+  });
+
+  test("loads reset points and shows missing loan funding as an issue", () => {
+    const section = source("src/components/tt/BudgetCheckSection.tsx");
+
+    expect(section).toContain("listAdjustmentLogs");
+    expect(section).toContain("resetsOnly");
+    expect(section).toContain('t("budgetFundingMissingIssue")');
+    expect(section).toContain('{t("amountLabel")}');
+  });
+});
+
+describe("loan budget funding completeness after reset", () => {
+  const loanAccountMap = new Map([
+    [
+      30,
+      account({
+        id: 30,
+        name: "短期貸付",
+        type: "asset",
+        category: "short_term_lending",
+      }),
+    ],
+    [
+      1,
+      account({
+        id: 1,
+        name: "現金",
+        type: "asset",
+        category: "cash",
+      }),
+    ],
+  ]);
+
+  test("uses the latest reset date and input timestamp as the boundary", () => {
+    expect(
+      findLatestBudgetResetBoundary([
+        resetLog(),
+        resetLog({
+          id: 2,
+          date: "2026-07-10",
+          created_at: "2026-07-10 11:00:00",
+        }),
+        resetLog({
+          id: 3,
+          date: "2026-07-12",
+          created_at: "2026-07-12 08:00:00",
+          type: "manual",
+          adjustment_type: "allocation",
+        }),
+      ]),
+    ).toEqual({
+      date: "2026-07-10",
+      created_at: "2026-07-10 11:00:00",
+    });
+  });
+
+  test("flags a loan entry after the latest reset when funding is missing", () => {
+    expect(
+      isLoanBudgetFundingMissing(
+        entry({
+          date: "2026-07-11",
+          lines: [
+            {
+              id: 1,
+              journal_entry_id: 1,
+              account_id: 30,
+              account_name: "短期貸付",
+              debit: 50,
+              credit: 0,
+              currency: "JPY",
+            },
+            {
+              id: 2,
+              journal_entry_id: 1,
+              account_id: 1,
+              account_name: "現金",
+              debit: 0,
+              credit: 50,
+              currency: "JPY",
+            },
+          ],
+        }),
+        loanAccountMap,
+        {
+          date: "2026-07-10",
+          created_at: "2026-07-10 11:00:00",
+        },
+      ),
+    ).toBe(true);
+  });
+
+  test("does not flag entries before reset or entries with a saved split", () => {
+    const loanEntry = entry({
+      date: "2026-07-09",
+      lines: [
+        {
+          id: 1,
+          journal_entry_id: 1,
+          account_id: 30,
+          account_name: "短期貸付",
+          debit: 50,
+          credit: 0,
+          currency: "JPY",
+        },
+      ],
+    });
+
+    expect(
+      isLoanBudgetFundingMissing(loanEntry, loanAccountMap, {
+        date: "2026-07-10",
+        created_at: "2026-07-10 11:00:00",
+      }),
+    ).toBe(false);
+    expect(
+      isLoanBudgetFundingMissing(
+        {
+          ...loanEntry,
+          date: "2026-07-11",
+          budget_funding: {
+            kind: "lend",
+            allocations: [
+              {
+                id: 1,
+                budget_category_id: null,
+                amount: 50,
+                currency: "JPY",
+              },
+            ],
+          },
+        },
+        loanAccountMap,
+        {
+          date: "2026-07-10",
+          created_at: "2026-07-10 11:00:00",
+        },
+      ),
+    ).toBe(false);
+  });
+
+  test("checks only loan entries in the displayed currency", () => {
+    expect(
+      isLoanBudgetFundingMissing(
+        entry({
+          date: "2026-07-11",
+          lines: [
+            {
+              id: 1,
+              journal_entry_id: 1,
+              account_id: 30,
+              account_name: "短期貸付",
+              debit: 50,
+              credit: 0,
+              currency: "USD",
+            },
+          ],
+        }),
+        loanAccountMap,
+        null,
+        "JPY",
+      ),
+    ).toBe(false);
   });
 });

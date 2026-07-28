@@ -28,6 +28,8 @@ Les cartes de crédit diffèrent souvent car la date d'utilisation, la date de r
 
 La vérification de cohérence budgétaire vérifie si les montants de revenus/dépenses des écritures de journal correspondent aux montants d'allocation budgétaire enregistrés. Elle détecte les écritures avec des allocations manquantes ou des montants non concordants.
 
+Définissez la plage de dates dans cette vérification de cohérence. La même liste affiche également les prêts accordés, emprunts, remboursements et recouvrements saisis après la dernière réinitialisation budgétaire lorsqu'aucune ventilation du financement budgétaire n'a été enregistrée. S'il n'y a jamais eu de réinitialisation, la vérification porte sur tout l'historique. Si l'historique des réinitialisations ne peut pas être chargé, seule cette détection est suspendue afin d'éviter les faux positifs.
+
 Pour les écritures multilignes et les transactions hors suivi budgétaire, l'application ne devine pas les catégories budgétaires à moins que des allocations explicites ne soient enregistrées. Modifiez l'écriture depuis le Journal si nécessaire, ou utilisez l'Ajustement budgétaire pour corriger uniquement le budget actuel.
 
 Cet onglet montre également le tableau de placement budgétaire. Il compare les comptes de détention cibles configurés sur les catégories budgétaires avec les soldes réels en liquidités/bancaire, puis montre des indications sur combien déplacer entre les groupes de comptes ou combien de budget ajouter ou réduire.

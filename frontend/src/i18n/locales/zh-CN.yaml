@@ -771,6 +771,10 @@ budgetConsistencyIssues: "检测到 {n} 条可疑交易"
 budgetConsistencyChecked: "已检查 {n} 条"
 budgetCheckIssue: 问题
 budgetCheckAllocated: 已分配
+budgetFundingMissingIssue: 借贷交易的预算资金明细尚未填写
+budgetFundingLastResetLabel: "借贷未填写检查从最后一次预算重置后开始：{date}"
+budgetFundingNoResetBoundary: 没有预算重置记录，因此检查整个期间的借贷交易。
+budgetFundingResetLoadError: 无法载入最后一次预算重置，借贷未填写检查已暂时停止。
 suspiciousExpenseNoAlloc: 支出未在任何预算类别中跟踪
 suspiciousExpenseMismatch: "支出与分配差异：实际 ¥{actual} / 已分配 ¥{allocated}"
 suspiciousIncomeMismatch: "收入与分配差异：实际 ¥{actual} / 已分配 ¥{distributed}"

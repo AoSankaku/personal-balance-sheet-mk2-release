@@ -28,6 +28,8 @@ Las tarjetas de crédito a menudo difieren porque la fecha de uso, la fecha de c
 
 La verificación de consistencia del presupuesto verifica si los montos de ingresos/gastos de los asientos contables coinciden con los montos de asignación presupuestaria guardados. Detecta asientos con asignaciones faltantes o montos no coincidentes.
 
+El rango de fechas se define dentro de esta verificación de consistencia. La misma lista también muestra préstamos concedidos, préstamos recibidos, devoluciones y cobros introducidos después del último reinicio del presupuesto cuando no se guardó el desglose de financiación presupuestaria. Si nunca hubo un reinicio, se revisa todo el historial. Si no se puede cargar el historial de reinicios, solo se pausa esta detección para evitar falsos positivos.
+
 Para entradas multilínea y transacciones fuera del seguimiento de presupuesto, la aplicación no adivina categorías de presupuesto a menos que se hayan guardado asignaciones explícitas. Edita el asiento desde el Libro Mayor si es necesario, o usa Ajuste de Presupuesto para corregir solo el presupuesto actual.
 
 Esta pestaña también muestra la tabla de Colocación del Presupuesto. Compara las cuentas de tenencia objetivo configuradas en las categorías de presupuesto con los saldos reales de efectivo/bancario, y luego muestra sugerencias sobre cuánto mover entre grupos de cuentas o cuánto presupuesto agregar o reducir.

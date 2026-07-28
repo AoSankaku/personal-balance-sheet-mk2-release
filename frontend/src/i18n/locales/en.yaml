@@ -771,6 +771,10 @@ budgetConsistencyIssues: "{n} suspicious transaction(s) detected"
 budgetConsistencyChecked: "{n} checked"
 budgetCheckIssue: Issue
 budgetCheckAllocated: Allocated
+budgetFundingMissingIssue: The loan or lending budget funding breakdown is missing
+budgetFundingLastResetLabel: "Loan funding check starts after the latest budget reset: {date}"
+budgetFundingNoResetBoundary: No budget reset exists, so loan and lending entries are checked for the full period.
+budgetFundingResetLoadError: Loan funding completeness is paused because the latest budget reset could not be loaded.
 suspiciousExpenseNoAlloc: Expense not tracked in any budget category
 suspiciousExpenseMismatch: "Expense vs allocation gap: actual ¥{actual} / allocated ¥{allocated}"
 suspiciousIncomeMismatch: "Income vs distribution gap: actual ¥{actual} / distributed ¥{distributed}"

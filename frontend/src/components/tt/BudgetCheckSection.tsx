@@ -15,8 +15,15 @@ import { DatePickerInput } from "@mantine/dates";
 import { IconAlertTriangle, IconCircleCheck } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import type { BudgetAdjustmentLog } from "@balance-sheet/shared";
+import { api } from "../../api/client";
 import { useLang } from "../../i18n";
 import { useAppData } from "../../context/AppDataContext";
+import {
+  findLatestBudgetResetBoundary,
+  getLoanBudgetFundingPrincipal,
+  isLoanBudgetFundingMissing,
+} from "../../lib/budgetFundingCompleteness";
 import { formatJPY } from "../../lib/numberFormat";
 import { BudgetPlacementTable } from "../BudgetPlacementTable";
 import {
@@ -52,6 +59,10 @@ export function BudgetCheckSection() {
     null,
     null,
   ]);
+  const [resetLogs, setResetLogs] = useState<BudgetAdjustmentLog[] | null>(
+    null,
+  );
+  const [resetLogsError, setResetLogsError] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(() =>
     getPageSize("tt:budgetCheckPageSize", 25),
@@ -80,6 +91,32 @@ export function BudgetCheckSection() {
   const excludedExpenseAllocationCategoryId =
     budgetSettings?.business_advance_budget_category_id ?? null;
 
+  useEffect(() => {
+    let active = true;
+    setResetLogs(null);
+    setResetLogsError(false);
+    api.budget
+      .listAdjustmentLogs({
+        currency: displayCurrency || "JPY",
+        resetsOnly: true,
+      })
+      .then((logs) => {
+        if (active) setResetLogs(logs);
+      })
+      .catch(() => {
+        if (active) setResetLogsError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [displayCurrency]);
+
+  const latestResetBoundary = useMemo(
+    () =>
+      resetLogs == null ? null : findLatestBudgetResetBoundary(resetLogs),
+    [resetLogs],
+  );
+
   const suspiciousEntries = useMemo(() => {
     return filteredJournal.flatMap((entry) => {
       const reasons = getSuspiciousReasons(
@@ -88,14 +125,29 @@ export function BudgetCheckSection() {
         locale,
         excludedExpenseAllocationCategoryId,
       );
+      const missingLoanFunding =
+        resetLogs != null &&
+        isLoanBudgetFundingMissing(
+          entry,
+          accountMap,
+          latestResetBoundary,
+          displayCurrency || "JPY",
+        );
+      if (missingLoanFunding) {
+        reasons.push(t("budgetFundingMissingIssue"));
+      }
       if (reasons.length === 0) return [];
-      return [{ entry, reasons }];
+      return [{ entry, reasons, missingLoanFunding }];
     });
   }, [
     filteredJournal,
     accountMap,
     locale,
     excludedExpenseAllocationCategoryId,
+    latestResetBoundary,
+    resetLogs,
+    displayCurrency,
+    t,
   ]);
 
   const pageCount = Math.max(1, Math.ceil(suspiciousEntries.length / pageSize));
@@ -117,58 +169,6 @@ export function BudgetCheckSection() {
 
   return (
     <Stack gap="md">
-      <Group align="flex-end" gap="xs" wrap="wrap">
-        <DatePickerInput
-          type="range"
-          value={dateRange}
-          onChange={setDateRange}
-          clearable
-          placeholder={
-            locale === "ja"
-              ? "Date range (blank = all)"
-              : "Date range (blank = all)"
-          }
-          valueFormat="YYYY/MM/DD"
-          w={240}
-          size="sm"
-        />
-        <Button
-          size="sm"
-          variant="default"
-          onClick={() =>
-            setDateRange([new Date(now.getFullYear(), now.getMonth(), 1), now])
-          }
-        >
-          {t("filterThisMonth")}
-        </Button>
-        <Button
-          size="sm"
-          variant="default"
-          onClick={() =>
-            setDateRange([
-              new Date(now.getFullYear(), now.getMonth() - 1, 1),
-              new Date(now.getFullYear(), now.getMonth(), 0),
-            ])
-          }
-        >
-          {t("filterLastMonth")}
-        </Button>
-        <Button
-          size="sm"
-          variant="default"
-          onClick={() => setDateRange([new Date(now.getFullYear(), 0, 1), now])}
-        >
-          {t("filterThisYear")}
-        </Button>
-        <Button
-          size="sm"
-          variant="default"
-          onClick={() => setDateRange([null, null])}
-        >
-          {t("filterAll")}
-        </Button>
-      </Group>
-
       <Paper withBorder radius="md" p="md">
         <Group justify="flex-end" mb="md">
           <SegmentedControl
@@ -232,6 +232,74 @@ export function BudgetCheckSection() {
           </Group>
         </Group>
 
+        <Group align="flex-end" gap="xs" wrap="wrap" mb="xs">
+          <DatePickerInput
+            type="range"
+            value={dateRange}
+            onChange={setDateRange}
+            clearable
+            placeholder={t("dateRangePlaceholder")}
+            valueFormat="YYYY/MM/DD"
+            w={240}
+            size="sm"
+          />
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() =>
+              setDateRange([
+                new Date(now.getFullYear(), now.getMonth(), 1),
+                now,
+              ])
+            }
+          >
+            {t("filterThisMonth")}
+          </Button>
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() =>
+              setDateRange([
+                new Date(now.getFullYear(), now.getMonth() - 1, 1),
+                new Date(now.getFullYear(), now.getMonth(), 0),
+              ])
+            }
+          >
+            {t("filterLastMonth")}
+          </Button>
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() =>
+              setDateRange([new Date(now.getFullYear(), 0, 1), now])
+            }
+          >
+            {t("filterThisYear")}
+          </Button>
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => setDateRange([null, null])}
+          >
+            {t("filterAll")}
+          </Button>
+        </Group>
+
+        {resetLogsError ? (
+          <Text size="xs" c="red" mb="sm">
+            {t("budgetFundingResetLoadError")}
+          </Text>
+        ) : resetLogs != null ? (
+          <Text size="xs" c="dimmed" mb="sm">
+            {latestResetBoundary
+              ? t("budgetFundingLastResetLabel").replace(
+                  "{date}",
+                  latestResetBoundary.date,
+                )
+              : t("budgetFundingNoResetBoundary")}
+          </Text>
+        ) : null}
+
         {suspiciousEntries.length === 0 ? (
           <Text size="sm" c="dimmed">
             {t("budgetConsistencyClear").replace(
@@ -287,7 +355,7 @@ export function BudgetCheckSection() {
                   <Table.Th>Date</Table.Th>
                   <Table.Th>Description</Table.Th>
                   <Table.Th className="currency-cell">
-                    {locale === "ja" ? "費用" : "Expense"}
+                    {t("amountLabel")}
                   </Table.Th>
                   <Table.Th className="currency-cell">
                     {t("budgetCheckAllocated")}
@@ -296,74 +364,86 @@ export function BudgetCheckSection() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {pagedEntries.map(({ entry, reasons }) => {
-                  const {
-                    totalExpense,
-                    totalIncome,
-                    totalExpenseAllocated,
-                    totalIncomeAllocated,
-                  } = getBudgetCheckTotals(
-                    entry,
-                    accountMap,
-                    excludedExpenseAllocationCategoryId,
-                  );
-                  const displayAmount =
-                    totalExpense > 0 ? totalExpense : totalIncome;
-                  const totalAllocated =
-                    totalExpense > 0
-                      ? totalExpenseAllocated
-                      : totalIncomeAllocated;
-                  const allocatedCatNames = [
-                    ...(entry.budget_allocations ?? []),
-                    ...(entry.income_budget_allocations ?? []),
-                  ]
-                    .map((a) => categoryMap.get(a.budget_category_id))
-                    .filter(Boolean)
-                    .join(", ");
-                  return (
-                    <Table.Tr
-                      key={entry.id}
-                      style={{
-                        background: "var(--mantine-color-red-light)",
-                      }}
-                    >
-                      <Table.Td style={{ whiteSpace: "nowrap" }}>
-                        {entry.date}
-                      </Table.Td>
-                      <Table.Td>{entry.description}</Table.Td>
-                      <Table.Td className="currency-cell">
-                        {formatJPY(displayAmount, locale)}
-                      </Table.Td>
-                      <Table.Td className="currency-cell">
-                        {totalAllocated > 0 ? (
-                          <Text
-                            size="sm"
-                            title={allocatedCatNames || undefined}
-                          >
-                            {formatJPY(totalAllocated, locale)}
-                            {allocatedCatNames && (
-                              <Text size="xs" c="dimmed" span>
-                                {" "}
-                                ({allocatedCatNames})
-                              </Text>
-                            )}
-                          </Text>
-                        ) : (
-                          <Text size="sm" c="dimmed">
-                            —{" "}
-                          </Text>
-                        )}
-                      </Table.Td>
-                      <Table.Td>
-                        {reasons.map((r, i) => (
-                          <Text key={i} size="xs" c="red">
-                            {r}
-                          </Text>
-                        ))}
-                      </Table.Td>
-                    </Table.Tr>
-                  );
-                })}
+                {pagedEntries.map(
+                  ({ entry, reasons, missingLoanFunding }) => {
+                    const {
+                      totalExpense,
+                      totalIncome,
+                      totalExpenseAllocated,
+                      totalIncomeAllocated,
+                    } = getBudgetCheckTotals(
+                      entry,
+                      accountMap,
+                      excludedExpenseAllocationCategoryId,
+                    );
+                    const displayAmount =
+                      totalExpense > 0
+                        ? totalExpense
+                        : totalIncome > 0
+                          ? totalIncome
+                          : missingLoanFunding
+                            ? getLoanBudgetFundingPrincipal(
+                                entry,
+                                accountMap,
+                                displayCurrency || "JPY",
+                              )
+                            : 0;
+                    const totalAllocated =
+                      totalExpense > 0
+                        ? totalExpenseAllocated
+                        : totalIncomeAllocated;
+                    const allocatedCatNames = [
+                      ...(entry.budget_allocations ?? []),
+                      ...(entry.income_budget_allocations ?? []),
+                    ]
+                      .map((a) => categoryMap.get(a.budget_category_id))
+                      .filter(Boolean)
+                      .join(", ");
+                    return (
+                      <Table.Tr
+                        key={entry.id}
+                        style={{
+                          background: "var(--mantine-color-red-light)",
+                        }}
+                      >
+                        <Table.Td style={{ whiteSpace: "nowrap" }}>
+                          {entry.date}
+                        </Table.Td>
+                        <Table.Td>{entry.description}</Table.Td>
+                        <Table.Td className="currency-cell">
+                          {formatJPY(displayAmount, locale)}
+                        </Table.Td>
+                        <Table.Td className="currency-cell">
+                          {totalAllocated > 0 ? (
+                            <Text
+                              size="sm"
+                              title={allocatedCatNames || undefined}
+                            >
+                              {formatJPY(totalAllocated, locale)}
+                              {allocatedCatNames && (
+                                <Text size="xs" c="dimmed" span>
+                                  {" "}
+                                  ({allocatedCatNames})
+                                </Text>
+                              )}
+                            </Text>
+                          ) : (
+                            <Text size="sm" c="dimmed">
+                              —{" "}
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          {reasons.map((r, i) => (
+                            <Text key={i} size="xs" c="red">
+                              {r}
+                            </Text>
+                          ))}
+                        </Table.Td>
+                      </Table.Tr>
+                    );
+                  },
+                )}
               </Table.Tbody>
             </Table>
           </Stack>
