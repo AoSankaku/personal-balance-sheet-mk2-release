@@ -433,11 +433,13 @@ export const api = {
       from?: string;
       to?: string;
       currency?: string;
+      resetsOnly?: boolean;
     }) => {
       const q = new URLSearchParams();
       if (params?.from) q.set("from", params.from);
       if (params?.to) q.set("to", params.to);
       if (params?.currency) q.set("currency", params.currency);
+      if (params?.resetsOnly) q.set("resets_only", "1");
       const qs = q.toString();
       return cachedRequest<BudgetAdjustmentLog[]>(
         `/budget/adjustment-logs${qs ? `?${qs}` : ""}`,

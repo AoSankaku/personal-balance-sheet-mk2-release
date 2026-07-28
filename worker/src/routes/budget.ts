@@ -827,6 +827,7 @@ router.patch("/settings", async (c) => {
 router.get("/adjustment-logs", async (c) => {
   const from = c.req.query("from");
   const to = c.req.query("to");
+  const resetsOnly = c.req.query("resets_only") === "1";
   const currency = normalizeCurrency(c.req.query("currency"));
 
   const db = createDb(c.env);
@@ -842,22 +843,24 @@ router.get("/adjustment-logs", async (c) => {
     .orderBy(sql`${budgetAdjustmentLogs.date} DESC`);
 
   // Journal-entry-backed expense allocations (simple / multiline)
-  const journalAllocRows = await db
-    .select({
-      id: journalEntryBudgetAllocations.id,
-      journal_entry_id: journalEntryBudgetAllocations.journal_entry_id,
-      budget_category_id: journalEntryBudgetAllocations.budget_category_id,
-      amount: journalEntryBudgetAllocations.amount,
-      currency: journalEntryBudgetAllocations.currency,
-      source: journalEntryBudgetAllocations.source,
-      date: journalEntries.date,
-      created_at: journalEntryBudgetAllocations.created_at,
-    })
-    .from(journalEntryBudgetAllocations)
-    .innerJoin(
-      journalEntries,
-      eq(journalEntryBudgetAllocations.journal_entry_id, journalEntries.id),
-    );
+  const journalAllocRows = resetsOnly
+    ? []
+    : await db
+        .select({
+          id: journalEntryBudgetAllocations.id,
+          journal_entry_id: journalEntryBudgetAllocations.journal_entry_id,
+          budget_category_id: journalEntryBudgetAllocations.budget_category_id,
+          amount: journalEntryBudgetAllocations.amount,
+          currency: journalEntryBudgetAllocations.currency,
+          source: journalEntryBudgetAllocations.source,
+          date: journalEntries.date,
+          created_at: journalEntryBudgetAllocations.created_at,
+        })
+        .from(journalEntryBudgetAllocations)
+        .innerJoin(
+          journalEntries,
+          eq(journalEntryBudgetAllocations.journal_entry_id, journalEntries.id),
+        );
 
   type LogEntry = {
     id: number;
@@ -925,6 +928,7 @@ router.get("/adjustment-logs", async (c) => {
 
   const filtered = combined.filter((row) => {
     if (normalizeCurrency(row.currency) !== currency) return false;
+    if (resetsOnly && row.adjustment_type !== "reset") return false;
     if (from && row.date < from) return false;
     if (to && row.date > to) return false;
     return true;

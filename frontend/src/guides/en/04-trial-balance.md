@@ -27,6 +27,8 @@ Credit cards often differ because usage date, cutoff date, confirmation date, wi
 
 The budget consistency check verifies whether journal entry income/expense amounts match saved budget allocation amounts. It detects entries with missing allocations or mismatched amounts.
 
+Set the date range inside this consistency check. The same list also shows lending, borrowing, repayment, and collection entries entered after the latest budget reset when no budget-funding breakdown was saved. If there has never been a budget reset, the check covers the full history. If reset history cannot be loaded, only this missing loan-funding check is paused to avoid false positives.
+
 For multi-line entries and transactions outside budget tracking, the app does not guess budget categories unless explicit allocations are saved. Edit the entry from the Ledger if needed, or use Budget Adjustment to correct only the current budget.
 
 This tab also shows the Budget Placement table. It compares target holding accounts configured on budget categories with actual cash/bank balances, then shows hints for how much to move between account groups or how much budget to add or reduce.

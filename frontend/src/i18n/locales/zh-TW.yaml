@@ -771,6 +771,10 @@ budgetConsistencyIssues: "偵測到 {n} 筆可疑交易"
 budgetConsistencyChecked: "已檢查 {n} 筆"
 budgetCheckIssue: 問題
 budgetCheckAllocated: 已分配
+budgetFundingMissingIssue: 借貸交易的預算資金明細尚未填寫
+budgetFundingLastResetLabel: "借貸未填寫檢查從最後一次預算重設後開始：{date}"
+budgetFundingNoResetBoundary: 沒有預算重設記錄，因此檢查整個期間的借貸交易。
+budgetFundingResetLoadError: 無法載入最後一次預算重設，借貸未填寫檢查已暫時停止。
 suspiciousExpenseNoAlloc: 支出未在任何預算類別中追蹤
 suspiciousExpenseMismatch: "支出與分配差異：實際 ¥{actual} / 已分配 ¥{allocated}"
 suspiciousIncomeMismatch: "收入與分配差異：實際 ¥{actual} / 已分配 ¥{distributed}"

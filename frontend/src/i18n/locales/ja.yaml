@@ -771,6 +771,10 @@ budgetConsistencyIssues: "{n}件の疑わしい取引を検出"
 budgetConsistencyChecked: "{n}件チェック済み"
 budgetCheckIssue: 問題
 budgetCheckAllocated: 配分
+budgetFundingMissingIssue: 貸し借りの予算資金内訳が未入力です
+budgetFundingLastResetLabel: "貸し借り未入力の確認起点: 最後の予算リセット {date}"
+budgetFundingNoResetBoundary: 予算リセット履歴がないため、全期間の貸し借りを確認します。
+budgetFundingResetLoadError: 最後の予算リセットを取得できなかったため、貸し借りの未入力確認を一時停止しています。
 suspiciousExpenseNoAlloc: 費用が予算カテゴリに配分されていません
 suspiciousExpenseMismatch: "費用額と予算配分の差異: 実際¥{actual} / 配分¥{allocated}"
 suspiciousIncomeMismatch: "収入額と予算分配の差異: 実際¥{actual} / 分配¥{distributed}"
