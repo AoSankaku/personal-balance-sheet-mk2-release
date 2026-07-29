@@ -416,6 +416,8 @@ budgetHistoryModeCategories: 按預算
 budgetHistoryCategorySummaryCount: "{count} 個預算類別"
 budgetHistoryEntryCount: "{count} 筆"
 budgetHistoryLatestInput: 最近輸入
+budgetHistoryLatestReset: 最後重設日期
+budgetHistoryShowBeforeLatestReset: 顯示同一預算類別最後重設之前的記錄
 budgetHistoryAdjustedTotal: 預算金額
 budgetHistoryPeriodRunningTotal: 期間累計
 budgetHistoryInputTimestamp: 輸入時間

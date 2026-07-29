@@ -416,6 +416,8 @@ budgetHistoryModeCategories: 按预算
 budgetHistoryCategorySummaryCount: "{count} 个预算类别"
 budgetHistoryEntryCount: "{count} 条"
 budgetHistoryLatestInput: 最近输入
+budgetHistoryLatestReset: 最后重置日期
+budgetHistoryShowBeforeLatestReset: 显示同一预算类别最后重置之前的记录
 budgetHistoryAdjustedTotal: 预算金额
 budgetHistoryPeriodRunningTotal: 期间累计
 budgetHistoryInputTimestamp: 输入时间

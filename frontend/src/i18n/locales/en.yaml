@@ -416,6 +416,8 @@ budgetHistoryModeCategories: By Budget
 budgetHistoryCategorySummaryCount: "{count} budget categories"
 budgetHistoryEntryCount: "{count} entries"
 budgetHistoryLatestInput: Latest input
+budgetHistoryLatestReset: Latest reset
+budgetHistoryShowBeforeLatestReset: Show entries before the latest reset for the same budget
 budgetHistoryAdjustedTotal: Budget Amount
 budgetHistoryPeriodRunningTotal: Range Total
 budgetHistoryInputTimestamp: Input Time

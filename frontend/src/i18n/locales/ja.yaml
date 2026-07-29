@@ -416,6 +416,8 @@ budgetHistoryModeCategories: 予算別
 budgetHistoryCategorySummaryCount: "{count} 件の予算"
 budgetHistoryEntryCount: "{count} 件"
 budgetHistoryLatestInput: 最新入力
+budgetHistoryLatestReset: 最終リセット日
+budgetHistoryShowBeforeLatestReset: 同じ予算科目の最終リセット以前も表示
 budgetHistoryAdjustedTotal: 予算額
 budgetHistoryPeriodRunningTotal: 期間内累計
 budgetHistoryInputTimestamp: 入力日時

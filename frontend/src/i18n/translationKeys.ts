@@ -424,6 +424,8 @@ export const translationKeys = [
   "budgetHistoryCategorySummaryCount",
   "budgetHistoryEntryCount",
   "budgetHistoryLatestInput",
+  "budgetHistoryLatestReset",
+  "budgetHistoryShowBeforeLatestReset",
   "budgetHistoryAdjustedTotal",
   "budgetHistoryPeriodRunningTotal",
   "budgetHistoryInputTimestamp",

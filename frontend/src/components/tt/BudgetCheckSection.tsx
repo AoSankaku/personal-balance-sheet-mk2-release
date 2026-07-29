@@ -1,4 +1,5 @@
 import {
+  ActionIcon,
   Badge,
   Button,
   Group,
@@ -12,20 +13,32 @@ import {
   ThemeIcon,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
-import { IconAlertTriangle, IconCircleCheck } from "@tabler/icons-react";
+import { useDisclosure } from "@mantine/hooks";
+import {
+  IconAlertTriangle,
+  IconCircleCheck,
+  IconPencil,
+} from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { BudgetAdjustmentLog } from "@balance-sheet/shared";
+import type {
+  BudgetAdjustmentLog,
+  CreateJournalInput,
+  JournalEntry,
+} from "@balance-sheet/shared";
 import { api } from "../../api/client";
 import { useLang } from "../../i18n";
 import { useAppData } from "../../context/AppDataContext";
+import { usePrivacy } from "../../context/PrivacyContext";
 import {
   findLatestBudgetResetBoundary,
   getLoanBudgetFundingPrincipal,
   isLoanBudgetFundingMissing,
 } from "../../lib/budgetFundingCompleteness";
 import { formatJPY } from "../../lib/numberFormat";
+import { showFeedback } from "../../lib/feedback";
 import { BudgetPlacementTable } from "../BudgetPlacementTable";
+import { JournalModal } from "../JournalModal";
 import {
   getBudgetCheckTotals,
   getSuspiciousReasons,
@@ -35,6 +48,7 @@ import {
 
 export function BudgetCheckSection() {
   const { t, locale } = useLang();
+  const { privacyMode } = usePrivacy();
   const {
     accounts,
     accountsToday,
@@ -45,6 +59,9 @@ export function BudgetCheckSection() {
     budgetSummaryToday,
     budgetSummaryTotal,
     displayCurrency,
+    refresh,
+    refreshAllocatable,
+    refreshBudget,
   } = useAppData();
   const [searchParams, setSearchParams] = useSearchParams();
   const placementBasis =
@@ -67,6 +84,11 @@ export function BudgetCheckSection() {
   const [pageSize, setPageSize] = useState(() =>
     getPageSize("tt:budgetCheckPageSize", 25),
   );
+  const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
+  const [
+    journalEditOpened,
+    { open: openJournalEdit, close: closeJournalEdit },
+  ] = useDisclosure(false);
 
   const filteredJournal = useMemo(() => {
     const [from, to] = dateRange;
@@ -166,6 +188,39 @@ export function BudgetCheckSection() {
   }, [dateRange]);
 
   const now = new Date();
+
+  function handleEditJournal(entry: JournalEntry) {
+    if (privacyMode) return;
+    setEditingEntry(entry);
+    openJournalEdit();
+  }
+
+  async function handleSaveJournalEdit(
+    values: CreateJournalInput,
+    meta?: import("../SimpleEntryForm").SimpleEntryMeta,
+  ) {
+    if (privacyMode || !editingEntry) return;
+    if (meta?.depreciationUpdate) {
+      await api.depreciation.update(
+        meta.depreciationUpdate.scheduleId,
+        meta.depreciationUpdate.input,
+      );
+    } else {
+      await api.journal.update(editingEntry.id, {
+        ...values,
+        lines: values.lines.map((line) => ({
+          currency: displayCurrency,
+          ...line,
+        })),
+      });
+    }
+    showFeedback({ message: t("transactionSaved"), color: "teal" });
+    closeJournalEdit();
+    setEditingEntry(null);
+    refresh();
+    void refreshAllocatable();
+    void refreshBudget();
+  }
 
   return (
     <Stack gap="md">
@@ -361,6 +416,7 @@ export function BudgetCheckSection() {
                     {t("budgetCheckAllocated")}
                   </Table.Th>
                   <Table.Th>{t("budgetCheckIssue")}</Table.Th>
+                  {!privacyMode && <Table.Th />}
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -440,6 +496,18 @@ export function BudgetCheckSection() {
                             </Text>
                           ))}
                         </Table.Td>
+                        {!privacyMode && (
+                          <Table.Td>
+                            <ActionIcon
+                              size="sm"
+                              variant="subtle"
+                              onClick={() => handleEditJournal(entry)}
+                              aria-label={t("editLabel")}
+                            >
+                              <IconPencil size={14} />
+                            </ActionIcon>
+                          </Table.Td>
+                        )}
                       </Table.Tr>
                     );
                   },
@@ -449,6 +517,16 @@ export function BudgetCheckSection() {
           </Stack>
         )}
       </Paper>
+      <JournalModal
+        opened={journalEditOpened}
+        accounts={accounts}
+        editEntry={editingEntry ?? undefined}
+        onClose={() => {
+          closeJournalEdit();
+          setEditingEntry(null);
+        }}
+        onSubmit={handleSaveJournalEdit}
+      />
     </Stack>
   );
 }
