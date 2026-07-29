@@ -22,6 +22,7 @@ import type {
 import { api } from "../api/client";
 import { useLang } from "../i18n";
 import { showFeedback } from "../lib/feedback";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 type ProductApiCredentialField = keyof UpsertProductApiCredentialInput;
 
@@ -50,6 +51,8 @@ export default function ProductApiSettingsPage() {
   const [statuses, setStatuses] = useState<ProductApiCredentialStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingProvider, setSavingProvider] =
+    useState<ProductApiProvider | null>(null);
+  const [clearProviderTarget, setClearProviderTarget] =
     useState<ProductApiProvider | null>(null);
   const [forms, setForms] = useState<
     Record<ProductApiProvider, UpsertProductApiCredentialInput>
@@ -184,7 +187,6 @@ export default function ProductApiSettingsPage() {
   };
 
   const clearProvider = async (provider: ProductApiProvider) => {
-    if (!window.confirm(t("productApiSettingsClearConfirm"))) return;
     setSavingProvider(provider);
     try {
       await api.productApiCredentials.delete(provider);
@@ -313,7 +315,7 @@ export default function ProductApiSettingsPage() {
                     variant="default"
                     leftSection={<IconTrash size={14} />}
                     disabled={!configured || savingProvider === config.provider}
-                    onClick={() => void clearProvider(config.provider)}
+                    onClick={() => setClearProviderTarget(config.provider)}
                   >
                     {t("productApiClear")}
                   </Button>
@@ -330,6 +332,21 @@ export default function ProductApiSettingsPage() {
           })}
         </Stack>
       )}
+      <ConfirmModal
+        opened={clearProviderTarget != null}
+        onClose={() => setClearProviderTarget(null)}
+        onConfirm={() => {
+          if (clearProviderTarget) void clearProvider(clearProviderTarget);
+        }}
+        title={t("productApiSettingsClearConfirmTitle")}
+        message={t("productApiSettingsClearConfirm")}
+        confirmLabel={t("productApiClear")}
+        confirmColor="red"
+        loading={
+          clearProviderTarget != null &&
+          savingProvider === clearProviderTarget
+        }
+      />
     </Stack>
   );
 }

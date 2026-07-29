@@ -47,6 +47,7 @@ productApiSettingsConfiguredLast4: 已儲存，末尾
 productApiSettingsNoInput: 請輸入至少一個要儲存的值。
 productApiSettingsSaved: API 金鑰設定已儲存。
 productApiSettingsCleared: API 金鑰設定已刪除。
+productApiSettingsClearConfirmTitle: 刪除 API 金鑰設定
 productApiSettingsClearConfirm: 要刪除此 API 金鑰設定嗎？
 privacyModeBlockedTitle: 隱私模式已開啟
 privacyModeBlockedMessage: 隱私模式開啟時不能使用此頁面。如需編輯，請在設定 > 一般中關閉。
@@ -1371,9 +1372,11 @@ incomeTransferFindExisting: 尋找現有轉帳
 incomeTransferCancelCompletion: 取消完成
 incomeTransferNoTasks: 沒有待處理的帳戶移動。
 incomeTransferLinkedBudgetWarning: 此轉帳還包含預算移動記錄，關聯時將刪除這些記錄。
+incomeTransferLinkedBudgetConfirmTitle: 關聯轉帳並刪除預算移動
 incomeTransferHistoricalTitle: 從歷史收入分配中找到的帳戶移動
 incomeTransferHistoricalHint: 僅顯示各分類最近一次重設後的分配。確認前不會登記或連結任何內容。
 incomeTransferHistoricalConfirm: 將此收入分配登記為待處理帳戶移動嗎？
+incomeTransferHistoricalConfirmTitle: 登記待處理帳戶移動
 incomeTransferRegister: 確認並登記移動
 incomeTransferTargetMissing: 尚未設定預算配置帳戶。請在預算分類設定中指定。
 incomeTransferEditConflict: 此修改與已完成的帳戶移動衝突。請先在帳簿的移動任務中取消完成，再進行編輯。

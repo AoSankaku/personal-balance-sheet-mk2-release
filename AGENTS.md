@@ -234,6 +234,12 @@ When adding or changing user-facing copy, update every supported locale file in 
 - Worker `tsconfig` lacks `skipLibCheck` — `node_modules` type errors are noise; only `src/` errors matter
 - Auth is handled externally by Cloudflare Zero Trust — no app-level auth code needed
 
+## Browser Dialogs
+
+- Never use native blocking browser dialogs: `window.alert` / `alert`, `window.confirm` / `confirm`, or `window.prompt` / `prompt`.
+- Use the shared `ConfirmModal` or another accessible Mantine `Modal` for blocking confirmation and information. Use `showFeedback` for transient, non-blocking status messages.
+- Dialogs must have a visible title and an explicit close or cancel action. Preserve keyboard focus containment and Escape-key dismissal unless interrupting the operation would be unsafe.
+
 ## File Encoding — Mojibake Prevention
 
 ### What happened (2026-04-14)

@@ -47,6 +47,7 @@ productApiSettingsConfiguredLast4: "Enregistré, fin"
 productApiSettingsNoInput: "Saisissez au moins une valeur à enregistrer."
 productApiSettingsSaved: "Paramètres de clé API enregistrés."
 productApiSettingsCleared: "Paramètres de clé API supprimés."
+productApiSettingsClearConfirmTitle: Supprimer les paramètres de clé API
 productApiSettingsClearConfirm: "Supprimer ce paramètre de clé API ?"
 privacyModeBlockedTitle: "Mode confidentialité actif"
 privacyModeBlockedMessage: "Cette page n'est pas utilisable en mode confidentialité. Désactivez-le dans Paramètres > Général pour modifier les données."
@@ -1371,9 +1372,11 @@ incomeTransferFindExisting: Rechercher un virement existant
 incomeTransferCancelCompletion: Annuler l'achèvement
 incomeTransferNoTasks: Aucun virement en attente.
 incomeTransferLinkedBudgetWarning: Ce virement contient aussi des mouvements budgétaires. Ils seront supprimés lors de l'association.
+incomeTransferLinkedBudgetConfirmTitle: Associer le virement et supprimer le mouvement budgétaire
 incomeTransferHistoricalTitle: Virements détectés dans les répartitions de revenus passées
 incomeTransferHistoricalHint: Seules les répartitions postérieures à la dernière réinitialisation de chaque catégorie sont affichées. Rien n'est enregistré ni associé sans confirmation.
 incomeTransferHistoricalConfirm: Enregistrer cette répartition comme virement en attente ?
+incomeTransferHistoricalConfirmTitle: Enregistrer le virement en attente
 incomeTransferRegister: Confirmer et enregistrer
 incomeTransferTargetMissing: Aucun compte de placement n'est configuré. Définissez-en un dans la catégorie budgétaire.
 incomeTransferEditConflict: Cette modification contredit un virement terminé. Annulez son achèvement dans la tâche de virement du journal avant de modifier.

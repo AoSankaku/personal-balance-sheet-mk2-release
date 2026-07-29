@@ -18,6 +18,16 @@ import { api, ApiError } from "../api/client";
 import { useLang } from "../i18n";
 import { formatCurrency } from "../lib/numberFormat";
 import { showFeedback } from "../lib/feedback";
+import { ConfirmModal } from "./ConfirmModal";
+
+type TransferCandidate = JournalEntry & {
+  has_budget_adjustment_logs: boolean;
+};
+
+interface HistoricalRegistrationConfirmation {
+  candidate: IncomeTransferHistoricalCandidate;
+  targetId: number;
+}
 
 export function IncomeTransferTasks() {
   const { t, locale } = useLang();
@@ -31,11 +41,13 @@ export function IncomeTransferTasks() {
   const [historicalTargets, setHistoricalTargets] = useState<
     Record<string, number>
   >({});
-  const [candidates, setCandidates] = useState<
-    Array<JournalEntry & { has_budget_adjustment_logs: boolean }>
-  >([]);
+  const [candidates, setCandidates] = useState<TransferCandidate[]>([]);
   const [candidateGroup, setCandidateGroup] =
     useState<IncomeTransferRequirementGroup | null>(null);
+  const [linkConfirmation, setLinkConfirmation] =
+    useState<TransferCandidate | null>(null);
+  const [historicalConfirmation, setHistoricalConfirmation] =
+    useState<HistoricalRegistrationConfirmation | null>(null);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -93,16 +105,8 @@ export function IncomeTransferTasks() {
     }
   }
 
-  async function linkCandidate(
-    entry: JournalEntry & { has_budget_adjustment_logs: boolean },
-  ) {
+  async function performLinkCandidate(entry: TransferCandidate) {
     if (!candidateGroup) return;
-    if (
-      entry.has_budget_adjustment_logs &&
-      !window.confirm(t("incomeTransferLinkedBudgetWarning"))
-    ) {
-      return;
-    }
     await run(() =>
       api.incomeTransferRequirements.link(
         candidateGroup.requirement_ids[0]!,
@@ -114,7 +118,16 @@ export function IncomeTransferTasks() {
     setCandidates([]);
   }
 
-  async function registerHistorical(
+  function linkCandidate(entry: TransferCandidate) {
+    if (!candidateGroup) return;
+    if (entry.has_budget_adjustment_logs) {
+      setLinkConfirmation(entry);
+      return;
+    }
+    void performLinkCandidate(entry);
+  }
+
+  function registerHistorical(
     candidate: IncomeTransferHistoricalCandidate,
   ) {
     const key = `${candidate.source_income_journal_entry_id}:${candidate.budget_category_id}`;
@@ -123,12 +136,14 @@ export function IncomeTransferTasks() {
       (candidate.target_accounts.length === 1
         ? candidate.target_accounts[0]!.id
         : null);
-    if (
-      targetId == null ||
-      !window.confirm(t("incomeTransferHistoricalConfirm"))
-    ) {
-      return;
-    }
+    if (targetId == null) return;
+    setHistoricalConfirmation({ candidate, targetId });
+  }
+
+  async function performHistoricalRegistration({
+    candidate,
+    targetId,
+  }: HistoricalRegistrationConfirmation) {
     await run(() =>
       api.incomeTransferRequirements.register({
         source_income_journal_entry_id:
@@ -304,7 +319,7 @@ export function IncomeTransferTasks() {
                           (candidate.target_accounts.length > 1 &&
                             historicalTargets[key] == null)
                         }
-                        onClick={() => void registerHistorical(candidate)}
+                        onClick={() => registerHistorical(candidate)}
                       >
                         {t("incomeTransferRegister")}
                       </Button>
@@ -335,7 +350,7 @@ export function IncomeTransferTasks() {
                     {entry.date}・#{entry.id}
                   </Text>
                 </Stack>
-                <Button size="xs" onClick={() => void linkCandidate(entry)}>
+                <Button size="xs" onClick={() => linkCandidate(entry)}>
                   {t("incomeTransferFindExisting")}
                 </Button>
               </Group>
@@ -343,6 +358,32 @@ export function IncomeTransferTasks() {
           )}
         </Stack>
       </Modal>
+      <ConfirmModal
+        opened={linkConfirmation != null}
+        onClose={() => setLinkConfirmation(null)}
+        onConfirm={() => {
+          if (linkConfirmation) void performLinkCandidate(linkConfirmation);
+        }}
+        title={t("incomeTransferLinkedBudgetConfirmTitle")}
+        message={t("incomeTransferLinkedBudgetWarning")}
+        confirmLabel={t("confirm")}
+        confirmColor="orange"
+        loading={loading}
+      />
+      <ConfirmModal
+        opened={historicalConfirmation != null}
+        onClose={() => setHistoricalConfirmation(null)}
+        onConfirm={() => {
+          if (historicalConfirmation) {
+            void performHistoricalRegistration(historicalConfirmation);
+          }
+        }}
+        title={t("incomeTransferHistoricalConfirmTitle")}
+        message={t("incomeTransferHistoricalConfirm")}
+        confirmLabel={t("incomeTransferRegister")}
+        confirmColor="blue"
+        loading={loading}
+      />
     </>
   );
 }
