@@ -416,6 +416,8 @@ budgetHistoryModeCategories: "Par Budget"
 budgetHistoryCategorySummaryCount: "Catégories budgétaires {count}"
 budgetHistoryEntryCount: "Entrées {count}"
 budgetHistoryLatestInput: "Dernière entrée"
+budgetHistoryLatestReset: "Dernière réinitialisation"
+budgetHistoryShowBeforeLatestReset: "Afficher les écritures antérieures à la dernière réinitialisation du même budget"
 budgetHistoryAdjustedTotal: "Montant budgétaire"
 budgetHistoryPeriodRunningTotal: "Plage Total"
 budgetHistoryInputTimestamp: "Temps d'entrée"
@@ -1345,3 +1347,34 @@ plannedExpenseWeekFallback_skip: "Ignorer ce mois"
 plannedExpenseWeekFallback_last_day_of_month: "Fin du mois la plus proche"
 plannedExpenseWeekFallback_previous_week: "Semaine precedente"
 plannedExpenseWeekFallback_next_month_first_week: "Premiere semaine du mois suivant"
+multiLineFundingTitle: Financement budgétaire des prêts
+multiLineFundingHint: Vérifiez le principal et les parts appliquées au budget ou clôturées uniquement comme composant.
+fundingKindBorrow: Emprunt
+fundingKindRepay: Remboursement
+fundingKindLend: Prêt
+fundingKindCollect: Recouvrement
+fundingPrincipal: Principal
+fundingApplied: Appliqué au budget
+fundingNotApplied: Non appliqué au budget
+fundingDiscarded: Budget abandonné par recouvrement exclu
+fundingConvertedToOwn: Converti en fonds propres par remboursement exclu
+fundingRestored: Budget restauré par recouvrement
+fundingResetCutoff: Non restauré après une réinitialisation
+fundingCategoryBreakdown: Répartition par catégorie et non allouée
+incomeTransferDestination: Compte de destination de la répartition
+incomeTransferRequiredTitle: Virement lié à la répartition du revenu
+incomeTransferRequiredHint: La destination est dans un autre groupe. Confirmez le compte.
+incomeTransferNoTarget: Cette catégorie n'a pas de compte cible. Aucun virement ne sera créé.
+incomeTransferTasksTitle: Virements liés aux revenus
+incomeTransferComplete: Créer le virement et terminer
+incomeTransferFindExisting: Rechercher un virement existant
+incomeTransferCancelCompletion: Annuler l'achèvement
+incomeTransferNoTasks: Aucun virement en attente.
+incomeTransferLinkedBudgetWarning: Ce virement contient aussi des mouvements budgétaires. Ils seront supprimés lors de l'association.
+incomeTransferHistoricalTitle: Virements détectés dans les répartitions de revenus passées
+incomeTransferHistoricalHint: Seules les répartitions postérieures à la dernière réinitialisation de chaque catégorie sont affichées. Rien n'est enregistré ni associé sans confirmation.
+incomeTransferHistoricalConfirm: Enregistrer cette répartition comme virement en attente ?
+incomeTransferRegister: Confirmer et enregistrer
+incomeTransferTargetMissing: Aucun compte de placement n'est configuré. Définissez-en un dans la catégorie budgétaire.
+incomeTransferEditConflict: Cette modification contredit un virement terminé. Annulez son achèvement dans la tâche de virement du journal avant de modifier.
+budgetFundingExcludedInfo: Le principal a changé uniquement via des comptes exclus. Modifiez l'écriture pour confirmer l'abandon ou la conversion budgétaire.

@@ -416,6 +416,8 @@ budgetHistoryModeCategories: 按预算
 budgetHistoryCategorySummaryCount: "{count} 个预算类别"
 budgetHistoryEntryCount: "{count} 条"
 budgetHistoryLatestInput: 最近输入
+budgetHistoryLatestReset: 最后重置日期
+budgetHistoryShowBeforeLatestReset: 显示同一预算类别最后重置之前的记录
 budgetHistoryAdjustedTotal: 预算金额
 budgetHistoryPeriodRunningTotal: 期间累计
 budgetHistoryInputTimestamp: 输入时间
@@ -1345,3 +1347,34 @@ plannedExpenseWeekFallback_skip: 跳过本月
 plannedExpenseWeekFallback_last_day_of_month: 最接近的本月月末
 plannedExpenseWeekFallback_previous_week: 前一周
 plannedExpenseWeekFallback_next_month_first_week: 下月第一周
+multiLineFundingTitle: 借贷预算资金
+multiLineFundingHint: 请确认本金、计入预算的部分以及仅结束借贷成分的部分。
+fundingKindBorrow: 借入
+fundingKindRepay: 偿还借款
+fundingKindLend: 借出
+fundingKindCollect: 收回借款
+fundingPrincipal: 本金
+fundingApplied: 计入预算
+fundingNotApplied: 不计入预算
+fundingDiscarded: 非预算账户回收导致的预算废弃
+fundingConvertedToOwn: 非预算资产偿还导致的自有资金化
+fundingRestored: 回收后恢复预算
+fundingResetCutoff: 因重置边界未恢复
+fundingCategoryBreakdown: 分类与未分配明细
+incomeTransferDestination: 收入分配目标账户
+incomeTransferRequiredTitle: 收入分配关联账户转移
+incomeTransferRequiredHint: 分配目标位于不同的配置组，请确认目标账户。
+incomeTransferNoTarget: 此分类没有配置目标账户，不会创建转账。
+incomeTransferTasksTitle: 收入分配关联转账
+incomeTransferComplete: 创建转账并完成
+incomeTransferFindExisting: 查找现有转账
+incomeTransferCancelCompletion: 取消完成
+incomeTransferNoTasks: 没有待处理的账户转移。
+incomeTransferLinkedBudgetWarning: 此转账还包含预算移动记录，关联时将删除这些记录。
+incomeTransferHistoricalTitle: 从历史收入分配中发现的账户转移
+incomeTransferHistoricalHint: 仅显示各分类最近一次重置后的分配。确认前不会登记或关联任何内容。
+incomeTransferHistoricalConfirm: 将此收入分配登记为待处理账户转移吗？
+incomeTransferRegister: 确认并登记转移
+incomeTransferTargetMissing: 尚未配置预算放置账户。请在预算分类设置中指定。
+incomeTransferEditConflict: 此修改与已完成的账户转移冲突。请先在账簿的转移任务中取消完成，再进行编辑。
+budgetFundingExcludedInfo: 借贷本金仅通过非预算账户发生变化，因此预算未改变。可编辑分录以确认预算废弃或自有资金化记录。

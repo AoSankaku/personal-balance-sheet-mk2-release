@@ -61,6 +61,9 @@ import type {
   UpsertProductApiCredentialInput,
   TaskSettings,
   UpdateTaskSettingsInput,
+  IncomeTransferRequirement,
+  IncomeTransferRequirementGroup,
+  IncomeTransferHistoricalCandidate,
 } from "@balance-sheet/shared";
 import { createInFlightRequestDeduper } from "./inFlightRequest";
 import {
@@ -318,6 +321,75 @@ export const api = {
         method: "POST",
         body: JSON.stringify(input),
       }, DERIVED_JOURNAL_PREFIXES),
+  },
+  incomeTransferRequirements: {
+    list: (status?: "pending" | "completed") => {
+      const query = status ? `?status=${status}` : "";
+      return request<{
+        requirements: IncomeTransferRequirement[];
+        groups: IncomeTransferRequirementGroup[];
+      }>(`/income-transfer-requirements${query}`);
+    },
+    historical: () =>
+      request<IncomeTransferHistoricalCandidate[]>(
+        "/income-transfer-requirements/historical",
+      ),
+    register: (input: {
+      source_income_journal_entry_id: number;
+      destinations: Array<{
+        budget_category_id: number;
+        from_account_id: number;
+        to_account_id: number;
+        amount: number;
+        currency?: string;
+      }>;
+    }) =>
+      mutationRequest<IncomeTransferRequirement[]>(
+        "/income-transfer-requirements",
+        { method: "POST", body: JSON.stringify(input) },
+        DERIVED_JOURNAL_PREFIXES,
+      ),
+    complete: (id: number) =>
+      mutationRequest<{
+        transfer_journal_entry: JournalEntry;
+        requirement_ids: number[];
+      }>(
+        `/income-transfer-requirements/${id}/complete`,
+        { method: "POST" },
+        DERIVED_JOURNAL_PREFIXES,
+      ),
+    candidates: (id: number) =>
+      request<Array<JournalEntry & { has_budget_adjustment_logs: boolean }>>(
+        `/income-transfer-requirements/${id}/candidates`,
+      ),
+    link: (
+      id: number,
+      transferJournalEntryId: number,
+      removeBudgetTransferLogs = false,
+    ) =>
+      mutationRequest<{
+        transfer_journal_entry_id: number;
+        requirement_ids: number[];
+      }>(
+        `/income-transfer-requirements/${id}/link`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            transfer_journal_entry_id: transferJournalEntryId,
+            remove_budget_transfer_logs: removeBudgetTransferLogs,
+          }),
+        },
+        DERIVED_JOURNAL_PREFIXES,
+      ),
+    cancel: (id: number) =>
+      mutationRequest<{
+        requirement_ids: number[];
+        deleted_transfer_journal_entry: boolean;
+      }>(
+        `/income-transfer-requirements/${id}/cancel`,
+        { method: "POST" },
+        DERIVED_JOURNAL_PREFIXES,
+      ),
   },
   reports: {
     pl: (params?: { from?: string; to?: string }) => {

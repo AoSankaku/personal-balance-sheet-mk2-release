@@ -46,6 +46,7 @@ import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { JournalTable } from "../components/JournalTable";
 import { JournalModal } from "../components/JournalModal";
+import { IncomeTransferTasks } from "../components/IncomeTransferTasks";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { showFeedback } from "../lib/feedback";
@@ -70,6 +71,10 @@ import {
   buildBudgetAdjustmentLogBalanceMap,
 } from "../lib/budgetAdjustmentLogBalances";
 import { summarizeBudgetAdjustmentLogsByCategory } from "../lib/budgetAdjustmentCategorySummary";
+import {
+  buildLatestBudgetResetByCategory,
+  filterBudgetAdjustmentHistory,
+} from "../lib/budgetAdjustmentHistory";
 import { refreshAfterBudgetAdjustment } from "../lib/budgetAdjustmentRefresh";
 import { usePrivacy } from "../context/PrivacyContext";
 import { completedDateRange } from "../lib/completedDateRange";
@@ -242,6 +247,7 @@ export default function LedgerPage() {
   );
   const [budgetLogRange, setBudgetLogRange] =
     useState<[Date | null, Date | null]>(thisMonthRange);
+  const [showBeforeLatestReset, setShowBeforeLatestReset] = useState(false);
   const [budgetPage, setBudgetPage] = useState(1);
   const [budgetPageSize, setBudgetPageSize] = useState(() =>
     getPageSize("ledger:budgetPageSize", 25),
@@ -304,12 +310,9 @@ export default function LedgerPage() {
     setJournalPage(1);
   }, [selectedCurrency]);
 
-  async function fetchLogs(range?: [Date | null, Date | null]) {
-    const [from, to] = range ?? budgetLogRange;
+  async function fetchLogs() {
     try {
       const logs = await api.budget.listAdjustmentLogs({
-        from: from ? toDateStr(from) : undefined,
-        to: to ? toDateStr(to) : undefined,
         currency: selectedCurrency,
       });
       setAdjustmentLogs(logs);
@@ -319,7 +322,7 @@ export default function LedgerPage() {
   }
 
   useEffect(() => {
-    void fetchLogs(thisMonthRange());
+    void fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCurrency]);
 
@@ -581,16 +584,29 @@ export default function LedgerPage() {
     appliedFilterCreatedRange,
   ]);
 
+  const latestResetByCategory = useMemo(
+    () => buildLatestBudgetResetByCategory(adjustmentLogs),
+    [adjustmentLogs],
+  );
+  const visibleAdjustmentLogs = useMemo(
+    () =>
+      filterBudgetAdjustmentHistory(adjustmentLogs, {
+        from: budgetLogRange[0] ? toDateStr(budgetLogRange[0]) : undefined,
+        to: budgetLogRange[1] ? toDateStr(budgetLogRange[1]) : undefined,
+        showBeforeLatestReset,
+      }),
+    [adjustmentLogs, budgetLogRange, showBeforeLatestReset],
+  );
   const sortedLogs = useMemo(() => {
     return sortBudgetAdjustmentLogs(
-      adjustmentLogs,
+      visibleAdjustmentLogs,
       budgetSort,
       budgetCategories.map((category) => category.id),
     );
-  }, [adjustmentLogs, budgetSort, budgetCategories]);
+  }, [visibleAdjustmentLogs, budgetSort, budgetCategories]);
   const budgetLogBalanceByKey = useMemo(
-    () => buildBudgetAdjustmentLogBalanceMap(adjustmentLogs),
-    [adjustmentLogs],
+    () => buildBudgetAdjustmentLogBalanceMap(visibleAdjustmentLogs),
+    [visibleAdjustmentLogs],
   );
   const budgetAvailableByCategoryId = useMemo(
     () =>
@@ -604,11 +620,11 @@ export default function LedgerPage() {
   const categorySummaries = useMemo(
     () =>
       summarizeBudgetAdjustmentLogsByCategory(
-        adjustmentLogs,
+        visibleAdjustmentLogs,
         budgetCategories.map((category) => category.id),
         budgetAvailableByCategoryId,
       ),
-    [adjustmentLogs, budgetCategories, budgetAvailableByCategoryId],
+    [visibleAdjustmentLogs, budgetCategories, budgetAvailableByCategoryId],
   );
 
   const journalPageCount = Math.max(
@@ -824,6 +840,7 @@ export default function LedgerPage() {
       {/* Journal tab */}
       <Tabs.Panel value="journal" pt="md">
         <Stack gap="lg">
+          <IncomeTransferTasks />
           {/* Toolbar */}
           <Group justify="space-between" align="flex-end" wrap="wrap" gap="xs">
             <div className={classes.dateRangeControls}>
@@ -1190,7 +1207,6 @@ export default function LedgerPage() {
                 onChange={(v) => {
                   setBudgetLogRange(v);
                   setBudgetPage(1);
-                  void fetchLogs(v);
                 }}
                 clearable
                 valueFormat="YYYY/MM/DD"
@@ -1205,7 +1221,6 @@ export default function LedgerPage() {
                   const range: [Date | null, Date | null] = [null, null];
                   setBudgetLogRange(range);
                   setBudgetPage(1);
-                  void fetchLogs(range);
                 }}
               >
                 {t("filterAll")}
@@ -1218,7 +1233,6 @@ export default function LedgerPage() {
                   const range = thisMonthRange();
                   setBudgetLogRange(range);
                   setBudgetPage(1);
-                  void fetchLogs(range);
                 }}
               >
                 {t("filterThisMonth")}
@@ -1237,6 +1251,15 @@ export default function LedgerPage() {
                   label: t("budgetHistoryModeCategories"),
                 },
               ]}
+            />
+            <Checkbox
+              size="sm"
+              checked={showBeforeLatestReset}
+              onChange={(event) => {
+                setShowBeforeLatestReset(event.currentTarget.checked);
+                setBudgetPage(1);
+              }}
+              label={t("budgetHistoryShowBeforeLatestReset")}
             />
           </Group>
           {sortedLogs.length === 0 ? (
@@ -1286,7 +1309,7 @@ export default function LedgerPage() {
               </Group>
               <Paper withBorder radius="md">
                 <ScrollArea>
-                  <Table striped highlightOnHover style={{ minWidth: 780 }}>
+                  <Table striped highlightOnHover style={{ minWidth: 900 }}>
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>
@@ -1315,6 +1338,9 @@ export default function LedgerPage() {
                             </Group>
                           </UnstyledButton>
                         </Table.Th>
+                        <Table.Th>
+                          {t("budgetHistoryLatestReset")}
+                        </Table.Th>
                         <Table.Th className="currency-cell">
                           <UnstyledButton onClick={() => toggleSort("amount")}>
                             <Group gap={4} wrap="nowrap" justify="flex-end">
@@ -1338,6 +1364,11 @@ export default function LedgerPage() {
                           <Table.Td>
                             {log.budget_category_name ??
                               `#${log.budget_category_id}`}
+                          </Table.Td>
+                          <Table.Td style={{ whiteSpace: "nowrap" }}>
+                            {latestResetByCategory.get(
+                              log.budget_category_id,
+                            )?.date ?? "-"}
                           </Table.Td>
                           <Table.Td className="currency-cell">
                             {(() => {
@@ -1436,6 +1467,12 @@ export default function LedgerPage() {
                                     summary.latest_log.created_at,
                                   )}
                                 </Text>
+                                <Text size="xs" c="dimmed">
+                                  {t("budgetHistoryLatestReset")}:{" "}
+                                  {latestResetByCategory.get(
+                                    summary.budget_category_id,
+                                  )?.date ?? "-"}
+                                </Text>
                               </Group>
                             </Stack>
                             <Stack gap={2} align="flex-end">
@@ -1466,7 +1503,7 @@ export default function LedgerPage() {
                               <Table
                                 striped
                                 highlightOnHover
-                                style={{ minWidth: 720 }}
+                                style={{ minWidth: 840 }}
                               >
                                 <Table.Thead>
                                   <Table.Tr>
@@ -1476,6 +1513,9 @@ export default function LedgerPage() {
                                     </Table.Th>
                                     <Table.Th>
                                       {t("budgetHistoryTypeCol")}
+                                    </Table.Th>
+                                    <Table.Th>
+                                      {t("budgetHistoryLatestReset")}
                                     </Table.Th>
                                     <Table.Th className="currency-cell">
                                       {t("budgetHistoryAmountCol")}
@@ -1503,6 +1543,13 @@ export default function LedgerPage() {
                                         </Table.Td>
                                         <Table.Td>
                                           {renderBudgetLogTypeBadge(log)}
+                                        </Table.Td>
+                                        <Table.Td
+                                          style={{ whiteSpace: "nowrap" }}
+                                        >
+                                          {latestResetByCategory.get(
+                                            log.budget_category_id,
+                                          )?.date ?? "-"}
                                         </Table.Td>
                                         <Table.Td className="currency-cell">
                                           <Text

@@ -34,6 +34,7 @@ export const IMPORT_TABLE_ORDER = [
   "journal_lines",
   "journal_entry_budget_allocations",
   "budget_funding_allocations",
+  "income_transfer_requirements",
   "depreciation_schedules",
   "depreciation_entries",
   "loan_settlements",

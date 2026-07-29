@@ -1,6 +1,8 @@
 import { eq, desc, sql, inArray, and, gte, lte, like } from "drizzle-orm";
 import { Hono } from "hono";
 import type {
+  BudgetFundingComponentInput,
+  BudgetFundingEffect,
   BudgetFundingInput,
   BudgetFundingKind,
 } from "@balance-sheet/shared";
@@ -12,6 +14,7 @@ import {
   journalEntryBudgetAllocations,
   budgetAdjustmentLogs,
   budgetFundingAllocations,
+  incomeTransferRequirements,
   depreciationSchedules,
   depreciationEntries,
   loanSettlements,
@@ -27,6 +30,7 @@ import {
 } from "../lib/moneyValidation";
 import { resolveAsOfDate } from "../lib/appDate";
 import { serializeLoanSettlement } from "../lib/loanSettlement";
+import { calculateBudgetFundingImpact } from "../lib/budgetFundingImpact";
 
 /** Categories that are considered long-term loan/lending */
 const LONG_TERM_LOAN_CATEGORIES = new Set([
@@ -101,6 +105,179 @@ const BUDGET_FUNDING_KINDS = new Set<BudgetFundingKind>([
   "lend",
   "collect",
 ]);
+const BUDGET_FUNDING_EFFECTS = new Set<BudgetFundingEffect>([
+  "apply",
+  "component_only",
+]);
+
+function normalizeBudgetFundingComponents(input: {
+  budget_funding?: BudgetFundingInput;
+  budget_funding_components?: BudgetFundingComponentInput[];
+}): BudgetFundingComponentInput[] {
+  if (input.budget_funding_components) return input.budget_funding_components;
+  if (!input.budget_funding) return [];
+  return [{
+    ...input.budget_funding,
+    applied_amount: input.budget_funding.principal_amount,
+    component_only_amount: 0,
+  }];
+}
+
+function validateBudgetFundingComponents(
+  components: BudgetFundingComponentInput[],
+  budgetCurrency: string,
+): string | null {
+  if (new Set(components.map((component) => component.kind)).size !== components.length) {
+    return "duplicate budget_funding_components kind";
+  }
+  for (const component of components) {
+    if (!BUDGET_FUNDING_KINDS.has(component.kind)) {
+      return "invalid budget_funding_components kind";
+    }
+    if (
+      !Number.isFinite(component.principal_amount) ||
+      !Number.isFinite(component.applied_amount) ||
+      !Number.isFinite(component.component_only_amount) ||
+      component.principal_amount < 0 ||
+      component.applied_amount < 0 ||
+      component.component_only_amount < 0
+    ) {
+      return "invalid budget_funding_components amount";
+    }
+    if (
+      Math.abs(
+        component.applied_amount +
+          component.component_only_amount -
+          component.principal_amount,
+      ) > 0.000_001
+    ) {
+      return "budget funding applied and component-only amounts must equal principal";
+    }
+    const allocations = component.allocations ?? [];
+    if (
+      allocations.some(
+        (allocation) =>
+          allocation.amount <= 0 ||
+          !BUDGET_FUNDING_EFFECTS.has(allocation.effect ?? "apply") ||
+          normalizeCurrency(allocation.currency ?? budgetCurrency) !==
+            budgetCurrency,
+      )
+    ) {
+      return "invalid budget_funding_components allocation";
+    }
+    if (allocations.length > 0) {
+      const applied = allocations
+        .filter((allocation) => (allocation.effect ?? "apply") === "apply")
+        .reduce((sum, allocation) => sum + allocation.amount, 0);
+      const componentOnly = allocations
+        .filter((allocation) => allocation.effect === "component_only")
+        .reduce((sum, allocation) => sum + allocation.amount, 0);
+      if (
+        Math.abs(applied - component.applied_amount) > 0.000_001 ||
+        Math.abs(componentOnly - component.component_only_amount) > 0.000_001
+      ) {
+        return "budget funding allocation effects must equal component amounts";
+      }
+    }
+  }
+  return null;
+}
+
+async function validateBudgetFundingComponentsAgainstLines(input: {
+  db: AppDb;
+  components: BudgetFundingComponentInput[] | undefined;
+  lines: Array<{
+    account_id: number;
+    debit?: number;
+    credit?: number;
+    currency?: string;
+  }>;
+  currency: string;
+  decimalPlaces: number;
+}): Promise<string | null> {
+  if (!input.components) return null;
+  const accountIds = [
+    ...new Set(input.lines.map((line) => line.account_id)),
+  ];
+  const accountRows =
+    accountIds.length === 0
+      ? []
+      : await input.db
+          .select()
+          .from(accounts)
+          .where(inArray(accounts.id, accountIds));
+  const expected = calculateBudgetFundingImpact({
+    lines: input.lines,
+    accounts: accountRows.map((account) => ({
+      ...account,
+      is_depreciable: account.is_depreciable === 1,
+      include_in_allocatable: account.include_in_allocatable === 1,
+      is_system: account.is_system === 1,
+    })),
+    currency: input.currency,
+    decimalPlaces: input.decimalPlaces,
+  }).components;
+  const tolerance = 10 ** -input.decimalPlaces / 2;
+  if (expected.length !== input.components.length) {
+    return "budget funding components do not match journal lines";
+  }
+  for (const expectedComponent of expected) {
+    const saved = input.components.find(
+      (component) => component.kind === expectedComponent.kind,
+    );
+    if (
+      !saved ||
+      Math.abs(saved.principal_amount - expectedComponent.principal_amount) >
+        tolerance ||
+      Math.abs(saved.applied_amount - expectedComponent.applied_amount) >
+        tolerance ||
+      Math.abs(
+        saved.component_only_amount -
+          expectedComponent.component_only_amount,
+      ) > tolerance
+    ) {
+      return "budget funding components do not match journal lines";
+    }
+  }
+  return null;
+}
+
+function expandBudgetFundingComponentAllocations(
+  components: BudgetFundingComponentInput[],
+  budgetCurrency: string,
+) {
+  return components.flatMap((component) => {
+    const sourceId = component.source_journal_entry_ids?.[0] ?? null;
+    const allocations =
+      component.allocations && component.allocations.length > 0
+        ? component.allocations
+        : [
+            ...(component.applied_amount > 0
+              ? [{
+                  budget_category_id: null,
+                  amount: component.applied_amount,
+                  effect: "apply" as const,
+                }]
+              : []),
+            ...(component.component_only_amount > 0
+              ? [{
+                  budget_category_id: null,
+                  amount: component.component_only_amount,
+                  effect: "component_only" as const,
+                }]
+              : []),
+          ];
+    return allocations.map((allocation) => ({
+      kind: component.kind,
+      budget_category_id: allocation.budget_category_id ?? null,
+      amount: allocation.amount,
+      currency: normalizeCurrency(allocation.currency ?? budgetCurrency),
+      effect: allocation.effect ?? "apply",
+      source_journal_entry_id:
+        allocation.source_journal_entry_id ?? sourceId,
+    }));
+  });
+}
 
 function validateExplicitBudgetFunding(
   funding: BudgetFundingInput | undefined,
@@ -310,16 +487,69 @@ router.get("/", async (c) => {
     ),
   );
   const fundingRows = fundingChunks.flat();
+  const incomeTransferChunks = await Promise.all(
+    entryIdChunks.map((ids) =>
+      db
+        .select()
+        .from(incomeTransferRequirements)
+        .where(
+          inArray(
+            incomeTransferRequirements.source_income_journal_entry_id,
+            ids,
+          ),
+        ),
+    ),
+  );
+  const incomeTransferRows = incomeTransferChunks.flat();
+  const incomeTransfersBySource = new Map<
+    number,
+    Array<typeof incomeTransferRequirements.$inferSelect>
+  >();
+  for (const requirement of incomeTransferRows) {
+    const rows =
+      incomeTransfersBySource.get(
+        requirement.source_income_journal_entry_id,
+      ) ?? [];
+    rows.push(requirement);
+    incomeTransfersBySource.set(
+      requirement.source_income_journal_entry_id,
+      rows,
+    );
+  }
+  const childTransferChunks = await Promise.all(
+    entryIdChunks.map((ids) =>
+      db
+        .select({
+          transfer_journal_entry_id:
+            incomeTransferRequirements.transfer_journal_entry_id,
+          source_income_journal_entry_id:
+            incomeTransferRequirements.source_income_journal_entry_id,
+        })
+        .from(incomeTransferRequirements)
+        .where(inArray(incomeTransferRequirements.transfer_journal_entry_id, ids)),
+    ),
+  );
+  const incomeSourceByTransfer = new Map<number, number>();
+  for (const requirement of childTransferChunks.flat()) {
+    if (requirement.transfer_journal_entry_id != null) {
+      incomeSourceByTransfer.set(
+        requirement.transfer_journal_entry_id,
+        requirement.source_income_journal_entry_id,
+      );
+    }
+  }
   const fundingByEntry = new Map<
     number,
     {
       kind: BudgetFundingKind;
       allocations: Array<{
+        kind: BudgetFundingKind;
         id: number;
         budget_category_id: number | null;
         amount: number;
         currency: string;
         source_journal_entry_id: number | null;
+        effect: BudgetFundingEffect;
       }>;
     }
   >();
@@ -330,13 +560,66 @@ router.get("/", async (c) => {
       allocations: [],
     };
     record.allocations.push({
+      kind: row.kind,
       id: row.id,
       budget_category_id: row.budget_category_id,
       amount: fromStorageMoneyAmount(row.amount, currency, scaleOptions),
       currency,
       source_journal_entry_id: row.source_journal_entry_id,
+      effect: row.effect,
     });
     fundingByEntry.set(row.journal_entry_id, record);
+  }
+  const fundingComponentsByEntry = new Map<
+    number,
+    Array<{
+      kind: BudgetFundingKind;
+      principal_amount: number;
+      applied_amount: number;
+      component_only_amount: number;
+      allocations: Array<{
+        kind: BudgetFundingKind;
+        id: number;
+        budget_category_id: number | null;
+        amount: number;
+        currency: string;
+        source_journal_entry_id: number | null;
+        effect: BudgetFundingEffect;
+      }>;
+      source_journal_entry_ids: number[];
+    }>
+  >();
+  for (const [entryId, funding] of fundingByEntry) {
+    const byKind = new Map<BudgetFundingKind, typeof funding.allocations>();
+    for (const allocation of funding.allocations) {
+      const rows = byKind.get(allocation.kind ?? funding.kind) ?? [];
+      rows.push(allocation);
+      byKind.set(allocation.kind ?? funding.kind, rows);
+    }
+    fundingComponentsByEntry.set(
+      entryId,
+      [...byKind].map(([kind, allocationsForKind]) => ({
+        kind,
+        principal_amount: allocationsForKind.reduce(
+          (sum, allocation) => sum + allocation.amount,
+          0,
+        ),
+        applied_amount: allocationsForKind
+          .filter((allocation) => allocation.effect === "apply")
+          .reduce((sum, allocation) => sum + allocation.amount, 0),
+        component_only_amount: allocationsForKind
+          .filter((allocation) => allocation.effect === "component_only")
+          .reduce((sum, allocation) => sum + allocation.amount, 0),
+        allocations: allocationsForKind,
+        source_journal_entry_ids: [
+          ...new Set(
+            allocationsForKind
+              .map((allocation) => allocation.source_journal_entry_id)
+              .filter((sourceId): sourceId is number => sourceId != null),
+          ),
+        ],
+      })),
+    );
   }
 
   const settlementChunks = await Promise.all(
@@ -467,7 +750,23 @@ router.get("/", async (c) => {
     loan_settlement: settlementByEntry.get(entry.id) ?? null,
     loan_settlement_source_journal_entry_ids:
       settlementSourcesByEntry.get(entry.id) ?? [],
-    budget_funding: fundingByEntry.get(entry.id) ?? null,
+    budget_funding:
+      (fundingComponentsByEntry.get(entry.id)?.length ?? 0) === 1
+        ? fundingByEntry.get(entry.id) ?? null
+        : null,
+    budget_funding_components: fundingComponentsByEntry.get(entry.id) ?? [],
+    income_transfer_requirements: (
+      incomeTransfersBySource.get(entry.id) ?? []
+    ).map((requirement) => ({
+      ...requirement,
+      amount: fromStorageMoneyAmount(
+        requirement.amount,
+        requirement.currency,
+        scaleOptions,
+      ),
+    })),
+    income_transfer_source_journal_entry_id:
+      incomeSourceByTransfer.get(entry.id) ?? null,
   }));
 
   return c.json(result);
@@ -502,6 +801,14 @@ router.post("/", async (c) => {
     /** IDs of opening entries being settled by this repayment/collection */
     loan_settlement_journal_entry_ids?: number[];
     budget_funding?: BudgetFundingInput;
+    budget_funding_components?: BudgetFundingComponentInput[];
+    income_transfer_destinations?: Array<{
+      budget_category_id: number;
+      from_account_id: number;
+      to_account_id: number;
+      amount: number;
+      currency?: string;
+    }>;
     /** Skip debit=credit balance check for currency exchange entries */
     is_currency_exchange?: boolean;
   }>();
@@ -579,6 +886,51 @@ router.post("/", async (c) => {
           },
         ]
       : []),
+    ...normalizeBudgetFundingComponents(body).flatMap((component, index) => [
+      {
+        path: `budget_funding_components[${index}].principal_amount`,
+        value: component.principal_amount,
+        currency: budgetCurrencyFromLines(body.lines),
+        decimalPlaces:
+          decimalPlacesByCurrency[budgetCurrencyFromLines(body.lines)],
+      },
+      {
+        path: `budget_funding_components[${index}].applied_amount`,
+        value: component.applied_amount,
+        currency: budgetCurrencyFromLines(body.lines),
+        decimalPlaces:
+          decimalPlacesByCurrency[budgetCurrencyFromLines(body.lines)],
+      },
+      {
+        path: `budget_funding_components[${index}].component_only_amount`,
+        value: component.component_only_amount,
+        currency: budgetCurrencyFromLines(body.lines),
+        decimalPlaces:
+          decimalPlacesByCurrency[budgetCurrencyFromLines(body.lines)],
+      },
+      ...(component.allocations ?? []).map((allocation, allocationIndex) => ({
+        path: `budget_funding_components[${index}].allocations[${allocationIndex}].amount`,
+        value: allocation.amount,
+        currency: allocation.currency ?? budgetCurrencyFromLines(body.lines),
+        decimalPlaces:
+          decimalPlacesByCurrency[
+            normalizeCurrency(
+              allocation.currency ?? budgetCurrencyFromLines(body.lines),
+            )
+          ],
+      })),
+    ]),
+    ...(body.income_transfer_destinations ?? []).map((destination, index) => ({
+      path: `income_transfer_destinations[${index}].amount`,
+      value: destination.amount,
+      currency: destination.currency ?? budgetCurrencyFromLines(body.lines),
+      decimalPlaces:
+        decimalPlacesByCurrency[
+          normalizeCurrency(
+            destination.currency ?? budgetCurrencyFromLines(body.lines),
+          )
+        ],
+    })),
   ]);
   if (invalidMoney) {
     return c.json(
@@ -614,6 +966,24 @@ router.post("/", async (c) => {
   );
   if (fundingValidationError) {
     return c.json({ error: fundingValidationError }, 400);
+  }
+  const componentValidationError = validateBudgetFundingComponents(
+    normalizeBudgetFundingComponents(body),
+    budgetCurrency,
+  );
+  if (componentValidationError) {
+    return c.json({ error: componentValidationError }, 400);
+  }
+  const componentLineValidationError =
+    await validateBudgetFundingComponentsAgainstLines({
+      db,
+      components: body.budget_funding_components,
+      lines: body.lines,
+      currency: budgetCurrency,
+      decimalPlaces: decimalPlacesByCurrency[budgetCurrency] ?? 0,
+    });
+  if (componentLineValidationError) {
+    return c.json({ error: componentLineValidationError }, 400);
   }
   const validAllocations = (body.budget_allocations ?? []).filter(
     (a) => a.budget_category_id && a.amount !== 0,
@@ -711,22 +1081,49 @@ router.post("/", async (c) => {
   }
 
   const funding = body.budget_funding;
+  const componentRows = body.budget_funding_components
+    ? expandBudgetFundingComponentAllocations(
+        body.budget_funding_components,
+        budgetCurrency,
+      )
+    : [];
   const explicitFundingAllocations = (funding?.allocations ?? []).filter(
     (allocation) => allocation.amount > 0,
   );
   const fundingSourceIds = funding?.source_journal_entry_ids ?? [];
-  if (funding && fundingSourceIds.length > 0) {
+  if (componentRows.length > 0) {
+    const values = componentRows.flatMap((allocation) => [
+      allocation.budget_category_id,
+      allocation.kind,
+      toStorageMoneyAmount(
+        allocation.amount,
+        allocation.currency,
+        scaleOptions,
+      ),
+      allocation.currency,
+      allocation.source_journal_entry_id,
+      allocation.effect,
+    ]);
     statements.push(
       c.env.DB.prepare(
         `INSERT INTO budget_funding_allocations
-          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id)
+          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
+         VALUES ${buildNewEntryRowsSql(componentRows.length, 6)}`,
+      ).bind(...values),
+    );
+  } else if (funding && fundingSourceIds.length > 0) {
+    statements.push(
+      c.env.DB.prepare(
+        `INSERT INTO budget_funding_allocations
+          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
          SELECT
           (SELECT MAX(id) FROM journal_entries),
           budget_category_id,
           ?,
           amount,
           currency,
-          journal_entry_id
+          journal_entry_id,
+          effect
          FROM budget_funding_allocations
          WHERE journal_entry_id IN (${placeholders(fundingSourceIds.length)})
            AND source_journal_entry_id IS NULL`,
@@ -743,19 +1140,20 @@ router.post("/", async (c) => {
       ),
       normalizeCurrency(allocation.currency ?? budgetCurrency),
       null,
+      allocation.effect ?? "apply",
     ]);
     statements.push(
       c.env.DB.prepare(
         `INSERT INTO budget_funding_allocations
-          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id)
-         VALUES ${buildNewEntryRowsSql(explicitFundingAllocations.length, 5)}`,
+          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
+         VALUES ${buildNewEntryRowsSql(explicitFundingAllocations.length, 6)}`,
       ).bind(...values),
     );
   } else if (!funding && settleIds.length > 0) {
     statements.push(
       c.env.DB.prepare(
         `INSERT INTO budget_funding_allocations
-          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id)
+          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
          SELECT
           (SELECT MAX(id) FROM journal_entries),
           budget_category_id,
@@ -766,11 +1164,43 @@ router.post("/", async (c) => {
           END,
           amount,
           currency,
-          journal_entry_id
+          journal_entry_id,
+          effect
          FROM budget_funding_allocations
          WHERE journal_entry_id IN (${placeholders(settleIds.length)})
            AND source_journal_entry_id IS NULL`,
       ).bind(...settleIds),
+    );
+  }
+
+  for (const destination of body.income_transfer_destinations ?? []) {
+    if (
+      !Number.isInteger(destination.budget_category_id) ||
+      !Number.isInteger(destination.from_account_id) ||
+      !Number.isInteger(destination.to_account_id) ||
+      destination.from_account_id === destination.to_account_id ||
+      destination.amount <= 0
+    ) {
+      return c.json({ error: "invalid income transfer destination" }, 400);
+    }
+    const currency = normalizeCurrency(destination.currency ?? budgetCurrency);
+    statements.push(
+      c.env.DB.prepare(
+        `INSERT INTO income_transfer_requirements
+          (source_income_journal_entry_id, budget_category_id, budget_category_name,
+           from_account_id, to_account_id, amount, currency)
+         SELECT
+          (SELECT MAX(id) FROM journal_entries), ?, name, ?, ?, ?, ?
+         FROM budget_categories
+         WHERE id = ?`,
+      ).bind(
+        destination.budget_category_id,
+        destination.from_account_id,
+        destination.to_account_id,
+        toStorageMoneyAmount(destination.amount, currency, scaleOptions),
+        currency,
+        destination.budget_category_id,
+      ),
     );
   }
 
@@ -981,6 +1411,17 @@ router.get("/:id", async (c) => {
     .select()
     .from(budgetFundingAllocations)
     .where(eq(budgetFundingAllocations.journal_entry_id, id));
+  const incomeTransferRows = await db
+    .select()
+    .from(incomeTransferRequirements)
+    .where(eq(incomeTransferRequirements.source_income_journal_entry_id, id));
+  const childRequirementRows = await db
+    .select({
+      source_income_journal_entry_id:
+        incomeTransferRequirements.source_income_journal_entry_id,
+    })
+    .from(incomeTransferRequirements)
+    .where(eq(incomeTransferRequirements.transfer_journal_entry_id, id));
 
   const [settlement] = await db
     .select({
@@ -1058,7 +1499,8 @@ router.get("/:id", async (c) => {
       (source) => source.journal_entry_id,
     ),
     budget_funding:
-      fundingRows.length === 0
+      fundingRows.length === 0 ||
+      new Set(fundingRows.map((row) => row.kind)).size !== 1
         ? null
         : {
             kind: fundingRows[0]!.kind,
@@ -1074,9 +1516,60 @@ router.get("/:id", async (c) => {
                 ),
                 currency,
                 source_journal_entry_id: row.source_journal_entry_id,
+                effect: row.effect,
               };
             }),
           },
+    budget_funding_components: [...new Set(fundingRows.map((row) => row.kind))]
+      .map((kind) => {
+        const rows = fundingRows.filter((row) => row.kind === kind);
+        const allocations = rows.map((row) => {
+          const currency = normalizeCurrency(row.currency);
+          return {
+            id: row.id,
+            budget_category_id: row.budget_category_id,
+            amount: fromStorageMoneyAmount(
+              row.amount,
+              currency,
+              scaleOptions,
+            ),
+            currency,
+            source_journal_entry_id: row.source_journal_entry_id,
+            effect: row.effect,
+          };
+        });
+        return {
+          kind,
+          principal_amount: allocations.reduce(
+            (sum, allocation) => sum + allocation.amount,
+            0,
+          ),
+          applied_amount: allocations
+            .filter((allocation) => allocation.effect === "apply")
+            .reduce((sum, allocation) => sum + allocation.amount, 0),
+          component_only_amount: allocations
+            .filter((allocation) => allocation.effect === "component_only")
+            .reduce((sum, allocation) => sum + allocation.amount, 0),
+          allocations,
+          source_journal_entry_ids: [
+            ...new Set(
+              allocations
+                .map((allocation) => allocation.source_journal_entry_id)
+                .filter((sourceId): sourceId is number => sourceId != null),
+            ),
+          ],
+        };
+      }),
+    income_transfer_requirements: incomeTransferRows.map((requirement) => ({
+      ...requirement,
+      amount: fromStorageMoneyAmount(
+        requirement.amount,
+        requirement.currency,
+        scaleOptions,
+      ),
+    })),
+    income_transfer_source_journal_entry_id:
+      childRequirementRows[0]?.source_income_journal_entry_id ?? null,
   });
 });
 
@@ -1110,6 +1603,14 @@ router.put("/:id", async (c) => {
     loan_settlement_opening?: boolean;
     loan_settlement_journal_entry_ids?: number[];
     budget_funding?: BudgetFundingInput;
+    budget_funding_components?: BudgetFundingComponentInput[];
+    income_transfer_destinations?: Array<{
+      budget_category_id: number;
+      from_account_id: number;
+      to_account_id: number;
+      amount: number;
+      currency?: string;
+    }>;
     is_currency_exchange?: boolean;
   }>();
 
@@ -1185,6 +1686,51 @@ router.put("/:id", async (c) => {
           },
         ]
       : []),
+    ...normalizeBudgetFundingComponents(body).flatMap((component, index) => [
+      {
+        path: `budget_funding_components[${index}].principal_amount`,
+        value: component.principal_amount,
+        currency: budgetCurrencyFromLines(body.lines),
+        decimalPlaces:
+          decimalPlacesByCurrency[budgetCurrencyFromLines(body.lines)],
+      },
+      {
+        path: `budget_funding_components[${index}].applied_amount`,
+        value: component.applied_amount,
+        currency: budgetCurrencyFromLines(body.lines),
+        decimalPlaces:
+          decimalPlacesByCurrency[budgetCurrencyFromLines(body.lines)],
+      },
+      {
+        path: `budget_funding_components[${index}].component_only_amount`,
+        value: component.component_only_amount,
+        currency: budgetCurrencyFromLines(body.lines),
+        decimalPlaces:
+          decimalPlacesByCurrency[budgetCurrencyFromLines(body.lines)],
+      },
+      ...(component.allocations ?? []).map((allocation, allocationIndex) => ({
+        path: `budget_funding_components[${index}].allocations[${allocationIndex}].amount`,
+        value: allocation.amount,
+        currency: allocation.currency ?? budgetCurrencyFromLines(body.lines),
+        decimalPlaces:
+          decimalPlacesByCurrency[
+            normalizeCurrency(
+              allocation.currency ?? budgetCurrencyFromLines(body.lines),
+            )
+          ],
+      })),
+    ]),
+    ...(body.income_transfer_destinations ?? []).map((destination, index) => ({
+      path: `income_transfer_destinations[${index}].amount`,
+      value: destination.amount,
+      currency: destination.currency ?? budgetCurrencyFromLines(body.lines),
+      decimalPlaces:
+        decimalPlacesByCurrency[
+          normalizeCurrency(
+            destination.currency ?? budgetCurrencyFromLines(body.lines),
+          )
+        ],
+    })),
   ]);
   if (invalidMoney) {
     return c.json(
@@ -1216,6 +1762,85 @@ router.put("/:id", async (c) => {
     .from(journalEntries)
     .where(eq(journalEntries.id, id));
   if (existing.length === 0) return c.json({ error: "Not found" }, 404);
+  let preserveIncomeTransferRequirements = false;
+  if (body.income_transfer_destinations === undefined) {
+    const completedRequirements = await db
+      .select({ id: incomeTransferRequirements.id })
+      .from(incomeTransferRequirements)
+      .where(
+        and(
+          eq(incomeTransferRequirements.source_income_journal_entry_id, id),
+          sql`${incomeTransferRequirements.transfer_journal_entry_id} IS NOT NULL`,
+        ),
+      );
+    if (completedRequirements.length > 0) {
+      return c.json(
+        {
+          error: "income_transfer_completed_conflict",
+          completed_requirement_ids: completedRequirements.map(
+            (row) => row.id,
+          ),
+        },
+        409,
+      );
+    }
+  }
+  if (body.income_transfer_destinations !== undefined) {
+    const currentRequirements = await db
+      .select()
+      .from(incomeTransferRequirements)
+      .where(
+        eq(incomeTransferRequirements.source_income_journal_entry_id, id),
+      );
+    const completedRequirements = currentRequirements.filter(
+      (requirement) => requirement.transfer_journal_entry_id != null,
+    );
+    if (completedRequirements.length > 0) {
+      const currentKeys = currentRequirements
+        .map((requirement) =>
+          [
+            requirement.budget_category_id,
+            requirement.from_account_id,
+            requirement.to_account_id,
+            requirement.amount,
+            requirement.currency,
+          ].join(":"),
+        )
+        .sort();
+      const incomingKeys = body.income_transfer_destinations
+        .map((destination) => {
+          const currency = normalizeCurrency(
+            destination.currency ?? budgetCurrencyFromLines(body.lines),
+          );
+          return [
+            destination.budget_category_id,
+            destination.from_account_id,
+            destination.to_account_id,
+            toStorageMoneyAmount(
+              destination.amount,
+              currency,
+              scaleOptions,
+            ),
+            currency,
+          ].join(":");
+        })
+        .sort();
+      preserveIncomeTransferRequirements =
+        currentKeys.length === incomingKeys.length &&
+        currentKeys.every((key, index) => key === incomingKeys[index]);
+      if (!preserveIncomeTransferRequirements) {
+        return c.json(
+          {
+            error: "income_transfer_completed_conflict",
+            completed_requirement_ids: completedRequirements.map(
+              (row) => row.id,
+            ),
+          },
+          409,
+        );
+      }
+    }
+  }
 
   const validAllocations = (body.budget_allocations ?? []).filter(
     (a) => a.budget_category_id && a.amount !== 0,
@@ -1227,6 +1852,24 @@ router.put("/:id", async (c) => {
   );
   if (fundingValidationError) {
     return c.json({ error: fundingValidationError }, 400);
+  }
+  const componentValidationError = validateBudgetFundingComponents(
+    normalizeBudgetFundingComponents(body),
+    budgetCurrency,
+  );
+  if (componentValidationError) {
+    return c.json({ error: componentValidationError }, 400);
+  }
+  const componentLineValidationError =
+    await validateBudgetFundingComponentsAgainstLines({
+      db,
+      components: body.budget_funding_components,
+      lines: body.lines,
+      currency: budgetCurrency,
+      decimalPlaces: decimalPlacesByCurrency[budgetCurrency] ?? 0,
+    });
+  if (componentLineValidationError) {
+    return c.json({ error: componentLineValidationError }, 400);
   }
   const validIncomeAllocs = (body.income_budget_allocations ?? []).filter(
     (a) => a.budget_category_id && a.amount !== 0,
@@ -1240,6 +1883,18 @@ router.put("/:id", async (c) => {
       "DELETE FROM journal_lines WHERE journal_entry_id = ?",
     ).bind(id),
   ];
+  if (
+    body.income_transfer_destinations !== undefined &&
+    !preserveIncomeTransferRequirements
+  ) {
+    statements.push(
+      c.env.DB.prepare(
+        `DELETE FROM income_transfer_requirements
+         WHERE source_income_journal_entry_id = ?
+           AND transfer_journal_entry_id IS NULL`,
+      ).bind(id),
+    );
+  }
 
   const lineValues = body.lines.flatMap((line) => [
     id,
@@ -1349,22 +2004,50 @@ router.put("/:id", async (c) => {
   }
 
   const funding = body.budget_funding;
+  const componentRows = body.budget_funding_components
+    ? expandBudgetFundingComponentAllocations(
+        body.budget_funding_components,
+        budgetCurrency,
+      )
+    : [];
   const explicitFundingAllocations = (funding?.allocations ?? []).filter(
     (allocation) => allocation.amount > 0,
   );
   const fundingSourceIds = funding?.source_journal_entry_ids ?? [];
-  if (funding && fundingSourceIds.length > 0) {
+  if (componentRows.length > 0) {
+    const values = componentRows.flatMap((allocation) => [
+      id,
+      allocation.budget_category_id,
+      allocation.kind,
+      toStorageMoneyAmount(
+        allocation.amount,
+        allocation.currency,
+        scaleOptions,
+      ),
+      allocation.currency,
+      allocation.source_journal_entry_id,
+      allocation.effect,
+    ]);
     statements.push(
       c.env.DB.prepare(
         `INSERT INTO budget_funding_allocations
-          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id)
+          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
+         VALUES ${buildRowsSql(componentRows.length, 7)}`,
+      ).bind(...values),
+    );
+  } else if (funding && fundingSourceIds.length > 0) {
+    statements.push(
+      c.env.DB.prepare(
+        `INSERT INTO budget_funding_allocations
+          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
          SELECT
           ?,
           budget_category_id,
           ?,
           amount,
           currency,
-          journal_entry_id
+          journal_entry_id,
+          effect
          FROM budget_funding_allocations
          WHERE journal_entry_id IN (${placeholders(fundingSourceIds.length)})
            AND source_journal_entry_id IS NULL`,
@@ -1382,19 +2065,20 @@ router.put("/:id", async (c) => {
       ),
       normalizeCurrency(allocation.currency ?? budgetCurrency),
       null,
+      allocation.effect ?? "apply",
     ]);
     statements.push(
       c.env.DB.prepare(
         `INSERT INTO budget_funding_allocations
-          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id)
-         VALUES ${buildRowsSql(explicitFundingAllocations.length, 6)}`,
+          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
+         VALUES ${buildRowsSql(explicitFundingAllocations.length, 7)}`,
       ).bind(...values),
     );
   } else if (!funding && settleIds.length > 0) {
     statements.push(
       c.env.DB.prepare(
         `INSERT INTO budget_funding_allocations
-          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id)
+          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
          SELECT
           ?,
           budget_category_id,
@@ -1405,11 +2089,45 @@ router.put("/:id", async (c) => {
           END,
           amount,
           currency,
-          journal_entry_id
+          journal_entry_id,
+          effect
          FROM budget_funding_allocations
          WHERE journal_entry_id IN (${placeholders(settleIds.length)})
            AND source_journal_entry_id IS NULL`,
       ).bind(id, ...settleIds),
+    );
+  }
+
+  for (const destination of preserveIncomeTransferRequirements
+    ? []
+    : body.income_transfer_destinations ?? []) {
+    if (
+      !Number.isInteger(destination.budget_category_id) ||
+      !Number.isInteger(destination.from_account_id) ||
+      !Number.isInteger(destination.to_account_id) ||
+      destination.from_account_id === destination.to_account_id ||
+      destination.amount <= 0
+    ) {
+      return c.json({ error: "invalid income transfer destination" }, 400);
+    }
+    const currency = normalizeCurrency(destination.currency ?? budgetCurrency);
+    statements.push(
+      c.env.DB.prepare(
+        `INSERT INTO income_transfer_requirements
+          (source_income_journal_entry_id, budget_category_id, budget_category_name,
+           from_account_id, to_account_id, amount, currency)
+         SELECT ?, ?, name, ?, ?, ?, ?
+         FROM budget_categories
+         WHERE id = ?`,
+      ).bind(
+        id,
+        destination.budget_category_id,
+        destination.from_account_id,
+        destination.to_account_id,
+        toStorageMoneyAmount(destination.amount, currency, scaleOptions),
+        currency,
+        destination.budget_category_id,
+      ),
     );
   }
 

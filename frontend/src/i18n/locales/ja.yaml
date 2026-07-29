@@ -416,6 +416,8 @@ budgetHistoryModeCategories: 予算別
 budgetHistoryCategorySummaryCount: "{count} 件の予算"
 budgetHistoryEntryCount: "{count} 件"
 budgetHistoryLatestInput: 最新入力
+budgetHistoryLatestReset: 最終リセット日
+budgetHistoryShowBeforeLatestReset: 同じ予算科目の最終リセット以前も表示
 budgetHistoryAdjustedTotal: 予算額
 budgetHistoryPeriodRunningTotal: 期間内累計
 budgetHistoryInputTimestamp: 入力日時
@@ -1345,3 +1347,34 @@ plannedExpenseWeekFallback_skip: 無視する（支払を予定しない）
 plannedExpenseWeekFallback_last_day_of_month: 最も近い同じ月の末日
 plannedExpenseWeekFallback_previous_week: その前週
 plannedExpenseWeekFallback_next_month_first_week: 翌月第一週
+multiLineFundingTitle: 貸し借りの予算資金
+multiLineFundingHint: 元本と、予算へ反映する部分・貸し借り成分だけを終了する部分を確認してください。
+fundingKindBorrow: 借入
+fundingKindRepay: 借入返済
+fundingKindLend: 貸付
+fundingKindCollect: 貸付回収
+fundingPrincipal: 元本
+fundingApplied: 予算へ反映
+fundingNotApplied: 予算へ非反映
+fundingDiscarded: 対象外回収による予算廃棄
+fundingConvertedToOwn: 対象外返済による自己資金化
+fundingRestored: 回収による予算復活
+fundingResetCutoff: リセット境界による非復元
+fundingCategoryBreakdown: カテゴリ・未配分内訳
+incomeTransferDestination: 収入配分先の口座
+incomeTransferRequiredTitle: 収入配分に伴う口座移動
+incomeTransferRequiredHint: 配分先が入金口座と別の配置グループです。移動先を確認してください。
+incomeTransferNoTarget: このカテゴリには配置先口座がありません。口座移動は作成されません。
+incomeTransferTasksTitle: 収入配分に伴う口座移動
+incomeTransferComplete: 振替仕訳を作成して完了
+incomeTransferFindExisting: 既存の振替を探す
+incomeTransferCancelCompletion: 完了を取り消す
+incomeTransferNoTasks: 未完了の口座移動はありません。
+incomeTransferLinkedBudgetWarning: この振替には予算移動も記録されています。関連付け時に予算移動ログを解除します。
+incomeTransferHistoricalTitle: 過去の収入配分から見つかった口座移動
+incomeTransferHistoricalHint: 最新のカテゴリ別リセット以降を表示しています。内容を確認するまで登録・関連付けは行いません。
+incomeTransferHistoricalConfirm: この収入配分を未完了の口座移動として登録しますか？
+incomeTransferRegister: 確認して移動予定に登録
+incomeTransferTargetMissing: 配置先口座が未設定です。カテゴリ設定で配置先を指定してください。
+incomeTransferEditConflict: 完了済みの口座移動と矛盾するため保存できません。帳簿の口座移動タスクで完了を取り消してから編集してください。
+budgetFundingExcludedInfo: 対象外口座だけで貸し借り元本が変動したため、予算への反映はありません。編集して廃棄・自己資金化の履歴を確定できます。

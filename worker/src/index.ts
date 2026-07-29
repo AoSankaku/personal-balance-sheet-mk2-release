@@ -8,6 +8,7 @@ import { reportsRouter } from "./routes/reports";
 import { cryptoRouter } from "./routes/crypto";
 import { exchangeCredentialsRouter } from "./routes/exchangeCredentials";
 import { budgetRouter } from "./routes/budget";
+import { incomeTransferRequirementsRouter } from "./routes/incomeTransferRequirements";
 import { creditCardSettingsRouter } from "./routes/creditCardSettings";
 import { storeMappingsRouter } from "./routes/storeMappings";
 import { adminRouter } from "./routes/admin";
@@ -65,6 +66,10 @@ app.route("/api/reports", reportsRouter);
 app.route("/api/crypto", cryptoRouter);
 app.route("/api/exchange-credentials", exchangeCredentialsRouter);
 app.route("/api/budget", budgetRouter);
+app.route(
+  "/api/income-transfer-requirements",
+  incomeTransferRequirementsRouter,
+);
 app.route("/api/credit-card-settings", creditCardSettingsRouter);
 app.route("/api/credit-card-statements", creditCardStatementsRouter);
 app.route("/api/store-mappings", storeMappingsRouter);

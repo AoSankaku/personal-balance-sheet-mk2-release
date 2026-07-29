@@ -416,6 +416,8 @@ budgetHistoryModeCategories: By Budget
 budgetHistoryCategorySummaryCount: "{count} budget categories"
 budgetHistoryEntryCount: "{count} entries"
 budgetHistoryLatestInput: Latest input
+budgetHistoryLatestReset: Latest reset
+budgetHistoryShowBeforeLatestReset: Show entries before the latest reset for the same budget
 budgetHistoryAdjustedTotal: Budget Amount
 budgetHistoryPeriodRunningTotal: Range Total
 budgetHistoryInputTimestamp: Input Time
@@ -1345,3 +1347,34 @@ plannedExpenseWeekFallback_skip: Skip this month
 plannedExpenseWeekFallback_last_day_of_month: Closest same-month month end
 plannedExpenseWeekFallback_previous_week: Previous week
 plannedExpenseWeekFallback_next_month_first_week: First week of next month
+multiLineFundingTitle: Loan and lending budget funding
+multiLineFundingHint: Review the principal and the portions applied to the budget or retired as component only.
+fundingKindBorrow: Borrowing
+fundingKindRepay: Repayment
+fundingKindLend: Lending
+fundingKindCollect: Collection
+fundingPrincipal: Principal
+fundingApplied: Applied to budget
+fundingNotApplied: Not applied to budget
+fundingDiscarded: Budget discarded by excluded collection
+fundingConvertedToOwn: Converted to own funds by excluded repayment
+fundingRestored: Budget restored by collection
+fundingResetCutoff: Not restored across reset boundary
+fundingCategoryBreakdown: Category and unallocated breakdown
+incomeTransferDestination: Income allocation destination account
+incomeTransferRequiredTitle: Account transfer for income allocation
+incomeTransferRequiredHint: The allocation target is in a different placement group. Confirm its destination.
+incomeTransferNoTarget: This category has no placement account. No transfer will be created.
+incomeTransferTasksTitle: Account transfers for income allocations
+incomeTransferComplete: Create transfer and complete
+incomeTransferFindExisting: Find an existing transfer
+incomeTransferCancelCompletion: Cancel completion
+incomeTransferNoTasks: There are no pending account transfers.
+incomeTransferLinkedBudgetWarning: This transfer also has budget movement logs. They will be removed when it is linked.
+incomeTransferHistoricalTitle: Account transfers found from past income allocations
+incomeTransferHistoricalHint: Only allocations after each category's latest reset are shown. Nothing is registered or linked until you confirm it.
+incomeTransferHistoricalConfirm: Register this income allocation as a pending account transfer?
+incomeTransferRegister: Confirm and register transfer
+incomeTransferTargetMissing: No placement account is configured. Set one in the budget category settings.
+incomeTransferEditConflict: This change conflicts with a completed account transfer. Cancel its completion from the ledger transfer task before editing.
+budgetFundingExcludedInfo: Loan principal changed only through excluded accounts, so the budget was not changed. Edit the entry to confirm the discarded or converted funding history.

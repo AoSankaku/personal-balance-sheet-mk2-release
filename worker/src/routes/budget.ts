@@ -1243,6 +1243,7 @@ async function computeBudgetSummaries(
             budget_category_id:
               budgetFundingAllocations.budget_category_id,
             kind: budgetFundingAllocations.kind,
+            effect: budgetFundingAllocations.effect,
             amount: budgetFundingAllocations.amount,
             date: journalEntries.date,
             created_at: budgetFundingAllocations.created_at,
@@ -1359,6 +1360,10 @@ async function computeBudgetSummaries(
           net: 0,
           borrowed: 0,
           lent: 0,
+          restored: 0,
+          discarded: 0,
+          converted_to_own: 0,
+          reset_cutoff: 0,
         }
       );
     }
@@ -1447,6 +1452,22 @@ async function computeBudgetSummaries(
       const lentFunding =
         (currentResetPoint ? 0 : lentFundingCarryover) +
         currentFunding.lent;
+      const fundingHistory = monthsForTarget.reduce(
+        (totals, monthKey) => {
+          const monthly = fundingFor(cat.id, monthKey);
+          totals.restored += monthly.restored;
+          totals.discarded += monthly.discarded;
+          totals.convertedToOwn += monthly.converted_to_own;
+          totals.resetCutoff += monthly.reset_cutoff;
+          return totals;
+        },
+        {
+          restored: 0,
+          discarded: 0,
+          convertedToOwn: 0,
+          resetCutoff: 0,
+        },
+      );
       const totalBudget = budgetBase + visibleCarryover;
       let monthsWithContributions = 0;
       for (const monthKey of monthsForTarget.slice(0, -1)) {
@@ -1487,6 +1508,10 @@ async function computeBudgetSummaries(
         funding_adjustment: fundingAdjustment,
         borrowed_funding: borrowedFunding,
         lent_funding: lentFunding,
+        restored_funding: fundingHistory.restored,
+        discarded_funding: fundingHistory.discarded,
+        converted_to_own_funding: fundingHistory.convertedToOwn,
+        reset_cutoff_funding: fundingHistory.resetCutoff,
         months_with_contributions: monthsWithContributions,
       });
     }

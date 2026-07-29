@@ -25,4 +25,16 @@ describe("loan budget funding UI", () => {
     expect(section).toContain('t("loanFundingSettlementAutomatic")');
     expect(section).toContain('t("loanFundingResetBoundaryHint")');
   });
+
+  test("shows and persists multi-line funding consequences separately", () => {
+    const form = source("src/components/MultiLineEntryForm.tsx");
+    const modal = source("src/components/JournalModal.tsx");
+
+    expect(form).toContain('t("multiLineFundingTitle")');
+    expect(form).toContain("budget_funding_components");
+    expect(form).toContain("component_only_amount");
+    expect(form).toContain('t("fundingDiscarded")');
+    expect(form).toContain('t("fundingConvertedToOwn")');
+    expect(modal).toContain("budgetFundingComponents");
+  });
 });

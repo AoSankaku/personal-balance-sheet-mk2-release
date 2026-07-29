@@ -24,6 +24,10 @@ describe("budget funding persistence wiring", () => {
     expect(route).toContain("principal_amount");
     expect(route).toContain("loan_settlement_source_journal_entry_ids");
     expect(route).toContain("CASE kind");
+    expect(route).toContain("calculateBudgetFundingImpact");
+    expect(route).toContain(
+      "budget funding components do not match journal lines",
+    );
   });
 
   test("includes funding adjustments in budget summaries", () => {

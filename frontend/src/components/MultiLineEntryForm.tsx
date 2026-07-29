@@ -20,6 +20,7 @@ import { IconAlertTriangle, IconPlus, IconTrash } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
+  BudgetFundingComponentRecord,
   CreateJournalInput,
   UnsettledLoanEntry,
 } from "@balance-sheet/shared";
@@ -46,6 +47,11 @@ import {
   setMultiDraft,
   type MultiLineRow,
 } from "../utils/inputDrafts";
+import {
+  buildFundingComponentInput,
+  calculateMultiLineBudgetFundingImpact,
+  splitByLargestRemainder,
+} from "../lib/multiLineBudgetFunding";
 
 export type { MultiLineRow };
 
@@ -60,6 +66,7 @@ export interface MultiLineInitialValues {
   description: string;
   rows: MultiLineRow[];
   budgetAllocs: Record<number, number>;
+  budgetFundingComponents?: BudgetFundingComponentRecord[];
 }
 
 interface Props {
@@ -83,6 +90,7 @@ export function MultiLineEntryForm({
   const {
     accounts,
     budgetCategories,
+    enabledCurrencies,
     displayCurrency,
     displayCurrencySymbol: currencySymbol,
   } = useAppData();
@@ -93,6 +101,29 @@ export function MultiLineEntryForm({
   const [budgetAllocs, setBudgetAllocs] = useState<Record<number, number>>(
     initialValues?.budgetAllocs ?? {},
   );
+  const initialFundingCategoryAmounts = useMemo(
+    () =>
+      Object.fromEntries(
+        (initialValues?.budgetFundingComponents ?? []).map((component) => [
+          component.kind,
+          Object.fromEntries(
+            budgetCategories.map((category) => [
+              category.id,
+              component.allocations
+                .filter(
+                  (allocation) =>
+                    allocation.budget_category_id === category.id,
+                )
+                .reduce((sum, allocation) => sum + allocation.amount, 0),
+            ]),
+          ),
+        ]),
+      ) as Record<string, Record<number, number>>,
+    [initialValues?.budgetFundingComponents, budgetCategories],
+  );
+  const [fundingCategoryAmounts, setFundingCategoryAmounts] = useState<
+    Record<string, Record<number, number>>
+  >(initialFundingCategoryAmounts);
   const [overBudgetWarnOpen, setOverBudgetWarnOpen] = useState(false);
   const [underBudgetWarnOpen, setUnderBudgetWarnOpen] = useState(false);
   const pendingValues = useRef<MultiForm | null>(null);
@@ -283,6 +314,27 @@ export function MultiLineEntryForm({
       r.account_id != null &&
       accounts.find((a) => a.id === r.account_id)?.type === "expense",
   );
+  const currencyDecimalPlaces =
+    enabledCurrencies.find((currency) => currency.code === selectedCurrency)
+      ?.decimal_places ?? 0;
+  const fundingImpact = useMemo(
+    () =>
+      calculateMultiLineBudgetFundingImpact({
+        lines: form.values.rows
+          .filter((row) => row.account_id != null)
+          .map((row) => ({
+            account_id: row.account_id!,
+            debit: row.debit ?? 0,
+            credit: row.credit ?? 0,
+            currency: selectedCurrency,
+          })),
+        accounts,
+        currency: selectedCurrency,
+        decimalPlaces: currencyDecimalPlaces,
+      }),
+    [form.values.rows, accounts, selectedCurrency, currencyDecimalPlaces],
+  );
+  const amountStep = 10 ** -currencyDecimalPlaces;
 
   async function doSubmit(values: MultiForm) {
     const validLines = values.rows.filter(
@@ -295,6 +347,142 @@ export function MultiLineEntryForm({
         amount,
       }));
     const allSettledIds = Object.values(settledIdsByAccount).flat();
+    const sourceEntries =
+      allSettledIds.length === 0
+        ? []
+        : await Promise.all(
+            [...new Set(allSettledIds)].map((sourceId) =>
+              api.journal.get(sourceId),
+            ),
+          );
+    const sourceEntryMap = new Map(
+      sourceEntries.map((entry) => [entry.id, entry]),
+    );
+    const budget_funding_components = fundingImpact.components.map(
+      (component) => {
+        const appliedAmount = component.applied_amount;
+        if (component.kind !== "repay" && component.kind !== "collect") {
+          return buildFundingComponentInput({
+            component,
+            appliedAmount,
+            categoryAmounts:
+              fundingCategoryAmounts[component.kind] ?? {},
+            currency: selectedCurrency,
+            decimalPlaces: currencyDecimalPlaces,
+          });
+        }
+
+        const sourceIds = Object.entries(settledIdsByAccount).flatMap(
+          ([accountIdText, ids]) => {
+            const account = accounts.find(
+              (candidate) => candidate.id === Number(accountIdText),
+            );
+            const matches =
+              component.kind === "repay"
+                ? account &&
+                  isShortTermBorrowingCategory(account.category)
+                : account &&
+                  isShortTermLendingCategory(account.category);
+            return matches ? ids : [];
+          },
+        );
+        const openingKind = component.kind === "repay" ? "borrow" : "lend";
+        const sourceAllocations = sourceIds.flatMap((sourceId) => {
+          const sourceEntry = sourceEntryMap.get(sourceId);
+          const saved = (
+            sourceEntry?.budget_funding_components
+              ?.filter((savedComponent) => savedComponent.kind === openingKind)
+              .flatMap((savedComponent) => savedComponent.allocations) ??
+            (sourceEntry?.budget_funding?.kind === openingKind
+              ? sourceEntry.budget_funding.allocations
+              : [])
+          ).filter((allocation) => allocation.amount > 0);
+          const savedTotal = saved.reduce(
+            (sum, allocation) => sum + allocation.amount,
+            0,
+          );
+          const sourcePrincipal =
+            Object.values(unsettledByAccount)
+              .flat()
+              .find((entry) => entry.journal_entry_id === sourceId)?.amount ??
+            savedTotal;
+          return [
+            ...saved.map((allocation) => ({
+              budget_category_id: allocation.budget_category_id,
+              amount: allocation.amount,
+              source_journal_entry_id: sourceId,
+            })),
+            ...(sourcePrincipal - savedTotal > 0
+              ? [{
+                  budget_category_id: null,
+                  amount: sourcePrincipal - savedTotal,
+                  source_journal_entry_id: sourceId,
+                }]
+              : []),
+          ];
+        });
+        if (sourceAllocations.length === 0) {
+          return buildFundingComponentInput({
+            component,
+            appliedAmount,
+            categoryAmounts:
+              fundingCategoryAmounts[component.kind] ?? {},
+            currency: selectedCurrency,
+            decimalPlaces: currencyDecimalPlaces,
+            sourceJournalEntryIds: sourceIds,
+          });
+        }
+        const principalParts = splitByLargestRemainder(
+          component.principal_amount,
+          sourceAllocations.map((allocation) => allocation.amount),
+          currencyDecimalPlaces,
+        );
+        const appliedParts = splitByLargestRemainder(
+          appliedAmount,
+          principalParts,
+          currencyDecimalPlaces,
+        );
+        const allocations = sourceAllocations.flatMap((allocation, index) => {
+          const principalPart = principalParts[index] ?? 0;
+          const appliedPart = Math.min(
+            principalPart,
+            appliedParts[index] ?? 0,
+          );
+          return [
+            ...(appliedPart > 0
+              ? [{
+                  ...allocation,
+                  amount: appliedPart,
+                  currency: selectedCurrency,
+                  effect: "apply" as const,
+                }]
+              : []),
+            ...(principalPart - appliedPart > 0
+              ? [{
+                  ...allocation,
+                  amount: principalPart - appliedPart,
+                  currency: selectedCurrency,
+                  effect: "component_only" as const,
+                }]
+              : []),
+          ];
+        });
+        const scale = 10 ** currencyDecimalPlaces;
+        const roundedApplied =
+          Math.round(appliedAmount * scale) / scale;
+        return {
+          kind: component.kind,
+          principal_amount: component.principal_amount,
+          applied_amount: roundedApplied,
+          component_only_amount:
+            Math.round(
+              (component.principal_amount - roundedApplied) * scale,
+            ) / scale,
+          allocations,
+          source_journal_entry_ids: sourceIds,
+        };
+      },
+    );
     await onSubmit({
       date: dayjs(values.date).format("YYYY-MM-DD"),
       description: values.description,
@@ -316,12 +504,17 @@ export function MultiLineEntryForm({
       loan_settlement_opening: openingAccountIds.length > 0 || undefined,
       loan_settlement_journal_entry_ids:
         allSettledIds.length > 0 ? allSettledIds : undefined,
+      budget_funding_components:
+        budget_funding_components.length > 0
+          ? budget_funding_components
+          : undefined,
     });
     if (!isControlled) {
       setMultiDraft(null);
       form.reset();
       setBudgetAllocs({});
       setSettledIdsByAccount({});
+      setFundingCategoryAmounts({});
     }
   }
 
@@ -343,7 +536,13 @@ export function MultiLineEntryForm({
     try {
       await doSubmit(values);
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : String(e);
+      const msg =
+        e instanceof ApiError &&
+        e.body.error === "income_transfer_completed_conflict"
+          ? t("incomeTransferEditConflict")
+          : e instanceof ApiError
+            ? e.message
+            : String(e);
       showFeedback({ message: msg, color: "red" });
     }
   }
@@ -660,6 +859,139 @@ export function MultiLineEntryForm({
                         )}
                       </>
                     )}
+                  </Stack>
+                );
+              })}
+            </>
+          )}
+
+          {fundingImpact.components.length > 0 && (
+            <>
+              <Divider
+                label={t("multiLineFundingTitle")}
+                labelPosition="left"
+              />
+              <Text size="xs" c="dimmed">
+                {t("multiLineFundingHint")}
+              </Text>
+              {fundingImpact.components.map((component) => {
+                const applied = component.applied_amount;
+                const componentOnly = Math.max(
+                  0,
+                  component.principal_amount - applied,
+                );
+                const categoryAmounts =
+                  fundingCategoryAmounts[component.kind] ?? {};
+                const allocated = Object.values(categoryAmounts).reduce(
+                  (sum, amount) => sum + amount,
+                  0,
+                );
+                return (
+                  <Stack
+                    key={component.kind}
+                    gap={6}
+                    p="sm"
+                    style={{
+                      border: "1px solid var(--mantine-color-default-border)",
+                      borderRadius: "var(--mantine-radius-sm)",
+                    }}
+                  >
+                    <Group justify="space-between">
+                      <Text fw={600} size="sm">
+                        {t(
+                          component.kind === "borrow"
+                            ? "fundingKindBorrow"
+                            : component.kind === "repay"
+                              ? "fundingKindRepay"
+                              : component.kind === "lend"
+                                ? "fundingKindLend"
+                                : "fundingKindCollect",
+                        )}
+                      </Text>
+                      <Badge variant="light">
+                        {t("fundingPrincipal")}:{" "}
+                        {formatCurrency(
+                          component.principal_amount,
+                          locale,
+                          selectedCurrency,
+                          currencySymbol,
+                        )}
+                      </Badge>
+                    </Group>
+                    <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                      <NumberInput
+                        label={t("fundingApplied")}
+                        min={0}
+                        max={component.principal_amount}
+                        step={amountStep}
+                        decimalScale={currencyDecimalPlaces}
+                        prefix={currencySymbol}
+                        thousandSeparator=","
+                        value={applied}
+                        readOnly
+                      />
+                      <NumberInput
+                        label={
+                          component.kind === "collect"
+                            ? t("fundingDiscarded")
+                            : component.kind === "repay"
+                              ? t("fundingConvertedToOwn")
+                              : t("fundingNotApplied")
+                        }
+                        value={componentOnly}
+                        prefix={currencySymbol}
+                        thousandSeparator=","
+                        readOnly
+                      />
+                    </SimpleGrid>
+                    <Text size="xs" fw={500}>
+                      {t("fundingCategoryBreakdown")}
+                    </Text>
+                    {budgetCategories.map((category) => (
+                      <Group key={category.id} gap="xs">
+                        <Text size="sm" flex={1}>
+                          {category.name}
+                        </Text>
+                        <NumberInput
+                          w={150}
+                          min={0}
+                          max={component.principal_amount}
+                          step={amountStep}
+                          decimalScale={currencyDecimalPlaces}
+                          prefix={currencySymbol}
+                          thousandSeparator=","
+                          value={categoryAmounts[category.id] ?? 0}
+                          onChange={(value) =>
+                            setFundingCategoryAmounts((previous) => ({
+                              ...previous,
+                              [component.kind]: {
+                                ...(previous[component.kind] ?? {}),
+                                [category.id]: Number(value) || 0,
+                              },
+                            }))
+                          }
+                        />
+                      </Group>
+                    ))}
+                    <Text
+                      size="xs"
+                      c={
+                        allocated > component.principal_amount
+                          ? "red"
+                          : "dimmed"
+                      }
+                    >
+                      {t("loanFundingUnallocated")}:{" "}
+                      {formatCurrency(
+                        component.principal_amount - allocated,
+                        locale,
+                        selectedCurrency,
+                        currencySymbol,
+                      )}
+                    </Text>
+                    <Text size="xs" c="dimmed" display="none">
+                      {component.component_only_amount}
+                    </Text>
                   </Stack>
                 );
               })}

@@ -416,6 +416,13 @@ export function JournalTable({
                               {entry.description}
                             </Text>
                           )}
+                          {entry.income_transfer_source_journal_entry_id !=
+                            null && (
+                            <Badge size="xs" variant="outline" w="fit-content">
+                              {t("incomeTransferTasksTitle")} #
+                              {entry.income_transfer_source_journal_entry_id}
+                            </Badge>
+                          )}
                         </Stack>
                       </Table.Td>
                       {showTimestamp && (
@@ -511,9 +518,18 @@ export function JournalTable({
                         <Text size="sm">{entry.date}</Text>
                       </Table.Td>
                       <Table.Td>
-                        <Text size="sm" fw={500}>
-                          {entry.description}
-                        </Text>
+                        <Stack gap={3}>
+                          <Text size="sm" fw={500}>
+                            {entry.description}
+                          </Text>
+                          {entry.income_transfer_source_journal_entry_id !=
+                            null && (
+                            <Badge size="xs" variant="outline" w="fit-content">
+                              {t("incomeTransferTasksTitle")} #
+                              {entry.income_transfer_source_journal_entry_id}
+                            </Badge>
+                          )}
+                        </Stack>
                       </Table.Td>
                       <Table.Td>
                         {entry.source === "csv_import" ? (
