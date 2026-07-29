@@ -47,6 +47,7 @@ productApiSettingsConfiguredLast4: "Guardado, termina en"
 productApiSettingsNoInput: "Introduce al menos un valor para guardar."
 productApiSettingsSaved: "Configuración de claves API guardada."
 productApiSettingsCleared: "Configuración de claves API eliminada."
+productApiSettingsClearConfirmTitle: Eliminar configuración de clave API
 productApiSettingsClearConfirm: "¿Eliminar esta configuración de clave API?"
 privacyModeBlockedTitle: "Modo de privacidad activado"
 privacyModeBlockedMessage: "Esta página no se puede usar con el modo de privacidad activado. Desactívalo en Configuración > General para editar datos."
@@ -1371,9 +1372,11 @@ incomeTransferFindExisting: Buscar transferencia existente
 incomeTransferCancelCompletion: Cancelar finalización
 incomeTransferNoTasks: No hay transferencias pendientes.
 incomeTransferLinkedBudgetWarning: Esta transferencia también tiene movimientos presupuestarios. Se eliminarán al vincularla.
+incomeTransferLinkedBudgetConfirmTitle: Vincular transferencia y eliminar movimiento presupuestario
 incomeTransferHistoricalTitle: Transferencias detectadas en distribuciones de ingresos anteriores
 incomeTransferHistoricalHint: Solo se muestran distribuciones posteriores al último reinicio de cada categoría. Nada se registra ni vincula sin confirmación.
 incomeTransferHistoricalConfirm: ¿Registrar esta distribución como transferencia pendiente?
+incomeTransferHistoricalConfirmTitle: Registrar transferencia pendiente
 incomeTransferRegister: Confirmar y registrar
 incomeTransferTargetMissing: No hay una cuenta de colocación configurada. Defínela en la categoría presupuestaria.
 incomeTransferEditConflict: Este cambio contradice una transferencia completada. Cancela su finalización desde la tarea de transferencia del libro antes de editar.

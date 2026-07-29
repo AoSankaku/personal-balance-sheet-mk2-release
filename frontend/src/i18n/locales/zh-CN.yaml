@@ -47,6 +47,7 @@ productApiSettingsConfiguredLast4: 已保存，末尾
 productApiSettingsNoInput: 请输入至少一个要保存的值。
 productApiSettingsSaved: API 密钥设置已保存。
 productApiSettingsCleared: API 密钥设置已删除。
+productApiSettingsClearConfirmTitle: 删除 API 密钥设置
 productApiSettingsClearConfirm: 要删除此 API 密钥设置吗？
 privacyModeBlockedTitle: 隐私模式已开启
 privacyModeBlockedMessage: 隐私模式开启时不能使用此页面。如需编辑，请在设置 > 常规中关闭。
@@ -1371,9 +1372,11 @@ incomeTransferFindExisting: 查找现有转账
 incomeTransferCancelCompletion: 取消完成
 incomeTransferNoTasks: 没有待处理的账户转移。
 incomeTransferLinkedBudgetWarning: 此转账还包含预算移动记录，关联时将删除这些记录。
+incomeTransferLinkedBudgetConfirmTitle: 关联转账并删除预算移动
 incomeTransferHistoricalTitle: 从历史收入分配中发现的账户转移
 incomeTransferHistoricalHint: 仅显示各分类最近一次重置后的分配。确认前不会登记或关联任何内容。
 incomeTransferHistoricalConfirm: 将此收入分配登记为待处理账户转移吗？
+incomeTransferHistoricalConfirmTitle: 登记待处理账户转移
 incomeTransferRegister: 确认并登记转移
 incomeTransferTargetMissing: 尚未配置预算放置账户。请在预算分类设置中指定。
 incomeTransferEditConflict: 此修改与已完成的账户转移冲突。请先在账簿的转移任务中取消完成，再进行编辑。

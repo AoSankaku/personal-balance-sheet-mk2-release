@@ -47,6 +47,7 @@ productApiSettingsConfiguredLast4: 設定済み 末尾
 productApiSettingsNoInput: 保存する値を入力してください。
 productApiSettingsSaved: APIキー設定を保存しました。
 productApiSettingsCleared: APIキー設定を削除しました。
+productApiSettingsClearConfirmTitle: APIキー設定を削除
 productApiSettingsClearConfirm: このAPIキー設定を削除しますか？
 privacyModeBlockedTitle: プライバシーモードがONです
 privacyModeBlockedMessage: この画面はプライバシーモード中は使用できません。編集するには、設定 > 一般でオフにしてください。
@@ -1371,9 +1372,11 @@ incomeTransferFindExisting: 既存の振替を探す
 incomeTransferCancelCompletion: 完了を取り消す
 incomeTransferNoTasks: 未完了の口座移動はありません。
 incomeTransferLinkedBudgetWarning: この振替には予算移動も記録されています。関連付け時に予算移動ログを解除します。
+incomeTransferLinkedBudgetConfirmTitle: 予算移動を解除して関連付け
 incomeTransferHistoricalTitle: 過去の収入配分から見つかった口座移動
 incomeTransferHistoricalHint: 最新のカテゴリ別リセット以降を表示しています。内容を確認するまで登録・関連付けは行いません。
 incomeTransferHistoricalConfirm: この収入配分を未完了の口座移動として登録しますか？
+incomeTransferHistoricalConfirmTitle: 未完了の口座移動を登録
 incomeTransferRegister: 確認して移動予定に登録
 incomeTransferTargetMissing: 配置先口座が未設定です。カテゴリ設定で配置先を指定してください。
 incomeTransferEditConflict: 完了済みの口座移動と矛盾するため保存できません。帳簿の口座移動タスクで完了を取り消してから編集してください。

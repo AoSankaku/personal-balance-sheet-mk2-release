@@ -47,6 +47,7 @@ productApiSettingsConfiguredLast4: Saved ending in
 productApiSettingsNoInput: Enter at least one value to save.
 productApiSettingsSaved: API key settings saved.
 productApiSettingsCleared: API key settings deleted.
+productApiSettingsClearConfirmTitle: Delete API key settings
 productApiSettingsClearConfirm: Delete this API key setting?
 privacyModeBlockedTitle: Privacy mode is on
 privacyModeBlockedMessage: This page cannot be used while privacy mode is on. Turn it off from Settings > General to edit data.
@@ -1371,9 +1372,11 @@ incomeTransferFindExisting: Find an existing transfer
 incomeTransferCancelCompletion: Cancel completion
 incomeTransferNoTasks: There are no pending account transfers.
 incomeTransferLinkedBudgetWarning: This transfer also has budget movement logs. They will be removed when it is linked.
+incomeTransferLinkedBudgetConfirmTitle: Link transfer and remove budget movement?
 incomeTransferHistoricalTitle: Account transfers found from past income allocations
 incomeTransferHistoricalHint: Only allocations after each category's latest reset are shown. Nothing is registered or linked until you confirm it.
 incomeTransferHistoricalConfirm: Register this income allocation as a pending account transfer?
+incomeTransferHistoricalConfirmTitle: Register pending account transfer
 incomeTransferRegister: Confirm and register transfer
 incomeTransferTargetMissing: No placement account is configured. Set one in the budget category settings.
 incomeTransferEditConflict: This change conflicts with a completed account transfer. Cancel its completion from the ledger transfer task before editing.

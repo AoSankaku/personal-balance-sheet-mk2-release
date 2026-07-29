@@ -34,6 +34,7 @@ import {
   findLatestBudgetResetBoundary,
   getAllocatableAssetDelta,
   getLoanBudgetFundingPrincipal,
+  isEntryAfterBudgetReset,
   isLoanBudgetFundingMissing,
 } from "../../lib/budgetFundingCompleteness";
 import { formatJPY } from "../../lib/numberFormat";
@@ -181,6 +182,8 @@ export function BudgetCheckSection() {
     () =>
       filteredJournal.filter(
         (entry) =>
+          resetLogs != null &&
+          isEntryAfterBudgetReset(entry, latestResetBoundary) &&
           (entry.budget_funding_components?.length ?? 0) === 0 &&
           (entry.budget_funding?.allocations.length ?? 0) === 0 &&
           getLoanBudgetFundingPrincipal(
@@ -196,7 +199,13 @@ export function BudgetCheckSection() {
             ),
           ) < 0.000_001,
       ),
-    [filteredJournal, accountMap, displayCurrency],
+    [
+      filteredJournal,
+      accountMap,
+      displayCurrency,
+      resetLogs,
+      latestResetBoundary,
+    ],
   );
 
   const pageCount = Math.max(1, Math.ceil(suspiciousEntries.length / pageSize));
