@@ -16,7 +16,10 @@ function account(id: number, category: Account["category"]): Account {
   return {
     id,
     name: `Account ${id}`,
-    type: category.includes("lending") ? "asset" : "liability",
+    type:
+      category === "cash" || category.includes("lending")
+        ? "asset"
+        : "liability",
     category,
     currency: "JPY",
     is_depreciable: false,
@@ -169,5 +172,78 @@ describe("budget funding completeness", () => {
         "JPY",
       ),
     ).toBe(50);
+  });
+
+  test("uses a global cutoff only after every category has been reset", () => {
+    const logs = [
+      {
+        ...resetLog(1, "2026-07-10", "2026-07-10 09:00:00"),
+        budget_category_id: 1,
+      },
+      {
+        ...resetLog(2, "2026-07-05", "2026-07-05 09:00:00"),
+        budget_category_id: 2,
+      },
+    ];
+    expect(findLatestBudgetResetBoundary(logs, [1, 2])).toMatchObject({
+      date: "2026-07-05",
+    });
+    expect(findLatestBudgetResetBoundary(logs, [1, 2, 3])).toBeNull();
+  });
+
+  test("does not flag a structural zero-impact loan entry", () => {
+    const nonAllocatableCash = {
+      ...account(2, "cash"),
+      include_in_allocatable: false,
+    };
+    const map = new Map(accountMap).set(2, nonAllocatableCash);
+
+    expect(
+      isLoanBudgetFundingMissing(
+        entry({
+          lines: [line(1, 2, 50, 0), line(2, 10, 0, 50)],
+        }),
+        map,
+        null,
+        "JPY",
+      ),
+    ).toBe(false);
+  });
+
+  test("accepts a persisted component-only collection", () => {
+    const nonAllocatableCash = {
+      ...account(2, "cash"),
+      include_in_allocatable: false,
+    };
+    const map = new Map(accountMap).set(2, nonAllocatableCash);
+    expect(
+      isLoanBudgetFundingMissing(
+        entry({
+          lines: [line(1, 2, 50, 0), line(2, 10, 0, 50)],
+          budget_funding_components: [
+            {
+              kind: "collect",
+              principal_amount: 50,
+              applied_amount: 0,
+              component_only_amount: 50,
+              source_journal_entry_ids: [7],
+              allocations: [
+                {
+                  id: 1,
+                  budget_category_id: 1,
+                  amount: 50,
+                  currency: "JPY",
+                  source_journal_entry_id: 7,
+                  effect: "component_only",
+                },
+              ],
+            },
+          ],
+        }),
+        map,
+        null,
+        "JPY",
+      ),
+    ).toBe(false);
   });
 });

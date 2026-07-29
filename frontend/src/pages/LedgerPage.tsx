@@ -46,6 +46,7 @@ import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { JournalTable } from "../components/JournalTable";
 import { JournalModal } from "../components/JournalModal";
+import { IncomeTransferTasks } from "../components/IncomeTransferTasks";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { showFeedback } from "../lib/feedback";
@@ -839,6 +840,7 @@ export default function LedgerPage() {
       {/* Journal tab */}
       <Tabs.Panel value="journal" pt="md">
         <Stack gap="lg">
+          <IncomeTransferTasks />
           {/* Toolbar */}
           <Group justify="space-between" align="flex-end" wrap="wrap" gap="xs">
             <div className={classes.dateRangeControls}>

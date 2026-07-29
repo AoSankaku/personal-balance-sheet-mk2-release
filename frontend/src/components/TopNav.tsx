@@ -54,6 +54,8 @@ import {
 import { useOfflineDrafts } from "../lib/offlineDrafts";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { computeTrialBalanceTask } from "../lib/trialBalanceTasks";
+import { api } from "../api/client";
+import type { IncomeTransferRequirementGroup } from "@balance-sheet/shared";
 import "./TopNav.css";
 
 const HEADER_ACTION_ICON_SIZE = "md";
@@ -241,6 +243,26 @@ function formatTaskMonth(yearMonth: string, locale: string): string {
   }).format(new Date(year, month - 1, 1));
 }
 
+function useIncomeTransferTasks(): IncomeTransferRequirementGroup[] {
+  const { journal } = useAppData();
+  const [groups, setGroups] = useState<IncomeTransferRequirementGroup[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void api.incomeTransferRequirements
+      .list("pending")
+      .then((result) => {
+        if (!cancelled) setGroups(result.groups);
+      })
+      .catch(() => {
+        if (!cancelled) setGroups([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [journal]);
+  return groups;
+}
+
 function TaskMenu({ disabled = false }: { disabled?: boolean }) {
   const { t, locale } = useLang();
   const navigate = useNavigate();
@@ -252,6 +274,7 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
   const creditCardImportTasks = useCreditCardImportTasks();
   const creditCardWithdrawalRiskTasks = useCreditCardWithdrawalRiskTasks();
   const trialBalanceTask = useTrialBalanceTask();
+  const incomeTransferTasks = useIncomeTransferTasks();
   const isOnline = useOnlineStatus();
   const offlineDrafts = useOfflineDrafts();
   const pendingOfflineDrafts = isOnline ? offlineDrafts : [];
@@ -259,6 +282,7 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
     pendingOfflineDrafts.length +
     paydayTasks.length +
     creditCardImportTasks.length +
+    incomeTransferTasks.length +
     (trialBalanceTask ? 1 : 0) +
     (budgetTask.show ? 1 : 0) +
     (overdueLoanTasks.length > 0 ? 1 : 0) +
@@ -443,6 +467,33 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
                       </Stack>
                     </Group>
                   </UnstyledButton>
+                </Stack>
+              )}
+              {incomeTransferTasks.length > 0 && (
+                <Stack gap={4}>
+                  <Text className="task-menu__section-label">
+                    {t("incomeTransferTasksTitle")}
+                  </Text>
+                  {incomeTransferTasks.map((task) => (
+                    <UnstyledButton
+                      key={task.key}
+                      className="task-menu__item"
+                      onClick={() => {
+                        navigate("/ledger");
+                        setOpened(false);
+                      }}
+                    >
+                      <Stack gap={2}>
+                        <Text size="sm">
+                          {task.requirements[0]?.from_account_name} →{" "}
+                          {task.requirements[0]?.to_account_name}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {formatJPY(task.amount, locale)}
+                        </Text>
+                      </Stack>
+                    </UnstyledButton>
+                  ))}
                 </Stack>
               )}
               {budgetTask.show && (

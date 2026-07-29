@@ -63,6 +63,12 @@ import {
 import { ExpenseSection } from "./entry/ExpenseSection";
 import { IncomeSection } from "./entry/IncomeSection";
 import { LoanSection } from "./entry/LoanSection";
+import { formatCurrency } from "../lib/numberFormat";
+import {
+  buildFundingComponentInput,
+  calculateMultiLineBudgetFundingImpact,
+  splitByLargestRemainder,
+} from "../lib/multiLineBudgetFunding";
 
 type EntryType =
   | "expense"
@@ -123,6 +129,7 @@ export interface SimpleFormDraft {
   budgetDist: BudgetDistributionItem[];
   showZeroCategories: boolean;
   incomeDist?: { budget_category_id: number; name: string; amount: number }[];
+  incomeTransferDestinations?: Record<number, number | null>;
   isRegularIncome?: boolean;
   selectedFilterId?: string | null;
   filterStepPreview?: StepPreview[];
@@ -138,6 +145,74 @@ export interface SimpleFormDraft {
     inputMode: "months" | "monthly_amount";
     months: number | string;
     monthlyAmount: number | string;
+  };
+}
+
+function resolveIncomeTransferAccounts(input: {
+  categoryId: number;
+  depositAccountId: number | null;
+  categories: Array<{
+    id: number;
+    target_accounts?: Array<{ account_id: number; ratio: number }>;
+  }>;
+  accounts: Account[];
+}): { required: boolean; accountIds: number[] } {
+  const validAccountIds = new Set(
+    input.accounts
+      .filter(
+        (account) =>
+          account.type === "asset" &&
+          account.category === "cash" &&
+          account.include_in_allocatable !== false &&
+          !account.is_depreciable,
+      )
+      .map((account) => account.id),
+  );
+  const categoryAccounts = new Map(
+    input.categories.map((category) => [
+      category.id,
+      new Set(
+        (category.target_accounts ?? [])
+          .filter(
+            (target) =>
+              target.ratio > 0 && validAccountIds.has(target.account_id),
+          )
+          .map((target) => target.account_id),
+      ),
+    ]),
+  );
+  const accountCategories = new Map<number, Set<number>>();
+  for (const [categoryId, accountIds] of categoryAccounts) {
+    for (const accountId of accountIds) {
+      const categoryIds = accountCategories.get(accountId) ?? new Set<number>();
+      categoryIds.add(categoryId);
+      accountCategories.set(accountId, categoryIds);
+    }
+  }
+  const categoriesToVisit = [input.categoryId];
+  const visitedCategories = new Set<number>();
+  const groupAccounts = new Set<number>();
+  while (categoriesToVisit.length > 0) {
+    const categoryId = categoriesToVisit.pop()!;
+    if (visitedCategories.has(categoryId)) continue;
+    visitedCategories.add(categoryId);
+    for (const accountId of categoryAccounts.get(categoryId) ?? []) {
+      if (groupAccounts.has(accountId)) continue;
+      groupAccounts.add(accountId);
+      for (const linkedCategory of accountCategories.get(accountId) ?? []) {
+        if (!visitedCategories.has(linkedCategory)) {
+          categoriesToVisit.push(linkedCategory);
+        }
+      }
+    }
+  }
+  const accountIds = [...groupAccounts].sort((a, b) => a - b);
+  return {
+    required:
+      accountIds.length > 0 &&
+      (input.depositAccountId == null ||
+        !groupAccounts.has(input.depositAccountId)),
+    accountIds,
   };
 }
 
@@ -180,9 +255,13 @@ export function SimpleEntryForm({
     displayCurrency,
     displayCurrencySymbol: currencySymbol,
     allocatableToday,
+    enabledCurrencies,
   } = useAppData();
   const isMobile = useMediaQuery("(max-width: 48em)");
   const selectedCurrency = displayCurrency || "JPY";
+  const currencyDecimalPlaces =
+    enabledCurrencies.find((currency) => currency.code === selectedCurrency)
+      ?.decimal_places ?? 0;
   const buildBudgetDistribution = useCallback(
     (accountId: number | null): BudgetDistributionItem[] => {
       if (!accountId) return [];
@@ -225,6 +304,12 @@ export function SimpleEntryForm({
   const [incomeDist, setIncomeDist] = useState<
     { budget_category_id: number; name: string; amount: number }[]
   >(initialDraft?.incomeDist ?? []);
+  const [
+    incomeTransferDestination,
+    setIncomeTransferDestination,
+  ] = useState<Record<number, number | null>>(
+    initialDraft?.incomeTransferDestinations ?? {},
+  );
   const dirtyIncomeDistCategoryIds = useRef<Set<number>>(new Set());
   // Frozen step-by-step pipeline snapshot — restore from draft to avoid re-capture on mount
   const [filterStepPreview, setFilterStepPreview] = useState<StepPreview[]>(
@@ -637,6 +722,7 @@ export function SimpleEntryForm({
       budgetDist,
       showZeroCategories,
       incomeDist,
+      incomeTransferDestinations: incomeTransferDestination,
       isRegularIncome,
       selectedFilterId,
       filterStepPreview,
@@ -659,6 +745,7 @@ export function SimpleEntryForm({
     budgetDist,
     showZeroCategories,
     incomeDist,
+    incomeTransferDestination,
     isRegularIncome,
     selectedFilterId,
     filterStepPreview,
@@ -1141,6 +1228,115 @@ export function SimpleEntryForm({
       }
       const automaticSettlement =
         !isOpening && isShortTerm && settledEntryIds.length > 0;
+      const calculatedFunding = calculateMultiLineBudgetFundingImpact({
+        lines,
+        accounts,
+        currency: selectedCurrency,
+        decimalPlaces: currencyDecimalPlaces,
+      }).components.find(
+        (component) =>
+          component.kind ===
+          fundingKindForLoanDirection(values.loanDirection),
+      );
+      if (!calculatedFunding) {
+        throw new Error("budget_funding_component_not_detected");
+      }
+      let fundingComponent = buildFundingComponentInput({
+        component: calculatedFunding,
+        appliedAmount: calculatedFunding.applied_amount,
+        categoryAmounts: loanFundingCategoryAmounts,
+        currency: selectedCurrency,
+        decimalPlaces: currencyDecimalPlaces,
+        sourceJournalEntryIds: automaticSettlement
+          ? settledEntryIds
+          : undefined,
+      });
+      if (automaticSettlement) {
+        const sourceEntries = await Promise.all(
+          settledEntryIds.map((sourceId) => api.journal.get(sourceId)),
+        );
+        const sourceAllocations = sourceEntries.flatMap((sourceEntry) => {
+          const saved = (
+            sourceEntry.budget_funding_components?.flatMap(
+              (component) => component.allocations,
+            ) ??
+            sourceEntry.budget_funding?.allocations ??
+            []
+          ).filter((allocation) => allocation.amount > 0);
+          const savedTotal = saved.reduce(
+            (sum, allocation) => sum + allocation.amount,
+            0,
+          );
+          const sourcePrincipal =
+            unsettledEntries.find(
+              (entry) => entry.journal_entry_id === sourceEntry.id,
+            )?.amount ?? savedTotal;
+          return [
+            ...saved.map((allocation) => ({
+              budget_category_id: allocation.budget_category_id,
+              amount: allocation.amount,
+              source_journal_entry_id: sourceEntry.id,
+            })),
+            ...(sourcePrincipal - savedTotal > 0
+              ? [{
+                  budget_category_id: null,
+                  amount: sourcePrincipal - savedTotal,
+                  source_journal_entry_id: sourceEntry.id,
+                }]
+              : []),
+          ];
+        });
+        if (sourceAllocations.length === 0) {
+          sourceAllocations.push({
+            budget_category_id: null,
+            amount: calculatedFunding.principal_amount,
+            source_journal_entry_id: settledEntryIds[0]!,
+          });
+        }
+        const principalParts = splitByLargestRemainder(
+          calculatedFunding.principal_amount,
+          sourceAllocations.map((allocation) => allocation.amount),
+          currencyDecimalPlaces,
+        );
+        const appliedParts = splitByLargestRemainder(
+          calculatedFunding.applied_amount,
+          principalParts,
+          currencyDecimalPlaces,
+        );
+        const allocations = sourceAllocations.flatMap((allocation, index) => {
+          const principalPart = principalParts[index] ?? 0;
+          const appliedPart = Math.min(
+            principalPart,
+            appliedParts[index] ?? 0,
+          );
+          return [
+            ...(appliedPart > 0
+              ? [{
+                  ...allocation,
+                  amount: appliedPart,
+                  currency: selectedCurrency,
+                  effect: "apply" as const,
+                }]
+              : []),
+            ...(principalPart - appliedPart > 0
+              ? [{
+                  ...allocation,
+                  amount: principalPart - appliedPart,
+                  currency: selectedCurrency,
+                  effect: "component_only" as const,
+                }]
+              : []),
+          ];
+        });
+        fundingComponent = {
+          kind: calculatedFunding.kind,
+          principal_amount: calculatedFunding.principal_amount,
+          applied_amount: calculatedFunding.applied_amount,
+          component_only_amount: calculatedFunding.component_only_amount,
+          allocations,
+          source_journal_entry_ids: settledEntryIds,
+        };
+      }
 
       await onSubmit({
         date: transactionDate,
@@ -1162,6 +1358,7 @@ export function SimpleEntryForm({
             ? settledEntryIds
             : undefined,
         },
+        budget_funding_components: [fundingComponent],
       });
 
       if (!isEditing) {
@@ -1215,6 +1412,25 @@ export function SimpleEntryForm({
                 values.transferBudgetDestinationCategoryId,
             })
           : undefined;
+    const income_transfer_destinations =
+      values.entryType === "income"
+        ? incomeTransferNeeds.flatMap((need) => {
+            if (!need.required || need.amount <= 0) return [];
+            const toAccountId =
+              incomeTransferDestination[need.budget_category_id] ??
+              (need.accountIds.length === 1 ? need.accountIds[0] : null);
+            if (toAccountId == null) {
+              throw new Error(t("incomeTransferDestination"));
+            }
+            return [{
+              budget_category_id: need.budget_category_id,
+              from_account_id: values.incomeDepositedToId!,
+              to_account_id: toAccountId,
+              amount: need.amount,
+              currency: selectedCurrency,
+            }];
+          })
+        : undefined;
 
     await onSubmit({
       date: transactionDate,
@@ -1238,11 +1454,13 @@ export function SimpleEntryForm({
       budget_allocations,
       budget_source: "simple",
       income_budget_allocations,
+      income_transfer_destinations,
     });
     if (!isEditing) {
       dirtyIncomeDistCategoryIds.current.clear();
       setSelectedFilterId(null);
       setIncomeDist([]);
+      setIncomeTransferDestination({});
       setFilterStepPreview([]);
       setIsRegularIncome(false);
       setBudgetDist([]);
@@ -1290,7 +1508,13 @@ export function SimpleEntryForm({
     try {
       await doSubmit(values);
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : String(e);
+      const msg =
+        e instanceof ApiError &&
+        e.body.error === "income_transfer_completed_conflict"
+          ? t("incomeTransferEditConflict")
+          : e instanceof ApiError
+            ? e.message
+            : String(e);
       showFeedback({ message: msg, color: "red" });
       form.setFieldError("amount", msg);
     }
@@ -1506,6 +1730,52 @@ export function SimpleEntryForm({
         );
       })
     : incomeDist;
+  const incomeTransferNeeds = useMemo(
+    () =>
+      incomeDist
+        .filter((distribution) => distribution.amount > 0)
+        .map((distribution) => ({
+          ...distribution,
+          ...resolveIncomeTransferAccounts({
+            categoryId: distribution.budget_category_id,
+            depositAccountId: form.values.incomeDepositedToId,
+            categories: budgetCategories,
+            accounts,
+          }),
+        })),
+    [
+      incomeDist,
+      form.values.incomeDepositedToId,
+      budgetCategories,
+      accounts,
+    ],
+  );
+
+  useEffect(() => {
+    setIncomeTransferDestination((previous) => {
+      let changed = false;
+      const next = { ...previous };
+      for (const need of incomeTransferNeeds) {
+        const current = next[need.budget_category_id];
+        if (
+          current != null &&
+          !need.accountIds.includes(current)
+        ) {
+          next[need.budget_category_id] = null;
+          changed = true;
+        }
+        if (
+          need.required &&
+          need.accountIds.length === 1 &&
+          next[need.budget_category_id] == null
+        ) {
+          next[need.budget_category_id] = need.accountIds[0]!;
+          changed = true;
+        }
+      }
+      return changed ? next : previous;
+    });
+  }, [incomeTransferNeeds]);
   useEffect(() => {
     if (entryType !== "expense" && entryType !== "business_advance") return;
     setBudgetDist((prev) => {
@@ -1729,7 +1999,8 @@ export function SimpleEntryForm({
         )}
 
         {entryType === "income" && (
-          <IncomeSection
+          <>
+            <IncomeSection
             form={form}
             isMobile={!!isMobile}
             incomeOptions={incomeOptions}
@@ -1748,7 +2019,79 @@ export function SimpleEntryForm({
             showManualIncomeDist={showManualIncomeDist}
             handleIncomeDistChange={handleIncomeDistChange}
             handleIncomeTypeChange={handleIncomeTypeChange}
-          />
+            />
+            {incomeTransferNeeds.length > 0 && (
+              <Stack gap="xs">
+                {incomeTransferNeeds.map((need) =>
+                  need.accountIds.length === 0 ? (
+                    <Text
+                      key={need.budget_category_id}
+                      size="xs"
+                      c="yellow"
+                    >
+                      {need.name}: {t("incomeTransferNoTarget")}
+                    </Text>
+                  ) : need.required ? (
+                    <Stack
+                      key={need.budget_category_id}
+                      gap={4}
+                      p="xs"
+                      style={{
+                        border:
+                          "1px solid var(--mantine-color-default-border)",
+                        borderRadius: "var(--mantine-radius-sm)",
+                      }}
+                    >
+                      <Text size="xs" fw={600}>
+                        {t("incomeTransferRequiredTitle")}: {need.name}・
+                        {formatCurrency(
+                          need.amount,
+                          locale,
+                          selectedCurrency,
+                          currencySymbol,
+                        )}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {t("incomeTransferRequiredHint")}
+                      </Text>
+                      <Select
+                        label={t("incomeTransferDestination")}
+                        required
+                        data={need.accountIds
+                          .map((accountId) =>
+                            accounts.find(
+                              (account) => account.id === accountId,
+                            ),
+                          )
+                          .filter((account): account is Account => !!account)
+                          .map((account) => toAccountOption(account, t))}
+                        renderOption={renderAccountOption}
+                        value={
+                          incomeTransferDestination[
+                            need.budget_category_id
+                          ] != null
+                            ? String(
+                                incomeTransferDestination[
+                                  need.budget_category_id
+                                ],
+                              )
+                            : null
+                        }
+                        onChange={(value) =>
+                          setIncomeTransferDestination((previous) => ({
+                            ...previous,
+                            [need.budget_category_id]: value
+                              ? Number(value)
+                              : null,
+                          }))
+                        }
+                      />
+                    </Stack>
+                  ) : null,
+                )}
+              </Stack>
+            )}
+          </>
         )}
 
         {entryType === "transfer" && (

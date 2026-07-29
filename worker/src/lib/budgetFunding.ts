@@ -7,11 +7,13 @@ import {
 } from "./budgetSummary";
 
 export type BudgetFundingKind = "borrow" | "repay" | "lend" | "collect";
+export type BudgetFundingEffect = "apply" | "component_only";
 
 export interface BudgetFundingTimelineRow {
   journal_entry_id: number;
   budget_category_id: number | null;
   kind: BudgetFundingKind;
+  effect?: BudgetFundingEffect;
   amount: number;
   date: string;
   created_at?: string | null;
@@ -23,6 +25,10 @@ export interface BudgetFundingPeriodSummary {
   net: number;
   borrowed: number;
   lent: number;
+  restored: number;
+  discarded: number;
+  converted_to_own: number;
+  reset_cutoff: number;
 }
 
 function resetBeforeEvent(
@@ -53,7 +59,15 @@ function resetBeforeEvent(
 }
 
 function emptySummary(): BudgetFundingPeriodSummary {
-  return { net: 0, borrowed: 0, lent: 0 };
+  return {
+    net: 0,
+    borrowed: 0,
+    lent: 0,
+    restored: 0,
+    discarded: 0,
+    converted_to_own: 0,
+    reset_cutoff: 0,
+  };
 }
 
 export function sumBudgetFundingAfterResetsByPeriod(
@@ -76,6 +90,7 @@ export function sumBudgetFundingAfterResetsByPeriod(
     );
     if (!isAfterBudgetResetPoint(row, periodReset)) continue;
 
+    let resetCutoff = false;
     if (row.source_date) {
       const reset = resetBeforeEvent(
         budgetRows,
@@ -92,25 +107,34 @@ export function sumBudgetFundingAfterResetsByPeriod(
           reset,
         )
       ) {
-        continue;
+        resetCutoff = true;
       }
     }
 
     const key = `${row.budget_category_id}:${yearMonth}`;
     const summary = result.get(key) ?? emptySummary();
+    const applyToBudget = row.effect !== "component_only" && !resetCutoff;
     if (row.kind === "borrow") {
-      summary.net += row.amount;
+      if (applyToBudget) summary.net += row.amount;
       summary.borrowed += row.amount;
     } else if (row.kind === "repay") {
-      summary.net -= row.amount;
+      if (applyToBudget) summary.net -= row.amount;
       summary.borrowed -= row.amount;
+      if (row.effect === "component_only") {
+        summary.converted_to_own += row.amount;
+      }
     } else if (row.kind === "lend") {
-      summary.net -= row.amount;
+      if (applyToBudget) summary.net -= row.amount;
       summary.lent += row.amount;
     } else {
-      summary.net += row.amount;
+      if (applyToBudget) {
+        summary.net += row.amount;
+        summary.restored += row.amount;
+      }
       summary.lent -= row.amount;
+      if (row.effect === "component_only") summary.discarded += row.amount;
     }
+    if (resetCutoff) summary.reset_cutoff += row.amount;
     result.set(key, summary);
   }
 

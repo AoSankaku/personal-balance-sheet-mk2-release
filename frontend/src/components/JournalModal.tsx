@@ -519,6 +519,17 @@ export function JournalModal({
         budgetDist,
         showZeroCategories: false,
         incomeDist,
+        incomeTransferDestinations: Object.fromEntries(
+          (editEntry.income_transfer_requirements ?? [])
+            .filter(
+              (requirement) =>
+                requirement.budget_category_id != null,
+            )
+            .map((requirement) => [
+              requirement.budget_category_id!,
+              requirement.to_account_id,
+            ]),
+        ),
         settledEntryIds:
           editEntry.loan_settlement_source_journal_entry_ids ?? [],
         loanFundingCategoryAmounts: Object.fromEntries(
@@ -560,6 +571,7 @@ export function JournalModal({
           l.credit_card_billing_offset_months ?? 0,
       })),
       budgetAllocs,
+      budgetFundingComponents: editEntry.budget_funding_components ?? [],
     };
   }, [opened, editEntry?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 

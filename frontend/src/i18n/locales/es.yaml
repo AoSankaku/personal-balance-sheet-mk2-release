@@ -1347,3 +1347,34 @@ plannedExpenseWeekFallback_skip: "Omitir este mes"
 plannedExpenseWeekFallback_last_day_of_month: "Fin de mes mas cercano"
 plannedExpenseWeekFallback_previous_week: "Semana anterior"
 plannedExpenseWeekFallback_next_month_first_week: "Primera semana del mes siguiente"
+multiLineFundingTitle: Fondos presupuestarios de préstamos
+multiLineFundingHint: Revisa el principal y las partes aplicadas al presupuesto o cerradas solo como componente.
+fundingKindBorrow: Préstamo recibido
+fundingKindRepay: Reembolso
+fundingKindLend: Préstamo concedido
+fundingKindCollect: Cobro
+fundingPrincipal: Principal
+fundingApplied: Aplicado al presupuesto
+fundingNotApplied: No aplicado al presupuesto
+fundingDiscarded: Presupuesto descartado por cobro excluido
+fundingConvertedToOwn: Convertido en fondos propios por pago excluido
+fundingRestored: Presupuesto restaurado por cobro
+fundingResetCutoff: No restaurado tras un reinicio
+fundingCategoryBreakdown: Desglose por categoría y sin asignar
+incomeTransferDestination: Cuenta de destino de la distribución
+incomeTransferRequiredTitle: Transferencia vinculada a la distribución de ingresos
+incomeTransferRequiredHint: El destino está en otro grupo. Confirma la cuenta.
+incomeTransferNoTarget: Esta categoría no tiene cuenta de destino. No se creará transferencia.
+incomeTransferTasksTitle: Transferencias vinculadas a ingresos
+incomeTransferComplete: Crear transferencia y completar
+incomeTransferFindExisting: Buscar transferencia existente
+incomeTransferCancelCompletion: Cancelar finalización
+incomeTransferNoTasks: No hay transferencias pendientes.
+incomeTransferLinkedBudgetWarning: Esta transferencia también tiene movimientos presupuestarios. Se eliminarán al vincularla.
+incomeTransferHistoricalTitle: Transferencias detectadas en distribuciones de ingresos anteriores
+incomeTransferHistoricalHint: Solo se muestran distribuciones posteriores al último reinicio de cada categoría. Nada se registra ni vincula sin confirmación.
+incomeTransferHistoricalConfirm: ¿Registrar esta distribución como transferencia pendiente?
+incomeTransferRegister: Confirmar y registrar
+incomeTransferTargetMissing: No hay una cuenta de colocación configurada. Defínela en la categoría presupuestaria.
+incomeTransferEditConflict: Este cambio contradice una transferencia completada. Cancela su finalización desde la tarea de transferencia del libro antes de editar.
+budgetFundingExcludedInfo: El principal cambió solo mediante cuentas excluidas. Edita el asiento para confirmar el descarte o la conversión presupuestaria.

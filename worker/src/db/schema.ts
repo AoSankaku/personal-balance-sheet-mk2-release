@@ -356,6 +356,11 @@ export const budgetFundingAllocations = sqliteTable(
       () => journalEntries.id,
       { onDelete: "set null" },
     ),
+    effect: text("effect", {
+      enum: ["apply", "component_only"],
+    })
+      .notNull()
+      .default("apply"),
     created_at: text("created_at")
       .notNull()
       .default(sql`(datetime('now'))`),
@@ -370,6 +375,13 @@ export const budgetFundingAllocations = sqliteTable(
     sourceIndex: index("idx_budget_funding_allocations_source").on(
       table.source_journal_entry_id,
     ),
+    effectIndex: index("idx_budget_funding_allocations_effect").on(
+      table.effect,
+    ),
+    effectCheck: check(
+      "chk_budget_funding_allocations_effect",
+      sql`${table.effect} IN ('apply', 'component_only')`,
+    ),
     kindCheck: check(
       "chk_budget_funding_allocations_kind",
       sql`${table.kind} IN ('borrow', 'repay', 'lend', 'collect')`,
@@ -381,6 +393,65 @@ export const budgetFundingAllocations = sqliteTable(
     amountPositive: check(
       "chk_budget_funding_allocations_amount_positive",
       sql`${table.amount} > 0`,
+    ),
+  }),
+);
+
+export const incomeTransferRequirements = sqliteTable(
+  "income_transfer_requirements",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    source_income_journal_entry_id: integer(
+      "source_income_journal_entry_id",
+    )
+      .notNull()
+      .references(() => journalEntries.id, { onDelete: "cascade" }),
+    budget_category_id: integer("budget_category_id").references(
+      () => budgetCategories.id,
+      { onDelete: "set null" },
+    ),
+    budget_category_name: text("budget_category_name").notNull(),
+    from_account_id: integer("from_account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "restrict" }),
+    to_account_id: integer("to_account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "restrict" }),
+    amount: integer("amount").notNull(),
+    currency: text("currency").notNull().default("JPY"),
+    transfer_journal_entry_id: integer(
+      "transfer_journal_entry_id",
+    ).references(() => journalEntries.id, { onDelete: "set null" }),
+    completion_source: text("completion_source", {
+      enum: ["created", "linked"],
+    }),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    completed_at: text("completed_at"),
+  },
+  (table) => ({
+    sourceIndex: index("idx_income_transfer_requirements_source").on(
+      table.source_income_journal_entry_id,
+    ),
+    pendingIndex: index("idx_income_transfer_requirements_pending").on(
+      table.transfer_journal_entry_id,
+      table.currency,
+    ),
+    transferIndex: index("idx_income_transfer_requirements_transfer").on(
+      table.transfer_journal_entry_id,
+    ),
+    amountInteger: check(
+      "chk_income_transfer_requirements_amount_integer",
+      sql`typeof(${table.amount}) = 'integer'`,
+    ),
+    amountPositive: check(
+      "chk_income_transfer_requirements_amount_positive",
+      sql`${table.amount} > 0`,
+    ),
+    completionSourceCheck: check(
+      "chk_income_transfer_requirements_completion_source",
+      sql`${table.completion_source} IS NULL OR ${table.completion_source} IN ('created', 'linked')`,
     ),
   }),
 );
@@ -995,6 +1066,10 @@ export type BudgetFundingAllocation =
   typeof budgetFundingAllocations.$inferSelect;
 export type NewBudgetFundingAllocation =
   typeof budgetFundingAllocations.$inferInsert;
+export type IncomeTransferRequirement =
+  typeof incomeTransferRequirements.$inferSelect;
+export type NewIncomeTransferRequirement =
+  typeof incomeTransferRequirements.$inferInsert;
 export type AccountCompletion = typeof accountCompletions.$inferSelect;
 export type NewAccountCompletion = typeof accountCompletions.$inferInsert;
 export type EnabledCurrencyRow = typeof enabledCurrencies.$inferSelect;

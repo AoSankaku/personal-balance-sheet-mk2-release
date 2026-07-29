@@ -161,14 +161,21 @@ export interface JournalEntry {
   /** Opening entries settled by this repayment/collection entry. */
   loan_settlement_source_journal_entry_ids?: number[];
   budget_funding?: BudgetFundingRecord | null;
+  budget_funding_components?: BudgetFundingComponentRecord[];
+  income_transfer_requirements?: IncomeTransferRequirement[];
+  /** Set on transfer children created or linked from an income allocation. */
+  income_transfer_source_journal_entry_id?: number | null;
 }
 
 export type BudgetFundingKind = "borrow" | "repay" | "lend" | "collect";
+export type BudgetFundingEffect = "apply" | "component_only";
 
 export interface BudgetFundingAllocationInput {
   budget_category_id: number | null;
   amount: number;
   currency?: string;
+  effect?: BudgetFundingEffect;
+  source_journal_entry_id?: number | null;
 }
 
 export interface BudgetFundingInput {
@@ -188,7 +195,81 @@ export interface BudgetFundingRecord {
     amount: number;
     currency: string;
     source_journal_entry_id?: number | null;
+    effect?: BudgetFundingEffect;
   }>;
+}
+
+export interface BudgetFundingComponentInput {
+  kind: BudgetFundingKind;
+  principal_amount: number;
+  applied_amount: number;
+  component_only_amount: number;
+  allocations?: BudgetFundingAllocationInput[];
+  source_journal_entry_ids?: number[];
+}
+
+export interface BudgetFundingComponentRecord {
+  kind: BudgetFundingKind;
+  principal_amount: number;
+  applied_amount: number;
+  component_only_amount: number;
+  allocations: BudgetFundingRecord["allocations"];
+  source_journal_entry_ids: number[];
+}
+
+export interface IncomeTransferDestinationInput {
+  budget_category_id: number;
+  from_account_id: number;
+  to_account_id: number;
+  amount: number;
+  currency?: string;
+}
+
+export type IncomeTransferCompletionSource = "created" | "linked";
+
+export interface IncomeTransferRequirement {
+  id: number;
+  source_income_journal_entry_id: number;
+  source_income_date?: string;
+  source_income_description?: string;
+  budget_category_id: number | null;
+  budget_category_name: string;
+  from_account_id: number;
+  from_account_name?: string;
+  to_account_id: number;
+  to_account_name?: string;
+  amount: number;
+  currency: string;
+  transfer_journal_entry_id: number | null;
+  completion_source: IncomeTransferCompletionSource | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface IncomeTransferRequirementGroup {
+  key: string;
+  requirement_ids: number[];
+  source_income_journal_entry_id: number;
+  from_account_id: number;
+  to_account_id: number;
+  amount: number;
+  currency: string;
+  transfer_journal_entry_id: number | null;
+  completion_source: IncomeTransferCompletionSource | null;
+  requirements: IncomeTransferRequirement[];
+}
+
+export interface IncomeTransferHistoricalCandidate {
+  source_income_journal_entry_id: number;
+  source_income_date: string;
+  source_income_description: string;
+  budget_category_id: number;
+  budget_category_name: string;
+  from_account_id: number;
+  from_account_name: string;
+  amount: number;
+  currency: string;
+  target_accounts: Array<{ id: number; name: string }>;
 }
 
 export interface CreateJournalLineInput {
@@ -225,6 +306,8 @@ export interface CreateJournalInput {
   loan_settlement_journal_entry_ids?: number[];
   /** Explicit, stable budget funding split for loan/lending principal. */
   budget_funding?: BudgetFundingInput;
+  budget_funding_components?: BudgetFundingComponentInput[];
+  income_transfer_destinations?: IncomeTransferDestinationInput[];
   /** When true, skip the debit=credit balance check (used for currency exchange entries) */
   is_currency_exchange?: boolean;
 }
@@ -415,6 +498,14 @@ export interface BudgetCategorySummary {
   borrowed_funding?: number;
   /** Outstanding lent funding assigned to this category after its latest reset. */
   lent_funding?: number;
+  /** Funding restored by collections into allocatable assets. */
+  restored_funding?: number;
+  /** Collection principal retired outside allocatable assets. */
+  discarded_funding?: number;
+  /** Borrowing retired with repayment from non-allocatable assets. */
+  converted_to_own_funding?: number;
+  /** Settlement not applied to a category because a reset intervened. */
+  reset_cutoff_funding?: number;
   /** Number of distinct months with non-zero contributions (budget adjustment log entries) */
   months_with_contributions: number;
 }

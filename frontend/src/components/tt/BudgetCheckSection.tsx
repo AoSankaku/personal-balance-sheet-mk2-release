@@ -32,6 +32,7 @@ import { useAppData } from "../../context/AppDataContext";
 import { usePrivacy } from "../../context/PrivacyContext";
 import {
   findLatestBudgetResetBoundary,
+  getAllocatableAssetDelta,
   getLoanBudgetFundingPrincipal,
   isLoanBudgetFundingMissing,
 } from "../../lib/budgetFundingCompleteness";
@@ -135,8 +136,13 @@ export function BudgetCheckSection() {
 
   const latestResetBoundary = useMemo(
     () =>
-      resetLogs == null ? null : findLatestBudgetResetBoundary(resetLogs),
-    [resetLogs],
+      resetLogs == null
+        ? null
+        : findLatestBudgetResetBoundary(
+            resetLogs,
+            budgetCategories.map((category) => category.id),
+          ),
+    [resetLogs, budgetCategories],
   );
 
   const suspiciousEntries = useMemo(() => {
@@ -171,6 +177,27 @@ export function BudgetCheckSection() {
     displayCurrency,
     t,
   ]);
+  const neutralFundingEntries = useMemo(
+    () =>
+      filteredJournal.filter(
+        (entry) =>
+          (entry.budget_funding_components?.length ?? 0) === 0 &&
+          (entry.budget_funding?.allocations.length ?? 0) === 0 &&
+          getLoanBudgetFundingPrincipal(
+            entry,
+            accountMap,
+            displayCurrency || "JPY",
+          ) > 0 &&
+          Math.abs(
+            getAllocatableAssetDelta(
+              entry,
+              accountMap,
+              displayCurrency || "JPY",
+            ),
+          ) < 0.000_001,
+      ),
+    [filteredJournal, accountMap, displayCurrency],
+  );
 
   const pageCount = Math.max(1, Math.ceil(suspiciousEntries.length / pageSize));
   const pagedEntries = useMemo(
@@ -354,6 +381,28 @@ export function BudgetCheckSection() {
               : t("budgetFundingNoResetBoundary")}
           </Text>
         ) : null}
+        {neutralFundingEntries.length > 0 && (
+          <Stack gap={4} mb="sm">
+            {neutralFundingEntries.slice(0, 5).map((entry) => (
+              <Group key={entry.id} justify="space-between" wrap="nowrap">
+                <Text size="xs" c="dimmed">
+                  {entry.date}・{entry.description}:{" "}
+                  {t("budgetFundingExcludedInfo")}
+                </Text>
+                {!privacyMode && (
+                  <ActionIcon
+                    size="sm"
+                    variant="subtle"
+                    onClick={() => handleEditJournal(entry)}
+                    aria-label={t("editLabel")}
+                  >
+                    <IconPencil size={14} />
+                  </ActionIcon>
+                )}
+              </Group>
+            ))}
+          </Stack>
+        )}
 
         {suspiciousEntries.length === 0 ? (
           <Text size="sm" c="dimmed">

@@ -16,6 +16,7 @@ function row(
     journal_entry_id: overrides.journal_entry_id ?? 1,
     budget_category_id: overrides.budget_category_id ?? 10,
     kind: overrides.kind ?? "lend",
+    effect: overrides.effect ?? "apply",
     amount: overrides.amount ?? 50,
     date: overrides.date ?? "2026-07-10",
     created_at: overrides.created_at ?? "2026-07-10 10:00:00",
@@ -39,6 +40,10 @@ describe("budget funding and reset boundaries", () => {
       net: -40,
       borrowed: 10,
       lent: 50,
+      restored: 0,
+      discarded: 0,
+      converted_to_own: 0,
+      reset_cutoff: 0,
     });
   });
 
@@ -89,7 +94,39 @@ describe("budget funding and reset boundaries", () => {
       ranges,
     );
 
-    expect(result.get("10:2026-08")).toBeUndefined();
+    expect(result.get("10:2026-08")).toEqual({
+      net: 0,
+      borrowed: 0,
+      lent: -50,
+      restored: 0,
+      discarded: 0,
+      converted_to_own: 0,
+      reset_cutoff: 50,
+    });
+  });
+
+  test("component-only collection retires lending and records discarded budget", () => {
+    const result = sumBudgetFundingAfterResetsByPeriod(
+      [
+        row({
+          kind: "collect",
+          effect: "component_only",
+          amount: 50,
+        }),
+      ],
+      [],
+      ranges,
+    );
+
+    expect(result.get("10:2026-07")).toEqual({
+      net: 0,
+      borrowed: 0,
+      lent: -50,
+      restored: 0,
+      discarded: 50,
+      converted_to_own: 0,
+      reset_cutoff: 0,
+    });
   });
 
   test("applies funding opened after a reset on the same date", () => {

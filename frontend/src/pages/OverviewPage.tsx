@@ -193,7 +193,11 @@ function BudgetCategoryCard({
         </Box>
       </Group>
       {((summary.borrowed_funding ?? 0) !== 0 ||
-        (summary.lent_funding ?? 0) !== 0) && (
+        (summary.lent_funding ?? 0) !== 0 ||
+        (summary.restored_funding ?? 0) !== 0 ||
+        (summary.discarded_funding ?? 0) !== 0 ||
+        (summary.converted_to_own_funding ?? 0) !== 0 ||
+        (summary.reset_cutoff_funding ?? 0) !== 0) && (
         <Group gap="xs" mb={8} wrap="wrap">
           <Badge size="xs" variant="light" color="gray">
             {t("loanFundingOwnFunds")}:{" "}
@@ -218,6 +222,46 @@ function BudgetCategoryCard({
               {t("loanFundingLent")}: -
               {formatCurrency(
                 summary.lent_funding ?? 0,
+                locale,
+                currency,
+              )}
+            </Badge>
+          )}
+          {(summary.restored_funding ?? 0) !== 0 && (
+            <Badge size="xs" variant="light" color="teal">
+              {t("fundingRestored")}: +
+              {formatCurrency(
+                summary.restored_funding ?? 0,
+                locale,
+                currency,
+              )}
+            </Badge>
+          )}
+          {(summary.discarded_funding ?? 0) !== 0 && (
+            <Badge size="xs" variant="light" color="gray">
+              {t("fundingDiscarded")}:{" "}
+              {formatCurrency(
+                summary.discarded_funding ?? 0,
+                locale,
+                currency,
+              )}
+            </Badge>
+          )}
+          {(summary.converted_to_own_funding ?? 0) !== 0 && (
+            <Badge size="xs" variant="light" color="grape">
+              {t("fundingConvertedToOwn")}:{" "}
+              {formatCurrency(
+                summary.converted_to_own_funding ?? 0,
+                locale,
+                currency,
+              )}
+            </Badge>
+          )}
+          {(summary.reset_cutoff_funding ?? 0) !== 0 && (
+            <Badge size="xs" variant="light" color="yellow">
+              {t("fundingResetCutoff")}:{" "}
+              {formatCurrency(
+                summary.reset_cutoff_funding ?? 0,
                 locale,
                 currency,
               )}
