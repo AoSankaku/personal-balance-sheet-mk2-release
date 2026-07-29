@@ -440,6 +440,8 @@ taskMenuTitle: Needs attention
 taskMenuCount: "{count} open"
 taskPaydayUnrecorded: Payday not yet recorded
 tasks: Tasks
+tasksPageHint: Review items that need your attention.
+incomeTransferTasksPageHint: Review and complete account transfers required after allocating income.
 settingsSectionTasks: Tasks
 taskTrialBalanceToggle: Monthly trial balance task
 taskTrialBalanceToggleHint: Show a task after the selected day when actual amounts have not been compared this month.
@@ -1367,6 +1369,7 @@ incomeTransferRequiredTitle: Account transfer for income allocation
 incomeTransferRequiredHint: The allocation target is in a different placement group. Confirm its destination.
 incomeTransferNoTarget: This category has no placement account. No transfer will be created.
 incomeTransferTasksTitle: Account transfers for income allocations
+incomeTransferOpenTasksPage: "Manage account transfer tasks ({count} remaining)"
 incomeTransferComplete: Create transfer and complete
 incomeTransferFindExisting: Find an existing transfer
 incomeTransferCancelCompletion: Cancel completion

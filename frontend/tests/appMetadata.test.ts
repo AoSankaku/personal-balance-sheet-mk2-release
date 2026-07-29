@@ -112,6 +112,10 @@ describe("localized application metadata", () => {
   test("resolves localized document titles from route page names", () => {
     const overviewKey = pageTitleKeyForPathname("/");
     const financialsKey = pageTitleKeyForPathname("/fs");
+    const tasksKey = pageTitleKeyForPathname("/tasks");
+    const incomeTransferTasksKey = pageTitleKeyForPathname(
+      "/tasks/income-transfer",
+    );
     const budgetKey = pageTitleKeyForPathname("/settings/budget/");
     const loanDetailKey = pageTitleKeyForPathname(
       "/fs/db/long-term-loan/42?tab=plan",
@@ -119,6 +123,8 @@ describe("localized application metadata", () => {
 
     expect(overviewKey).toBe("navOverview");
     expect(financialsKey).toBe("navFS");
+    expect(tasksKey).toBe("tasks");
+    expect(incomeTransferTasksKey).toBe("incomeTransferTasksTitle");
     expect(budgetKey).toBe("budgetSettingsTitle");
     expect(loanDetailKey).toBe("loanDetailTitle");
 

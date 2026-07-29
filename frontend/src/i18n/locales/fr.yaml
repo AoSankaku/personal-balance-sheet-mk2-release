@@ -440,6 +440,8 @@ taskMenuTitle: "À vérifier"
 taskMenuCount: "{count} en attente"
 taskPaydayUnrecorded: "Jour de paie non encore enregistré"
 tasks: "Tâches"
+tasksPageHint: "Consultez les éléments qui nécessitent votre attention."
+incomeTransferTasksPageHint: "Vérifiez et terminez les virements requis après la répartition des revenus."
 settingsSectionTasks: "Tâches"
 taskTrialBalanceToggle: "Tâche mensuelle de balance de vérification"
 taskTrialBalanceToggleHint: "Afficher une tâche après le jour choisi si les montants réels n’ont pas encore été comparés ce mois-ci."
@@ -1367,6 +1369,7 @@ incomeTransferRequiredTitle: Virement lié à la répartition du revenu
 incomeTransferRequiredHint: La destination est dans un autre groupe. Confirmez le compte.
 incomeTransferNoTarget: Cette catégorie n'a pas de compte cible. Aucun virement ne sera créé.
 incomeTransferTasksTitle: Virements liés aux revenus
+incomeTransferOpenTasksPage: "Gérer les tâches de virement ({count} restantes)"
 incomeTransferComplete: Créer le virement et terminer
 incomeTransferFindExisting: Rechercher un virement existant
 incomeTransferCancelCompletion: Annuler l'achèvement

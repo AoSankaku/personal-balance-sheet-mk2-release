@@ -15,6 +15,7 @@ import type {
   JournalEntry,
 } from "@balance-sheet/shared";
 import { api, ApiError } from "../api/client";
+import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
 import { formatCurrency } from "../lib/numberFormat";
 import { showFeedback } from "../lib/feedback";
@@ -29,8 +30,17 @@ interface HistoricalRegistrationConfirmation {
   targetId: number;
 }
 
-export function IncomeTransferTasks() {
+interface IncomeTransferTasksProps {
+  showEmpty?: boolean;
+  showTitle?: boolean;
+}
+
+export function IncomeTransferTasks({
+  showEmpty = false,
+  showTitle = true,
+}: IncomeTransferTasksProps) {
   const { t, locale } = useLang();
+  const { refresh: refreshAppData } = useAppData();
   const [groups, setGroups] = useState<IncomeTransferRequirementGroup[]>([]);
   const [completedGroups, setCompletedGroups] = useState<
     IncomeTransferRequirementGroup[]
@@ -75,7 +85,7 @@ export function IncomeTransferTasks() {
     setLoading(true);
     try {
       await action();
-      await refresh();
+      await Promise.all([refresh(), refreshAppData()]);
     } catch (error) {
       showFeedback({
         color: "red",
@@ -160,6 +170,7 @@ export function IncomeTransferTasks() {
   }
 
   if (
+    !showEmpty &&
     groups.length === 0 &&
     completedGroups.length === 0 &&
     historical.length === 0
@@ -171,7 +182,9 @@ export function IncomeTransferTasks() {
     <>
       <Paper withBorder p="md">
         <Stack gap="sm">
-          <Text fw={700}>{t("incomeTransferTasksTitle")}</Text>
+          {showTitle && (
+            <Text fw={700}>{t("incomeTransferTasksTitle")}</Text>
+          )}
           {groups.length === 0 && (
             <Text size="sm" c="dimmed">
               {t("incomeTransferNoTasks")}

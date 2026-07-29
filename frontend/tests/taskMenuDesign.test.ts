@@ -9,14 +9,28 @@ const source = (path: string) =>
 describe("task menu design", () => {
   test("gives the task tray and budget warning a concise hierarchy", () => {
     const nav = source("src/components/TopNav.tsx");
+    const list = source("src/components/TaskList.tsx");
 
     expect(nav).toContain('t("taskMenuTitle")');
-    expect(nav).toContain('t("taskBudgetNegativeTitle")');
-    expect(nav).toContain('t("taskBudgetNegativeAction")');
-    expect(nav).toContain("task-menu__budget-card");
-    expect(nav).toContain(
-      'navigate("/fs/tt?segment=budget&basis=today")',
-    );
+    expect(list).toContain('t("taskBudgetNegativeTitle")');
+    expect(list).toContain('t("taskBudgetNegativeAction")');
+    expect(list).toContain("task-menu__budget-card");
+    expect(list).toContain('openTask("/fs/tt?segment=budget&basis=today")');
+  });
+
+  test("opens the standard task page from the clickable task header", () => {
+    const app = source("src/App.tsx");
+    const nav = source("src/components/TopNav.tsx");
+    const taskPage = source("src/pages/TasksPage.tsx");
+
+    expect(app).toContain('path="/tasks"');
+    expect(nav).toContain('className="task-menu__header"');
+    expect(nav).toContain('navigate("/tasks")');
+    expect(nav).not.toContain("<Badge");
+    expect(taskPage).toContain('t("tasks")');
+    expect(taskPage).toContain("useTaskCollection()");
+    expect(taskPage).toContain("<TaskList");
+    expect(taskPage).toContain("tasks.incomeTransferTasks.length > 0");
   });
 
   test("exposes menu state and mobile-friendly interaction styling", () => {

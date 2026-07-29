@@ -440,6 +440,8 @@ taskMenuTitle: 要確認
 taskMenuCount: "{count}件"
 taskPaydayUnrecorded: 未入力の給料日
 tasks: タスク
+tasksPageHint: 確認や対応が必要なタスクをまとめて表示します。
+incomeTransferTasksPageHint: 収入配分後に必要な口座移動を確認し、完了または既存仕訳への関連付けを行います。
 settingsSectionTasks: タスク設定
 taskTrialBalanceToggle: 毎月の試算タスク
 taskTrialBalanceToggleHint: 指定日以降、今月まだ実際の金額と比較していない場合にタスクを表示します。
@@ -1367,6 +1369,7 @@ incomeTransferRequiredTitle: 収入配分に伴う口座移動
 incomeTransferRequiredHint: 配分先が入金口座と別の配置グループです。移動先を確認してください。
 incomeTransferNoTarget: このカテゴリには配置先口座がありません。口座移動は作成されません。
 incomeTransferTasksTitle: 収入配分に伴う口座移動
+incomeTransferOpenTasksPage: "口座移動タスクを管理（残り{count}件）"
 incomeTransferComplete: 振替仕訳を作成して完了
 incomeTransferFindExisting: 既存の振替を探す
 incomeTransferCancelCompletion: 完了を取り消す
