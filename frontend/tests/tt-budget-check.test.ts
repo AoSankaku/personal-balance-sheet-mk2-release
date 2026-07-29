@@ -182,6 +182,8 @@ describe("budget check presentation", () => {
 
     expect(section).toContain("listAdjustmentLogs");
     expect(section).toContain("resetsOnly");
+    expect(section).toContain("isEntryAfterBudgetReset");
+    expect(section).toContain("resetLogs != null");
     expect(section).toContain('t("budgetFundingMissingIssue")');
     expect(section).toContain('{t("amountLabel")}');
   });

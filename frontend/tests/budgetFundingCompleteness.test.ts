@@ -9,6 +9,7 @@ import type {
 import {
   findLatestBudgetResetBoundary,
   getLoanBudgetFundingPrincipal,
+  isEntryAfterBudgetReset,
   isLoanBudgetFundingMissing,
 } from "../src/lib/budgetFundingCompleteness";
 
@@ -189,6 +190,50 @@ describe("budget funding completeness", () => {
       date: "2026-07-05",
     });
     expect(findLatestBudgetResetBoundary(logs, [1, 2, 3])).toBeNull();
+  });
+
+  test("hides loan funding history at or before the reset boundary", () => {
+    const boundary = {
+      date: "2026-05-01",
+      created_at: "2026-05-02 14:22:54",
+    };
+
+    expect(
+      isEntryAfterBudgetReset(
+        entry({
+          date: "2026-04-29",
+          created_at: "2026-04-29 07:57:07",
+        }),
+        boundary,
+      ),
+    ).toBe(false);
+    expect(
+      isEntryAfterBudgetReset(
+        entry({
+          date: "2026-05-01",
+          created_at: "2026-05-02 14:00:00",
+        }),
+        boundary,
+      ),
+    ).toBe(false);
+    expect(
+      isEntryAfterBudgetReset(
+        entry({
+          date: "2026-05-01",
+          created_at: "2026-05-02 15:00:00",
+        }),
+        boundary,
+      ),
+    ).toBe(true);
+    expect(
+      isEntryAfterBudgetReset(
+        entry({
+          date: "2026-05-02",
+          created_at: "2026-05-02 09:00:00",
+        }),
+        boundary,
+      ),
+    ).toBe(true);
   });
 
   test("does not flag a structural zero-impact loan entry", () => {

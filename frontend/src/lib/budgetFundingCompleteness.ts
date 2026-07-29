@@ -84,7 +84,7 @@ export function getAllocatableAssetDelta(
   }, 0);
 }
 
-function isEntryAfterBudgetReset(
+export function isEntryAfterBudgetReset(
   entry: JournalEntry,
   boundary: BudgetResetBoundary | null,
 ): boolean {
