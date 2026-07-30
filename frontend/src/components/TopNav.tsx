@@ -1,7 +1,6 @@
 import {
   ActionIcon,
   Anchor,
-  Badge,
   Box,
   Group,
   Indicator,
@@ -352,7 +351,14 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
           aria-label={t("taskMenuTitle")}
           className="task-menu__dropdown"
         >
-          <Box className="task-menu__header">
+          <UnstyledButton
+            className="task-menu__header"
+            onClick={() => {
+              navigate("/tasks");
+              setOpened(false);
+            }}
+            aria-label={`${t("taskMenuTitle")}: ${taskCountLabel}`}
+          >
             <Group justify="space-between" wrap="nowrap">
               <Group gap="sm" wrap="nowrap">
                 <ThemeIcon variant="light" color="blue" radius="xl" size={34}>
@@ -367,19 +373,9 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
                   </Text>
                 </Box>
               </Group>
-              {effectiveCount > 0 && (
-                <Badge
-                  variant="light"
-                  color="blue"
-                  circle
-                  size="lg"
-                  aria-hidden="true"
-                >
-                  {effectiveCount}
-                </Badge>
-              )}
+              <IconChevronRight size={18} aria-hidden="true" />
             </Group>
-          </Box>
+          </UnstyledButton>
           <Box className="task-menu__content">
             {totalCount === 0 ? (
               <Text size="sm" c="dimmed" ta="center" py="lg">
@@ -479,7 +475,7 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
                       key={task.key}
                       className="task-menu__item"
                       onClick={() => {
-                        navigate("/ledger");
+                        navigate("/tasks/income-transfer");
                         setOpened(false);
                       }}
                     >
@@ -713,6 +709,27 @@ function TaskMenu({ disabled = false }: { disabled?: boolean }) {
               </Stack>
             )}
           </Box>
+          {incomeTransferTasks.length > 0 && (
+            <Box className="task-menu__footer">
+              <UnstyledButton
+                className="task-menu__footer-link"
+                onClick={() => {
+                  navigate("/tasks/income-transfer");
+                  setOpened(false);
+                }}
+              >
+                <Group justify="space-between" wrap="nowrap">
+                  <Text size="sm" fw={600}>
+                    {t("incomeTransferOpenTasksPage").replace(
+                      "{count}",
+                      String(incomeTransferTasks.length),
+                    )}
+                  </Text>
+                  <IconChevronRight size={16} aria-hidden="true" />
+                </Group>
+              </UnstyledButton>
+            </Box>
+          )}
         </Popover.Dropdown>
       </Popover>
     </>

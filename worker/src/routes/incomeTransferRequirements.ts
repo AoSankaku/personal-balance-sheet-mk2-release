@@ -19,6 +19,7 @@ import {
   fromStorageMoneyAmount,
   toStorageMoneyAmount,
 } from "../lib/moneyValidation";
+import { chunkForD1InClause } from "../lib/d1Query";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
 import {
   connectedTargetAccounts,
@@ -646,13 +647,16 @@ router.get("/:id/candidates", async (c) => {
   const scaleOptions = {
     decimalPlacesByCurrency: await loadCurrencyDecimalPlaces(db),
   };
-  const lineRows =
-    entryIds.length === 0
-      ? []
-      : await db
+  const lineRows = (
+    await Promise.all(
+      chunkForD1InClause(entryIds).map((ids) =>
+        db
           .select()
           .from(journalLines)
-          .where(inArray(journalLines.journal_entry_id, entryIds));
+          .where(inArray(journalLines.journal_entry_id, ids)),
+      ),
+    )
+  ).flat();
   const expectedAmount = fromStorageMoneyAmount(
     rows.reduce((sum, row) => sum + row.amount, 0),
     rows[0]!.currency,
@@ -688,15 +692,18 @@ router.get("/:id/candidates", async (c) => {
         }),
     );
   const candidateIds = candidates.map((entry) => entry.id);
-  const logs =
-    candidateIds.length === 0
-      ? []
-      : await db
+  const logs = (
+    await Promise.all(
+      chunkForD1InClause(candidateIds).map((ids) =>
+        db
           .select({
             journal_entry_id: budgetAdjustmentLogs.journal_entry_id,
           })
           .from(budgetAdjustmentLogs)
-          .where(inArray(budgetAdjustmentLogs.journal_entry_id, candidateIds));
+          .where(inArray(budgetAdjustmentLogs.journal_entry_id, ids)),
+      ),
+    )
+  ).flat();
   const withBudgetLogs = new Set(logs.map((log) => log.journal_entry_id));
   return c.json(
     candidates.map((entry) => ({

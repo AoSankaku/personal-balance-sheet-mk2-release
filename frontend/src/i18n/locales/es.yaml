@@ -440,6 +440,8 @@ taskMenuTitle: "Requiere atención"
 taskMenuCount: "{count} pendientes"
 taskPaydayUnrecorded: "Día de pago aún no registrado"
 tasks: "Tareas"
+tasksPageHint: "Revisa los elementos que requieren tu atención."
+incomeTransferTasksPageHint: "Revisa y completa las transferencias necesarias tras distribuir los ingresos."
 settingsSectionTasks: "Tareas"
 taskTrialBalanceToggle: "Tarea mensual de saldo de prueba"
 taskTrialBalanceToggleHint: "Mostrar una tarea después del día elegido si aún no se compararon los importes reales este mes."
@@ -1367,6 +1369,7 @@ incomeTransferRequiredTitle: Transferencia vinculada a la distribución de ingre
 incomeTransferRequiredHint: El destino está en otro grupo. Confirma la cuenta.
 incomeTransferNoTarget: Esta categoría no tiene cuenta de destino. No se creará transferencia.
 incomeTransferTasksTitle: Transferencias vinculadas a ingresos
+incomeTransferOpenTasksPage: "Gestionar tareas de transferencia ({count} pendientes)"
 incomeTransferComplete: Crear transferencia y completar
 incomeTransferFindExisting: Buscar transferencia existente
 incomeTransferCancelCompletion: Cancelar finalización

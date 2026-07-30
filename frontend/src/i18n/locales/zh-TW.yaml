@@ -440,6 +440,8 @@ taskMenuTitle: 需要確認
 taskMenuCount: "{count} 項待處理"
 taskPaydayUnrecorded: 發薪日收入尚未記錄
 tasks: 任務
+tasksPageHint: 集中查看需要確認或處理的任務。
+incomeTransferTasksPageHint: 查看並完成收入分配後所需的帳戶移動。
 settingsSectionTasks: 任務
 taskTrialBalanceToggle: 每月試算任務
 taskTrialBalanceToggleHint: 到達指定日期後，如果本月尚未與實際金額比較，則顯示任務。
@@ -1367,6 +1369,7 @@ incomeTransferRequiredTitle: 收入分配關聯帳戶移動
 incomeTransferRequiredHint: 分配目標位於不同配置群組，請確認目標帳戶。
 incomeTransferNoTarget: 此分類沒有配置目標帳戶，不會建立轉帳。
 incomeTransferTasksTitle: 收入分配關聯轉帳
+incomeTransferOpenTasksPage: "管理帳戶移動任務（剩餘{count}項）"
 incomeTransferComplete: 建立轉帳並完成
 incomeTransferFindExisting: 尋找現有轉帳
 incomeTransferCancelCompletion: 取消完成

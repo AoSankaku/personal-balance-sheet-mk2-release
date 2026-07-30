@@ -12,6 +12,8 @@ const EXACT_PAGE_TITLE_KEYS: Record<string, TranslationKey> = {
   "/fs/db": "tabLoanMgmt",
   "/fs/sv": "tabSavings",
   "/ledger": "navLedger",
+  "/tasks": "tasks",
+  "/tasks/income-transfer": "incomeTransferTasksTitle",
   "/settings": "navSettings",
   "/settings/budget": "budgetSettingsTitle",
   "/settings/bulk_edit": "bulkEditPageTitle",

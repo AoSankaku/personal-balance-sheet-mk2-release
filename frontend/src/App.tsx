@@ -20,6 +20,10 @@ const AssetsPage = lazy(() => import("./pages/AssetsPage"));
 const BsPage = lazy(() => import("./pages/BsPage"));
 const PlPage = lazy(() => import("./pages/PlPage"));
 const LedgerPage = lazy(() => import("./pages/LedgerPage"));
+const TasksPage = lazy(() => import("./pages/TasksPage"));
+const IncomeTransferTasksPage = lazy(
+  () => import("./pages/IncomeTransferTasksPage"),
+);
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const BudgetSettingsPage = lazy(() => import("./pages/BudgetSettingsPage"));
 const BulkEditPage = lazy(() => import("./pages/BulkEditPage"));
@@ -171,6 +175,20 @@ export default function App() {
                 }
               />
               <Route path="/ledger" element={<LedgerPage />} />
+              <Route
+                path="/tasks"
+                element={privacyMode ? <PrivacyModeBlocked /> : <TasksPage />}
+              />
+              <Route
+                path="/tasks/income-transfer"
+                element={
+                  privacyMode ? (
+                    <PrivacyModeBlocked />
+                  ) : (
+                    <IncomeTransferTasksPage />
+                  )
+                }
+              />
               <Route path="/settings" element={<SettingsPage />} />
               <Route
                 path="/settings/budget"
