@@ -12,7 +12,12 @@ import {
   isLikelyCloudflareAccessResponse,
   shouldPromptForNewVersion,
 } from "../src/lib/appVersion";
-import { reloadWithLatestServiceWorker } from "../src/lib/pwaUpdate";
+import {
+  ACCESS_RECOVERY_QUERY_PARAM,
+  buildAccessRecoveryUrl,
+  reloadWithLatestServiceWorker,
+  removeAccessRecoveryMarker,
+} from "../src/lib/pwaUpdate";
 
 const frontendRoot = join(import.meta.dir, "..");
 
@@ -269,5 +274,42 @@ describe("app version reload", () => {
     });
 
     expect(reloadCount).toBe(1);
+  });
+});
+
+describe("Cloudflare Access session recovery", () => {
+  test("builds a cache-bypassing URL without discarding the current location", () => {
+    expect(
+      buildAccessRecoveryUrl(
+        "https://example.com/ledger?view=double#entry-42",
+        123456,
+      ),
+    ).toBe(
+      `https://example.com/ledger?view=double&${ACCESS_RECOVERY_QUERY_PARAM}=123456#entry-42`,
+    );
+  });
+
+  test("removes only the temporary recovery marker after authentication", () => {
+    expect(
+      removeAccessRecoveryMarker(
+        `https://example.com/ledger?view=double&${ACCESS_RECOVERY_QUERY_PARAM}=123456#entry-42`,
+      ),
+    ).toBe("/ledger?view=double#entry-42");
+  });
+
+  test("bypasses the PWA app shell for Access endpoints and recovery navigation", () => {
+    const configSource = readFileSync(
+      join(frontendRoot, "vite.config.ts"),
+      "utf8",
+    );
+    const promptSource = readFileSync(
+      join(frontendRoot, "src/components/HardReloadPrompt.tsx"),
+      "utf8",
+    );
+
+    expect(configSource).toContain("navigateFallbackDenylist");
+    expect(configSource).toContain("/^\\/cdn-cgi\\//");
+    expect(configSource).toContain(ACCESS_RECOVERY_QUERY_PARAM);
+    expect(promptSource).toContain("reloadAppForAccessRecovery()");
   });
 });

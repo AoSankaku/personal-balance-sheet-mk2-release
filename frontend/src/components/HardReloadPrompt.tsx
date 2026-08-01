@@ -6,7 +6,10 @@ import {
   subscribeReloadPrompt,
 } from "../lib/reloadPrompt";
 import { useLang } from "../i18n";
-import { reloadAppWithLatestServiceWorker } from "../lib/pwaUpdate";
+import {
+  reloadAppForAccessRecovery,
+  reloadAppWithLatestServiceWorker,
+} from "../lib/pwaUpdate";
 
 export function HardReloadPrompt() {
   const { t } = useLang();
@@ -33,7 +36,7 @@ export function HardReloadPrompt() {
 
   async function reload() {
     if (isAccess) {
-      window.location.reload();
+      reloadAppForAccessRecovery();
       return;
     }
 

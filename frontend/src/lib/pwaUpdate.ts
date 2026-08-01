@@ -17,6 +17,37 @@ interface ReloadWithLatestServiceWorkerOptions {
 }
 
 const DEFAULT_ACTIVATION_TIMEOUT_MS = 8_000;
+export const ACCESS_RECOVERY_QUERY_PARAM = "pwa_access_reauth";
+
+export function buildAccessRecoveryUrl(
+  currentUrl: string,
+  cacheBust: number = Date.now(),
+) {
+  const url = new URL(currentUrl);
+  url.searchParams.set(ACCESS_RECOVERY_QUERY_PARAM, String(cacheBust));
+  return url.toString();
+}
+
+export function removeAccessRecoveryMarker(currentUrl: string) {
+  const url = new URL(currentUrl);
+  url.searchParams.delete(ACCESS_RECOVERY_QUERY_PARAM);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+export function clearAccessRecoveryMarkerFromAddressBar() {
+  const currentUrl = new URL(window.location.href);
+  if (!currentUrl.searchParams.has(ACCESS_RECOVERY_QUERY_PARAM)) return;
+
+  window.history.replaceState(
+    window.history.state,
+    "",
+    removeAccessRecoveryMarker(currentUrl.toString()),
+  );
+}
+
+export function reloadAppForAccessRecovery() {
+  window.location.replace(buildAccessRecoveryUrl(window.location.href));
+}
 
 /**
  * Ask the browser to check for a new service worker and, when one is found,
