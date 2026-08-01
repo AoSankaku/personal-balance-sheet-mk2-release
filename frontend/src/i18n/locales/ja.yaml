@@ -1372,6 +1372,12 @@ incomeTransferTasksTitle: 収入配分に伴う口座移動
 incomeTransferOpenTasksPage: "口座移動タスクを管理（残り{count}件）"
 incomeTransferComplete: 振替仕訳を作成して完了
 incomeTransferFindExisting: 既存の振替を探す
+incomeTransferSelectCandidate: この仕訳を選択
+incomeTransferNoCandidates: 一致する振替仕訳はありません。
+incomeTransferLinkConfirmTitle: この振替仕訳を関連付けますか？
+incomeTransferLinkConfirmMessage: 選択した振替仕訳を口座移動タスクに関連付け、完了にします。
+incomeTransferTaskReference: "口座移動タスク {ids}"
+incomeTransferJournalReference: "振替仕訳 #{id}"
 incomeTransferCancelCompletion: 完了を取り消す
 incomeTransferCompletedAccordion: "完了済み（{count}件）"
 incomeTransferLoading: 口座移動タスクを読み込んでいます…

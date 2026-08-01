@@ -139,11 +139,7 @@ export function IncomeTransferTasks({
 
   function linkCandidate(entry: TransferCandidate) {
     if (!candidateGroup) return;
-    if (entry.has_budget_adjustment_logs) {
-      setLinkConfirmation(entry);
-      return;
-    }
-    void performLinkCandidate(entry);
+    setLinkConfirmation(entry);
   }
 
   function registerHistorical(
@@ -279,7 +275,11 @@ export function IncomeTransferTasks({
                         wrap="wrap"
                       >
                         <Text size="sm" c="dimmed">
-                          #{group.transfer_journal_entry_id}・
+                          {t("incomeTransferJournalReference").replace(
+                            "{id}",
+                            String(group.transfer_journal_entry_id),
+                          )}
+                          ・
                           {group.requirements[0]?.from_account_name} →{" "}
                           {group.requirements[0]?.to_account_name}・
                           {formatCurrency(group.amount, locale, group.currency)}
@@ -385,14 +385,14 @@ export function IncomeTransferTasks({
         </Stack>
       </Paper>
       <Modal
-        opened={candidateGroup != null}
+        opened={candidateGroup != null && linkConfirmation == null}
         onClose={() => setCandidateGroup(null)}
         title={t("incomeTransferFindExisting")}
       >
         <Stack>
           {candidates.length === 0 ? (
             <Text size="sm" c="dimmed">
-              {t("incomeTransferNoTasks")}
+              {t("incomeTransferNoCandidates")}
             </Text>
           ) : (
             candidates.map((entry) => (
@@ -404,7 +404,7 @@ export function IncomeTransferTasks({
                   </Text>
                 </Stack>
                 <Button size="xs" onClick={() => linkCandidate(entry)}>
-                  {t("incomeTransferFindExisting")}
+                  {t("incomeTransferSelectCandidate")}
                 </Button>
               </Group>
             ))
@@ -417,10 +417,20 @@ export function IncomeTransferTasks({
         onConfirm={() => {
           if (linkConfirmation) void performLinkCandidate(linkConfirmation);
         }}
-        title={t("incomeTransferLinkedBudgetConfirmTitle")}
-        message={t("incomeTransferLinkedBudgetWarning")}
+        title={t(
+          linkConfirmation?.has_budget_adjustment_logs
+            ? "incomeTransferLinkedBudgetConfirmTitle"
+            : "incomeTransferLinkConfirmTitle",
+        )}
+        message={t(
+          linkConfirmation?.has_budget_adjustment_logs
+            ? "incomeTransferLinkedBudgetWarning"
+            : "incomeTransferLinkConfirmMessage",
+        )}
         confirmLabel={t("confirm")}
-        confirmColor="orange"
+        confirmColor={
+          linkConfirmation?.has_budget_adjustment_logs ? "orange" : "blue"
+        }
         loading={loading}
       />
       <ConfirmModal

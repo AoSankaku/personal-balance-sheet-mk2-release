@@ -1372,6 +1372,12 @@ incomeTransferTasksTitle: 收入分配關聯轉帳
 incomeTransferOpenTasksPage: "管理帳戶移動任務（剩餘{count}項）"
 incomeTransferComplete: 建立轉帳並完成
 incomeTransferFindExisting: 尋找現有轉帳
+incomeTransferSelectCandidate: 選擇此分錄
+incomeTransferNoCandidates: 找不到相符的轉帳分錄。
+incomeTransferLinkConfirmTitle: 要連結此轉帳分錄嗎？
+incomeTransferLinkConfirmMessage: 所選轉帳分錄將連結到此帳戶移動任務並標記為已完成。
+incomeTransferTaskReference: "帳戶移動任務 {ids}"
+incomeTransferJournalReference: "轉帳分錄 #{id}"
 incomeTransferCancelCompletion: 取消完成
 incomeTransferCompletedAccordion: "已完成（{count}項）"
 incomeTransferLoading: 正在載入帳戶移動任務…

@@ -1372,6 +1372,12 @@ incomeTransferTasksTitle: 收入分配关联转账
 incomeTransferOpenTasksPage: "管理账户转移任务（剩余{count}项）"
 incomeTransferComplete: 创建转账并完成
 incomeTransferFindExisting: 查找现有转账
+incomeTransferSelectCandidate: 选择此分录
+incomeTransferNoCandidates: 未找到匹配的转账分录。
+incomeTransferLinkConfirmTitle: 要关联此转账分录吗？
+incomeTransferLinkConfirmMessage: 所选转账分录将关联到此账户转移任务并标记为已完成。
+incomeTransferTaskReference: "账户转移任务 {ids}"
+incomeTransferJournalReference: "转账分录 #{id}"
 incomeTransferCancelCompletion: 取消完成
 incomeTransferCompletedAccordion: "已完成（{count}项）"
 incomeTransferLoading: 正在加载账户转移任务…

@@ -1372,6 +1372,12 @@ incomeTransferTasksTitle: Virements liés aux revenus
 incomeTransferOpenTasksPage: "Gérer les tâches de virement ({count} restantes)"
 incomeTransferComplete: Créer le virement et terminer
 incomeTransferFindExisting: Rechercher un virement existant
+incomeTransferSelectCandidate: Sélectionner cette écriture
+incomeTransferNoCandidates: Aucune écriture de virement correspondante n’a été trouvée.
+incomeTransferLinkConfirmTitle: Associer cette écriture de virement ?
+incomeTransferLinkConfirmMessage: L’écriture de virement sélectionnée sera associée à cette tâche de virement et marquée comme terminée.
+incomeTransferTaskReference: "Tâche de virement {ids}"
+incomeTransferJournalReference: "Écriture de virement n°{id}"
 incomeTransferCancelCompletion: Annuler l'achèvement
 incomeTransferCompletedAccordion: "Terminés ({count})"
 incomeTransferLoading: Chargement des tâches de virement…
