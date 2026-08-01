@@ -416,11 +416,15 @@ export function JournalTable({
                               {entry.description}
                             </Text>
                           )}
-                          {entry.income_transfer_source_journal_entry_id !=
-                            null && (
+                          {(entry.income_transfer_requirement_ids?.length ??
+                            0) > 0 && (
                             <Badge size="xs" variant="outline" w="fit-content">
-                              {t("incomeTransferTasksTitle")} #
-                              {entry.income_transfer_source_journal_entry_id}
+                              {t("incomeTransferTaskReference").replace(
+                                "{ids}",
+                                entry.income_transfer_requirement_ids!
+                                  .map((id) => `#${id}`)
+                                  .join(" / "),
+                              )}
                             </Badge>
                           )}
                         </Stack>
@@ -522,11 +526,15 @@ export function JournalTable({
                           <Text size="sm" fw={500}>
                             {entry.description}
                           </Text>
-                          {entry.income_transfer_source_journal_entry_id !=
-                            null && (
+                          {(entry.income_transfer_requirement_ids?.length ??
+                            0) > 0 && (
                             <Badge size="xs" variant="outline" w="fit-content">
-                              {t("incomeTransferTasksTitle")} #
-                              {entry.income_transfer_source_journal_entry_id}
+                              {t("incomeTransferTaskReference").replace(
+                                "{ids}",
+                                entry.income_transfer_requirement_ids!
+                                  .map((id) => `#${id}`)
+                                  .join(" / "),
+                              )}
                             </Badge>
                           )}
                         </Stack>

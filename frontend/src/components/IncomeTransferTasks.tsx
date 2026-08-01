@@ -1,7 +1,9 @@
 import {
+  Accordion,
   Badge,
   Button,
   Group,
+  Loader,
   Modal,
   Paper,
   Radio,
@@ -58,6 +60,7 @@ export function IncomeTransferTasks({
     useState<TransferCandidate | null>(null);
   const [historicalConfirmation, setHistoricalConfirmation] =
     useState<HistoricalRegistrationConfirmation | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -78,7 +81,13 @@ export function IncomeTransferTasks({
   }, []);
 
   useEffect(() => {
-    void refresh();
+    let active = true;
+    void refresh().finally(() => {
+      if (active) setInitialLoading(false);
+    });
+    return () => {
+      active = false;
+    };
   }, [refresh]);
 
   async function run(action: () => Promise<unknown>) {
@@ -130,11 +139,7 @@ export function IncomeTransferTasks({
 
   function linkCandidate(entry: TransferCandidate) {
     if (!candidateGroup) return;
-    if (entry.has_budget_adjustment_logs) {
-      setLinkConfirmation(entry);
-      return;
-    }
-    void performLinkCandidate(entry);
+    setLinkConfirmation(entry);
   }
 
   function registerHistorical(
@@ -170,6 +175,7 @@ export function IncomeTransferTasks({
   }
 
   if (
+    !initialLoading &&
     !showEmpty &&
     groups.length === 0 &&
     completedGroups.length === 0 &&
@@ -185,7 +191,15 @@ export function IncomeTransferTasks({
           {showTitle && (
             <Text fw={700}>{t("incomeTransferTasksTitle")}</Text>
           )}
-          {groups.length === 0 && (
+          {initialLoading && (
+            <Group justify="center" gap="xs" py="sm" role="status">
+              <Loader size="xs" aria-hidden="true" />
+              <Text size="sm" c="dimmed">
+                {t("incomeTransferLoading")}
+              </Text>
+            </Group>
+          )}
+          {!initialLoading && groups.length === 0 && (
             <Text size="sm" c="dimmed">
               {t("incomeTransferNoTasks")}
             </Text>
@@ -241,31 +255,57 @@ export function IncomeTransferTasks({
               </Group>
             </Group>
           ))}
-          {completedGroups.map((group) => (
-            <Group key={group.key} justify="space-between" wrap="wrap">
-              <Text size="sm" c="dimmed">
-                #{group.transfer_journal_entry_id}・
-                {group.requirements[0]?.from_account_name} →{" "}
-                {group.requirements[0]?.to_account_name}・
-                {formatCurrency(group.amount, locale, group.currency)}
-              </Text>
-              <Button
-                size="xs"
-                color="red"
-                variant="subtle"
-                loading={loading}
-                onClick={() =>
-                  void run(() =>
-                    api.incomeTransferRequirements.cancel(
-                      group.requirement_ids[0]!,
-                    ),
-                  )
-                }
-              >
-                {t("incomeTransferCancelCompletion")}
-              </Button>
-            </Group>
-          ))}
+          {completedGroups.length > 0 && (
+            <Accordion defaultValue={null} variant="contained" radius="md">
+              <Accordion.Item value="completed">
+                <Accordion.Control>
+                  <Text size="sm" fw={600} c="dimmed">
+                    {t("incomeTransferCompletedAccordion").replace(
+                      "{count}",
+                      String(completedGroups.length),
+                    )}
+                  </Text>
+                </Accordion.Control>
+                <Accordion.Panel>
+                  <Stack gap="xs">
+                    {completedGroups.map((group) => (
+                      <Group
+                        key={group.key}
+                        justify="space-between"
+                        wrap="wrap"
+                      >
+                        <Text size="sm" c="dimmed">
+                          {t("incomeTransferJournalReference").replace(
+                            "{id}",
+                            String(group.transfer_journal_entry_id),
+                          )}
+                          ・
+                          {group.requirements[0]?.from_account_name} →{" "}
+                          {group.requirements[0]?.to_account_name}・
+                          {formatCurrency(group.amount, locale, group.currency)}
+                        </Text>
+                        <Button
+                          size="xs"
+                          color="red"
+                          variant="subtle"
+                          loading={loading}
+                          onClick={() =>
+                            void run(() =>
+                              api.incomeTransferRequirements.cancel(
+                                group.requirement_ids[0]!,
+                              ),
+                            )
+                          }
+                        >
+                          {t("incomeTransferCancelCompletion")}
+                        </Button>
+                      </Group>
+                    ))}
+                  </Stack>
+                </Accordion.Panel>
+              </Accordion.Item>
+            </Accordion>
+          )}
           {historical.length > 0 && (
             <Stack gap="xs">
               <Text size="sm" fw={700}>
@@ -345,14 +385,14 @@ export function IncomeTransferTasks({
         </Stack>
       </Paper>
       <Modal
-        opened={candidateGroup != null}
+        opened={candidateGroup != null && linkConfirmation == null}
         onClose={() => setCandidateGroup(null)}
         title={t("incomeTransferFindExisting")}
       >
         <Stack>
           {candidates.length === 0 ? (
             <Text size="sm" c="dimmed">
-              {t("incomeTransferNoTasks")}
+              {t("incomeTransferNoCandidates")}
             </Text>
           ) : (
             candidates.map((entry) => (
@@ -364,7 +404,7 @@ export function IncomeTransferTasks({
                   </Text>
                 </Stack>
                 <Button size="xs" onClick={() => linkCandidate(entry)}>
-                  {t("incomeTransferFindExisting")}
+                  {t("incomeTransferSelectCandidate")}
                 </Button>
               </Group>
             ))
@@ -377,10 +417,20 @@ export function IncomeTransferTasks({
         onConfirm={() => {
           if (linkConfirmation) void performLinkCandidate(linkConfirmation);
         }}
-        title={t("incomeTransferLinkedBudgetConfirmTitle")}
-        message={t("incomeTransferLinkedBudgetWarning")}
+        title={t(
+          linkConfirmation?.has_budget_adjustment_logs
+            ? "incomeTransferLinkedBudgetConfirmTitle"
+            : "incomeTransferLinkConfirmTitle",
+        )}
+        message={t(
+          linkConfirmation?.has_budget_adjustment_logs
+            ? "incomeTransferLinkedBudgetWarning"
+            : "incomeTransferLinkConfirmMessage",
+        )}
         confirmLabel={t("confirm")}
-        confirmColor="orange"
+        confirmColor={
+          linkConfirmation?.has_budget_adjustment_logs ? "orange" : "blue"
+        }
         loading={loading}
       />
       <ConfirmModal

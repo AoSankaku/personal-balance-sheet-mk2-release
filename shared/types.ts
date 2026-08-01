@@ -165,6 +165,8 @@ export interface JournalEntry {
   income_transfer_requirements?: IncomeTransferRequirement[];
   /** Set on transfer children created or linked from an income allocation. */
   income_transfer_source_journal_entry_id?: number | null;
+  /** Requirement IDs completed by this transfer entry. */
+  income_transfer_requirement_ids?: number[];
 }
 
 export type BudgetFundingKind = "borrow" | "repay" | "lend" | "collect";

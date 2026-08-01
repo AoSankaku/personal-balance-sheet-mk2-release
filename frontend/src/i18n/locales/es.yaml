@@ -1372,7 +1372,15 @@ incomeTransferTasksTitle: Transferencias vinculadas a ingresos
 incomeTransferOpenTasksPage: "Gestionar tareas de transferencia ({count} pendientes)"
 incomeTransferComplete: Crear transferencia y completar
 incomeTransferFindExisting: Buscar transferencia existente
+incomeTransferSelectCandidate: Seleccionar este asiento
+incomeTransferNoCandidates: No se encontraron asientos de transferencia coincidentes.
+incomeTransferLinkConfirmTitle: ¿Vincular este asiento de transferencia?
+incomeTransferLinkConfirmMessage: El asiento de transferencia seleccionado se vinculará a esta tarea y se marcará como completada.
+incomeTransferTaskReference: "Tarea de transferencia {ids}"
+incomeTransferJournalReference: "Asiento de transferencia n.º {id}"
 incomeTransferCancelCompletion: Cancelar finalización
+incomeTransferCompletedAccordion: "Completadas ({count})"
+incomeTransferLoading: Cargando tareas de transferencia…
 incomeTransferNoTasks: No hay transferencias pendientes.
 incomeTransferLinkedBudgetWarning: Esta transferencia también tiene movimientos presupuestarios. Se eliminarán al vincularla.
 incomeTransferLinkedBudgetConfirmTitle: Vincular transferencia y eliminar movimiento presupuestario

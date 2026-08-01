@@ -1372,7 +1372,15 @@ incomeTransferTasksTitle: Account transfers for income allocations
 incomeTransferOpenTasksPage: "Manage account transfer tasks ({count} remaining)"
 incomeTransferComplete: Create transfer and complete
 incomeTransferFindExisting: Find an existing transfer
+incomeTransferSelectCandidate: Select this entry
+incomeTransferNoCandidates: No matching transfer entries were found.
+incomeTransferLinkConfirmTitle: Link this transfer entry?
+incomeTransferLinkConfirmMessage: The selected transfer entry will be linked to this account transfer task and marked completed.
+incomeTransferTaskReference: "Account transfer task {ids}"
+incomeTransferJournalReference: "Transfer entry #{id}"
 incomeTransferCancelCompletion: Cancel completion
+incomeTransferCompletedAccordion: "Completed ({count})"
+incomeTransferLoading: Loading account transfer tasks…
 incomeTransferNoTasks: There are no pending account transfers.
 incomeTransferLinkedBudgetWarning: This transfer also has budget movement logs. They will be removed when it is linked.
 incomeTransferLinkedBudgetConfirmTitle: Link transfer and remove budget movement?

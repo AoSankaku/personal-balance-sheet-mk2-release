@@ -520,6 +520,7 @@ router.get("/", async (c) => {
     entryIdChunks.map((ids) =>
       db
         .select({
+          id: incomeTransferRequirements.id,
           transfer_journal_entry_id:
             incomeTransferRequirements.transfer_journal_entry_id,
           source_income_journal_entry_id:
@@ -530,11 +531,21 @@ router.get("/", async (c) => {
     ),
   );
   const incomeSourceByTransfer = new Map<number, number>();
+  const incomeRequirementIdsByTransfer = new Map<number, number[]>();
   for (const requirement of childTransferChunks.flat()) {
     if (requirement.transfer_journal_entry_id != null) {
       incomeSourceByTransfer.set(
         requirement.transfer_journal_entry_id,
         requirement.source_income_journal_entry_id,
+      );
+      const requirementIds =
+        incomeRequirementIdsByTransfer.get(
+          requirement.transfer_journal_entry_id,
+        ) ?? [];
+      requirementIds.push(requirement.id);
+      incomeRequirementIdsByTransfer.set(
+        requirement.transfer_journal_entry_id,
+        requirementIds,
       );
     }
   }
@@ -767,6 +778,9 @@ router.get("/", async (c) => {
     })),
     income_transfer_source_journal_entry_id:
       incomeSourceByTransfer.get(entry.id) ?? null,
+    income_transfer_requirement_ids: [
+      ...(incomeRequirementIdsByTransfer.get(entry.id) ?? []),
+    ].sort((left, right) => left - right),
   }));
 
   return c.json(result);
@@ -1417,6 +1431,7 @@ router.get("/:id", async (c) => {
     .where(eq(incomeTransferRequirements.source_income_journal_entry_id, id));
   const childRequirementRows = await db
     .select({
+      id: incomeTransferRequirements.id,
       source_income_journal_entry_id:
         incomeTransferRequirements.source_income_journal_entry_id,
     })
@@ -1570,6 +1585,9 @@ router.get("/:id", async (c) => {
     })),
     income_transfer_source_journal_entry_id:
       childRequirementRows[0]?.source_income_journal_entry_id ?? null,
+    income_transfer_requirement_ids: childRequirementRows
+      .map((row) => row.id)
+      .sort((left, right) => left - right),
   });
 });
 
