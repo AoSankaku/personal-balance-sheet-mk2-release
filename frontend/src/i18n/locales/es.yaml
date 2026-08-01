@@ -1373,6 +1373,8 @@ incomeTransferOpenTasksPage: "Gestionar tareas de transferencia ({count} pendien
 incomeTransferComplete: Crear transferencia y completar
 incomeTransferFindExisting: Buscar transferencia existente
 incomeTransferCancelCompletion: Cancelar finalización
+incomeTransferCompletedAccordion: "Completadas ({count})"
+incomeTransferLoading: Cargando tareas de transferencia…
 incomeTransferNoTasks: No hay transferencias pendientes.
 incomeTransferLinkedBudgetWarning: Esta transferencia también tiene movimientos presupuestarios. Se eliminarán al vincularla.
 incomeTransferLinkedBudgetConfirmTitle: Vincular transferencia y eliminar movimiento presupuestario

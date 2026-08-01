@@ -39,29 +39,6 @@
   padding: var(--mantine-spacing-sm);
 }
 
-.task-menu__footer {
-  padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-  border-top: 1px solid var(--mantine-color-default-border);
-}
-
-.task-menu__footer-link {
-  display: block;
-  width: 100%;
-  min-height: 44px;
-  padding: 10px var(--mantine-spacing-sm);
-  border-radius: var(--mantine-radius-md);
-  color: var(--mantine-color-blue-filled);
-}
-
-.task-menu__footer-link:hover {
-  background: light-dark(var(--mantine-color-blue-0), rgba(34, 139, 230, 0.12));
-}
-
-.task-menu__footer-link:focus-visible {
-  outline: 3px solid var(--mantine-color-blue-5);
-  outline-offset: 2px;
-}
-
 .task-menu__section-label {
   padding-inline: var(--mantine-spacing-xs);
   color: var(--mantine-color-dimmed);

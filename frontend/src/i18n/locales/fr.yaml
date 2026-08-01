@@ -1373,6 +1373,8 @@ incomeTransferOpenTasksPage: "Gérer les tâches de virement ({count} restantes)
 incomeTransferComplete: Créer le virement et terminer
 incomeTransferFindExisting: Rechercher un virement existant
 incomeTransferCancelCompletion: Annuler l'achèvement
+incomeTransferCompletedAccordion: "Terminés ({count})"
+incomeTransferLoading: Chargement des tâches de virement…
 incomeTransferNoTasks: Aucun virement en attente.
 incomeTransferLinkedBudgetWarning: Ce virement contient aussi des mouvements budgétaires. Ils seront supprimés lors de l'association.
 incomeTransferLinkedBudgetConfirmTitle: Associer le virement et supprimer le mouvement budgétaire

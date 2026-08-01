@@ -1373,6 +1373,8 @@ incomeTransferOpenTasksPage: "管理账户转移任务（剩余{count}项）"
 incomeTransferComplete: 创建转账并完成
 incomeTransferFindExisting: 查找现有转账
 incomeTransferCancelCompletion: 取消完成
+incomeTransferCompletedAccordion: "已完成（{count}项）"
+incomeTransferLoading: 正在加载账户转移任务…
 incomeTransferNoTasks: 没有待处理的账户转移。
 incomeTransferLinkedBudgetWarning: 此转账还包含预算移动记录，关联时将删除这些记录。
 incomeTransferLinkedBudgetConfirmTitle: 关联转账并删除预算移动

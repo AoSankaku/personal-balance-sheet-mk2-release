@@ -1373,6 +1373,8 @@ incomeTransferOpenTasksPage: "口座移動タスクを管理（残り{count}件�
 incomeTransferComplete: 振替仕訳を作成して完了
 incomeTransferFindExisting: 既存の振替を探す
 incomeTransferCancelCompletion: 完了を取り消す
+incomeTransferCompletedAccordion: "完了済み（{count}件）"
+incomeTransferLoading: 口座移動タスクを読み込んでいます…
 incomeTransferNoTasks: 未完了の口座移動はありません。
 incomeTransferLinkedBudgetWarning: この振替には予算移動も記録されています。関連付け時に予算移動ログを解除します。
 incomeTransferLinkedBudgetConfirmTitle: 予算移動を解除して関連付け

@@ -1373,6 +1373,8 @@ incomeTransferOpenTasksPage: "Manage account transfer tasks ({count} remaining)"
 incomeTransferComplete: Create transfer and complete
 incomeTransferFindExisting: Find an existing transfer
 incomeTransferCancelCompletion: Cancel completion
+incomeTransferCompletedAccordion: "Completed ({count})"
+incomeTransferLoading: Loading account transfer tasks…
 incomeTransferNoTasks: There are no pending account transfers.
 incomeTransferLinkedBudgetWarning: This transfer also has budget movement logs. They will be removed when it is linked.
 incomeTransferLinkedBudgetConfirmTitle: Link transfer and remove budget movement?

@@ -1369,6 +1369,8 @@ export const translationKeys = [
   "incomeTransferComplete",
   "incomeTransferFindExisting",
   "incomeTransferCancelCompletion",
+  "incomeTransferCompletedAccordion",
+  "incomeTransferLoading",
   "incomeTransferNoTasks",
   "incomeTransferLinkedBudgetWarning",
   "incomeTransferLinkedBudgetConfirmTitle",

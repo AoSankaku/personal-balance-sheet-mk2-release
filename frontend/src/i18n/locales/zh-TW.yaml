@@ -1373,6 +1373,8 @@ incomeTransferOpenTasksPage: "管理帳戶移動任務（剩餘{count}項）"
 incomeTransferComplete: 建立轉帳並完成
 incomeTransferFindExisting: 尋找現有轉帳
 incomeTransferCancelCompletion: 取消完成
+incomeTransferCompletedAccordion: "已完成（{count}項）"
+incomeTransferLoading: 正在載入帳戶移動任務…
 incomeTransferNoTasks: 沒有待處理的帳戶移動。
 incomeTransferLinkedBudgetWarning: 此轉帳還包含預算移動記錄，關聯時將刪除這些記錄。
 incomeTransferLinkedBudgetConfirmTitle: 關聯轉帳並刪除預算移動
