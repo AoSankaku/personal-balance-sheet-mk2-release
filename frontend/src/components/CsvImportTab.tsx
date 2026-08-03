@@ -969,7 +969,10 @@ export function CsvImportTab({
                   value: "smbc-bank",
                   label: t("importFormatSmbcBank"),
                 },
-                { value: "sbi-bank", label: t("importFormatSbiBank") },
+                {
+                  value: "docomo-smtb-bank",
+                  label: t("importFormatDocomoSmtbBank"),
+                },
               ]}
               value={manualFormat}
               onChange={(v) => setManualFormat(v as CsvFormat | null)}

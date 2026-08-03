@@ -97,7 +97,7 @@ export function getDefaultStatementMonth({
     transactions.length === 0 ||
     format === "unknown" ||
     format === "smbc-bank" ||
-    format === "sbi-bank"
+    format === "docomo-smtb-bank"
   ) {
     return latestSelectableMonth;
   }

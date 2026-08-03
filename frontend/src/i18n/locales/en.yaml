@@ -113,7 +113,7 @@ editAccountTitle: Edit Account
 editAccount: Edit
 accountUpdated: Account updated
 accountNameLabel: Account Name
-accountNamePlaceholder: e.g. SBI Savings
+accountNamePlaceholder: e.g. Docomo SMTB Savings
 typeLabel: Type
 categoryLabel: Category
 currencyLabel: Currency
@@ -499,7 +499,7 @@ importFormatRakutenDraft: Rakuten (Draft)
 importFormatRakutenConfirmed: Rakuten (Confirmed)
 importFormatUnknown: Unknown format
 importFormatSmbcBank: SMBC Bank (Income/Expense Statement)
-importFormatSbiBank: SBI Bank (Income/Expense Statement)
+importFormatDocomoSmtbBank: Docomo SMTB Net Bank (Income/Expense Statement)
 importSelectCard: Credit card account
 importSelectBankAccount: Bank account
 importExpenseAccount: Expense account

@@ -203,7 +203,7 @@ describe("calculateBudgetPlacement", () => {
         },
         {
           id: 59,
-          name: "SBI hybrid deposit",
+          name: "Docomo SMTB hybrid deposit",
           balance: 537,
           balances: { JPY: 537 },
           category: "cash",

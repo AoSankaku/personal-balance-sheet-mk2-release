@@ -113,7 +113,7 @@ editAccountTitle: 編輯帳戶
 editAccount: 編輯
 accountUpdated: 帳戶已更新
 accountNameLabel: 帳戶名稱
-accountNamePlaceholder: 例如：SBI 儲蓄
+accountNamePlaceholder: 例如：Docomo SMTB 儲蓄
 typeLabel: 類型
 categoryLabel: 類別
 currencyLabel: 貨幣
@@ -499,7 +499,7 @@ importFormatRakutenDraft: 樂天卡（暫定版）
 importFormatRakutenConfirmed: 樂天卡（確定版）
 importFormatUnknown: 未知格式
 importFormatSmbcBank: 三井住友銀行（收支明細）
-importFormatSbiBank: SBI 銀行（收支明細）
+importFormatDocomoSmtbBank: Docomo SMTB 網路銀行（收支明細）
 importSelectCard: 信用卡帳戶
 importSelectBankAccount: 銀行帳戶
 importExpenseAccount: 支出帳戶

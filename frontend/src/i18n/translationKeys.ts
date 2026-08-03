@@ -509,7 +509,7 @@ export const translationKeys = [
   "importFormatRakutenConfirmed",
   "importFormatUnknown",
   "importFormatSmbcBank",
-  "importFormatSbiBank",
+  "importFormatDocomoSmtbBank",
   "importSelectCard",
   "importSelectBankAccount",
   "importExpenseAccount",

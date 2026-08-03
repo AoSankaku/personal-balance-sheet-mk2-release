@@ -113,7 +113,7 @@ editAccountTitle: 勘定科目を編集
 editAccount: 編集
 accountUpdated: 勘定科目を更新しました
 accountNameLabel: 勘定科目名
-accountNamePlaceholder: "例: SBI普通預金"
+accountNamePlaceholder: "例: ドコモSMTB普通預金"
 typeLabel: 種類
 categoryLabel: カテゴリー
 currencyLabel: 通貨
@@ -499,7 +499,7 @@ importFormatRakutenDraft: 楽天カード（仮版）
 importFormatRakutenConfirmed: 楽天カード（確定版）
 importFormatUnknown: 形式不明
 importFormatSmbcBank: 三井住友銀行（入出金明細）
-importFormatSbiBank: SBI銀行（入出金明細）
+importFormatDocomoSmtbBank: ドコモSMTBネット銀行（入出金明細）
 importSelectCard: クレジットカード口座
 importSelectBankAccount: 銀行口座
 importExpenseAccount: 費用科目
