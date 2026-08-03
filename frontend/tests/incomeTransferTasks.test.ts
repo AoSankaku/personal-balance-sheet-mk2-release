@@ -60,4 +60,10 @@ describe("income-linked account transfer tasks", () => {
       expect(translations).toContain("incomeTransferNettedReference:");
     }
   });
+
+  test("uses a color-scheme-aware background for the squash preview", () => {
+    const tasks = source("src/components/IncomeTransferTasks.tsx");
+    expect(tasks).toContain('bg="var(--mantine-color-blue-light)"');
+    expect(tasks).not.toContain('bg="blue.0"');
+  });
 });

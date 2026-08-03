@@ -215,7 +215,11 @@ export function IncomeTransferTasks({
           {squashPreview != null &&
             squashPreview.original_transfer_count >
               squashPreview.squashed_transfer_count && (
-              <Paper withBorder p="sm" bg="blue.0">
+              <Paper
+                withBorder
+                p="sm"
+                bg="var(--mantine-color-blue-light)"
+              >
                 <Stack gap="xs">
                   <Text size="sm" fw={700}>
                     {t("incomeTransferSquashTitle")}
