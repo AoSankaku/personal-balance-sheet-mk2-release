@@ -1383,6 +1383,8 @@ incomeTransferSquashNoTransfer: すべて相殺されるため、実際の口座
 incomeTransferSquashAction: 最小本数で振替を作成して完了
 incomeTransferSquashConfirmTitle: 最小本数の振替を作成しますか？
 incomeTransferSquashConfirm: 表示された差引後の振替で、未完了タスクをすべて完了します。実際の口座振替を行ってから確定してください。
+incomeTransferJournalDescription: "収入配分の口座振替: {description}"
+incomeTransferSquashJournalDescription: "収入配分の口座振替（集約）: {count}件"
 incomeTransferNettedReference: 振替不要で完了
 incomeTransferSquashedCompleted: "{count}件をsquash"
 incomeTransferFindExisting: 既存の振替を探す

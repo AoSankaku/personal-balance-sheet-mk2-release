@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { parse } from "yaml";
 
 const root = join(import.meta.dir, "..");
 const source = (path: string) => readFileSync(join(root, path), "utf8");
@@ -58,7 +59,37 @@ describe("income-linked account transfer tasks", () => {
       expect(translations).toContain("incomeTransferSquashTitle:");
       expect(translations).toContain("incomeTransferSquashAction:");
       expect(translations).toContain("incomeTransferNettedReference:");
+      expect(translations).toContain("incomeTransferJournalDescription:");
+      expect(translations).toContain("incomeTransferSquashJournalDescription:");
     }
+  });
+
+  test("sends localized journal descriptions for every created transfer", () => {
+    const tasks = source("src/components/IncomeTransferTasks.tsx");
+    const client = source("src/api/client.ts");
+
+    expect(tasks).toContain('t("incomeTransferJournalDescription")');
+    expect(tasks).toContain('t("incomeTransferSquashJournalDescription")');
+    expect(tasks).toContain("incomeTransferRequirements.complete(");
+    expect(tasks).toContain("incomeTransferRequirements.squash(");
+    expect(client).toMatch(/squash:\s*\(description: string\)/);
+    expect(client).toMatch(/complete:\s*\(id: number, description: string\)/);
+  });
+
+  test("provides Japanese journal descriptions instead of the English copy", () => {
+    const english = parse(source("src/i18n/locales/en.yaml"));
+    const japanese = parse(source("src/i18n/locales/ja.yaml"));
+
+    expect(japanese.incomeTransferJournalDescription).toContain("収入配分");
+    expect(japanese.incomeTransferSquashJournalDescription).toContain(
+      "収入配分",
+    );
+    expect(japanese.incomeTransferJournalDescription).not.toBe(
+      english.incomeTransferJournalDescription,
+    );
+    expect(japanese.incomeTransferSquashJournalDescription).not.toBe(
+      english.incomeTransferSquashJournalDescription,
+    );
   });
 
   test("uses a color-scheme-aware background for the squash preview", () => {

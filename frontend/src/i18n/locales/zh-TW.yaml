@@ -1383,6 +1383,8 @@ incomeTransferSquashNoTransfer: 所有移動均已抵銷，無需實際轉帳。
 incomeTransferSquashAction: 建立最少轉帳並完成
 incomeTransferSquashConfirmTitle: 建立最少數量的轉帳？
 incomeTransferSquashConfirm: 使用顯示的淨額轉帳完成所有待處理任務。請先完成實際帳戶轉帳，再進行確認。
+incomeTransferJournalDescription: "收入分配轉帳：{description}"
+incomeTransferSquashJournalDescription: "收入分配轉帳（合併）：{count}筆"
 incomeTransferNettedReference: 無需轉帳即完成
 incomeTransferSquashedCompleted: "已合併{count}項任務"
 incomeTransferFindExisting: 尋找現有轉帳

@@ -305,6 +305,10 @@ export function IncomeTransferTasks({
                     void run(() =>
                       api.incomeTransferRequirements.complete(
                         group.requirement_ids[0]!,
+                        t("incomeTransferJournalDescription").replace(
+                          "{description}",
+                          group.requirements[0]?.source_income_description ?? "-",
+                        ),
                       ),
                     )
                   }
@@ -482,7 +486,14 @@ export function IncomeTransferTasks({
         opened={squashConfirmation}
         onClose={() => setSquashConfirmation(false)}
         onConfirm={() => {
-          void run(() => api.incomeTransferRequirements.squash());
+          void run(() =>
+            api.incomeTransferRequirements.squash(
+              t("incomeTransferSquashJournalDescription").replace(
+                "{count}",
+                String(squashPreview?.squashed_transfer_count ?? 0),
+              ),
+            ),
+          );
         }}
         title={t("incomeTransferSquashConfirmTitle")}
         message={t("incomeTransferSquashConfirm")}

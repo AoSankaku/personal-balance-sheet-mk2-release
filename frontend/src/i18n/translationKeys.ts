@@ -1379,6 +1379,8 @@ export const translationKeys = [
   "incomeTransferSquashAction",
   "incomeTransferSquashConfirmTitle",
   "incomeTransferSquashConfirm",
+  "incomeTransferJournalDescription",
+  "incomeTransferSquashJournalDescription",
   "incomeTransferNettedReference",
   "incomeTransferSquashedCompleted",
   "incomeTransferFindExisting",

@@ -339,14 +339,14 @@ export const api = {
       request<IncomeTransferSquashPreview>(
         "/income-transfer-requirements/squash-preview",
       ),
-    squash: () =>
+    squash: (description: string) =>
       mutationRequest<{
         transfer_journal_entry: JournalEntry | null;
         requirement_ids: number[];
         transfers: IncomeTransferSquashPreview["transfers"];
       }>(
         "/income-transfer-requirements/squash",
-        { method: "POST" },
+        { method: "POST", body: JSON.stringify({ description }) },
         DERIVED_JOURNAL_PREFIXES,
       ),
     register: (input: {
@@ -364,13 +364,13 @@ export const api = {
         { method: "POST", body: JSON.stringify(input) },
         DERIVED_JOURNAL_PREFIXES,
       ),
-    complete: (id: number) =>
+    complete: (id: number, description: string) =>
       mutationRequest<{
         transfer_journal_entry: JournalEntry;
         requirement_ids: number[];
       }>(
         `/income-transfer-requirements/${id}/complete`,
-        { method: "POST" },
+        { method: "POST", body: JSON.stringify({ description }) },
         DERIVED_JOURNAL_PREFIXES,
       ),
     candidates: (id: number) =>

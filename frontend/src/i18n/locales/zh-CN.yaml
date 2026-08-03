@@ -1383,6 +1383,8 @@ incomeTransferSquashNoTransfer: 所有移动均已抵销，无需实际转账。
 incomeTransferSquashAction: 创建最少转账并完成
 incomeTransferSquashConfirmTitle: 创建最少数量的转账？
 incomeTransferSquashConfirm: 使用显示的净额转账完成所有待处理任务。请先完成实际账户转账，再进行确认。
+incomeTransferJournalDescription: "收入分配转账：{description}"
+incomeTransferSquashJournalDescription: "收入分配转账（合并）：{count}笔"
 incomeTransferNettedReference: 无需转账即完成
 incomeTransferSquashedCompleted: "已合并{count}项任务"
 incomeTransferFindExisting: 查找现有转账

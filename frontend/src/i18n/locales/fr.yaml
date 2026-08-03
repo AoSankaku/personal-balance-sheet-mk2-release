@@ -1383,6 +1383,8 @@ incomeTransferSquashNoTransfer: Tous les mouvements se compensent ; aucun vireme
 incomeTransferSquashAction: Créer les virements minimaux et terminer
 incomeTransferSquashConfirmTitle: Créer le nombre minimal de virements ?
 incomeTransferSquashConfirm: Termine toutes les tâches en attente avec les virements nets affichés. Effectuez les virements réels avant de confirmer.
+incomeTransferJournalDescription: "Virement de répartition du revenu : {description}"
+incomeTransferSquashJournalDescription: "Virements de répartition du revenu (regroupés) : {count}"
 incomeTransferNettedReference: Terminé sans virement
 incomeTransferSquashedCompleted: "{count} tâches regroupées"
 incomeTransferFindExisting: Rechercher un virement existant

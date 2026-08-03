@@ -1383,6 +1383,8 @@ incomeTransferSquashNoTransfer: Todos los movimientos se compensan; no se necesi
 incomeTransferSquashAction: Crear transferencias mínimas y completar
 incomeTransferSquashConfirmTitle: ¿Crear el número mínimo de transferencias?
 incomeTransferSquashConfirm: Completa todas las tareas pendientes con las transferencias netas mostradas. Realiza las transferencias reales antes de confirmar.
+incomeTransferJournalDescription: "Transferencia de distribución de ingresos: {description}"
+incomeTransferSquashJournalDescription: "Transferencias de distribución de ingresos (agrupadas): {count}"
 incomeTransferNettedReference: Completado sin transferencia
 incomeTransferSquashedCompleted: "{count} tareas agrupadas"
 incomeTransferFindExisting: Buscar transferencia existente

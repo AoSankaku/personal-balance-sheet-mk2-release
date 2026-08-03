@@ -1383,6 +1383,8 @@ incomeTransferSquashNoTransfer: All movements offset each other, so no account t
 incomeTransferSquashAction: Create minimum transfers and complete
 incomeTransferSquashConfirmTitle: Create the minimum transfers?
 incomeTransferSquashConfirm: Complete every pending task using the displayed net transfers. Make the actual account transfers before confirming.
+incomeTransferJournalDescription: "Income allocation transfer: {description}"
+incomeTransferSquashJournalDescription: "Income allocation transfers (squashed): {count}"
 incomeTransferNettedReference: Completed without a transfer
 incomeTransferSquashedCompleted: "Squashed {count} tasks"
 incomeTransferFindExisting: Find an existing transfer
