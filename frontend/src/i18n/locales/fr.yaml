@@ -113,7 +113,7 @@ editAccountTitle: "Modifier le compte"
 editAccount: "Modifier"
 accountUpdated: "Compte mis à jour"
 accountNameLabel: "Nom du compte"
-accountNamePlaceholder: "par ex.  Économies SBI"
+accountNamePlaceholder: "par ex. Épargne Docomo SMTB"
 typeLabel: "Type"
 categoryLabel: "Catégorie"
 currencyLabel: "Devise"
@@ -499,9 +499,10 @@ importFormatRakutenDraft: "Rakuten (ébauche)"
 importFormatRakutenConfirmed: "Rakuten (Confirmé)"
 importFormatUnknown: "Format inconnu"
 importFormatSmbcBank: "Banque SMBC (relevé des revenus/dépenses)"
-importFormatSbiBank: "Banque SBI (relevé des revenus/dépenses)"
+importFormatDocomoSmtbBank: "Banque en ligne Docomo SMTB (relevé des revenus/dépenses)"
 importSelectCard: "Compte de carte de crédit"
 importSelectBankAccount: "Compte bancaire"
+importLastRecordedDate: "Dernière date de transaction incluse dans l’import CSV précédent : {date}"
 importExpenseAccount: "Compte de dépenses"
 importIncomeAccount: "Compte de revenus"
 importDirectionWithdrawal: "Retrait"
@@ -927,6 +928,11 @@ ccSlotTotal: "Total"
 ccLastMonthZeroNote: "Auto-réglé sur 0 (la date de retrait {day} est dépassée)"
 ttDeviationTitle: "Comparaison livre/réel"
 ttDeviationNoSnapshot: "Aucune donnée de solde réelle pour l'instant. Entrez d'abord les valeurs réelles."
+ttCsvLastRecordedChip: "Dernier CSV {date}"
+ttCsvLastRecordedLabel: "Dernière date de transaction incluse dans l’import CSV précédent : {date}"
+ttIncomeTransferPendingChip: "Transfert en attente {count}"
+ttIncomeTransferWarningTitle: "Des transferts de comptes sont encore en attente"
+ttIncomeTransferWarningHint: "Terminez les tâches de transfert de comptes avant de poursuivre la balance afin de comparer correctement les soldes comptables et réels."
 ttDeviationSnapshotDate: "Date de l'instantané"
 ttDeviationAccount: "Compte"
 ttDeviationBookValue: "Valeur comptable"
@@ -1371,6 +1377,14 @@ incomeTransferNoTarget: Cette catégorie n'a pas de compte cible. Aucun virement
 incomeTransferTasksTitle: Virements liés aux revenus
 incomeTransferOpenTasksPage: "Gérer les tâches de virement ({count} restantes)"
 incomeTransferComplete: Créer le virement et terminer
+incomeTransferSquashTitle: Réduire les virements en attente
+incomeTransferSquashHint: "Compense tous les mouvements en attente pour réduire {before} virements au minimum de {after}."
+incomeTransferSquashNoTransfer: Tous les mouvements se compensent ; aucun virement n’est nécessaire.
+incomeTransferSquashAction: Créer les virements minimaux et terminer
+incomeTransferSquashConfirmTitle: Créer le nombre minimal de virements ?
+incomeTransferSquashConfirm: Termine toutes les tâches en attente avec les virements nets affichés. Effectuez les virements réels avant de confirmer.
+incomeTransferNettedReference: Terminé sans virement
+incomeTransferSquashedCompleted: "{count} tâches regroupées"
 incomeTransferFindExisting: Rechercher un virement existant
 incomeTransferSelectCandidate: Sélectionner cette écriture
 incomeTransferNoCandidates: Aucune écriture de virement correspondante n’a été trouvée.

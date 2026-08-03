@@ -15,6 +15,8 @@ describe("income-linked account transfer tasks", () => {
   test("task page exposes completion, candidate linking, and cancellation", () => {
     const tasks = source("src/components/IncomeTransferTasks.tsx");
     expect(tasks).toContain("incomeTransferRequirements.complete");
+    expect(tasks).toContain("incomeTransferRequirements.squashPreview");
+    expect(tasks).toContain("incomeTransferRequirements.squash");
     expect(tasks).toContain("incomeTransferRequirements.candidates");
     expect(tasks).toContain("incomeTransferRequirements.link");
     expect(tasks).toContain("incomeTransferRequirements.cancel");
@@ -35,13 +37,12 @@ describe("income-linked account transfer tasks", () => {
   });
 
   test("shows the management link only with its remaining task count", () => {
-    const nav = source("src/components/TopNav.tsx");
+    const list = source("src/components/TaskList.tsx");
     const taskPage = source("src/pages/TasksPage.tsx");
 
-    expect(nav).toContain("incomeTransferTasks.length > 0 &&");
+    expect(list).toContain("incomeTransferTasks.length > 0 &&");
     expect(taskPage).toContain("tasks.incomeTransferTasks.length > 0");
-    expect(nav).toContain('t("incomeTransferOpenTasksPage").replace(');
-    expect(nav).toContain("String(incomeTransferTasks.length)");
+    expect(list).toContain('openTask("/tasks/income-transfer")');
   });
 
   test("historical income allocations are only registered after confirmation", () => {
@@ -49,5 +50,14 @@ describe("income-linked account transfer tasks", () => {
     expect(tasks).toContain("incomeTransferRequirements.historical");
     expect(tasks).toContain("incomeTransferRequirements.register");
     expect(tasks).toContain("incomeTransferHistoricalConfirm");
+  });
+
+  test("defines squash copy in every supported locale", () => {
+    for (const locale of ["en", "ja", "fr", "es", "zh-CN", "zh-TW"]) {
+      const translations = source(`src/i18n/locales/${locale}.yaml`);
+      expect(translations).toContain("incomeTransferSquashTitle:");
+      expect(translations).toContain("incomeTransferSquashAction:");
+      expect(translations).toContain("incomeTransferNettedReference:");
+    }
   });
 });

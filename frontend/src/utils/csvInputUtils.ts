@@ -21,7 +21,7 @@ export const FORMAT_LABELS: Record<CsvFormat, string> = {
   "smbc-confirmed": "三井住友カード（確定版）",
   "rakuten-draft": "楽天カード（仮版）",
   "rakuten-confirmed": "楽天カード（確定版）",
-  "sbi-bank": "SBI銀行（入出金明細）",
+  "docomo-smtb-bank": "ドコモSMTBネット銀行（入出金明細）",
   unknown: "形式不明",
 };
 

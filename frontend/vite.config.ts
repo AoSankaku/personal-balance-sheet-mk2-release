@@ -61,6 +61,7 @@ export default defineConfig({
         navigateFallbackDenylist: [
           /^\/cdn-cgi\//,
           /[?&]pwa_access_reauth=/,
+          /[?&]pwa_version_reload=/,
         ],
       },
     }),

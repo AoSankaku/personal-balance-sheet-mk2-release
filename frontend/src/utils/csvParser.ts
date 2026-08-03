@@ -4,7 +4,7 @@ export type CsvFormat =
   | "smbc-bank"
   | "rakuten-draft"
   | "rakuten-confirmed"
-  | "sbi-bank"
+  | "docomo-smtb-bank"
   | "unknown";
 
 export interface ParsedTransaction {
@@ -19,7 +19,7 @@ export interface ParsedTransaction {
 }
 
 export function isBankFormat(fmt: CsvFormat): boolean {
-  return fmt === "sbi-bank" || fmt === "smbc-bank";
+  return fmt === "docomo-smtb-bank" || fmt === "smbc-bank";
 }
 
 export interface ParseResult {
@@ -264,7 +264,7 @@ function parseRakuten(
   return transactions;
 }
 
-function parseSbiBank(lines: string[]): ParsedTransaction[] {
+function parseDocomoSmtbBank(lines: string[]): ParsedTransaction[] {
   const transactions: ParsedTransaction[] = [];
   let headerSkipped = false;
 
@@ -426,9 +426,9 @@ export async function parseCSVFile(file: File): Promise<ParseResult> {
     }
 
     if (firstCol === "日付") {
-      // SBI bank: header row starts with "日付" column
-      const transactions = parseSbiBank(lines);
-      return { format: "sbi-bank", transactions };
+      // Docomo SMTB Net Bank: header row starts with "日付" column
+      const transactions = parseDocomoSmtbBank(lines);
+      return { format: "docomo-smtb-bank", transactions };
     }
 
     if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(firstCol)) {

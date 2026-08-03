@@ -1788,7 +1788,7 @@ router.put("/:id", async (c) => {
       .where(
         and(
           eq(incomeTransferRequirements.source_income_journal_entry_id, id),
-          sql`${incomeTransferRequirements.transfer_journal_entry_id} IS NOT NULL`,
+          sql`${incomeTransferRequirements.completion_source} IS NOT NULL`,
         ),
       );
     if (completedRequirements.length > 0) {
@@ -1811,7 +1811,7 @@ router.put("/:id", async (c) => {
         eq(incomeTransferRequirements.source_income_journal_entry_id, id),
       );
     const completedRequirements = currentRequirements.filter(
-      (requirement) => requirement.transfer_journal_entry_id != null,
+      (requirement) => requirement.completion_source != null,
     );
     if (completedRequirements.length > 0) {
       const currentKeys = currentRequirements
@@ -1909,7 +1909,7 @@ router.put("/:id", async (c) => {
       c.env.DB.prepare(
         `DELETE FROM income_transfer_requirements
          WHERE source_income_journal_entry_id = ?
-           AND transfer_journal_entry_id IS NULL`,
+           AND completion_source IS NULL`,
       ).bind(id),
     );
   }
@@ -2198,6 +2198,17 @@ router.delete("/:id", async (c) => {
   await db
     .delete(budgetFundingAllocations)
     .where(eq(budgetFundingAllocations.source_journal_entry_id, id));
+
+  // Removing a generated income-allocation transfer reopens every task that
+  // was completed by that entry. This must happen before the FK clears the ID.
+  await db
+    .update(incomeTransferRequirements)
+    .set({
+      transfer_journal_entry_id: null,
+      completion_source: null,
+      completed_at: null,
+    })
+    .where(eq(incomeTransferRequirements.transfer_journal_entry_id, id));
 
   const deleted = await db
     .delete(journalEntries)

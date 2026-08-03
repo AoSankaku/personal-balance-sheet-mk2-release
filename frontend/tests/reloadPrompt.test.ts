@@ -14,9 +14,11 @@ import {
 } from "../src/lib/appVersion";
 import {
   ACCESS_RECOVERY_QUERY_PARAM,
+  VERSION_RELOAD_QUERY_PARAM,
   buildAccessRecoveryUrl,
+  buildVersionReloadUrl,
   reloadWithLatestServiceWorker,
-  removeAccessRecoveryMarker,
+  removePwaReloadMarkers,
 } from "../src/lib/pwaUpdate";
 
 const frontendRoot = join(import.meta.dir, "..");
@@ -194,6 +196,25 @@ describe("hard reload prompt detection", () => {
 });
 
 describe("app version reload", () => {
+  test("builds a network-bypassing URL for the final version reload", () => {
+    expect(
+      buildVersionReloadUrl(
+        "https://example.com/settings?tab=general#version",
+        987654,
+      ),
+    ).toBe(
+      `https://example.com/settings?tab=general&${VERSION_RELOAD_QUERY_PARAM}=987654#version`,
+    );
+
+    const updateSource = readFileSync(
+      join(frontendRoot, "src/lib/pwaUpdate.ts"),
+      "utf8",
+    );
+    expect(updateSource).toContain(
+      "window.location.replace(buildVersionReloadUrl(window.location.href))",
+    );
+  });
+
   test("waits for an updated service worker to control the page before reloading", async () => {
     let controllerChangeListener: (() => void) | undefined;
     let reloadCount = 0;
@@ -291,8 +312,8 @@ describe("Cloudflare Access session recovery", () => {
 
   test("removes only the temporary recovery marker after authentication", () => {
     expect(
-      removeAccessRecoveryMarker(
-        `https://example.com/ledger?view=double&${ACCESS_RECOVERY_QUERY_PARAM}=123456#entry-42`,
+      removePwaReloadMarkers(
+        `https://example.com/ledger?view=double&${ACCESS_RECOVERY_QUERY_PARAM}=123456&${VERSION_RELOAD_QUERY_PARAM}=987654#entry-42`,
       ),
     ).toBe("/ledger?view=double#entry-42");
   });
@@ -310,6 +331,7 @@ describe("Cloudflare Access session recovery", () => {
     expect(configSource).toContain("navigateFallbackDenylist");
     expect(configSource).toContain("/^\\/cdn-cgi\\//");
     expect(configSource).toContain(ACCESS_RECOVERY_QUERY_PARAM);
+    expect(configSource).toContain(VERSION_RELOAD_QUERY_PARAM);
     expect(promptSource).toContain("reloadAppForAccessRecovery()");
   });
 });

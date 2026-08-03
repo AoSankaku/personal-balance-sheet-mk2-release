@@ -11,9 +11,9 @@ import App from "./App";
 import { LangProvider } from "./i18n";
 import { AppDataProvider } from "./context/AppDataContext";
 import { PrivacyProvider } from "./context/PrivacyContext";
-import { clearAccessRecoveryMarkerFromAddressBar } from "./lib/pwaUpdate";
+import { clearPwaReloadMarkersFromAddressBar } from "./lib/pwaUpdate";
 
-clearAccessRecoveryMarkerFromAddressBar();
+clearPwaReloadMarkersFromAddressBar();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Root element not found");

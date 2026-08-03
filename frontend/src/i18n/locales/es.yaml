@@ -113,7 +113,7 @@ editAccountTitle: "Editar cuenta"
 editAccount: "Editar"
 accountUpdated: "Cuenta actualizada"
 accountNameLabel: "Nombre de cuenta"
-accountNamePlaceholder: "p.ej.  Ahorros SBI"
+accountNamePlaceholder: "p. ej. Ahorros Docomo SMTB"
 typeLabel: "Tipo"
 categoryLabel: "Categoría"
 currencyLabel: "Divisa"
@@ -499,9 +499,10 @@ importFormatRakutenDraft: "Rakuten (borrador)"
 importFormatRakutenConfirmed: "Rakuten (Confirmado)"
 importFormatUnknown: "Formato desconocido"
 importFormatSmbcBank: "Banco SMBC (Estado de ingresos/gastos)"
-importFormatSbiBank: "Banco SBI (Estado de ingresos/gastos)"
+importFormatDocomoSmtbBank: "Banco en línea Docomo SMTB (estado de ingresos/gastos)"
 importSelectCard: "cuenta de tarjeta de crédito"
 importSelectBankAccount: "Cuenta bancaria"
+importLastRecordedDate: "Última fecha de transacción incluida en la importación CSV anterior: {date}"
 importExpenseAccount: "cuenta de gastos"
 importIncomeAccount: "cuenta de ingresos"
 importDirectionWithdrawal: "Retiro"
@@ -927,6 +928,11 @@ ccSlotTotal: "Total parcial"
 ccLastMonthZeroNote: "Se establece automáticamente en 0 (la fecha de retiro {day} ha pasado)"
 ttDeviationTitle: "Comparación entre libro y real"
 ttDeviationNoSnapshot: "Aún no hay datos de saldo reales. Introduzca primero los valores reales."
+ttCsvLastRecordedChip: "Último CSV {date}"
+ttCsvLastRecordedLabel: "Última fecha de transacción incluida en la importación CSV anterior: {date}"
+ttIncomeTransferPendingChip: "Transferencia pendiente {count}"
+ttIncomeTransferWarningTitle: "Todavía hay transferencias de cuentas pendientes"
+ttIncomeTransferWarningHint: "Complete las tareas de transferencia de cuentas antes de continuar con el balance de comprobación para comparar correctamente los saldos contables y reales."
 ttDeviationSnapshotDate: "Fecha de la instantánea"
 ttDeviationAccount: "Cuenta"
 ttDeviationBookValue: "Valor contable"
@@ -1371,6 +1377,14 @@ incomeTransferNoTarget: Esta categoría no tiene cuenta de destino. No se crear�
 incomeTransferTasksTitle: Transferencias vinculadas a ingresos
 incomeTransferOpenTasksPage: "Gestionar tareas de transferencia ({count} pendientes)"
 incomeTransferComplete: Crear transferencia y completar
+incomeTransferSquashTitle: Minimizar transferencias pendientes
+incomeTransferSquashHint: "Compensa todos los movimientos pendientes para reducir {before} transferencias al mínimo de {after}."
+incomeTransferSquashNoTransfer: Todos los movimientos se compensan; no se necesita ninguna transferencia.
+incomeTransferSquashAction: Crear transferencias mínimas y completar
+incomeTransferSquashConfirmTitle: ¿Crear el número mínimo de transferencias?
+incomeTransferSquashConfirm: Completa todas las tareas pendientes con las transferencias netas mostradas. Realiza las transferencias reales antes de confirmar.
+incomeTransferNettedReference: Completado sin transferencia
+incomeTransferSquashedCompleted: "{count} tareas agrupadas"
 incomeTransferFindExisting: Buscar transferencia existente
 incomeTransferSelectCandidate: Seleccionar este asiento
 incomeTransferNoCandidates: No se encontraron asientos de transferencia coincidentes.

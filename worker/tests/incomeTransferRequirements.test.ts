@@ -7,6 +7,7 @@ import {
   connectedTargetAccounts,
   groupIncomeTransferRequirements,
   isMatchingPureTransfer,
+  squashIncomeTransferRequirements,
 } from "../src/lib/incomeTransferRequirements";
 
 function requirement(
@@ -30,6 +31,19 @@ function requirement(
   };
 }
 
+function balancesOf(
+  transfers: ReturnType<typeof squashIncomeTransferRequirements>,
+) {
+  const balances = new Map<string, number>();
+  for (const transfer of transfers) {
+    const fromKey = `${transfer.currency}:${transfer.from_account_id}`;
+    const toKey = `${transfer.currency}:${transfer.to_account_id}`;
+    balances.set(fromKey, (balances.get(fromKey) ?? 0) - transfer.amount);
+    balances.set(toKey, (balances.get(toKey) ?? 0) + transfer.amount);
+  }
+  return Object.fromEntries([...balances.entries()].sort());
+}
+
 describe("income transfer requirement grouping", () => {
   test("combines categories sharing source, destination, and currency", () => {
     const groups = groupIncomeTransferRequirements([
@@ -45,6 +59,33 @@ describe("income transfer requirement grouping", () => {
       from_account_id: 100,
       to_account_id: 200,
     });
+  });
+
+  test("groups one squashed completion by its shared journal entry", () => {
+    const groups = groupIncomeTransferRequirements([
+      requirement({
+        id: 1,
+        source_income_journal_entry_id: 10,
+        from_account_id: 100,
+        to_account_id: 200,
+        transfer_journal_entry_id: 99,
+        completion_source: "created",
+        completed_at: "2026-08-02T00:00:00Z",
+      }),
+      requirement({
+        id: 2,
+        source_income_journal_entry_id: 11,
+        from_account_id: 200,
+        to_account_id: 300,
+        transfer_journal_entry_id: 99,
+        completion_source: "created",
+        completed_at: "2026-08-02T00:00:00Z",
+      }),
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.is_squashed).toBe(true);
+    expect(groups[0]?.requirement_ids).toEqual([1, 2]);
   });
 });
 
@@ -116,5 +157,54 @@ describe("pure transfer candidate matching", () => {
         },
       ),
     ).toBe(false);
+  });
+});
+
+describe("income transfer squashing", () => {
+  test("collapses a transfer chain to one direct transfer", () => {
+    const transfers = squashIncomeTransferRequirements([
+      { from_account_id: 1, to_account_id: 2, amount: 10, currency: "jpy" },
+      { from_account_id: 2, to_account_id: 3, amount: 10, currency: "JPY" },
+    ]);
+
+    expect(transfers).toEqual([
+      { from_account_id: 1, to_account_id: 3, amount: 10, currency: "JPY" },
+    ]);
+  });
+
+  test("finds the exact minimum instead of accepting a four-transfer greedy plan", () => {
+    const transfers = squashIncomeTransferRequirements([
+      { from_account_id: 1, to_account_id: 4, amount: 8, currency: "JPY" },
+      { from_account_id: 2, to_account_id: 4, amount: 2, currency: "JPY" },
+      { from_account_id: 2, to_account_id: 5, amount: 3, currency: "JPY" },
+      { from_account_id: 3, to_account_id: 5, amount: 5, currency: "JPY" },
+    ]);
+
+    expect(transfers).toHaveLength(3);
+    expect(balancesOf(transfers)).toEqual({
+      "JPY:1": -8,
+      "JPY:2": -5,
+      "JPY:3": -5,
+      "JPY:4": 10,
+      "JPY:5": 8,
+    });
+  });
+
+  test("does not net balances across currencies", () => {
+    const transfers = squashIncomeTransferRequirements([
+      { from_account_id: 1, to_account_id: 2, amount: 10, currency: "JPY" },
+      { from_account_id: 2, to_account_id: 1, amount: 10, currency: "USD" },
+    ]);
+
+    expect(transfers).toHaveLength(2);
+  });
+
+  test("returns no transfer when every movement is offset", () => {
+    expect(
+      squashIncomeTransferRequirements([
+        { from_account_id: 1, to_account_id: 2, amount: 10, currency: "JPY" },
+        { from_account_id: 2, to_account_id: 1, amount: 10, currency: "JPY" },
+      ]),
+    ).toEqual([]);
   });
 });

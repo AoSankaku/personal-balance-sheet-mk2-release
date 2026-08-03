@@ -113,7 +113,7 @@ editAccountTitle: 编辑账户
 editAccount: 编辑
 accountUpdated: 账户已更新
 accountNameLabel: 账户名称
-accountNamePlaceholder: 例如：SBI 储蓄
+accountNamePlaceholder: 例如：Docomo SMTB 储蓄
 typeLabel: 类型
 categoryLabel: 类别
 currencyLabel: 货币
@@ -499,9 +499,10 @@ importFormatRakutenDraft: 乐天卡（暂定版）
 importFormatRakutenConfirmed: 乐天卡（确定版）
 importFormatUnknown: 未知格式
 importFormatSmbcBank: 三井住友银行（收支明细）
-importFormatSbiBank: SBI 银行（收支明细）
+importFormatDocomoSmtbBank: Docomo SMTB 网络银行（收支明细）
 importSelectCard: 信用卡账户
 importSelectBankAccount: 银行账户
+importLastRecordedDate: "上次CSV导入中包含的最后交易日期：{date}"
 importExpenseAccount: 支出账户
 importIncomeAccount: 收入账户
 importDirectionWithdrawal: 出金
@@ -927,6 +928,11 @@ ccSlotTotal: 小计
 ccLastMonthZeroNote: "自动设为 0（扣款日 {day} 已过）"
 ttDeviationTitle: 账面与实际对比
 ttDeviationNoSnapshot: 尚无实际余额数据。请先输入实际值。
+ttCsvLastRecordedChip: "CSV最后 {date}"
+ttCsvLastRecordedLabel: "上次CSV导入中包含的最后交易日期：{date}"
+ttIncomeTransferPendingChip: "账户转账待处理 {count}"
+ttIncomeTransferWarningTitle: 仍有未完成的账户转账
+ttIncomeTransferWarningHint: 为准确比较账面余额和实际余额，请先完成账户转账任务再继续试算。
 ttDeviationSnapshotDate: 快照日期
 ttDeviationAccount: 账户
 ttDeviationBookValue: 账面价值
@@ -1371,6 +1377,14 @@ incomeTransferNoTarget: 此分类没有配置目标账户，不会创建转账�
 incomeTransferTasksTitle: 收入分配关联转账
 incomeTransferOpenTasksPage: "管理账户转移任务（剩余{count}项）"
 incomeTransferComplete: 创建转账并完成
+incomeTransferSquashTitle: 最小化待处理转账
+incomeTransferSquashHint: "抵销所有待处理账户移动，将{before}笔转账减少到最少的{after}笔。"
+incomeTransferSquashNoTransfer: 所有移动均已抵销，无需实际转账。
+incomeTransferSquashAction: 创建最少转账并完成
+incomeTransferSquashConfirmTitle: 创建最少数量的转账？
+incomeTransferSquashConfirm: 使用显示的净额转账完成所有待处理任务。请先完成实际账户转账，再进行确认。
+incomeTransferNettedReference: 无需转账即完成
+incomeTransferSquashedCompleted: "已合并{count}项任务"
 incomeTransferFindExisting: 查找现有转账
 incomeTransferSelectCandidate: 选择此分录
 incomeTransferNoCandidates: 未找到匹配的转账分录。

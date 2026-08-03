@@ -18,30 +18,56 @@ interface ReloadWithLatestServiceWorkerOptions {
 
 const DEFAULT_ACTIVATION_TIMEOUT_MS = 8_000;
 export const ACCESS_RECOVERY_QUERY_PARAM = "pwa_access_reauth";
+export const VERSION_RELOAD_QUERY_PARAM = "pwa_version_reload";
+
+function buildPwaReloadUrl(
+  currentUrl: string,
+  queryParam: string,
+  cacheBust: number,
+) {
+  const url = new URL(currentUrl);
+  url.searchParams.set(queryParam, String(cacheBust));
+  return url.toString();
+}
 
 export function buildAccessRecoveryUrl(
   currentUrl: string,
   cacheBust: number = Date.now(),
 ) {
-  const url = new URL(currentUrl);
-  url.searchParams.set(ACCESS_RECOVERY_QUERY_PARAM, String(cacheBust));
-  return url.toString();
+  return buildPwaReloadUrl(
+    currentUrl,
+    ACCESS_RECOVERY_QUERY_PARAM,
+    cacheBust,
+  );
 }
 
-export function removeAccessRecoveryMarker(currentUrl: string) {
+export function buildVersionReloadUrl(
+  currentUrl: string,
+  cacheBust: number = Date.now(),
+) {
+  return buildPwaReloadUrl(currentUrl, VERSION_RELOAD_QUERY_PARAM, cacheBust);
+}
+
+export function removePwaReloadMarkers(currentUrl: string) {
   const url = new URL(currentUrl);
   url.searchParams.delete(ACCESS_RECOVERY_QUERY_PARAM);
+  url.searchParams.delete(VERSION_RELOAD_QUERY_PARAM);
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-export function clearAccessRecoveryMarkerFromAddressBar() {
+export function clearPwaReloadMarkersFromAddressBar() {
   const currentUrl = new URL(window.location.href);
-  if (!currentUrl.searchParams.has(ACCESS_RECOVERY_QUERY_PARAM)) return;
+  if (
+    !currentUrl.searchParams.has(ACCESS_RECOVERY_QUERY_PARAM) &&
+    !currentUrl.searchParams.has(VERSION_RELOAD_QUERY_PARAM)
+  ) {
+    return;
+  }
 
   window.history.replaceState(
     window.history.state,
     "",
-    removeAccessRecoveryMarker(currentUrl.toString()),
+    removePwaReloadMarkers(currentUrl.toString()),
   );
 }
 
@@ -102,6 +128,7 @@ export function reloadAppWithLatestServiceWorker() {
 
   return reloadWithLatestServiceWorker({
     serviceWorker: navigator.serviceWorker,
-    reload: () => window.location.reload(),
+    reload: () =>
+      window.location.replace(buildVersionReloadUrl(window.location.href)),
   });
 }
