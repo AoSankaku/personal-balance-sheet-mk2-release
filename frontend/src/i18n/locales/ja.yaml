@@ -502,6 +502,7 @@ importFormatSmbcBank: 三井住友銀行（入出金明細）
 importFormatDocomoSmtbBank: ドコモSMTBネット銀行（入出金明細）
 importSelectCard: クレジットカード口座
 importSelectBankAccount: 銀行口座
+importLastRecordedDate: "前回のCSVインポートに含まれる最終取引日: {date}"
 importExpenseAccount: 費用科目
 importIncomeAccount: 収益科目
 importDirectionWithdrawal: 出金

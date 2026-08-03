@@ -502,6 +502,7 @@ importFormatSmbcBank: SMBC Bank (Income/Expense Statement)
 importFormatDocomoSmtbBank: Docomo SMTB Net Bank (Income/Expense Statement)
 importSelectCard: Credit card account
 importSelectBankAccount: Bank account
+importLastRecordedDate: "Last transaction date included in the previous CSV import: {date}"
 importExpenseAccount: Expense account
 importIncomeAccount: Income account
 importDirectionWithdrawal: Withdrawal

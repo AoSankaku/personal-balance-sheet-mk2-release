@@ -512,6 +512,7 @@ export const translationKeys = [
   "importFormatDocomoSmtbBank",
   "importSelectCard",
   "importSelectBankAccount",
+  "importLastRecordedDate",
   "importExpenseAccount",
   "importIncomeAccount",
   "importDirectionWithdrawal",

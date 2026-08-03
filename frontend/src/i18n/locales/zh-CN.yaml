@@ -502,6 +502,7 @@ importFormatSmbcBank: 三井住友银行（收支明细）
 importFormatDocomoSmtbBank: Docomo SMTB 网络银行（收支明细）
 importSelectCard: 信用卡账户
 importSelectBankAccount: 银行账户
+importLastRecordedDate: "上次CSV导入中包含的最后交易日期：{date}"
 importExpenseAccount: 支出账户
 importIncomeAccount: 收入账户
 importDirectionWithdrawal: 出金

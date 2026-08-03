@@ -69,6 +69,7 @@ import {
   type BulkExpenseRow,
 } from "../utils/inputDrafts";
 import { countMissingCounterAccountWarnings } from "../utils/csvImportWarnings";
+import { getRecentCsvImportLastRecordedDate } from "../lib/csvImportHistory";
 import {
   getAutomaticStatementCompletion,
   getConfirmedCsvCreditCardState,
@@ -437,6 +438,10 @@ export function CsvImportTab({
   }, [transactions, sortCol, sortDir, rowStates]);
 
   const accountId = selectedAccountId ? Number(selectedAccountId) : null;
+  const recentCsvImportLastRecordedDate = useMemo(
+    () => getRecentCsvImportLastRecordedDate(journal, accountId),
+    [journal, accountId],
+  );
   const selectedCreditCardSettings = creditCardSettings.find(
     (settings) => settings.account_id === accountId,
   );
@@ -1074,15 +1079,33 @@ export function CsvImportTab({
             )}
 
             {isBankImport ? (
-              <Select
-                label={t("importSelectBankAccount")}
-                data={bankOptions}
-                renderOption={renderAccountOption as never}
-                value={selectedAccountId}
-                onChange={setSelectedAccountId}
-                required
-                searchable
-              />
+              <Stack gap={4}>
+                <Select
+                  label={t("importSelectBankAccount")}
+                  data={bankOptions}
+                  renderOption={renderAccountOption as never}
+                  value={selectedAccountId}
+                  onChange={setSelectedAccountId}
+                  required
+                  searchable
+                />
+                {recentCsvImportLastRecordedDate && (
+                  <Text size="sm" c="dimmed">
+                    {t("importLastRecordedDate").replace(
+                      "{date}",
+                      new Intl.DateTimeFormat(locale, {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      }).format(
+                        new Date(
+                          `${recentCsvImportLastRecordedDate}T00:00:00`,
+                        ),
+                      ),
+                    )}
+                  </Text>
+                )}
+              </Stack>
             ) : (
               <Select
                 label={t("importSelectCard")}
