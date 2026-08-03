@@ -928,6 +928,11 @@ ccSlotTotal: Subtotal
 ccLastMonthZeroNote: Auto-set to 0 (withdrawal date {day} has passed)
 ttDeviationTitle: Book vs Actual Comparison
 ttDeviationNoSnapshot: No actual balance data yet. Enter actual values first.
+ttCsvLastRecordedChip: "CSV last {date}"
+ttCsvLastRecordedLabel: "Last transaction date included in the previous CSV import: {date}"
+ttIncomeTransferPendingChip: "Transfer pending {count}"
+ttIncomeTransferWarningTitle: Account transfers are still pending
+ttIncomeTransferWarningHint: Complete the account transfer tasks before continuing the trial balance so that book and actual balances can be compared accurately.
 ttDeviationSnapshotDate: Snapshot date
 ttDeviationAccount: Account
 ttDeviationBookValue: Book value

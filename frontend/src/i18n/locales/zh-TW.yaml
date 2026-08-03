@@ -928,6 +928,11 @@ ccSlotTotal: 小計
 ccLastMonthZeroNote: "自動設為 0（扣款日 {day} 已過）"
 ttDeviationTitle: 帳面與實際對比
 ttDeviationNoSnapshot: 尚無實際餘額資料。請先輸入實際值。
+ttCsvLastRecordedChip: "CSV最後 {date}"
+ttCsvLastRecordedLabel: "上次CSV匯入中包含的最後交易日期：{date}"
+ttIncomeTransferPendingChip: "帳戶轉帳待處理 {count}"
+ttIncomeTransferWarningTitle: 仍有未完成的帳戶轉帳
+ttIncomeTransferWarningHint: 為準確比較帳面餘額和實際餘額，請先完成帳戶轉帳任務再繼續試算。
 ttDeviationSnapshotDate: 快照日期
 ttDeviationAccount: 帳戶
 ttDeviationBookValue: 帳面價值

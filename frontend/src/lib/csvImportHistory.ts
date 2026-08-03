@@ -30,24 +30,40 @@ export function getRecentCsvImportLastRecordedDate(
 ): string | null {
   if (!accountId) return null;
 
-  const importedEntries = journal.filter(
-    (entry) =>
-      entry.source === "csv_import" &&
-      entry.lines.some((line) => line.account_id === accountId),
-  );
-  if (importedEntries.length === 0) return null;
+  return getRecentCsvImportLastRecordedDates(journal, now).get(accountId) ?? null;
+}
 
-  const latestImportDate = importedEntries.reduce(
-    (latest, entry) =>
-      entry.created_at.slice(0, 10) > latest
-        ? entry.created_at.slice(0, 10)
-        : latest,
-    "",
-  );
-  if (latestImportDate < sixMonthsAgoDate(now)) return null;
+export function getRecentCsvImportLastRecordedDates(
+  journal: JournalEntry[],
+  now = new Date(),
+): Map<number, string> {
+  const latestByAccount = new Map<
+    number,
+    { importDate: string; recordedDate: string }
+  >();
 
-  return importedEntries.reduce(
-    (latest, entry) => (entry.date > latest ? entry.date : latest),
-    "",
+  for (const entry of journal) {
+    if (entry.source !== "csv_import") continue;
+    const importDate = entry.created_at.slice(0, 10);
+    for (const accountId of new Set(entry.lines.map((line) => line.account_id))) {
+      const latest = latestByAccount.get(accountId);
+      latestByAccount.set(accountId, {
+        importDate:
+          !latest || importDate > latest.importDate
+            ? importDate
+            : latest.importDate,
+        recordedDate:
+          !latest || entry.date > latest.recordedDate
+            ? entry.date
+            : latest.recordedDate,
+      });
+    }
+  }
+
+  const cutoff = sixMonthsAgoDate(now);
+  return new Map(
+    [...latestByAccount]
+      .filter(([, latest]) => latest.importDate >= cutoff)
+      .map(([accountId, latest]) => [accountId, latest.recordedDate]),
   );
 }

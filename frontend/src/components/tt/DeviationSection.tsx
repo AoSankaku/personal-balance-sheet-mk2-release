@@ -15,6 +15,7 @@ import {
   Text,
 } from "@mantine/core";
 import {
+  IconAlertTriangle,
   IconCircleCheck,
   IconCopyPlus,
   IconEdit,
@@ -44,6 +45,8 @@ import { getEffectiveSymbol } from "../../lib/currencyUtils";
 import { formatCurrency, formatJPY } from "../../lib/numberFormat";
 import { toDateStr } from "../../lib/dateUtils";
 import { hasMaterialBalanceDifference } from "../../lib/balanceReconciliation";
+import { getRecentCsvImportLastRecordedDates } from "../../lib/csvImportHistory";
+import { summarizePendingIncomeTransfers } from "../../lib/pendingIncomeTransferSummary";
 import { toAccountSelectOption } from "../../lib/accountUtils";
 import {
   buildTrialBalanceCarryForward,
@@ -87,6 +90,14 @@ export function DeviationSection({
   const accountMap = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
     [accounts],
+  );
+  const recentCsvDateByAccount = useMemo(
+    () => getRecentCsvImportLastRecordedDates(journal),
+    [journal],
+  );
+  const pendingIncomeTransfers = useMemo(
+    () => summarizePendingIncomeTransfers(journal),
+    [journal],
   );
   const normalizeCurrency = (currency: string | null | undefined) =>
     (currency || "JPY").toUpperCase();
@@ -730,6 +741,30 @@ export function DeviationSection({
         )}
       </Group>
 
+      {pendingIncomeTransfers.taskCount > 0 && (
+        <Alert
+          color="orange"
+          variant="light"
+          icon={<IconAlertTriangle size={18} aria-hidden="true" />}
+          title={t("ttIncomeTransferWarningTitle")}
+        >
+          <Stack gap="sm" align="flex-start">
+            <Text size="sm">{t("ttIncomeTransferWarningHint")}</Text>
+            <Button
+              size="xs"
+              color="orange"
+              variant="light"
+              onClick={() => navigate("/tasks/income-transfer")}
+            >
+              {t("incomeTransferOpenTasksPage").replace(
+                "{count}",
+                String(pendingIncomeTransfers.taskCount),
+              )}
+            </Button>
+          </Stack>
+        </Alert>
+      )}
+
       {(snapshot || creditCardRows.length > 0) && (
         <Paper withBorder p="md" radius="md">
           <Group gap="xl" wrap="wrap">
@@ -844,6 +879,28 @@ export function DeviationSection({
                       const visibleMatches = matches.slice(0, 3);
                       const adjustment = adjustmentMap.get(row.account_id) ?? 0;
                       const adjustedDeviation = row.deviation + adjustment;
+                      const account = accountMap.get(row.account_id);
+                      const csvRecordedDate =
+                        account?.type === "asset"
+                          ? recentCsvDateByAccount.get(row.account_id)
+                          : undefined;
+                      const pendingTransferCount =
+                        pendingIncomeTransfers.taskCountByAccount.get(
+                          row.account_id,
+                        ) ?? 0;
+                      const shortCsvDate = csvRecordedDate
+                        ? new Intl.DateTimeFormat(locale, {
+                            month: "numeric",
+                            day: "numeric",
+                          }).format(new Date(`${csvRecordedDate}T00:00:00`))
+                        : null;
+                      const fullCsvDate = csvRecordedDate
+                        ? new Intl.DateTimeFormat(locale, {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          }).format(new Date(`${csvRecordedDate}T00:00:00`))
+                        : null;
                       return (
                         <Table.Tr
                           key={row.match_key}
@@ -858,6 +915,41 @@ export function DeviationSection({
                               <Text size="sm">
                                 {getDisplayName(row.account_name)}
                               </Text>
+                              {(shortCsvDate || pendingTransferCount > 0) && (
+                                <Group gap={4} wrap="wrap">
+                                  {shortCsvDate && fullCsvDate && (
+                                    <Badge
+                                      size="xs"
+                                      color="blue"
+                                      variant="light"
+                                      title={t("ttCsvLastRecordedLabel").replace(
+                                        "{date}",
+                                        fullCsvDate,
+                                      )}
+                                      aria-label={t(
+                                        "ttCsvLastRecordedLabel",
+                                      ).replace("{date}", fullCsvDate)}
+                                    >
+                                      {t("ttCsvLastRecordedChip").replace(
+                                        "{date}",
+                                        shortCsvDate,
+                                      )}
+                                    </Badge>
+                                  )}
+                                  {pendingTransferCount > 0 && (
+                                    <Badge
+                                      size="xs"
+                                      color="orange"
+                                      variant="light"
+                                    >
+                                      {t("ttIncomeTransferPendingChip").replace(
+                                        "{count}",
+                                        String(pendingTransferCount),
+                                      )}
+                                    </Badge>
+                                  )}
+                                </Group>
+                              )}
                               {matches.length > 0 && (
                                 <>
                                   <Badge

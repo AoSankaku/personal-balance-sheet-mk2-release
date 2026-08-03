@@ -928,6 +928,11 @@ ccSlotTotal: 小計
 ccLastMonthZeroNote: 自動で0に設定（引落日{day}日は経過済み）
 ttDeviationTitle: 簿価との比較
 ttDeviationNoSnapshot: 現在値データがありません。先に現在値を入力してください。
+ttCsvLastRecordedChip: "CSV最終 {date}"
+ttCsvLastRecordedLabel: "前回のCSVインポートに含まれる最終取引日: {date}"
+ttIncomeTransferPendingChip: "口座移動待ち {count}件"
+ttIncomeTransferWarningTitle: 未完了の口座移動があります
+ttIncomeTransferWarningHint: 正確に比較するため、試算を続ける前に口座移動タスクを完了してください。
 ttDeviationSnapshotDate: 基準日
 ttDeviationAccount: 勘定科目
 ttDeviationBookValue: 簿価
