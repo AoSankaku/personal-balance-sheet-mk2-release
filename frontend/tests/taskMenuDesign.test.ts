@@ -35,13 +35,14 @@ describe("task menu design", () => {
 
   test("exposes menu state and mobile-friendly interaction styling", () => {
     const nav = source("src/components/TopNav.tsx");
+    const list = source("src/components/TaskList.tsx");
     const styles = source("src/components/TopNav.css");
 
     expect(nav).toContain('import "./TopNav.css"');
     expect(nav).not.toContain('import "./TopNav.module.css"');
     expect(nav).toContain("aria-expanded={opened}");
     expect(nav).toContain('role="dialog"');
-    expect(nav).toContain("task-menu__item");
+    expect(list).toContain("task-menu__item");
     expect(styles).toContain("min-height: 44px");
     expect(styles).toContain(":focus-visible");
     expect(styles).toContain("max-width: calc(100vw - 16px)");

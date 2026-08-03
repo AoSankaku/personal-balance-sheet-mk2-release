@@ -3689,11 +3689,11 @@ export default function PlannedExpensePage({ kind }: PlannedExpensePageProps) {
                     size={isCalendarCompact ? "10px" : "xs"}
                     c={
                       dayBackground === "completed"
-                        ? "green.9"
+                        ? "var(--mantine-color-green-light-color)"
                         : dayBackground === "skipped"
-                          ? "gray.8"
+                          ? "var(--mantine-color-gray-light-color)"
                         : isToday
-                          ? "yellow.9"
+                          ? "var(--mantine-color-yellow-light-color)"
                           : calendarWeekdayColor(date.day())
                     }
                     fw={isToday || dayBackground != null ? 900 : 700}

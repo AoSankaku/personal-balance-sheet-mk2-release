@@ -108,15 +108,19 @@ function EntryList({
             return (
               <Box
                 key={entry.id}
-                style={(theme) => ({
-                  border: `1px solid ${checked ? theme.colors.blue[4] : theme.colors.gray[3]}`,
-                  borderRadius: theme.radius.sm,
-                  padding: theme.spacing.xs,
+                style={{
+                  border: `1px solid ${
+                    checked
+                      ? "var(--mantine-color-blue-outline)"
+                      : "var(--mantine-color-default-border)"
+                  }`,
+                  borderRadius: "var(--mantine-radius-sm)",
+                  padding: "var(--mantine-spacing-xs)",
                   background: checked
                     ? "var(--mantine-color-blue-light)"
                     : undefined,
                   cursor: "pointer",
-                })}
+                }}
                 onClick={() => onToggle(entry.id)}
               >
                 <Group gap="xs" wrap="nowrap" align="flex-start">

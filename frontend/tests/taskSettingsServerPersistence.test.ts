@@ -17,12 +17,12 @@ describe("server-persisted task settings", () => {
 
   test("settings and task calculation no longer use device-local task values", () => {
     const settings = source("src/pages/SettingsPage.tsx");
-    const topNav = source("src/components/TopNav.tsx");
+    const taskCollection = source("src/hooks/useTaskCollection.ts");
 
     expect(settings).not.toContain('localStorage.setItem("notif:');
     expect(settings).not.toContain('localStorage.getItem("notif:');
-    expect(topNav).not.toContain('localStorage.getItem("notif:');
+    expect(taskCollection).not.toContain('localStorage.getItem("notif:');
     expect(settings).toContain("updateTaskSettings");
-    expect(topNav).toContain("taskSettings");
+    expect(taskCollection).toContain("taskSettings");
   });
 });

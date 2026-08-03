@@ -43,9 +43,14 @@ export function calendarWeekdayKeys(
   );
 }
 
-export function calendarWeekdayColor(weekday: unknown): "red.6" | "blue.6" | "dimmed" {
-  if (weekday === 0) return "red.6";
-  if (weekday === 6) return "blue.6";
+export function calendarWeekdayColor(
+  weekday: unknown,
+):
+  | "var(--mantine-color-red-light-color)"
+  | "var(--mantine-color-blue-light-color)"
+  | "dimmed" {
+  if (weekday === 0) return "var(--mantine-color-red-light-color)";
+  if (weekday === 6) return "var(--mantine-color-blue-light-color)";
   return "dimmed";
 }
 

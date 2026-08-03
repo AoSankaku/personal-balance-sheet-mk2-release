@@ -26,32 +26,32 @@ export function FeedbackHost() {
       ? {
           icon: <IconAlertCircle size={16} />,
           badge: "red",
-          border: "rgba(224, 49, 49, 0.28)",
-          background: "rgba(255, 245, 245, 0.88)",
-          text: "#c92a2a",
+          border: "var(--mantine-color-red-outline)",
+          background: "var(--mantine-color-red-light)",
+          text: "var(--mantine-color-red-light-color)",
         }
       : item?.color === "orange" || item?.color === "yellow"
         ? {
             icon: <IconAlertTriangle size={16} />,
             badge: "yellow",
-            border: "rgba(245, 159, 0, 0.28)",
-            background: "rgba(255, 249, 219, 0.92)",
-            text: "#8f5b00",
+            border: "var(--mantine-color-yellow-outline)",
+            background: "var(--mantine-color-yellow-light)",
+            text: "var(--mantine-color-yellow-light-color)",
           }
         : item?.color === "teal"
           ? {
               icon: <IconCircleCheck size={16} />,
               badge: "teal",
-              border: "rgba(18, 184, 134, 0.28)",
-              background: "rgba(230, 252, 245, 0.92)",
-              text: "#087f5b",
+              border: "var(--mantine-color-teal-outline)",
+              background: "var(--mantine-color-teal-light)",
+              text: "var(--mantine-color-teal-light-color)",
             }
           : {
               icon: <IconInfoCircle size={16} />,
               badge: "blue",
-              border: "rgba(34, 139, 230, 0.24)",
-              background: "rgba(231, 245, 255, 0.9)",
-              text: "#1864ab",
+              border: "var(--mantine-color-blue-outline)",
+              background: "var(--mantine-color-blue-light)",
+              text: "var(--mantine-color-blue-light-color)",
             };
 
   return (

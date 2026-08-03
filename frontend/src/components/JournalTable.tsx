@@ -557,7 +557,7 @@ export function JournalTable({
                               <Text
                                 size="xs"
                                 fw={600}
-                                c="blue.7"
+                                c="var(--mantine-color-blue-light-color)"
                                 ta="left"
                                 style={{ overflowWrap: "anywhere" }}
                               >
@@ -584,7 +584,7 @@ export function JournalTable({
                               <Text
                                 size="xs"
                                 fw={600}
-                                c="orange.7"
+                                c="var(--mantine-color-orange-light-color)"
                                 ta="left"
                                 style={{ overflowWrap: "anywhere" }}
                               >

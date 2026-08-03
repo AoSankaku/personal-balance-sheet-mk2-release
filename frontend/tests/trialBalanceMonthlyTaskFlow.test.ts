@@ -50,14 +50,15 @@ describe("monthly trial-balance task flow", () => {
   });
 
   test("shows a task that opens actual-balance input", () => {
-    const topNav = source("src/components/TopNav.tsx");
+    const taskCollection = source("src/hooks/useTaskCollection.ts");
+    const taskList = source("src/components/TaskList.tsx");
 
-    expect(topNav).toContain("computeTrialBalanceTask");
-    expect(topNav).toContain("taskSettings.trial_balance_enabled");
-    expect(topNav).toContain("taskSettings.trial_balance_day");
-    expect(topNav).toContain('navigate("/fs/tt?segment=actual")');
-    expect(topNav).toContain('t("taskTrialBalanceSection")');
-    expect(topNav).toContain('t("taskTrialBalanceDetail")');
+    expect(taskCollection).toContain("computeTrialBalanceTask");
+    expect(taskCollection).toContain("taskSettings.trial_balance_enabled");
+    expect(taskCollection).toContain("taskSettings.trial_balance_day");
+    expect(taskList).toContain('openTask("/fs/tt?segment=actual")');
+    expect(taskList).toContain('t("taskTrialBalanceSection")');
+    expect(taskList).toContain('t("taskTrialBalanceDetail")');
   });
 
   test("defines localized task settings and task copy", () => {

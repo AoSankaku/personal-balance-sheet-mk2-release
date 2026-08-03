@@ -22,11 +22,11 @@ describe("offline feature wiring", () => {
 
   test("queues offline simple entries and exposes them as resumable tasks", () => {
     const input = source("src/pages/InputPage.tsx");
-    const nav = source("src/components/TopNav.tsx");
+    const taskList = source("src/components/TaskList.tsx");
     expect(input).toContain('submitLabel={!isOnline ? t("saveOfflineDraft")');
     expect(input).toContain("addOfflineDraft(draft)");
     expect(input).toContain("locationOfflineDraft?.draft");
-    expect(nav).toContain("pendingOfflineDrafts.map");
-    expect(nav).toContain("offlineDraftId: draft.id");
+    expect(taskList).toContain("pendingOfflineDrafts.map");
+    expect(taskList).toContain("offlineDraftId: draft.id");
   });
 });
