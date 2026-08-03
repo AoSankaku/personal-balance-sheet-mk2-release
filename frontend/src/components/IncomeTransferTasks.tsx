@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 import type {
   IncomeTransferHistoricalCandidate,
   IncomeTransferRequirementGroup,
+  IncomeTransferSquashPreview,
   JournalEntry,
 } from "@balance-sheet/shared";
 import { api, ApiError } from "../api/client";
@@ -50,6 +51,8 @@ export function IncomeTransferTasks({
   const [historical, setHistorical] = useState<
     IncomeTransferHistoricalCandidate[]
   >([]);
+  const [squashPreview, setSquashPreview] =
+    useState<IncomeTransferSquashPreview | null>(null);
   const [historicalTargets, setHistoricalTargets] = useState<
     Record<string, number>
   >({});
@@ -60,23 +63,28 @@ export function IncomeTransferTasks({
     useState<TransferCandidate | null>(null);
   const [historicalConfirmation, setHistoricalConfirmation] =
     useState<HistoricalRegistrationConfirmation | null>(null);
+  const [squashConfirmation, setSquashConfirmation] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const [pending, completed, historicalCandidates] = await Promise.all([
-        api.incomeTransferRequirements.list("pending"),
-        api.incomeTransferRequirements.list("completed"),
-        api.incomeTransferRequirements.historical(),
-      ]);
+      const [pending, completed, historicalCandidates, nextSquashPreview] =
+        await Promise.all([
+          api.incomeTransferRequirements.list("pending"),
+          api.incomeTransferRequirements.list("completed"),
+          api.incomeTransferRequirements.historical(),
+          api.incomeTransferRequirements.squashPreview(),
+        ]);
       setGroups(pending.groups);
       setCompletedGroups(completed.groups);
       setHistorical(historicalCandidates);
+      setSquashPreview(nextSquashPreview);
     } catch {
       setGroups([]);
       setCompletedGroups([]);
       setHistorical([]);
+      setSquashPreview(null);
     }
   }, []);
 
@@ -204,6 +212,53 @@ export function IncomeTransferTasks({
               {t("incomeTransferNoTasks")}
             </Text>
           )}
+          {squashPreview != null &&
+            squashPreview.original_transfer_count >
+              squashPreview.squashed_transfer_count && (
+              <Paper withBorder p="sm" bg="blue.0">
+                <Stack gap="xs">
+                  <Text size="sm" fw={700}>
+                    {t("incomeTransferSquashTitle")}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {t("incomeTransferSquashHint")
+                      .replace(
+                        "{before}",
+                        String(squashPreview.original_transfer_count),
+                      )
+                      .replace(
+                        "{after}",
+                        String(squashPreview.squashed_transfer_count),
+                      )}
+                  </Text>
+                  {squashPreview.transfers.length === 0 ? (
+                    <Text size="sm" fw={600}>
+                      {t("incomeTransferSquashNoTransfer")}
+                    </Text>
+                  ) : (
+                    <Stack gap={2}>
+                      {squashPreview.transfers.map((transfer, index) => (
+                        <Text
+                          key={`${transfer.currency}:${transfer.from_account_id}:${transfer.to_account_id}:${index}`}
+                          size="sm"
+                        >
+                          {transfer.from_account_name} → {transfer.to_account_name}
+                          ・{formatCurrency(transfer.amount, locale, transfer.currency)}
+                        </Text>
+                      ))}
+                    </Stack>
+                  )}
+                  <Button
+                    size="xs"
+                    variant="light"
+                    loading={loading}
+                    onClick={() => setSquashConfirmation(true)}
+                  >
+                    {t("incomeTransferSquashAction")}
+                  </Button>
+                </Stack>
+              </Paper>
+            )}
           {groups.map((group) => (
             <Group
               key={group.key}
@@ -275,14 +330,22 @@ export function IncomeTransferTasks({
                         wrap="wrap"
                       >
                         <Text size="sm" c="dimmed">
-                          {t("incomeTransferJournalReference").replace(
-                            "{id}",
-                            String(group.transfer_journal_entry_id),
-                          )}
-                          ・
-                          {group.requirements[0]?.from_account_name} →{" "}
-                          {group.requirements[0]?.to_account_name}・
-                          {formatCurrency(group.amount, locale, group.currency)}
+                          {group.transfer_journal_entry_id != null
+                            ? t("incomeTransferJournalReference").replace(
+                                "{id}",
+                                String(group.transfer_journal_entry_id),
+                              )
+                            : t("incomeTransferNettedReference")}
+                          {group.is_squashed
+                            ? `・${t("incomeTransferSquashedCompleted").replace(
+                                "{count}",
+                                String(group.requirement_ids.length),
+                              )}`
+                            : `・${group.requirements[0]?.from_account_name} → ${group.requirements[0]?.to_account_name}・${formatCurrency(
+                                group.amount,
+                                locale,
+                                group.currency,
+                              )}`}
                         </Text>
                         <Button
                           size="xs"
@@ -411,6 +474,18 @@ export function IncomeTransferTasks({
           )}
         </Stack>
       </Modal>
+      <ConfirmModal
+        opened={squashConfirmation}
+        onClose={() => setSquashConfirmation(false)}
+        onConfirm={() => {
+          void run(() => api.incomeTransferRequirements.squash());
+        }}
+        title={t("incomeTransferSquashConfirmTitle")}
+        message={t("incomeTransferSquashConfirm")}
+        confirmLabel={t("incomeTransferSquashAction")}
+        confirmColor="blue"
+        loading={loading}
+      />
       <ConfirmModal
         opened={linkConfirmation != null}
         onClose={() => setLinkConfirmation(null)}

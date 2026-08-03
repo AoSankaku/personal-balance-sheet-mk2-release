@@ -1371,6 +1371,14 @@ incomeTransferNoTarget: このカテゴリには配置先口座がありませ�
 incomeTransferTasksTitle: 収入配分に伴う口座移動
 incomeTransferOpenTasksPage: "口座移動タスクを管理（残り{count}件）"
 incomeTransferComplete: 振替仕訳を作成して完了
+incomeTransferSquashTitle: 未完了の振替を最小化
+incomeTransferSquashHint: "未完了の口座移動を相殺し、振替を{before}本から最小の{after}本にまとめます。"
+incomeTransferSquashNoTransfer: すべて相殺されるため、実際の口座振替は不要です。
+incomeTransferSquashAction: 最小本数で振替を作成して完了
+incomeTransferSquashConfirmTitle: 最小本数の振替を作成しますか？
+incomeTransferSquashConfirm: 表示された差引後の振替で、未完了タスクをすべて完了します。実際の口座振替を行ってから確定してください。
+incomeTransferNettedReference: 振替不要で完了
+incomeTransferSquashedCompleted: "{count}件をsquash"
 incomeTransferFindExisting: 既存の振替を探す
 incomeTransferSelectCandidate: この仕訳を選択
 incomeTransferNoCandidates: 一致する振替仕訳はありません。

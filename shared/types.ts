@@ -258,7 +258,25 @@ export interface IncomeTransferRequirementGroup {
   currency: string;
   transfer_journal_entry_id: number | null;
   completion_source: IncomeTransferCompletionSource | null;
+  is_squashed: boolean;
   requirements: IncomeTransferRequirement[];
+}
+
+export interface IncomeTransferSquashTransfer {
+  from_account_id: number;
+  from_account_name: string;
+  to_account_id: number;
+  to_account_name: string;
+  amount: number;
+  currency: string;
+}
+
+export interface IncomeTransferSquashPreview {
+  requirement_ids: number[];
+  original_transfer_count: number;
+  squashed_transfer_count: number;
+  journal_date: string | null;
+  transfers: IncomeTransferSquashTransfer[];
 }
 
 export interface IncomeTransferHistoricalCandidate {

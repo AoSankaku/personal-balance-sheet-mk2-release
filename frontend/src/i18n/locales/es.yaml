@@ -1371,6 +1371,14 @@ incomeTransferNoTarget: Esta categoría no tiene cuenta de destino. No se crear�
 incomeTransferTasksTitle: Transferencias vinculadas a ingresos
 incomeTransferOpenTasksPage: "Gestionar tareas de transferencia ({count} pendientes)"
 incomeTransferComplete: Crear transferencia y completar
+incomeTransferSquashTitle: Minimizar transferencias pendientes
+incomeTransferSquashHint: "Compensa todos los movimientos pendientes para reducir {before} transferencias al mínimo de {after}."
+incomeTransferSquashNoTransfer: Todos los movimientos se compensan; no se necesita ninguna transferencia.
+incomeTransferSquashAction: Crear transferencias mínimas y completar
+incomeTransferSquashConfirmTitle: ¿Crear el número mínimo de transferencias?
+incomeTransferSquashConfirm: Completa todas las tareas pendientes con las transferencias netas mostradas. Realiza las transferencias reales antes de confirmar.
+incomeTransferNettedReference: Completado sin transferencia
+incomeTransferSquashedCompleted: "{count} tareas agrupadas"
 incomeTransferFindExisting: Buscar transferencia existente
 incomeTransferSelectCandidate: Seleccionar este asiento
 incomeTransferNoCandidates: No se encontraron asientos de transferencia coincidentes.

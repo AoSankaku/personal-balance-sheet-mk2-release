@@ -50,6 +50,7 @@ export interface IncomeTransferRequirementGroup {
   currency: string;
   transfer_journal_entry_id: number | null;
   completion_source: IncomeTransferRequirement["completion_source"];
+  is_squashed: boolean;
   requirements: IncomeTransferRequirement[];
 }
 
@@ -58,13 +59,18 @@ export function groupIncomeTransferRequirements(
 ): IncomeTransferRequirementGroup[] {
   const groups = new Map<string, IncomeTransferRequirementGroup>();
   for (const requirement of requirements) {
-    const key = [
-      requirement.source_income_journal_entry_id,
-      requirement.from_account_id,
-      requirement.to_account_id,
-      requirement.currency.toUpperCase(),
-      requirement.transfer_journal_entry_id ?? "pending",
-    ].join(":");
+    const isCompleted = requirement.completion_source != null;
+    const key = isCompleted
+      ? requirement.transfer_journal_entry_id != null
+        ? `completed:${requirement.transfer_journal_entry_id}`
+        : `completed:netted:${requirement.completed_at}`
+      : [
+          requirement.source_income_journal_entry_id,
+          requirement.from_account_id,
+          requirement.to_account_id,
+          requirement.currency.toUpperCase(),
+          "pending",
+        ].join(":");
     const group = groups.get(key) ?? {
       key,
       requirement_ids: [],
@@ -76,6 +82,7 @@ export function groupIncomeTransferRequirements(
       currency: requirement.currency.toUpperCase(),
       transfer_journal_entry_id: requirement.transfer_journal_entry_id,
       completion_source: requirement.completion_source,
+      is_squashed: requirement.transfer_journal_entry_id == null && isCompleted,
       requirements: [],
     };
     group.requirement_ids.push(requirement.id);
@@ -83,7 +90,156 @@ export function groupIncomeTransferRequirements(
     group.requirements.push(requirement);
     groups.set(key, group);
   }
-  return [...groups.values()];
+  return [...groups.values()].map((group) => {
+    const routeKeys = new Set(
+      group.requirements.map((requirement) =>
+        [
+          requirement.source_income_journal_entry_id,
+          requirement.from_account_id,
+          requirement.to_account_id,
+          requirement.currency.toUpperCase(),
+        ].join(":"),
+      ),
+    );
+    return {
+      ...group,
+      is_squashed: group.is_squashed || routeKeys.size > 1,
+    };
+  });
+}
+
+export interface IncomeTransferRequirementAmount {
+  from_account_id: number;
+  to_account_id: number;
+  amount: number;
+  currency: string;
+}
+
+export interface SquashedIncomeTransfer {
+  from_account_id: number;
+  to_account_id: number;
+  amount: number;
+  currency: string;
+}
+
+interface AccountBalance {
+  accountId: number;
+  amount: number;
+}
+
+function settleCurrencyBalances(
+  inputBalances: AccountBalance[],
+  currency: string,
+): SquashedIncomeTransfer[] {
+  const balances = inputBalances
+    .filter((balance) => balance.amount !== 0)
+    .sort((left, right) => left.accountId - right.accountId);
+  const memo = new Map<string, SquashedIncomeTransfer[]>();
+
+  function settleFrom(startIndex: number): SquashedIncomeTransfer[] {
+    let firstIndex = startIndex;
+    while (firstIndex < balances.length && balances[firstIndex]!.amount === 0) {
+      firstIndex += 1;
+    }
+    if (firstIndex === balances.length) return [];
+
+    const memoKey = `${firstIndex}:${balances.map((balance) => balance.amount).join(",")}`;
+    const memoized = memo.get(memoKey);
+    if (memoized) return memoized;
+
+    const first = balances[firstIndex]!;
+    const originalFirstAmount = first.amount;
+    let best: SquashedIncomeTransfer[] | null = null;
+    const triedCounterpartyAmounts = new Set<number>();
+
+    for (
+      let counterpartyIndex = firstIndex + 1;
+      counterpartyIndex < balances.length;
+      counterpartyIndex += 1
+    ) {
+      const counterparty = balances[counterpartyIndex]!;
+      const originalCounterpartyAmount = counterparty.amount;
+      if (
+        originalFirstAmount * originalCounterpartyAmount >= 0 ||
+        triedCounterpartyAmounts.has(originalCounterpartyAmount)
+      ) {
+        continue;
+      }
+      triedCounterpartyAmounts.add(originalCounterpartyAmount);
+
+      const amount = Math.min(
+        Math.abs(originalFirstAmount),
+        Math.abs(originalCounterpartyAmount),
+      );
+      const transfer: SquashedIncomeTransfer =
+        originalFirstAmount < 0
+          ? {
+              from_account_id: first.accountId,
+              to_account_id: counterparty.accountId,
+              amount,
+              currency,
+            }
+          : {
+              from_account_id: counterparty.accountId,
+              to_account_id: first.accountId,
+              amount,
+              currency,
+            };
+
+      first.amount += originalFirstAmount < 0 ? amount : -amount;
+      counterparty.amount +=
+        originalCounterpartyAmount < 0 ? amount : -amount;
+      const candidate = [transfer, ...settleFrom(firstIndex)];
+      first.amount = originalFirstAmount;
+      counterparty.amount = originalCounterpartyAmount;
+
+      if (best == null || candidate.length < best.length) {
+        best = candidate;
+      }
+      if (originalFirstAmount + originalCounterpartyAmount === 0) break;
+    }
+
+    const result = best ?? [];
+    memo.set(memoKey, result);
+    return result;
+  }
+
+  return settleFrom(0);
+}
+
+/**
+ * Nets every pending movement by account and finds the exact minimum number of
+ * transfers needed to realize the remaining balances, independently per currency.
+ */
+export function squashIncomeTransferRequirements(
+  requirements: IncomeTransferRequirementAmount[],
+): SquashedIncomeTransfer[] {
+  const balancesByCurrency = new Map<string, Map<number, number>>();
+  for (const requirement of requirements) {
+    const currency = requirement.currency.toUpperCase();
+    const balances = balancesByCurrency.get(currency) ?? new Map<number, number>();
+    balances.set(
+      requirement.from_account_id,
+      (balances.get(requirement.from_account_id) ?? 0) - requirement.amount,
+    );
+    balances.set(
+      requirement.to_account_id,
+      (balances.get(requirement.to_account_id) ?? 0) + requirement.amount,
+    );
+    balancesByCurrency.set(currency, balances);
+  }
+
+  return [...balancesByCurrency.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .flatMap(([currency, balances]) =>
+      settleCurrencyBalances(
+        [...balances.entries()].map(([accountId, amount]) => ({
+          accountId,
+          amount,
+        })),
+        currency,
+      ),
+    );
 }
 
 export function isMatchingPureTransfer(

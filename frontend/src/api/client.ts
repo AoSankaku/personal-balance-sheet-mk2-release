@@ -64,6 +64,7 @@ import type {
   IncomeTransferRequirement,
   IncomeTransferRequirementGroup,
   IncomeTransferHistoricalCandidate,
+  IncomeTransferSquashPreview,
 } from "@balance-sheet/shared";
 import { createInFlightRequestDeduper } from "./inFlightRequest";
 import {
@@ -333,6 +334,20 @@ export const api = {
     historical: () =>
       request<IncomeTransferHistoricalCandidate[]>(
         "/income-transfer-requirements/historical",
+      ),
+    squashPreview: () =>
+      request<IncomeTransferSquashPreview>(
+        "/income-transfer-requirements/squash-preview",
+      ),
+    squash: () =>
+      mutationRequest<{
+        transfer_journal_entry: JournalEntry | null;
+        requirement_ids: number[];
+        transfers: IncomeTransferSquashPreview["transfers"];
+      }>(
+        "/income-transfer-requirements/squash",
+        { method: "POST" },
+        DERIVED_JOURNAL_PREFIXES,
       ),
     register: (input: {
       source_income_journal_entry_id: number;

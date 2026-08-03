@@ -1371,6 +1371,14 @@ incomeTransferNoTarget: This category has no placement account. No transfer will
 incomeTransferTasksTitle: Account transfers for income allocations
 incomeTransferOpenTasksPage: "Manage account transfer tasks ({count} remaining)"
 incomeTransferComplete: Create transfer and complete
+incomeTransferSquashTitle: Minimize pending transfers
+incomeTransferSquashHint: "Net all pending movements to reduce {before} transfers to the minimum of {after}."
+incomeTransferSquashNoTransfer: All movements offset each other, so no account transfer is needed.
+incomeTransferSquashAction: Create minimum transfers and complete
+incomeTransferSquashConfirmTitle: Create the minimum transfers?
+incomeTransferSquashConfirm: Complete every pending task using the displayed net transfers. Make the actual account transfers before confirming.
+incomeTransferNettedReference: Completed without a transfer
+incomeTransferSquashedCompleted: "Squashed {count} tasks"
 incomeTransferFindExisting: Find an existing transfer
 incomeTransferSelectCandidate: Select this entry
 incomeTransferNoCandidates: No matching transfer entries were found.

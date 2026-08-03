@@ -3,6 +3,8 @@ import { Hono } from "hono";
 import type {
   IncomeTransferHistoricalCandidate,
   IncomeTransferRequirement,
+  IncomeTransferSquashPreview,
+  IncomeTransferSquashTransfer,
   JournalEntry,
 } from "@balance-sheet/shared";
 import { createDb, type Env } from "../db";
@@ -25,6 +27,7 @@ import {
   connectedTargetAccounts,
   groupIncomeTransferRequirements,
   isMatchingPureTransfer,
+  squashIncomeTransferRequirements,
 } from "../lib/incomeTransferRequirements";
 
 const router = new Hono<{ Bindings: Env }>();
@@ -35,6 +38,97 @@ function placeholders(count: number): string {
 
 function normalizeCurrency(value: string | null | undefined): string {
   return (value || "JPY").toUpperCase();
+}
+
+function journalLineRowsSql(rowCount: number): string {
+  return Array.from(
+    { length: rowCount },
+    () => "((SELECT MAX(id) FROM journal_entries), ?, ?, ?, ?)",
+  ).join(", ");
+}
+
+async function loadPendingRequirements(db: ReturnType<typeof createDb>) {
+  return db
+    .select()
+    .from(incomeTransferRequirements)
+    .where(sql`${incomeTransferRequirements.completion_source} IS NULL`);
+}
+
+async function buildSquashPreview(
+  db: ReturnType<typeof createDb>,
+  rows: Array<typeof incomeTransferRequirements.$inferSelect>,
+): Promise<IncomeTransferSquashPreview> {
+  if (rows.length === 0) {
+    return {
+      requirement_ids: [],
+      original_transfer_count: 0,
+      squashed_transfer_count: 0,
+      journal_date: null,
+      transfers: [],
+    };
+  }
+
+  const squashed = squashIncomeTransferRequirements(rows);
+  const accountIds = [
+    ...new Set(
+      squashed.flatMap((transfer) => [
+        transfer.from_account_id,
+        transfer.to_account_id,
+      ]),
+    ),
+  ];
+  const sourceIds = [
+    ...new Set(rows.map((row) => row.source_income_journal_entry_id)),
+  ];
+  const [accountRows, sourceRows, decimalPlacesByCurrency] = await Promise.all([
+    accountIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .select({ id: accounts.id, name: accounts.name })
+          .from(accounts)
+          .where(inArray(accounts.id, accountIds)),
+    db
+      .select({ id: journalEntries.id, date: journalEntries.date })
+      .from(journalEntries)
+      .where(inArray(journalEntries.id, sourceIds)),
+    loadCurrencyDecimalPlaces(db),
+  ]);
+  const accountNames = new Map(
+    accountRows.map((account) => [account.id, account.name]),
+  );
+  const scaleOptions = { decimalPlacesByCurrency };
+  const transfers: IncomeTransferSquashTransfer[] = squashed.map((transfer) => ({
+    ...transfer,
+    from_account_name:
+      accountNames.get(transfer.from_account_id) ??
+      String(transfer.from_account_id),
+    to_account_name:
+      accountNames.get(transfer.to_account_id) ?? String(transfer.to_account_id),
+    amount: fromStorageMoneyAmount(
+      transfer.amount,
+      transfer.currency,
+      scaleOptions,
+    ),
+  }));
+  const originalTransferCount = new Set(
+    rows.map((row) =>
+      [
+        row.source_income_journal_entry_id,
+        row.from_account_id,
+        row.to_account_id,
+        normalizeCurrency(row.currency),
+      ].join(":"),
+    ),
+  ).size;
+
+  return {
+    requirement_ids: rows.map((row) => row.id),
+    original_transfer_count: originalTransferCount,
+    squashed_transfer_count: transfers.length,
+    journal_date:
+      sourceRows.map((source) => source.date).sort().at(-1) ?? null,
+    transfers,
+  };
 }
 
 async function serializeRequirements(
@@ -97,7 +191,7 @@ async function pendingGroup(
         eq(incomeTransferRequirements.from_account_id, anchor.from_account_id),
         eq(incomeTransferRequirements.to_account_id, anchor.to_account_id),
         eq(incomeTransferRequirements.currency, anchor.currency),
-        sql`${incomeTransferRequirements.transfer_journal_entry_id} IS NULL`,
+        sql`${incomeTransferRequirements.completion_source} IS NULL`,
       ),
     );
 }
@@ -109,11 +203,11 @@ router.get("/", async (c) => {
   const conditions = [];
   if (status === "pending") {
     conditions.push(
-      sql`${incomeTransferRequirements.transfer_journal_entry_id} IS NULL`,
+      sql`${incomeTransferRequirements.completion_source} IS NULL`,
     );
   } else if (status === "completed") {
     conditions.push(
-      sql`${incomeTransferRequirements.transfer_journal_entry_id} IS NOT NULL`,
+      sql`${incomeTransferRequirements.completion_source} IS NOT NULL`,
     );
   }
   if (Number.isInteger(sourceId) && sourceId > 0) {
@@ -130,6 +224,113 @@ router.get("/", async (c) => {
   return c.json({
     requirements,
     groups: groupIncomeTransferRequirements(requirements),
+  });
+});
+
+router.get("/squash-preview", async (c) => {
+  const db = createDb(c.env);
+  return c.json(await buildSquashPreview(db, await loadPendingRequirements(db)));
+});
+
+router.post("/squash", async (c) => {
+  const db = createDb(c.env);
+  const pendingRows = await loadPendingRequirements(db);
+  if (pendingRows.length === 0) {
+    return c.json({ error: "pending requirement not found" }, 404);
+  }
+
+  const preview = await buildSquashPreview(db, pendingRows);
+  if (
+    preview.squashed_transfer_count >= preview.original_transfer_count
+  ) {
+    return c.json({ error: "no squash savings" }, 409);
+  }
+
+  const squashed = squashIncomeTransferRequirements(pendingRows);
+  const now = new Date().toISOString();
+  const ids = pendingRows.map((row) => row.id);
+  if (squashed.length === 0) {
+    await c.env.DB.batch(
+      chunkForD1InClause(ids).map((idChunk) =>
+        c.env.DB.prepare(
+          `UPDATE income_transfer_requirements
+           SET completion_source = 'created', completed_at = ?
+           WHERE id IN (${placeholders(idChunk.length)})
+             AND completion_source IS NULL`,
+        ).bind(now, ...idChunk),
+      ),
+    );
+    return c.json({
+      transfer_journal_entry: null,
+      requirement_ids: ids,
+      transfers: preview.transfers,
+    });
+  }
+
+  const lineRows = squashed.flatMap((transfer) => [
+    {
+      accountId: transfer.to_account_id,
+      debit: transfer.amount,
+      credit: 0,
+      currency: transfer.currency,
+    },
+    {
+      accountId: transfer.from_account_id,
+      debit: 0,
+      credit: transfer.amount,
+      currency: transfer.currency,
+    },
+  ]);
+  const statements: D1PreparedStatement[] = [
+    c.env.DB.prepare(
+      `INSERT INTO journal_entries (date, description, source)
+       VALUES (?, ?, 'manual')
+       RETURNING id, date, description, source, created_at`,
+    ).bind(
+      preview.journal_date,
+      `Income allocation transfers (squashed): ${squashed.length}`,
+    ),
+  ];
+  for (const lineChunk of chunkForD1InClause(lineRows, 20)) {
+    statements.push(
+      c.env.DB.prepare(
+        `INSERT INTO journal_lines
+          (journal_entry_id, account_id, debit, credit, currency)
+         VALUES ${journalLineRowsSql(lineChunk.length)}`,
+      ).bind(
+        ...lineChunk.flatMap((line) => [
+          line.accountId,
+          line.debit,
+          line.credit,
+          line.currency,
+        ]),
+      ),
+    );
+  }
+  for (const idChunk of chunkForD1InClause(ids)) {
+    statements.push(
+      c.env.DB.prepare(
+        `UPDATE income_transfer_requirements
+         SET transfer_journal_entry_id = (SELECT MAX(id) FROM journal_entries),
+             completion_source = 'created',
+             completed_at = ?
+         WHERE id IN (${placeholders(idChunk.length)})
+           AND completion_source IS NULL`,
+      ).bind(now, ...idChunk),
+    );
+  }
+  const results = await c.env.DB.batch(statements);
+  const created = (results[0] as D1QueryResult<{
+    id: number;
+    date: string;
+    description: string;
+    source: "manual";
+    created_at: string;
+  }>).results?.[0];
+  return c.json({
+    transfer_journal_entry: created,
+    requirement_ids: ids,
+    transfers: preview.transfers,
   });
 });
 
@@ -557,29 +758,45 @@ router.post("/:id/cancel", async (c) => {
     .select()
     .from(incomeTransferRequirements)
     .where(eq(incomeTransferRequirements.id, id));
-  if (!anchor?.transfer_journal_entry_id) {
+  if (!anchor?.completion_source) {
     return c.json({ error: "completed requirement not found" }, 404);
   }
-  const rows = await db
-    .select()
-    .from(incomeTransferRequirements)
-    .where(
-      eq(
-        incomeTransferRequirements.transfer_journal_entry_id,
-        anchor.transfer_journal_entry_id,
-      ),
-    );
+  const rows = anchor.transfer_journal_entry_id != null
+    ? await db
+        .select()
+        .from(incomeTransferRequirements)
+        .where(
+          eq(
+            incomeTransferRequirements.transfer_journal_entry_id,
+            anchor.transfer_journal_entry_id,
+          ),
+        )
+    : await db
+        .select()
+        .from(incomeTransferRequirements)
+        .where(
+          and(
+            sql`${incomeTransferRequirements.transfer_journal_entry_id} IS NULL`,
+            eq(incomeTransferRequirements.completed_at, anchor.completed_at!),
+            eq(incomeTransferRequirements.completion_source, "created"),
+          ),
+        );
   const ids = rows.map((row) => row.id);
-  await c.env.DB.prepare(
-    `UPDATE income_transfer_requirements
-     SET transfer_journal_entry_id = NULL,
-         completion_source = NULL,
-         completed_at = NULL
-     WHERE id IN (${placeholders(ids.length)})`,
-  )
-    .bind(...ids)
-    .run();
-  if (anchor.completion_source === "created") {
+  await c.env.DB.batch(
+    chunkForD1InClause(ids).map((idChunk) =>
+      c.env.DB.prepare(
+        `UPDATE income_transfer_requirements
+         SET transfer_journal_entry_id = NULL,
+             completion_source = NULL,
+             completed_at = NULL
+         WHERE id IN (${placeholders(idChunk.length)})`,
+      ).bind(...idChunk),
+    ),
+  );
+  if (
+    anchor.completion_source === "created" &&
+    anchor.transfer_journal_entry_id != null
+  ) {
     await db
       .delete(journalEntries)
       .where(eq(journalEntries.id, anchor.transfer_journal_entry_id));
@@ -587,7 +804,8 @@ router.post("/:id/cancel", async (c) => {
   return c.json({
     requirement_ids: ids,
     deleted_transfer_journal_entry:
-      anchor.completion_source === "created",
+      anchor.completion_source === "created" &&
+      anchor.transfer_journal_entry_id != null,
   });
 });
 

@@ -1371,6 +1371,14 @@ incomeTransferNoTarget: 此分類沒有配置目標帳戶，不會建立轉帳�
 incomeTransferTasksTitle: 收入分配關聯轉帳
 incomeTransferOpenTasksPage: "管理帳戶移動任務（剩餘{count}項）"
 incomeTransferComplete: 建立轉帳並完成
+incomeTransferSquashTitle: 最小化待處理轉帳
+incomeTransferSquashHint: "抵銷所有待處理帳戶移動，將{before}筆轉帳減少到最少的{after}筆。"
+incomeTransferSquashNoTransfer: 所有移動均已抵銷，無需實際轉帳。
+incomeTransferSquashAction: 建立最少轉帳並完成
+incomeTransferSquashConfirmTitle: 建立最少數量的轉帳？
+incomeTransferSquashConfirm: 使用顯示的淨額轉帳完成所有待處理任務。請先完成實際帳戶轉帳，再進行確認。
+incomeTransferNettedReference: 無需轉帳即完成
+incomeTransferSquashedCompleted: "已合併{count}項任務"
 incomeTransferFindExisting: 尋找現有轉帳
 incomeTransferSelectCandidate: 選擇此分錄
 incomeTransferNoCandidates: 找不到相符的轉帳分錄。

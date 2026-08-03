@@ -1371,6 +1371,14 @@ incomeTransferNoTarget: Cette catégorie n'a pas de compte cible. Aucun virement
 incomeTransferTasksTitle: Virements liés aux revenus
 incomeTransferOpenTasksPage: "Gérer les tâches de virement ({count} restantes)"
 incomeTransferComplete: Créer le virement et terminer
+incomeTransferSquashTitle: Réduire les virements en attente
+incomeTransferSquashHint: "Compense tous les mouvements en attente pour réduire {before} virements au minimum de {after}."
+incomeTransferSquashNoTransfer: Tous les mouvements se compensent ; aucun virement n’est nécessaire.
+incomeTransferSquashAction: Créer les virements minimaux et terminer
+incomeTransferSquashConfirmTitle: Créer le nombre minimal de virements ?
+incomeTransferSquashConfirm: Termine toutes les tâches en attente avec les virements nets affichés. Effectuez les virements réels avant de confirmer.
+incomeTransferNettedReference: Terminé sans virement
+incomeTransferSquashedCompleted: "{count} tâches regroupées"
 incomeTransferFindExisting: Rechercher un virement existant
 incomeTransferSelectCandidate: Sélectionner cette écriture
 incomeTransferNoCandidates: Aucune écriture de virement correspondante n’a été trouvée.
