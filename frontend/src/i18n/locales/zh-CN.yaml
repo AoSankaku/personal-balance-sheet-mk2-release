@@ -402,6 +402,13 @@ budgetTargetAccountsLabel: 目标存放账户
 budgetTargetAccountsDesc: 仅用作存放位置参考。关联的预算和账户按总余额分组并进行比较。
 budgetTargetManyToManyError: 这将产生多对多的配置关系。请使用一个预算对应多个账户，或多个预算对应一个账户。
 budgetPlacementTitle: 预算放置
+budgetReconciliationTitle: 整体预算核对
+budgetReconciliationCash: 可分配现金
+budgetReconciliationNetBudget: 预算净余额
+budgetReconciliationNetGap: 净核对差额
+budgetReconciliationPositiveClaims: 正预算需求额
+budgetReconciliationFundingGap: 正预算资金差额
+budgetReconciliationHint: "净核对差额为 {gap}，未获资金的超支为 {overspending}。正预算资金差额合并了这两项短缺，账户间转账不会改变该差额。"
 budgetPlacementExpected: 目标
 budgetPlacementActual: 实际
 budgetPlacementDifference: 差异
@@ -772,6 +779,10 @@ depreciationNone: 此期间没有折旧记录。
 depreciationBudgetPressure: 预算压力（占总支出比例）
 depreciationBudgetPressureNoExpense: 今年没有支出记录。
 budgetConsistencyTitle: 预算一致性检查
+budgetUnallocatedIncomeIssue: "进入预算资金的收入尚未分配：{amount}"
+budgetExcludedCashConsumptionIssue: "从预算资金范围外的账户消耗了预算：{amount}"
+budgetResetCardSettlementTitle: 重置前信用卡债务的还款
+budgetResetCardSettlementHint: "以下{count}笔分录（合计{amount}）推定用于偿还重置时尚未结清的信用卡债务。对应的重置前信用卡消费已从当前预算中排除。"
 budgetConsistencyClear: "全部 {n} 条交易与预算分配一致。"
 budgetConsistencyIssues: "检测到 {n} 条可疑交易"
 budgetConsistencyChecked: "已检查 {n} 条"
@@ -1381,6 +1392,11 @@ incomeTransferSquashTitle: 最小化待处理转账
 incomeTransferSquashHint: "抵销所有待处理账户移动，将{before}笔转账减少到最少的{after}笔。"
 incomeTransferSquashNoTransfer: 所有移动均已抵销，无需实际转账。
 incomeTransferSquashAction: 创建最少转账并完成
+incomeTransferSquashPlacementTitle: 转账前后的预算放置差额
+incomeTransferSquashPlacementBefore: 转账前
+incomeTransferSquashPlacementAfter: 转账后
+incomeTransferSquashPlacementNoChange: 当前显示币种的预算放置差额不会变化。
+incomeTransferSquashGlobalGapUnchanged: "账户间转账不会改变现金总额或预算净余额，因此 {amount} 的净核对差额仍会保留。"
 incomeTransferSquashConfirmTitle: 创建最少数量的转账？
 incomeTransferSquashConfirm: 使用显示的净额转账完成所有待处理任务。请先完成实际账户转账，再进行确认。
 incomeTransferJournalDescription: "收入分配转账：{description}"

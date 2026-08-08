@@ -402,6 +402,13 @@ budgetTargetAccountsLabel: 目標存放帳戶
 budgetTargetAccountsDesc: 僅用作存放位置參考。關聯的預算和帳戶按總餘額分組並進行比較。
 budgetTargetManyToManyError: 這將產生多對多的配置關係。請使用一個預算對應多個帳戶，或多個預算對應一個帳戶。
 budgetPlacementTitle: 預算放置
+budgetReconciliationTitle: 整體預算核對
+budgetReconciliationCash: 可分配現金
+budgetReconciliationNetBudget: 預算淨餘額
+budgetReconciliationNetGap: 淨核對差額
+budgetReconciliationPositiveClaims: 正預算需求額
+budgetReconciliationFundingGap: 正預算資金差額
+budgetReconciliationHint: "淨核對差額為 {gap}，未獲資金的超支為 {overspending}。正預算資金差額合併了這兩項短缺，帳戶間轉帳不會改變該差額。"
 budgetPlacementExpected: 目標
 budgetPlacementActual: 實際
 budgetPlacementDifference: 差異
@@ -772,6 +779,10 @@ depreciationNone: 此期間沒有折舊記錄。
 depreciationBudgetPressure: 預算壓力（佔總支出比例）
 depreciationBudgetPressureNoExpense: 今年沒有支出記錄。
 budgetConsistencyTitle: 預算一致性檢查
+budgetUnallocatedIncomeIssue: "進入預算資金的收入尚未分配：{amount}"
+budgetExcludedCashConsumptionIssue: "從預算資金範圍外的帳戶消耗了預算：{amount}"
+budgetResetCardSettlementTitle: 重設前信用卡債務的還款
+budgetResetCardSettlementHint: "以下{count}筆分錄（合計{amount}）推定用於償還重設時尚未結清的信用卡債務。對應的重設前信用卡消費已從目前預算中排除。"
 budgetConsistencyClear: "全部 {n} 筆交易與預算分配一致。"
 budgetConsistencyIssues: "偵測到 {n} 筆可疑交易"
 budgetConsistencyChecked: "已檢查 {n} 筆"
@@ -1381,6 +1392,11 @@ incomeTransferSquashTitle: 最小化待處理轉帳
 incomeTransferSquashHint: "抵銷所有待處理帳戶移動，將{before}筆轉帳減少到最少的{after}筆。"
 incomeTransferSquashNoTransfer: 所有移動均已抵銷，無需實際轉帳。
 incomeTransferSquashAction: 建立最少轉帳並完成
+incomeTransferSquashPlacementTitle: 轉帳前後的預算放置差額
+incomeTransferSquashPlacementBefore: 轉帳前
+incomeTransferSquashPlacementAfter: 轉帳後
+incomeTransferSquashPlacementNoChange: 目前顯示幣別的預算放置差額不會變化。
+incomeTransferSquashGlobalGapUnchanged: "帳戶間轉帳不會改變現金總額或預算淨餘額，因此 {amount} 的淨核對差額仍會保留。"
 incomeTransferSquashConfirmTitle: 建立最少數量的轉帳？
 incomeTransferSquashConfirm: 使用顯示的淨額轉帳完成所有待處理任務。請先完成實際帳戶轉帳，再進行確認。
 incomeTransferJournalDescription: "收入分配轉帳：{description}"

@@ -18,6 +18,13 @@ export interface BudgetPlacementTarget {
   ratio: number;
 }
 
+export interface BudgetPlacementTransfer {
+  from_account_id: number;
+  to_account_id: number;
+  amount: number;
+  currency: string;
+}
+
 export interface BudgetPlacementCategorySummary {
   category: {
     id: number;
@@ -76,6 +83,41 @@ function isValidPlacementAccount(
   if (account.is_depreciable) return false;
   if (account.include_in_allocatable === false) return false;
   return true;
+}
+
+export function applyBudgetPlacementTransfers(
+  accounts: BudgetPlacementAccount[],
+  transfers: BudgetPlacementTransfer[],
+  currency: string,
+): BudgetPlacementAccount[] {
+  const normalizedCurrency = currency.toUpperCase();
+  const deltas = new Map<number, number>();
+  for (const transfer of transfers) {
+    if (transfer.currency.toUpperCase() !== normalizedCurrency) continue;
+    deltas.set(
+      transfer.from_account_id,
+      (deltas.get(transfer.from_account_id) ?? 0) - transfer.amount,
+    );
+    deltas.set(
+      transfer.to_account_id,
+      (deltas.get(transfer.to_account_id) ?? 0) + transfer.amount,
+    );
+  }
+
+  return accounts.map((account) => {
+    const delta = deltas.get(account.id) ?? 0;
+    if (delta === 0) return account;
+    const current =
+      account.balances?.[normalizedCurrency] ??
+      (normalizedCurrency === "JPY" ? (account.balance ?? 0) : 0);
+    return {
+      ...account,
+      balances: {
+        ...(account.balances ?? {}),
+        [normalizedCurrency]: current + delta,
+      },
+    };
+  });
 }
 
 export function calculateBudgetPlacement({

@@ -37,7 +37,12 @@ import {
   isEntryAfterBudgetReset,
   isLoanBudgetFundingMissing,
 } from "../../lib/budgetFundingCompleteness";
-import { formatJPY } from "../../lib/numberFormat";
+import {
+  findPreResetCreditCardSettlements,
+  getExcludedCashBudgetConsumptionAmount,
+  getUnallocatedAllocatableIncomeAmount,
+} from "../../lib/budgetConsistency";
+import { formatCurrency, formatJPY } from "../../lib/numberFormat";
 import { showFeedback } from "../../lib/feedback";
 import { BudgetPlacementTable } from "../BudgetPlacementTable";
 import { JournalModal } from "../JournalModal";
@@ -148,12 +153,48 @@ export function BudgetCheckSection() {
 
   const suspiciousEntries = useMemo(() => {
     return filteredJournal.flatMap((entry) => {
-      const reasons = getSuspiciousReasons(
-        entry,
-        accountMap,
-        locale,
-        excludedExpenseAllocationCategoryId,
-      );
+      const isManagedPeriodEntry =
+        latestResetBoundary == null ||
+        isEntryAfterBudgetReset(entry, latestResetBoundary);
+      const reasons = isManagedPeriodEntry
+        ? getSuspiciousReasons(
+            entry,
+            accountMap,
+            locale,
+            excludedExpenseAllocationCategoryId,
+          )
+        : [];
+      if (isManagedPeriodEntry) {
+        const currency = displayCurrency || "JPY";
+        const unallocatedIncome = getUnallocatedAllocatableIncomeAmount(
+          entry,
+          accountMap,
+          currency,
+        );
+        if (unallocatedIncome > 0) {
+          reasons.push(
+            t("budgetUnallocatedIncomeIssue").replace(
+              "{amount}",
+              formatCurrency(unallocatedIncome, locale, currency),
+            ),
+          );
+        }
+        const excludedCashConsumption =
+          getExcludedCashBudgetConsumptionAmount(
+            entry,
+            accountMap,
+            currency,
+            excludedExpenseAllocationCategoryId,
+          );
+        if (excludedCashConsumption > 0) {
+          reasons.push(
+            t("budgetExcludedCashConsumptionIssue").replace(
+              "{amount}",
+              formatCurrency(excludedCashConsumption, locale, currency),
+            ),
+          );
+        }
+      }
       const missingLoanFunding =
         resetLogs != null &&
         isLoanBudgetFundingMissing(
@@ -178,6 +219,31 @@ export function BudgetCheckSection() {
     displayCurrency,
     t,
   ]);
+  const preResetCardSettlements = useMemo(() => {
+    if (resetLogs == null || latestResetBoundary == null) return [];
+    const filteredIds = new Set(filteredJournal.map((entry) => entry.id));
+    return findPreResetCreditCardSettlements(
+      journal,
+      accountMap,
+      latestResetBoundary,
+      displayCurrency || "JPY",
+    ).filter((settlement) => filteredIds.has(settlement.entry.id));
+  }, [
+    accountMap,
+    displayCurrency,
+    filteredJournal,
+    journal,
+    latestResetBoundary,
+    resetLogs,
+  ]);
+  const preResetCardSettlementTotal = useMemo(
+    () =>
+      preResetCardSettlements.reduce(
+        (sum, settlement) => sum + settlement.amount,
+        0,
+      ),
+    [preResetCardSettlements],
+  );
   const neutralFundingEntries = useMemo(
     () =>
       filteredJournal.filter(
@@ -390,6 +456,62 @@ export function BudgetCheckSection() {
               : t("budgetFundingNoResetBoundary")}
           </Text>
         ) : null}
+        {preResetCardSettlements.length > 0 && (
+          <Paper
+            withBorder
+            radius="sm"
+            p="sm"
+            mb="sm"
+            bg="var(--mantine-color-blue-light)"
+          >
+            <Stack gap={4}>
+              <Text size="sm" fw={600}>
+                {t("budgetResetCardSettlementTitle")}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {t("budgetResetCardSettlementHint")
+                  .replace(
+                    "{amount}",
+                    formatCurrency(
+                      preResetCardSettlementTotal,
+                      locale,
+                      displayCurrency || "JPY",
+                    ),
+                  )
+                  .replace(
+                    "{count}",
+                    String(preResetCardSettlements.length),
+                  )}
+              </Text>
+              {preResetCardSettlements.map((settlement) => (
+                <Group
+                  key={settlement.entry.id}
+                  justify="space-between"
+                  wrap="nowrap"
+                >
+                  <Text size="xs">
+                    {settlement.entry.date}・{settlement.entry.description}・
+                    {formatCurrency(
+                      settlement.amount,
+                      locale,
+                      displayCurrency || "JPY",
+                    )}
+                  </Text>
+                  {!privacyMode && (
+                    <ActionIcon
+                      size="sm"
+                      variant="subtle"
+                      onClick={() => handleEditJournal(settlement.entry)}
+                      aria-label={t("editLabel")}
+                    >
+                      <IconPencil size={14} />
+                    </ActionIcon>
+                  )}
+                </Group>
+              ))}
+            </Stack>
+          </Paper>
+        )}
         {neutralFundingEntries.length > 0 && (
           <Stack gap={4} mb="sm">
             {neutralFundingEntries.slice(0, 5).map((entry) => (

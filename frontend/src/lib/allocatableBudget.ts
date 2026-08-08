@@ -42,8 +42,10 @@ export function sumBudgetOverspending(availableValues: number[]): number {
 
 export interface BudgetFundingSummary {
   allocatableCash: number;
+  netBudgetBalance: number;
   positiveBudgetClaims: number;
   unfundedOverspending: number;
+  reconciliationGap: number;
   fundingGap: number;
 }
 
@@ -51,11 +53,17 @@ export function summarizeBudgetFunding(
   cashBalance: number,
   budgetAvailableValues: number[],
 ): BudgetFundingSummary {
+  const netBudgetBalance = budgetAvailableValues.reduce(
+    (sum, available) => sum + available,
+    0,
+  );
   const positiveBudgetClaims = sumBudgetClaims(budgetAvailableValues);
   return {
     allocatableCash: cashBalance,
+    netBudgetBalance,
     positiveBudgetClaims,
     unfundedOverspending: sumBudgetOverspending(budgetAvailableValues),
+    reconciliationGap: cashBalance - netBudgetBalance,
     fundingGap: cashBalance - positiveBudgetClaims,
   };
 }

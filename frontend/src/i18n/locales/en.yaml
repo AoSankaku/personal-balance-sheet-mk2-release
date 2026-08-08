@@ -402,6 +402,13 @@ budgetTargetAccountsLabel: Target Accounts
 budgetTargetAccountsDesc: Used for placement guidance only. Linked budgets and accounts are grouped and compared by total balance.
 budgetTargetManyToManyError: This would create a many-to-many placement. Use either one budget with multiple accounts, or multiple budgets with one account.
 budgetPlacementTitle: Budget Placement
+budgetReconciliationTitle: Overall budget reconciliation
+budgetReconciliationCash: Allocatable cash
+budgetReconciliationNetBudget: Net budget balance
+budgetReconciliationNetGap: Net reconciliation gap
+budgetReconciliationPositiveClaims: Positive budget claims
+budgetReconciliationFundingGap: Positive-claims funding gap
+budgetReconciliationHint: "The net reconciliation gap is {gap}, with {overspending} of unfunded overspending. The positive-claims funding gap combines both shortages and does not change with account-to-account transfers."
 budgetPlacementExpected: Target
 budgetPlacementActual: Actual
 budgetPlacementDifference: Difference
@@ -772,6 +779,10 @@ depreciationNone: No depreciation recorded for this period.
 depreciationBudgetPressure: Budget pressure (% of total expenses)
 depreciationBudgetPressureNoExpense: No expenses recorded for this year.
 budgetConsistencyTitle: Budget Consistency Check
+budgetUnallocatedIncomeIssue: "Income received into budget funds is unallocated: {amount}"
+budgetExcludedCashConsumptionIssue: "Budget consumed from an account outside budget funds: {amount}"
+budgetResetCardSettlementTitle: Payment of pre-reset card debt
+budgetResetCardSettlementHint: "These {count} entries ({amount} total) are estimated to settle card debt outstanding at the reset. The corresponding pre-reset card purchases are excluded from the current budget."
 budgetConsistencyClear: All {n} transactions match budget allocations.
 budgetConsistencyIssues: "{n} suspicious transaction(s) detected"
 budgetConsistencyChecked: "{n} checked"
@@ -1381,6 +1392,11 @@ incomeTransferSquashTitle: Minimize pending transfers
 incomeTransferSquashHint: "Net all pending movements to reduce {before} transfers to the minimum of {after}."
 incomeTransferSquashNoTransfer: All movements offset each other, so no account transfer is needed.
 incomeTransferSquashAction: Create minimum transfers and complete
+incomeTransferSquashPlacementTitle: Budget placement before and after
+incomeTransferSquashPlacementBefore: Before
+incomeTransferSquashPlacementAfter: After
+incomeTransferSquashPlacementNoChange: Placement differences do not change for the displayed currency.
+incomeTransferSquashGlobalGapUnchanged: "Account-to-account transfers change neither total cash nor the net budget balance, so the {amount} net reconciliation gap will remain."
 incomeTransferSquashConfirmTitle: Create the minimum transfers?
 incomeTransferSquashConfirm: Complete every pending task using the displayed net transfers. Make the actual account transfers before confirming.
 incomeTransferJournalDescription: "Income allocation transfer: {description}"

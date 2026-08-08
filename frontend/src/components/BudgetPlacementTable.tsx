@@ -3,6 +3,7 @@ import {
   Badge,
   Group,
   List,
+  Paper,
   ScrollArea,
   Stack,
   Table,
@@ -22,6 +23,10 @@ import {
   generateBudgetPlacementHints,
   type BudgetPlacementHint,
 } from "../lib/budgetPlacement";
+import {
+  sumAllocatableCashBalances,
+  summarizeBudgetFunding,
+} from "../lib/allocatableBudget";
 
 function formatSignedCurrency(
   amount: number,
@@ -107,6 +112,12 @@ export function BudgetPlacementTable({
       0,
     ) + unplacedActual;
   const totalDifference = totalActual - totalExpected;
+  const fundingSummary = summarizeBudgetFunding(
+    sumAllocatableCashBalances(accounts, currency),
+    categorySummaries.map((summary) => summary.available),
+  );
+  const reconciliationIsClear =
+    Math.abs(fundingSummary.reconciliationGap) < 0.000_001;
 
   return (
     <Stack gap="md">
@@ -123,6 +134,95 @@ export function BudgetPlacementTable({
           </Badge>
         )}
       </Group>
+
+      <Paper withBorder radius="md" p="sm">
+        <Text size="sm" fw={600} mb="xs">
+          {t("budgetReconciliationTitle")}
+        </Text>
+        <ScrollArea>
+          <Table fz="sm" style={{ minWidth: 560 }}>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t("budgetReconciliationCash")}</Table.Th>
+                <Table.Th>{t("budgetReconciliationNetBudget")}</Table.Th>
+                <Table.Th>{t("budgetReconciliationNetGap")}</Table.Th>
+                <Table.Th>{t("budgetReconciliationPositiveClaims")}</Table.Th>
+                <Table.Th>{t("budgetReconciliationFundingGap")}</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              <Table.Tr>
+                <Table.Td className="currency-cell">
+                  {formatCurrency(
+                    fundingSummary.allocatableCash,
+                    locale,
+                    currency,
+                  )}
+                </Table.Td>
+                <Table.Td className="currency-cell">
+                  {formatCurrency(
+                    fundingSummary.netBudgetBalance,
+                    locale,
+                    currency,
+                  )}
+                </Table.Td>
+                <Table.Td className="currency-cell">
+                  <Text
+                    size="sm"
+                    fw={700}
+                    c={reconciliationIsClear ? "teal" : "orange"}
+                  >
+                    {formatSignedCurrency(
+                      fundingSummary.reconciliationGap,
+                      locale,
+                      currency,
+                    )}
+                  </Text>
+                </Table.Td>
+                <Table.Td className="currency-cell">
+                  {formatCurrency(
+                    fundingSummary.positiveBudgetClaims,
+                    locale,
+                    currency,
+                  )}
+                </Table.Td>
+                <Table.Td className="currency-cell">
+                  <Text
+                    size="sm"
+                    fw={700}
+                    c={fundingSummary.fundingGap >= 0 ? "teal" : "orange"}
+                  >
+                    {formatSignedCurrency(
+                      fundingSummary.fundingGap,
+                      locale,
+                      currency,
+                    )}
+                  </Text>
+                </Table.Td>
+              </Table.Tr>
+            </Table.Tbody>
+          </Table>
+        </ScrollArea>
+        <Text size="xs" c="dimmed" mt="xs">
+          {t("budgetReconciliationHint")
+            .replace(
+              "{overspending}",
+              formatCurrency(
+                fundingSummary.unfundedOverspending,
+                locale,
+                currency,
+              ),
+            )
+            .replace(
+              "{gap}",
+              formatSignedCurrency(
+                fundingSummary.reconciliationGap,
+                locale,
+                currency,
+              ),
+            )}
+        </Text>
+      </Paper>
 
       {placement.unfundedOverspending > 0 && (
         <Alert

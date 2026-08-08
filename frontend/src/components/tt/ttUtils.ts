@@ -16,6 +16,7 @@ import type {
 import { useLang } from "../../i18n";
 import { systemAccountTranslationKey } from "../../lib/accountUtils";
 import { formatJPY } from "../../lib/numberFormat";
+import { hasBudgetAllocationMismatch } from "../../lib/budgetConsistency";
 
 // ──────────────────────────────────────────────
 // Hook
@@ -145,7 +146,7 @@ export function getSuspiciousReasons(
     );
     if (hasExplicitExpenseAllocations) {
       const totalAllocated = totalExpenseAllocated;
-      if (Math.abs(totalExpenseAllocated - totalExpense) > 1) {
+      if (hasBudgetAllocationMismatch(totalExpense, totalExpenseAllocated)) {
         const fmt = (n: number) => formatJPY(Math.round(n), locale);
         reasons.push(
           locale === "ja"
@@ -161,7 +162,7 @@ export function getSuspiciousReasons(
     const incomeAllocs = entry.income_budget_allocations ?? [];
     if (incomeAllocs.length > 0) {
       const totalDistributed = totalIncomeAllocated;
-      if (Math.abs(totalDistributed - totalIncomeLine) > 1) {
+      if (hasBudgetAllocationMismatch(totalIncomeLine, totalDistributed)) {
         const fmt = (n: number) => formatJPY(Math.round(n), locale);
         reasons.push(
           locale === "ja"

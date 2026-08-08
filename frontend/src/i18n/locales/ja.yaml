@@ -402,6 +402,13 @@ budgetTargetAccountsLabel: 目標保管口座
 budgetTargetAccountsDesc: 予算の置き場所の目安です。紐づけた各口座に予算額の全額が表示されます。
 budgetTargetManyToManyError: 多対多の予算配置になります。1つの予算を複数口座に置くか、複数予算を1つの口座に置く形にしてください。
 budgetPlacementTitle: 予算配置
+budgetReconciliationTitle: 予算全体の整合性
+budgetReconciliationCash: 予算原資の現預金
+budgetReconciliationNetBudget: 全予算残高（負を含む）
+budgetReconciliationNetGap: 純整合差額
+budgetReconciliationPositiveClaims: 正の予算要求額
+budgetReconciliationFundingGap: 正の予算資金差額
+budgetReconciliationHint: "純整合差額は {gap}、未充当超過支出は {overspending} です。正の予算資金差額はこの2つを合算した不足額で、口座間振替では変わりません。"
 budgetPlacementExpected: 目標額
 budgetPlacementActual: 実残高
 budgetPlacementDifference: 差分
@@ -772,6 +779,10 @@ depreciationNone: この期間の減価償却費はありません。
 depreciationBudgetPressure: 予算圧迫率（支出合計に占める割合）
 depreciationBudgetPressureNoExpense: この年の支出データがありません。
 budgetConsistencyTitle: 予算整合性チェック
+budgetUnallocatedIncomeIssue: "予算原資への収入が未配賦: {amount}"
+budgetExcludedCashConsumptionIssue: "予算原資外口座から予算を消費: {amount}"
+budgetResetCardSettlementTitle: リセット以前のカード債務の支払い
+budgetResetCardSettlementHint: "次の{count}件（合計{amount}）は、リセット時点に残っていたカード債務の支払いと推定されます。対応するリセット以前のカード利用は現在予算から除外されています。"
 budgetConsistencyClear: 全{n}件の取引が予算配分と一致しています。
 budgetConsistencyIssues: "{n}件の疑わしい取引を検出"
 budgetConsistencyChecked: "{n}件チェック済み"
@@ -1381,6 +1392,11 @@ incomeTransferSquashTitle: 未完了の振替を最小化
 incomeTransferSquashHint: "未完了の口座移動を相殺し、振替を{before}本から最小の{after}本にまとめます。"
 incomeTransferSquashNoTransfer: すべて相殺されるため、実際の口座振替は不要です。
 incomeTransferSquashAction: 最小本数で振替を作成して完了
+incomeTransferSquashPlacementTitle: 実行前後の予算配置差額
+incomeTransferSquashPlacementBefore: 実行前
+incomeTransferSquashPlacementAfter: 実行後
+incomeTransferSquashPlacementNoChange: 表示中の通貨では、予算配置差額は変わりません。
+incomeTransferSquashGlobalGapUnchanged: "口座間振替では現預金合計も全予算残高も変わらないため、純整合差額 {amount} は解消されません。"
 incomeTransferSquashConfirmTitle: 最小本数の振替を作成しますか？
 incomeTransferSquashConfirm: 表示された差引後の振替で、未完了タスクをすべて完了します。実際の口座振替を行ってから確定してください。
 incomeTransferJournalDescription: "収入配分の口座振替: {description}"
