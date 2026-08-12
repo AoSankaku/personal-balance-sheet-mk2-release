@@ -797,6 +797,39 @@ export const depreciationEntries = sqliteTable("depreciation_entries", {
     .default(sql`(datetime('now'))`),
 });
 
+export const depreciationBudgetReservations = sqliteTable(
+  "depreciation_budget_reservations",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    schedule_id: integer("schedule_id")
+      .notNull()
+      .references(() => depreciationSchedules.id, { onDelete: "cascade" }),
+    budget_category_id: integer("budget_category_id")
+      .notNull()
+      .references(() => budgetCategories.id, { onDelete: "cascade" }),
+    amount: integer("amount").notNull(),
+    currency: text("currency").notNull().default("JPY"),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    scheduleIdx: index("idx_depreciation_budget_reservations_schedule").on(
+      table.schedule_id,
+    ),
+    categoryCurrencyIdx: index(
+      "idx_depreciation_budget_reservations_category_currency",
+    ).on(table.budget_category_id, table.currency),
+    scheduleCategoryCurrencyUnique: uniqueIndex(
+      "uq_depreciation_budget_reservations_schedule_category_currency",
+    ).on(table.schedule_id, table.budget_category_id, table.currency),
+    amountPositive: check(
+      "chk_depreciation_budget_reservations_amount_positive",
+      sql`${table.amount} > 0`,
+    ),
+  }),
+);
+
 export const actualBalanceSnapshots = sqliteTable("actual_balance_snapshots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   snapshot_date: text("snapshot_date").notNull(),
@@ -1053,6 +1086,10 @@ export type DepreciationSchedule = typeof depreciationSchedules.$inferSelect;
 export type NewDepreciationSchedule = typeof depreciationSchedules.$inferInsert;
 export type DepreciationEntry = typeof depreciationEntries.$inferSelect;
 export type NewDepreciationEntry = typeof depreciationEntries.$inferInsert;
+export type DepreciationBudgetReservation =
+  typeof depreciationBudgetReservations.$inferSelect;
+export type NewDepreciationBudgetReservation =
+  typeof depreciationBudgetReservations.$inferInsert;
 export type ActualBalanceSnapshot = typeof actualBalanceSnapshots.$inferSelect;
 export type NewActualBalanceSnapshot =
   typeof actualBalanceSnapshots.$inferInsert;

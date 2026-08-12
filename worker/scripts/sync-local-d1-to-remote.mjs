@@ -37,6 +37,7 @@ export const IMPORT_TABLE_ORDER = [
   "income_transfer_requirements",
   "depreciation_schedules",
   "depreciation_entries",
+  "depreciation_budget_reservations",
   "loan_settlements",
   "long_term_loan_plans",
   "long_term_loan_plan_rows",

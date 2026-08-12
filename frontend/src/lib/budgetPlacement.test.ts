@@ -66,4 +66,27 @@ describe("applyBudgetPlacementTransfers", () => {
     expect(placement.placementGroups[0]?.expected).toBe(100);
     expect(placement.placementGroups[0]?.difference).toBe(0);
   });
+
+  test("keeps post-reset non-cash depreciation as a placement claim", () => {
+    const placement = calculateBudgetPlacement({
+      accounts: [
+        { id: 1, name: "Main", category: "cash", balances: { JPY: 100 } },
+      ],
+      categorySummaries: [
+        {
+          category: {
+            id: 1,
+            name: "Living",
+            target_accounts: [{ account_id: 1, ratio: 1 }],
+          },
+          available: 90,
+          depreciation_non_cash_offset: 10,
+        },
+      ],
+      currency: "JPY",
+    });
+
+    expect(placement.placementGroups[0]?.expected).toBe(100);
+    expect(placement.placementGroups[0]?.difference).toBe(0);
+  });
 });

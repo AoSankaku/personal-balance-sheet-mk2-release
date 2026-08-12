@@ -102,8 +102,13 @@ describe("allocatable budget cash balance", () => {
   test("reports positive claims and unfunded overspending separately", () => {
     expect(summarizeBudgetFunding(20_000, [30_000, -20_000])).toEqual({
       allocatableCash: 20_000,
+      netBudgetBalance: 10_000,
       positiveBudgetClaims: 30_000,
       unfundedOverspending: 20_000,
+      referenceReserve: 0,
+      depreciationNonCashOffset: 0,
+      reconciliationGap: 10_000,
+      adjustedReconciliationGap: 10_000,
       fundingGap: -10_000,
     });
   });

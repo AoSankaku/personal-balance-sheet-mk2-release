@@ -9,6 +9,7 @@ import {
   budgetCategoryAccounts,
   depreciationSchedules,
   depreciationEntries,
+  depreciationBudgetReservations,
 } from "../db/schema";
 import {
   findInvalidMoneyField,
@@ -96,6 +97,19 @@ function buildBudgetAllocations(
     remaining -= alloc;
   }
   return rows;
+}
+
+function buildBudgetReservations(
+  scheduleId: number,
+  amount: number,
+  ratios: { budget_category_id: number; ratio: number }[],
+) {
+  return buildBudgetAllocations(0, amount, ratios).map((allocation) => ({
+    schedule_id: scheduleId,
+    budget_category_id: allocation.budget_category_id,
+    amount: -allocation.amount,
+    currency: "JPY",
+  }));
 }
 
 async function insertDepreciationEntriesChunked(
@@ -310,6 +324,15 @@ router.post("/", async (c) => {
     .returning();
   if (!schedule) return c.json({ error: "Failed to create schedule" }, 500);
 
+  const reservationRows = buildBudgetReservations(
+    schedule.id,
+    total_amount,
+    budgetRatios,
+  );
+  if (reservationRows.length > 0) {
+    await db.insert(depreciationBudgetReservations).values(reservationRows);
+  }
+
   // 3. Monthly depreciation entries: DR expense / CR asset
   const entryDates: string[] = [];
   for (let i = 0; i < months; i++) {
@@ -343,7 +366,9 @@ router.post("/", async (c) => {
     if (budgetRatios.length > 0) {
       const allocRows = buildBudgetAllocations(entry.id, amt, budgetRatios);
       if (allocRows.length > 0) {
-        await db.insert(journalEntryBudgetAllocations).values(allocRows);
+        await db.insert(journalEntryBudgetAllocations).values(
+          allocRows.map((row) => ({ ...row, source: "depreciation" })),
+        );
       }
     }
     monthlyJournalIds.push(entry.id);
@@ -491,6 +516,18 @@ router.patch("/:id", async (c) => {
     .from(budgetCategoryAccounts)
     .where(eq(budgetCategoryAccounts.account_id, newExpenseAccountId));
 
+  await db
+    .delete(depreciationBudgetReservations)
+    .where(eq(depreciationBudgetReservations.schedule_id, id));
+  const reservationRows = buildBudgetReservations(
+    id,
+    newTotalAmount,
+    patchBudgetRatios,
+  );
+  if (reservationRows.length > 0) {
+    await db.insert(depreciationBudgetReservations).values(reservationRows);
+  }
+
   const newMonthlyJournalIds: number[] = [];
   for (let i = 0; i < newMonths; i++) {
     const amt = newAmounts[i] ?? 0;
@@ -521,7 +558,9 @@ router.patch("/:id", async (c) => {
         patchBudgetRatios,
       );
       if (allocRows.length > 0) {
-        await db.insert(journalEntryBudgetAllocations).values(allocRows);
+        await db.insert(journalEntryBudgetAllocations).values(
+          allocRows.map((row) => ({ ...row, source: "depreciation" })),
+        );
       }
     }
     newMonthlyJournalIds.push(entry.id);

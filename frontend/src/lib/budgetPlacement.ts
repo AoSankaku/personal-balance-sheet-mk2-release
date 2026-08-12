@@ -33,6 +33,7 @@ export interface BudgetPlacementCategorySummary {
   };
   available: number;
   reference_reserve?: number;
+  depreciation_non_cash_offset?: number;
 }
 
 export interface BudgetPlacementGroup {
@@ -144,6 +145,7 @@ export function calculateBudgetPlacement({
       name: string;
       available: number;
       referenceReserve: number;
+      depreciationNonCashOffset: number;
       targetAccountIds: number[];
     }
   >();
@@ -176,7 +178,8 @@ export function calculateBudgetPlacement({
     if (targetAccountIds.length === 0) {
       unplacedBudget +=
         Math.max(summary.available, 0) +
-        Math.max(summary.reference_reserve ?? 0, 0);
+        Math.max(summary.reference_reserve ?? 0, 0) +
+        Math.max(summary.depreciation_non_cash_offset ?? 0, 0);
       continue;
     }
 
@@ -184,6 +187,10 @@ export function calculateBudgetPlacement({
       name: summary.category.name,
       available: summary.available,
       referenceReserve: Math.max(summary.reference_reserve ?? 0, 0),
+      depreciationNonCashOffset: Math.max(
+        summary.depreciation_non_cash_offset ?? 0,
+        0,
+      ),
       targetAccountIds,
     });
     categoryToAccounts.set(summary.category.id, new Set(targetAccountIds));
@@ -237,7 +244,8 @@ export function calculateBudgetPlacement({
         budget_category_name: category.name,
         amount:
           Math.max(category.available, 0) +
-          category.referenceReserve,
+          category.referenceReserve +
+          category.depreciationNonCashOffset,
       };
     });
     const expected = sumBudgetClaims(

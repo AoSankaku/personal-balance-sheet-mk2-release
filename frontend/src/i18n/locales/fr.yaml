@@ -407,10 +407,12 @@ budgetReconciliationCash: "Trésorerie attribuable"
 budgetReconciliationNetBudget: "Solde budgétaire net"
 budgetReconciliationNetGap: "Écart net de rapprochement"
 budgetReconciliationReferenceReserve: "Réserve des dépenses non suivies"
+budgetReconciliationDepreciationReserve: "Réserve budgétaire d’amortissement restante"
+budgetReconciliationDepreciationOffset: "Amortissement non monétaire après réinitialisation"
 budgetReconciliationAdjustedGap: "Écart après réserve"
 budgetReconciliationPositiveClaims: "Engagements budgétaires positifs"
 budgetReconciliationFundingGap: "Écart de financement positif"
-budgetReconciliationHint: "L’écart net est de {gap} ; {reference} est réservé aux dépenses non suivies, soit {adjustedGap} après réserve. Les dépassements non financés sont de {overspending}."
+budgetReconciliationHint: "L’écart net est de {gap} ; {reference} est réservé aux dépenses non suivies et {depreciation} correspond à l’amortissement non monétaire après réinitialisation, soit {adjustedGap} après ajustements. Les dépassements non financés sont de {overspending}."
 budgetPlacementExpected: "Cible"
 budgetPlacementActual: "Réel"
 budgetPlacementDifference: "Différence"
@@ -788,6 +790,8 @@ budgetReferenceAllocationHint: La source de paiement est hors des fonds budgéta
 budgetMarkReferenceAction: Rendre indicative
 budgetMarkReferenceSuccess: La ventilation budgétaire est désormais une écriture de référence
 budgetReferenceSpentLabel: Dont dépenses indicatives
+budgetDepreciationRecognizedLabel: Amortissement comptabilisé ce mois-ci
+budgetDepreciationReserveLabel: Réserve budgétaire d’amortissement restante
 budgetReferenceAllocationBadge: Ventilation budgétaire (référence)
 budgetReferenceEntriesTitle: Dépenses de référence en espèces non suivies
 budgetReferenceEntriesHint: "{count} écritures, soit {amount}. Leur effet suit les limites de réinitialisation et de date de référence."

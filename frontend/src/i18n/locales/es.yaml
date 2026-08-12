@@ -407,10 +407,12 @@ budgetReconciliationCash: "Efectivo asignable"
 budgetReconciliationNetBudget: "Saldo presupuestario neto"
 budgetReconciliationNetGap: "Diferencia neta de conciliación"
 budgetReconciliationReferenceReserve: "Reserva de gastos no rastreados"
+budgetReconciliationDepreciationReserve: "Reserva presupuestaria de depreciación restante"
+budgetReconciliationDepreciationOffset: "Depreciación no monetaria tras el reinicio"
 budgetReconciliationAdjustedGap: "Diferencia tras la reserva"
 budgetReconciliationPositiveClaims: "Compromisos presupuestarios positivos"
 budgetReconciliationFundingGap: "Diferencia de financiación positiva"
-budgetReconciliationHint: "La diferencia neta es {gap}; {reference} se reserva para gastos no rastreados, quedando {adjustedGap} tras la reserva. El exceso sin financiar es {overspending}."
+budgetReconciliationHint: "La diferencia neta es {gap}; {reference} se reserva para gastos no rastreados y {depreciation} corresponde a depreciación no monetaria tras el reinicio, quedando {adjustedGap} después de ambos ajustes. El exceso sin financiar es {overspending}."
 budgetPlacementExpected: "Objetivo"
 budgetPlacementActual: "Actual"
 budgetPlacementDifference: "Diferencia"
@@ -788,6 +790,8 @@ budgetReferenceAllocationHint: La fuente de pago está fuera de los fondos presu
 budgetMarkReferenceAction: Marcar referencia
 budgetMarkReferenceSuccess: El desglose presupuestario se cambió a un registro de referencia
 budgetReferenceSpentLabel: Del cual gasto de referencia
+budgetDepreciationRecognizedLabel: Depreciación reconocida este mes
+budgetDepreciationReserveLabel: Reserva presupuestaria de depreciación restante
 budgetReferenceAllocationBadge: Desglose presupuestario (referencia)
 budgetReferenceEntriesTitle: Gasto de referencia con efectivo no rastreado
 budgetReferenceEntriesHint: "{count} registros por {amount}. Su efecto sigue los límites de reinicio y fecha de referencia."
