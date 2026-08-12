@@ -286,6 +286,15 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(input),
       }, DERIVED_JOURNAL_PREFIXES),
+    setBudgetAllocationsReference: (id: number, isReference = true) =>
+      mutationRequest<{
+        journal_entry_id: number;
+        updated_allocations: number;
+        is_reference: boolean;
+      }>(`/journal/${id}/budget-allocations/reference`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_reference: isReference }),
+      }, DERIVED_JOURNAL_PREFIXES),
     delete: (id: number) =>
       mutationRequest<{ success: boolean }>(
         `/journal/${id}`,

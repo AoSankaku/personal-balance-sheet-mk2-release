@@ -387,6 +387,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       (budgetSummaryToday?.categories ?? []).map(
         (category) => category.available,
       ),
+      budgetSummaryToday?.total_reference_reserve ?? 0,
     );
   }, [assetBalanceToday, budgetSummaryToday]);
 
@@ -396,6 +397,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       (budgetSummaryTotal?.categories ?? []).map(
         (category) => category.available,
       ),
+      budgetSummaryTotal?.total_reference_reserve ?? 0,
     );
   }, [assetBalanceTotal, budgetSummaryTotal]);
 
@@ -405,7 +407,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         (budgetSummaryToday?.categories ?? []).map(
           (category) => category.available,
         ),
-      ),
+      ) + (budgetSummaryToday?.total_reference_reserve ?? 0),
     [budgetSummaryToday],
   );
 
@@ -415,7 +417,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         (budgetSummaryTotal?.categories ?? []).map(
           (category) => category.available,
         ),
-      ),
+      ) + (budgetSummaryTotal?.total_reference_reserve ?? 0),
     [budgetSummaryTotal],
   );
 

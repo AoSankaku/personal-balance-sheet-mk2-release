@@ -427,6 +427,18 @@ export function JournalTable({
                               )}
                             </Badge>
                           )}
+                          {(entry.budget_allocations ?? []).some(
+                            (allocation) => allocation.is_reference,
+                          ) && (
+                            <Badge
+                              size="xs"
+                              color="blue"
+                              variant="light"
+                              w="fit-content"
+                            >
+                              {t("budgetReferenceAllocationBadge")}
+                            </Badge>
+                          )}
                         </Stack>
                       </Table.Td>
                       {showTimestamp && (
@@ -535,6 +547,18 @@ export function JournalTable({
                                   .map((id) => `#${id}`)
                                   .join(" / "),
                               )}
+                            </Badge>
+                          )}
+                          {(entry.budget_allocations ?? []).some(
+                            (allocation) => allocation.is_reference,
+                          ) && (
+                            <Badge
+                              size="xs"
+                              color="blue"
+                              variant="light"
+                              w="fit-content"
+                            >
+                              {t("budgetReferenceAllocationBadge")}
                             </Badge>
                           )}
                         </Stack>

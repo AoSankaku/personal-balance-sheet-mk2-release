@@ -115,9 +115,13 @@ export function BudgetPlacementTable({
   const fundingSummary = summarizeBudgetFunding(
     sumAllocatableCashBalances(accounts, currency),
     categorySummaries.map((summary) => summary.available),
+    categorySummaries.reduce(
+      (sum, summary) => sum + (summary.reference_reserve ?? 0),
+      0,
+    ),
   );
   const reconciliationIsClear =
-    Math.abs(fundingSummary.reconciliationGap) < 0.000_001;
+    Math.abs(fundingSummary.adjustedReconciliationGap) < 0.000_001;
 
   return (
     <Stack gap="md">
@@ -146,6 +150,8 @@ export function BudgetPlacementTable({
                 <Table.Th>{t("budgetReconciliationCash")}</Table.Th>
                 <Table.Th>{t("budgetReconciliationNetBudget")}</Table.Th>
                 <Table.Th>{t("budgetReconciliationNetGap")}</Table.Th>
+                <Table.Th>{t("budgetReconciliationReferenceReserve")}</Table.Th>
+                <Table.Th>{t("budgetReconciliationAdjustedGap")}</Table.Th>
                 <Table.Th>{t("budgetReconciliationPositiveClaims")}</Table.Th>
                 <Table.Th>{t("budgetReconciliationFundingGap")}</Table.Th>
               </Table.Tr>
@@ -174,6 +180,26 @@ export function BudgetPlacementTable({
                   >
                     {formatSignedCurrency(
                       fundingSummary.reconciliationGap,
+                      locale,
+                      currency,
+                    )}
+                  </Text>
+                </Table.Td>
+                <Table.Td className="currency-cell">
+                  {formatCurrency(
+                    fundingSummary.referenceReserve,
+                    locale,
+                    currency,
+                  )}
+                </Table.Td>
+                <Table.Td className="currency-cell">
+                  <Text
+                    size="sm"
+                    fw={700}
+                    c={reconciliationIsClear ? "teal" : "orange"}
+                  >
+                    {formatSignedCurrency(
+                      fundingSummary.adjustedReconciliationGap,
                       locale,
                       currency,
                     )}
@@ -217,6 +243,22 @@ export function BudgetPlacementTable({
               "{gap}",
               formatSignedCurrency(
                 fundingSummary.reconciliationGap,
+                locale,
+                currency,
+              ),
+            )
+            .replace(
+              "{reference}",
+              formatCurrency(
+                fundingSummary.referenceReserve,
+                locale,
+                currency,
+              ),
+            )
+            .replace(
+              "{adjustedGap}",
+              formatSignedCurrency(
+                fundingSummary.adjustedReconciliationGap,
                 locale,
                 currency,
               ),

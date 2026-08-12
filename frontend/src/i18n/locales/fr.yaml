@@ -406,9 +406,11 @@ budgetReconciliationTitle: "Rapprochement budgétaire global"
 budgetReconciliationCash: "Trésorerie attribuable"
 budgetReconciliationNetBudget: "Solde budgétaire net"
 budgetReconciliationNetGap: "Écart net de rapprochement"
+budgetReconciliationReferenceReserve: "Réserve des dépenses non suivies"
+budgetReconciliationAdjustedGap: "Écart après réserve"
 budgetReconciliationPositiveClaims: "Engagements budgétaires positifs"
 budgetReconciliationFundingGap: "Écart de financement positif"
-budgetReconciliationHint: "L’écart net est de {gap}, avec {overspending} de dépassements non financés. L’écart de financement positif combine ces deux insuffisances et ne change pas lors d’un virement entre comptes."
+budgetReconciliationHint: "L’écart net est de {gap} ; {reference} est réservé aux dépenses non suivies, soit {adjustedGap} après réserve. Les dépassements non financés sont de {overspending}."
 budgetPlacementExpected: "Cible"
 budgetPlacementActual: "Réel"
 budgetPlacementDifference: "Différence"
@@ -780,7 +782,15 @@ depreciationBudgetPressure: "Pression budgétaire (% des dépenses totales)"
 depreciationBudgetPressureNoExpense: "Aucune dépense enregistrée pour cette année."
 budgetConsistencyTitle: "Contrôle de cohérence budgétaire"
 budgetUnallocatedIncomeIssue: "Revenu reçu dans les fonds budgétaires mais non réparti : {amount}"
-budgetExcludedCashConsumptionIssue: "Budget consommé depuis un compte hors fonds budgétaires : {amount}"
+budgetExcludedCashConsumptionIssue: "Une consommation budgétaire normale est enregistrée pour une dépense en espèces non suivies : {amount}"
+budgetReferenceAllocationTitle: Écriture budgétaire de référence
+budgetReferenceAllocationHint: La source de paiement est hors des fonds budgétaires, mais cette dépense prévue réduit le solde et le montant allouable et reste séparée dans le rapprochement.
+budgetMarkReferenceAction: Rendre indicative
+budgetMarkReferenceSuccess: La ventilation budgétaire est désormais une écriture de référence
+budgetReferenceSpentLabel: Dont dépenses indicatives
+budgetReferenceAllocationBadge: Ventilation budgétaire (référence)
+budgetReferenceEntriesTitle: Dépenses de référence en espèces non suivies
+budgetReferenceEntriesHint: "{count} écritures, soit {amount}. Leur effet suit les limites de réinitialisation et de date de référence."
 budgetResetCardSettlementTitle: "Paiement d’une dette de carte antérieure à la réinitialisation"
 budgetResetCardSettlementHint: "Ces {count} écritures ({amount} au total) sont estimées régler une dette de carte existant lors de la réinitialisation. Les achats correspondants antérieurs à la réinitialisation sont exclus du budget actuel."
 budgetConsistencyClear: "Toutes les transactions {n} correspondent aux allocations budgétaires."

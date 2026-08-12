@@ -406,9 +406,11 @@ budgetReconciliationTitle: Overall budget reconciliation
 budgetReconciliationCash: Allocatable cash
 budgetReconciliationNetBudget: Net budget balance
 budgetReconciliationNetGap: Net reconciliation gap
+budgetReconciliationReferenceReserve: Untracked spending reserve
+budgetReconciliationAdjustedGap: Gap after reserve
 budgetReconciliationPositiveClaims: Positive budget claims
 budgetReconciliationFundingGap: Positive-claims funding gap
-budgetReconciliationHint: "The net reconciliation gap is {gap}, with {overspending} of unfunded overspending. The positive-claims funding gap combines both shortages and does not change with account-to-account transfers."
+budgetReconciliationHint: "The net gap is {gap}; {reference} is reserved for untracked spending, leaving {adjustedGap} after the reserve. Unfunded overspending is {overspending}."
 budgetPlacementExpected: Target
 budgetPlacementActual: Actual
 budgetPlacementDifference: Difference
@@ -780,7 +782,15 @@ depreciationBudgetPressure: Budget pressure (% of total expenses)
 depreciationBudgetPressureNoExpense: No expenses recorded for this year.
 budgetConsistencyTitle: Budget Consistency Check
 budgetUnallocatedIncomeIssue: "Income received into budget funds is unallocated: {amount}"
-budgetExcludedCashConsumptionIssue: "Budget consumed from an account outside budget funds: {amount}"
+budgetExcludedCashConsumptionIssue: "Normal budget consumption is recorded for spending from untracked cash: {amount}"
+budgetReferenceAllocationTitle: Reference budget record
+budgetReferenceAllocationHint: The payment source is outside budget funds, but this planned spending reduces both the budget balance and allocatable money and is shown separately in reconciliation.
+budgetMarkReferenceAction: Make reference
+budgetMarkReferenceSuccess: Changed the budget breakdown to a reference record
+budgetReferenceSpentLabel: Of which reference spending
+budgetReferenceAllocationBadge: Budget breakdown (reference)
+budgetReferenceEntriesTitle: Reference spending from untracked cash
+budgetReferenceEntriesHint: "{count} entries totaling {amount}. Their effect on balances and allocatable money follows reset and as-of boundaries."
 budgetResetCardSettlementTitle: Payment of pre-reset card debt
 budgetResetCardSettlementHint: "These {count} entries ({amount} total) are estimated to settle card debt outstanding at the reset. The corresponding pre-reset card purchases are excluded from the current budget."
 budgetConsistencyClear: All {n} transactions match budget allocations.

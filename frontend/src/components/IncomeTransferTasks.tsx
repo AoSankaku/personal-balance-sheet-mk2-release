@@ -123,8 +123,15 @@ export function IncomeTransferTasks({
     const funding = summarizeBudgetFunding(
       sumAllocatableCashBalances(accounts, currency),
       categorySummaries.map((summary) => summary.available),
+      categorySummaries.reduce(
+        (sum, summary) => sum + (summary.reference_reserve ?? 0),
+        0,
+      ),
     );
-    return { changedGroups, reconciliationGap: funding.reconciliationGap };
+    return {
+      changedGroups,
+      reconciliationGap: funding.adjustedReconciliationGap,
+    };
   }, [
     accounts,
     budgetSummary,

@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Alert,
   Badge,
   Button,
   Checkbox,
@@ -16,7 +17,12 @@ import {
 import { DateInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconAlertTriangle, IconPlus, IconTrash } from "@tabler/icons-react";
+import {
+  IconAlertTriangle,
+  IconInfoCircle,
+  IconPlus,
+  IconTrash,
+} from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
@@ -52,6 +58,7 @@ import {
   calculateMultiLineBudgetFundingImpact,
   splitByLargestRemainder,
 } from "../lib/multiLineBudgetFunding";
+import { shouldUseReferenceBudgetAllocations } from "../lib/budgetConsistency";
 
 export type { MultiLineRow };
 
@@ -95,6 +102,10 @@ export function MultiLineEntryForm({
     displayCurrencySymbol: currencySymbol,
   } = useAppData();
   const selectedCurrency = displayCurrency || "JPY";
+  const accountMap = useMemo(
+    () => new Map(accounts.map((account) => [account.id, account])),
+    [accounts],
+  );
   const isMobile = useMediaQuery("(max-width: 48em)");
   const isControlled = initialValues != null;
 
@@ -335,16 +346,39 @@ export function MultiLineEntryForm({
     [form.values.rows, accounts, selectedCurrency, currencyDecimalPlaces],
   );
   const amountStep = 10 ** -currencyDecimalPlaces;
+  const usesReferenceBudgetAllocations = shouldUseReferenceBudgetAllocations(
+    form.values.rows
+      .filter((row) => row.account_id != null)
+      .map((row) => ({
+        account_id: row.account_id!,
+        debit: row.debit ?? 0,
+        credit: row.credit ?? 0,
+        currency: selectedCurrency,
+      })),
+    accountMap,
+    selectedCurrency,
+  );
 
   async function doSubmit(values: MultiForm) {
     const validLines = values.rows.filter(
       (r) => r.account_id != null && (r.debit > 0 || r.credit > 0),
+    );
+    const referenceAllocations = shouldUseReferenceBudgetAllocations(
+      validLines.map((row) => ({
+        account_id: row.account_id!,
+        debit: row.debit ?? 0,
+        credit: row.credit ?? 0,
+        currency: selectedCurrency,
+      })),
+      accountMap,
+      selectedCurrency,
     );
     const budget_allocations = Object.entries(budgetAllocs)
       .filter(([, amt]) => amt !== 0)
       .map(([catId, amount]) => ({
         budget_category_id: Number(catId),
         amount,
+        is_reference: referenceAllocations,
       }));
     const allSettledIds = Object.values(settledIdsByAccount).flat();
     const sourceEntries =
@@ -1031,6 +1065,16 @@ export function MultiLineEntryForm({
                   {t("budgetDistributionTotal")}: {totalBudgetPct}%
                 </Badge>
               </Group>
+              {usesReferenceBudgetAllocations && totalBudgetAlloc !== 0 && (
+                <Alert
+                  color="blue"
+                  variant="light"
+                  icon={<IconInfoCircle size={18} />}
+                  title={t("budgetReferenceAllocationTitle")}
+                >
+                  {t("budgetReferenceAllocationHint")}
+                </Alert>
+              )}
               <Stack gap={6}>
                 {budgetCategories.map((cat) => {
                   const val = budgetAllocs[cat.id] ?? 0;

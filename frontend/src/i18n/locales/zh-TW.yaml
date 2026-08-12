@@ -406,9 +406,11 @@ budgetReconciliationTitle: 整體預算核對
 budgetReconciliationCash: 可分配現金
 budgetReconciliationNetBudget: 預算淨餘額
 budgetReconciliationNetGap: 淨核對差額
+budgetReconciliationReferenceReserve: 未追蹤支出預留額
+budgetReconciliationAdjustedGap: 扣除預留後的差額
 budgetReconciliationPositiveClaims: 正預算需求額
 budgetReconciliationFundingGap: 正預算資金差額
-budgetReconciliationHint: "淨核對差額為 {gap}，未獲資金的超支為 {overspending}。正預算資金差額合併了這兩項短缺，帳戶間轉帳不會改變該差額。"
+budgetReconciliationHint: "淨差額為 {gap}，其中 {reference} 預留給未追蹤支出，扣除後為 {adjustedGap}。未獲資金支持的超支為 {overspending}。"
 budgetPlacementExpected: 目標
 budgetPlacementActual: 實際
 budgetPlacementDifference: 差異
@@ -780,7 +782,15 @@ depreciationBudgetPressure: 預算壓力（佔總支出比例）
 depreciationBudgetPressureNoExpense: 今年沒有支出記錄。
 budgetConsistencyTitle: 預算一致性檢查
 budgetUnallocatedIncomeIssue: "進入預算資金的收入尚未分配：{amount}"
-budgetExcludedCashConsumptionIssue: "從預算資金範圍外的帳戶消耗了預算：{amount}"
+budgetExcludedCashConsumptionIssue: "使用未追蹤現金支出時記錄了普通預算消耗：{amount}"
+budgetReferenceAllocationTitle: 參考預算記錄
+budgetReferenceAllocationHint: 付款來源不屬於預算資金，但此計畫支出會減少預算餘額與可分配金額，並在一致性檢查中分開顯示。
+budgetMarkReferenceAction: 設為參考記錄
+budgetMarkReferenceSuccess: 已將預算明細改為參考記錄
+budgetReferenceSpentLabel: 其中參考支出
+budgetReferenceAllocationBadge: 預算明細（參考）
+budgetReferenceEntriesTitle: 未追蹤現金的參考預算支出
+budgetReferenceEntriesHint: "共 {count} 筆，合計 {amount}。對餘額與可分配金額的影響依循重設及基準日期邊界。"
 budgetResetCardSettlementTitle: 重設前信用卡債務的還款
 budgetResetCardSettlementHint: "以下{count}筆分錄（合計{amount}）推定用於償還重設時尚未結清的信用卡債務。對應的重設前信用卡消費已從目前預算中排除。"
 budgetConsistencyClear: "全部 {n} 筆交易與預算分配一致。"

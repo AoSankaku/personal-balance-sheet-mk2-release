@@ -406,9 +406,11 @@ budgetReconciliationTitle: "Conciliación presupuestaria global"
 budgetReconciliationCash: "Efectivo asignable"
 budgetReconciliationNetBudget: "Saldo presupuestario neto"
 budgetReconciliationNetGap: "Diferencia neta de conciliación"
+budgetReconciliationReferenceReserve: "Reserva de gastos no rastreados"
+budgetReconciliationAdjustedGap: "Diferencia tras la reserva"
 budgetReconciliationPositiveClaims: "Compromisos presupuestarios positivos"
 budgetReconciliationFundingGap: "Diferencia de financiación positiva"
-budgetReconciliationHint: "La diferencia neta es {gap}, con {overspending} de exceso sin financiar. La diferencia de financiación positiva combina ambas insuficiencias y no cambia con transferencias entre cuentas."
+budgetReconciliationHint: "La diferencia neta es {gap}; {reference} se reserva para gastos no rastreados, quedando {adjustedGap} tras la reserva. El exceso sin financiar es {overspending}."
 budgetPlacementExpected: "Objetivo"
 budgetPlacementActual: "Actual"
 budgetPlacementDifference: "Diferencia"
@@ -780,7 +782,15 @@ depreciationBudgetPressure: "Presión presupuestaria (% de gastos totales)"
 depreciationBudgetPressureNoExpense: "No se registraron gastos para este año."
 budgetConsistencyTitle: "Verificación de coherencia presupuestaria"
 budgetUnallocatedIncomeIssue: "Ingreso recibido en los fondos presupuestarios sin distribuir: {amount}"
-budgetExcludedCashConsumptionIssue: "Presupuesto consumido desde una cuenta fuera de los fondos presupuestarios: {amount}"
+budgetExcludedCashConsumptionIssue: "Se registró consumo presupuestario normal para un gasto con efectivo no rastreado: {amount}"
+budgetReferenceAllocationTitle: Registro presupuestario de referencia
+budgetReferenceAllocationHint: La fuente de pago está fuera de los fondos presupuestarios, pero este gasto previsto reduce el saldo y el importe asignable y se muestra por separado en la conciliación.
+budgetMarkReferenceAction: Marcar referencia
+budgetMarkReferenceSuccess: El desglose presupuestario se cambió a un registro de referencia
+budgetReferenceSpentLabel: Del cual gasto de referencia
+budgetReferenceAllocationBadge: Desglose presupuestario (referencia)
+budgetReferenceEntriesTitle: Gasto de referencia con efectivo no rastreado
+budgetReferenceEntriesHint: "{count} registros por {amount}. Su efecto sigue los límites de reinicio y fecha de referencia."
 budgetResetCardSettlementTitle: "Pago de deuda de tarjeta anterior al reinicio"
 budgetResetCardSettlementHint: "Se estima que estos {count} asientos ({amount} en total) liquidan deuda de tarjeta pendiente al reiniciar. Las compras correspondientes anteriores al reinicio se excluyen del presupuesto actual."
 budgetConsistencyClear: "Todas las transacciones {n} coinciden con las asignaciones presupuestarias."

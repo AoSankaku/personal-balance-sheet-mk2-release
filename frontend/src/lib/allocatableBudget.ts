@@ -45,13 +45,16 @@ export interface BudgetFundingSummary {
   netBudgetBalance: number;
   positiveBudgetClaims: number;
   unfundedOverspending: number;
+  referenceReserve: number;
   reconciliationGap: number;
+  adjustedReconciliationGap: number;
   fundingGap: number;
 }
 
 export function summarizeBudgetFunding(
   cashBalance: number,
   budgetAvailableValues: number[],
+  referenceReserve = 0,
 ): BudgetFundingSummary {
   const netBudgetBalance = budgetAvailableValues.reduce(
     (sum, available) => sum + available,
@@ -63,14 +66,22 @@ export function summarizeBudgetFunding(
     netBudgetBalance,
     positiveBudgetClaims,
     unfundedOverspending: sumBudgetOverspending(budgetAvailableValues),
+    referenceReserve,
     reconciliationGap: cashBalance - netBudgetBalance,
-    fundingGap: cashBalance - positiveBudgetClaims,
+    adjustedReconciliationGap:
+      cashBalance - netBudgetBalance - referenceReserve,
+    fundingGap: cashBalance - positiveBudgetClaims - referenceReserve,
   };
 }
 
 export function computeAllocatableBudget(
   cashBalance: number,
   budgetAvailableValues: number[],
+  referenceReserve = 0,
 ): number {
-  return summarizeBudgetFunding(cashBalance, budgetAvailableValues).fundingGap;
+  return summarizeBudgetFunding(
+    cashBalance,
+    budgetAvailableValues,
+    referenceReserve,
+  ).fundingGap;
 }

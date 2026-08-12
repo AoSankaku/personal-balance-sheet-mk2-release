@@ -9,6 +9,16 @@ describe("summarizeBudgetFunding", () => {
     expect(summary.positiveBudgetClaims).toBe(830_594);
     expect(summary.unfundedOverspending).toBe(38_105);
     expect(summary.reconciliationGap).toBe(-22_179);
+    expect(summary.adjustedReconciliationGap).toBe(-22_179);
     expect(summary.fundingGap).toBe(-60_284);
+  });
+
+  test("reserves reference spending from allocatable money", () => {
+    const summary = summarizeBudgetFunding(100_000, [90_000], 10_000);
+
+    expect(summary.reconciliationGap).toBe(10_000);
+    expect(summary.referenceReserve).toBe(10_000);
+    expect(summary.adjustedReconciliationGap).toBe(0);
+    expect(summary.fundingGap).toBe(0);
   });
 });

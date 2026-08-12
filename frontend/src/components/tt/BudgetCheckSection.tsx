@@ -92,6 +92,9 @@ export function BudgetCheckSection() {
     getPageSize("tt:budgetCheckPageSize", 25),
   );
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
+  const [markingReferenceEntryId, setMarkingReferenceEntryId] = useState<
+    number | null
+  >(null);
   const [
     journalEditOpened,
     { open: openJournalEdit, close: closeJournalEdit },
@@ -164,6 +167,7 @@ export function BudgetCheckSection() {
             excludedExpenseAllocationCategoryId,
           )
         : [];
+      let referenceCandidateAmount = 0;
       if (isManagedPeriodEntry) {
         const currency = displayCurrency || "JPY";
         const unallocatedIncome = getUnallocatedAllocatableIncomeAmount(
@@ -187,6 +191,7 @@ export function BudgetCheckSection() {
             excludedExpenseAllocationCategoryId,
           );
         if (excludedCashConsumption > 0) {
+          referenceCandidateAmount = excludedCashConsumption;
           reasons.push(
             t("budgetExcludedCashConsumptionIssue").replace(
               "{amount}",
@@ -207,7 +212,12 @@ export function BudgetCheckSection() {
         reasons.push(t("budgetFundingMissingIssue"));
       }
       if (reasons.length === 0) return [];
-      return [{ entry, reasons, missingLoanFunding }];
+      return [{
+        entry,
+        reasons,
+        missingLoanFunding,
+        referenceCandidateAmount,
+      }];
     });
   }, [
     filteredJournal,
@@ -236,6 +246,27 @@ export function BudgetCheckSection() {
     latestResetBoundary,
     resetLogs,
   ]);
+  const referenceBudgetEntries = useMemo(() => {
+    const currency = (displayCurrency || "JPY").toUpperCase();
+    return filteredJournal.flatMap((entry) => {
+      const amount = -(entry.budget_allocations ?? [])
+        .filter(
+          (allocation) =>
+            allocation.is_reference === true &&
+            (allocation.currency || "JPY").toUpperCase() === currency,
+        )
+        .reduce((sum, allocation) => sum + allocation.amount, 0);
+      return amount > 0 ? [{ entry, amount }] : [];
+    });
+  }, [displayCurrency, filteredJournal]);
+  const referenceBudgetTotal = useMemo(
+    () =>
+      referenceBudgetEntries.reduce(
+        (sum, reference) => sum + reference.amount,
+        0,
+      ),
+    [referenceBudgetEntries],
+  );
   const preResetCardSettlementTotal = useMemo(
     () =>
       preResetCardSettlements.reduce(
@@ -322,6 +353,27 @@ export function BudgetCheckSection() {
     refresh();
     void refreshAllocatable();
     void refreshBudget();
+  }
+
+  async function handleMarkReference(entry: JournalEntry) {
+    if (privacyMode) return;
+    setMarkingReferenceEntryId(entry.id);
+    try {
+      await api.journal.setBudgetAllocationsReference(entry.id, true);
+      showFeedback({
+        message: t("budgetMarkReferenceSuccess"),
+        color: "teal",
+      });
+      await Promise.all([
+        Promise.resolve(refresh()),
+        Promise.resolve(refreshAllocatable()),
+        Promise.resolve(refreshBudget()),
+      ]);
+    } catch (error) {
+      showFeedback({ message: String(error), color: "red" });
+    } finally {
+      setMarkingReferenceEntryId(null);
+    }
   }
 
   return (
@@ -512,6 +564,54 @@ export function BudgetCheckSection() {
             </Stack>
           </Paper>
         )}
+        {referenceBudgetEntries.length > 0 && (
+          <Paper
+            withBorder
+            radius="sm"
+            p="sm"
+            mb="sm"
+            bg="var(--mantine-color-blue-light)"
+          >
+            <Stack gap={4}>
+              <Text size="sm" fw={600}>
+                {t("budgetReferenceEntriesTitle")}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {t("budgetReferenceEntriesHint")
+                  .replace("{count}", String(referenceBudgetEntries.length))
+                  .replace(
+                    "{amount}",
+                    formatCurrency(
+                      referenceBudgetTotal,
+                      locale,
+                      displayCurrency || "JPY",
+                    ),
+                  )}
+              </Text>
+              {referenceBudgetEntries.map(({ entry, amount }) => (
+                <Group key={entry.id} justify="space-between" wrap="nowrap">
+                  <Text size="xs">
+                    {entry.date} · {entry.description} · {formatCurrency(
+                      amount,
+                      locale,
+                      displayCurrency || "JPY",
+                    )}
+                  </Text>
+                  {!privacyMode && (
+                    <ActionIcon
+                      size="sm"
+                      variant="subtle"
+                      onClick={() => handleEditJournal(entry)}
+                      aria-label={t("editLabel")}
+                    >
+                      <IconPencil size={14} />
+                    </ActionIcon>
+                  )}
+                </Group>
+              ))}
+            </Stack>
+          </Paper>
+        )}
         {neutralFundingEntries.length > 0 && (
           <Stack gap={4} mb="sm">
             {neutralFundingEntries.slice(0, 5).map((entry) => (
@@ -601,7 +701,12 @@ export function BudgetCheckSection() {
               </Table.Thead>
               <Table.Tbody>
                 {pagedEntries.map(
-                  ({ entry, reasons, missingLoanFunding }) => {
+                  ({
+                    entry,
+                    reasons,
+                    missingLoanFunding,
+                    referenceCandidateAmount,
+                  }) => {
                     const {
                       totalExpense,
                       totalIncome,
@@ -678,14 +783,26 @@ export function BudgetCheckSection() {
                         </Table.Td>
                         {!privacyMode && (
                           <Table.Td>
-                            <ActionIcon
-                              size="sm"
-                              variant="subtle"
-                              onClick={() => handleEditJournal(entry)}
-                              aria-label={t("editLabel")}
-                            >
-                              <IconPencil size={14} />
-                            </ActionIcon>
+                            <Group gap={4} wrap="nowrap">
+                              {referenceCandidateAmount > 0 && (
+                                <Button
+                                  size="compact-xs"
+                                  variant="light"
+                                  loading={markingReferenceEntryId === entry.id}
+                                  onClick={() => void handleMarkReference(entry)}
+                                >
+                                  {t("budgetMarkReferenceAction")}
+                                </Button>
+                              )}
+                              <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                onClick={() => handleEditJournal(entry)}
+                                aria-label={t("editLabel")}
+                              >
+                                <IconPencil size={14} />
+                              </ActionIcon>
+                            </Group>
                           </Table.Td>
                         )}
                       </Table.Tr>

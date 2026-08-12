@@ -32,6 +32,44 @@ function isAllocatableCash(account: Account | undefined): boolean {
   );
 }
 
+export function shouldUseReferenceBudgetAllocations(
+  lines: Array<{
+    account_id: number;
+    debit: number;
+    credit: number;
+    currency?: string;
+  }>,
+  accountMap: Map<number, Account>,
+  currency: string,
+): boolean {
+  let allocatableCashOutflow = 0;
+  let excludedCashOutflow = 0;
+
+  for (const line of lines) {
+    if (!lineCurrencyMatches(line.currency, currency)) continue;
+    const account = accountMap.get(line.account_id);
+    if (
+      !account ||
+      account.type !== "asset" ||
+      account.category !== "cash" ||
+      account.is_depreciable === true
+    ) {
+      continue;
+    }
+    const outflow = Math.max(line.credit - line.debit, 0);
+    if (isAllocatableCash(account)) {
+      allocatableCashOutflow += outflow;
+    } else {
+      excludedCashOutflow += outflow;
+    }
+  }
+
+  return (
+    excludedCashOutflow > BUDGET_ALLOCATION_EPSILON &&
+    allocatableCashOutflow <= BUDGET_ALLOCATION_EPSILON
+  );
+}
+
 export function getUnallocatedAllocatableIncomeAmount(
   entry: JournalEntry,
   accountMap: Map<number, Account>,
@@ -67,11 +105,15 @@ export function getExcludedCashBudgetConsumptionAmount(
   const allocated = -(entry.budget_allocations ?? [])
     .filter(
       (allocation) =>
+        allocation.is_reference !== true &&
         allocation.budget_category_id !== excludedBudgetCategoryId &&
         normalizedCurrency(allocation.currency) === normalizedCurrency(currency),
     )
     .reduce((sum, allocation) => sum + allocation.amount, 0);
   if (allocated <= BUDGET_ALLOCATION_EPSILON) return 0;
+  if (!shouldUseReferenceBudgetAllocations(entry.lines, accountMap, currency)) {
+    return 0;
+  }
 
   const excludedCashOutflow = entry.lines.reduce((sum, line) => {
     if (!lineCurrencyMatches(line.currency, currency)) return sum;

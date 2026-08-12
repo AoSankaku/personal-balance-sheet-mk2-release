@@ -140,6 +140,8 @@ export interface JournalEntry {
     amount: number;
     currency?: string;
     source?: string | null;
+    /** Allocation classified separately for reconciliation; it still consumes budget. */
+    is_reference?: boolean;
   }[];
   income_budget_allocations?: {
     budget_category_id: number;
@@ -309,6 +311,8 @@ export interface CreateJournalInput {
     budget_category_id: number;
     amount: number;
     currency?: string;
+    /** Allocation classified separately for reconciliation; it still consumes budget. */
+    is_reference?: boolean;
   }[];
   /** Source of the entry: 'simple' (SimpleEntryForm) or 'multiline' (multi-line form) */
   budget_source?: "simple" | "multiline";
@@ -511,6 +515,10 @@ export interface BudgetCategorySummary {
   reset_date?: string | null;
   total_budget: number;
   spent: number;
+  /** Reference-classified portion of spent for the selected month. */
+  reference_spent?: number;
+  /** Reference spending since the latest category reset, reserved from allocatable money. */
+  reference_reserve?: number;
   available: number;
   /** Net temporary financing included in available: borrowed minus lent. */
   funding_adjustment?: number;
@@ -537,6 +545,10 @@ export interface BudgetSummary {
   categories: BudgetCategorySummary[];
   total_budget: number;
   total_spent: number;
+  /** Reference-classified portion of total_spent for the selected month. */
+  total_reference_spent?: number;
+  /** Reference spending reserved from allocatable money after category resets. */
+  total_reference_reserve?: number;
   total_available: number;
 }
 
@@ -611,6 +623,8 @@ export interface BudgetAdjustmentLog {
     | "multiline";
   adjustment_type?: "allocation" | "reset" | "transfer";
   journal_entry_id?: number;
+  /** Allocation classified separately for reconciliation; it still consumes budget. */
+  is_reference?: boolean;
 }
 
 export type CalendarWeekStart = 0 | 1 | 2 | 3 | 4 | 5 | 6;

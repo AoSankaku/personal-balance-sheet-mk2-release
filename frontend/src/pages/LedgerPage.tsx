@@ -668,6 +668,13 @@ export default function LedgerPage() {
   }
 
   function renderBudgetLogTypeBadge(log: BudgetAdjustmentLog) {
+    if (log.is_reference) {
+      return (
+        <Badge color="blue" variant="outline" size="sm">
+          {t("budgetReferenceAllocationBadge")}
+        </Badge>
+      );
+    }
     if (log.type === "income") {
       return (
         <Badge color="teal" variant="light" size="sm">

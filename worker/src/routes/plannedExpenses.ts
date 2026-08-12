@@ -1592,12 +1592,13 @@ router.post("/:id/complete-with-journal", async (c) => {
       toStorageMoneyAmount(allocation.amount, allocation.currency ?? budgetCurrency, scaleOptions),
       normalizeCurrency(allocation.currency ?? budgetCurrency),
       journal.budget_source ?? null,
+      allocation.is_reference ? 1 : 0,
     ]);
     statements.push(
       c.env.DB.prepare(
         `INSERT INTO journal_entry_budget_allocations
-          (journal_entry_id, budget_category_id, amount, currency, source)
-         VALUES ${buildNewJournalEntryRowsSql(allocations.length, 4)}`,
+          (journal_entry_id, budget_category_id, amount, currency, source, is_reference)
+         VALUES ${buildNewJournalEntryRowsSql(allocations.length, 5)}`,
       ).bind(...values),
     );
   }

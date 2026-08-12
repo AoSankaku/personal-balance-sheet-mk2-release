@@ -5,6 +5,7 @@ import {
   getExcludedCashBudgetConsumptionAmount,
   getUnallocatedAllocatableIncomeAmount,
   hasBudgetAllocationMismatch,
+  shouldUseReferenceBudgetAllocations,
 } from "./budgetConsistency";
 
 function account(
@@ -115,6 +116,66 @@ describe("budget consistency", () => {
         "JPY",
       ),
     ).toBe(1_180);
+  });
+
+  test("ignores an excluded-cash allocation already marked as reference", () => {
+    const accounts = new Map([
+      [1, account(1, "asset", "cash", false)],
+      [2, account(2, "expense", "food")],
+    ]);
+    const journalEntry = entry(
+      1,
+      "2026-07-01",
+      "2026-07-01T00:00:00Z",
+      [
+        [2, 1_180, 0],
+        [1, 0, 1_180],
+      ],
+      {
+        budget_allocations: [
+          {
+            budget_category_id: 1,
+            amount: -1_180,
+            currency: "JPY",
+            is_reference: true,
+          },
+        ],
+      },
+    );
+
+    expect(
+      getExcludedCashBudgetConsumptionAmount(journalEntry, accounts, "JPY"),
+    ).toBe(0);
+  });
+
+  test("uses reference allocations only when all cash outflow is excluded", () => {
+    const accounts = new Map([
+      [1, account(1, "asset", "cash", false)],
+      [2, account(2, "asset", "cash", true)],
+      [3, account(3, "expense", "food")],
+    ]);
+
+    expect(
+      shouldUseReferenceBudgetAllocations(
+        [
+          { account_id: 3, debit: 1_180, credit: 0, currency: "JPY" },
+          { account_id: 1, debit: 0, credit: 1_180, currency: "JPY" },
+        ],
+        accounts,
+        "JPY",
+      ),
+    ).toBe(true);
+    expect(
+      shouldUseReferenceBudgetAllocations(
+        [
+          { account_id: 3, debit: 1_180, credit: 0, currency: "JPY" },
+          { account_id: 1, debit: 0, credit: 180, currency: "JPY" },
+          { account_id: 2, debit: 0, credit: 1_000, currency: "JPY" },
+        ],
+        accounts,
+        "JPY",
+      ),
+    ).toBe(false);
   });
 
   test("attributes later payments to pre-reset card debt before new debt", () => {
