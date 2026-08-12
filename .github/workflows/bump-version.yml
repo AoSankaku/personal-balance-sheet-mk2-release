@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - "*.md"
-      - ".github/workflows/bump-version.yml"
-      - "scripts/bump-version*.test.mjs"
 
 permissions:
   contents: write
@@ -27,11 +23,45 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Determine whether to bump version
+        id: changes
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          if [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
+            BEFORE_SHA="$(git rev-list --max-parents=0 "$AFTER_SHA")"
+          fi
+
+          should_bump=false
+          while IFS= read -r path; do
+            [[ -z "$path" ]] && continue
+            case "$path" in
+              .github/workflows/bump-version.yml|scripts/bump-version*.test.mjs)
+                ;;
+              *.md)
+                if [[ "$path" == */* ]]; then
+                  should_bump=true
+                  break
+                fi
+                ;;
+              *)
+                should_bump=true
+                break
+                ;;
+            esac
+          done < <(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")
+
+          echo "should-bump=$should_bump" >> "$GITHUB_OUTPUT"
+
       - name: Increment version
+        if: steps.changes.outputs.should-bump == 'true'
         id: bump
         run: node scripts/bump-version.mjs
 
       - name: Commit version
+        if: steps.changes.outputs.should-bump == 'true'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
