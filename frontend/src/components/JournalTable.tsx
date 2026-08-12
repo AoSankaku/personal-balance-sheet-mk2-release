@@ -427,6 +427,18 @@ export function JournalTable({
                               )}
                             </Badge>
                           )}
+                          {(entry.budget_allocations ?? []).some(
+                            (allocation) => allocation.is_reference,
+                          ) && (
+                            <Badge
+                              size="xs"
+                              color="blue"
+                              variant="light"
+                              w="fit-content"
+                            >
+                              {t("budgetReferenceAllocationBadge")}
+                            </Badge>
+                          )}
                         </Stack>
                       </Table.Td>
                       {showTimestamp && (
@@ -537,6 +549,18 @@ export function JournalTable({
                               )}
                             </Badge>
                           )}
+                          {(entry.budget_allocations ?? []).some(
+                            (allocation) => allocation.is_reference,
+                          ) && (
+                            <Badge
+                              size="xs"
+                              color="blue"
+                              variant="light"
+                              w="fit-content"
+                            >
+                              {t("budgetReferenceAllocationBadge")}
+                            </Badge>
+                          )}
                         </Stack>
                       </Table.Td>
                       <Table.Td>
@@ -557,7 +581,7 @@ export function JournalTable({
                               <Text
                                 size="xs"
                                 fw={600}
-                                c="blue.7"
+                                c="var(--mantine-color-blue-light-color)"
                                 ta="left"
                                 style={{ overflowWrap: "anywhere" }}
                               >
@@ -584,7 +608,7 @@ export function JournalTable({
                               <Text
                                 size="xs"
                                 fw={600}
-                                c="orange.7"
+                                c="var(--mantine-color-orange-light-color)"
                                 ta="left"
                                 style={{ overflowWrap: "anywhere" }}
                               >

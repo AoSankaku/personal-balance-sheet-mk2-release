@@ -123,6 +123,7 @@ export interface BudgetEntryAllocationForSpent {
   journal_entry_id: number;
   budget_category_id: number;
   amount: number;
+  is_reference?: boolean | number;
 }
 
 export interface BudgetEntryAllocationForPeriod
@@ -156,7 +157,25 @@ export function calculateSpentFromBudgetAllocations(
   entryAllocs: BudgetEntryAllocationForSpent[],
 ): number {
   const allocatedAmount = entryAllocs
-    .filter((entryAlloc) => entryAlloc.budget_category_id === budgetCategoryId)
+    .filter(
+      (entryAlloc) =>
+        entryAlloc.budget_category_id === budgetCategoryId,
+    )
+    .reduce((sum, entryAlloc) => sum + entryAlloc.amount, 0);
+
+  return -allocatedAmount;
+}
+
+export function calculateReferenceSpentFromBudgetAllocations(
+  budgetCategoryId: number,
+  entryAllocs: BudgetEntryAllocationForSpent[],
+): number {
+  const allocatedAmount = entryAllocs
+    .filter(
+      (entryAlloc) =>
+        entryAlloc.budget_category_id === budgetCategoryId &&
+        (entryAlloc.is_reference === true || entryAlloc.is_reference === 1),
+    )
     .reduce((sum, entryAlloc) => sum + entryAlloc.amount, 0);
 
   return -allocatedAmount;

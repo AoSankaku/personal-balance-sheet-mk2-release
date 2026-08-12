@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   applyBudgetBalanceCaps,
   calculateNextCarryover,
+  calculateReferenceSpentFromBudgetAllocations,
   calculateSpentFromBudgetAllocations,
   findLatestResetDateForPeriod,
   groupBudgetEntryAllocationsByMonth,
@@ -181,6 +182,27 @@ describe("calculateSpentFromBudgetAllocations", () => {
         },
       ]),
     ).toBe(20_000);
+  });
+
+  test("includes reference allocations in budget consumption and reports the subset", () => {
+    const allocations = [
+      {
+        journal_entry_id: 1,
+        budget_category_id: 2,
+        amount: -1_000,
+      },
+      {
+        journal_entry_id: 2,
+        budget_category_id: 2,
+        amount: -1_180,
+        is_reference: 1,
+      },
+    ];
+
+    expect(calculateSpentFromBudgetAllocations(2, allocations)).toBe(2_180);
+    expect(
+      calculateReferenceSpentFromBudgetAllocations(2, allocations),
+    ).toBe(1_180);
   });
 });
 

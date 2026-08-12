@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "fs";
+import { join } from "path";
 import type {
   IncomeTransferRequirement,
   JournalEntry,
@@ -9,6 +11,11 @@ import {
   isMatchingPureTransfer,
   squashIncomeTransferRequirements,
 } from "../src/lib/incomeTransferRequirements";
+
+const routeSource = readFileSync(
+  join(import.meta.dir, "../src/routes/incomeTransferRequirements.ts"),
+  "utf8",
+);
 
 function requirement(
   overrides: Partial<IncomeTransferRequirement>,
@@ -206,5 +213,13 @@ describe("income transfer squashing", () => {
         { from_account_id: 2, to_account_id: 1, amount: 10, currency: "JPY" },
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("income transfer journal descriptions", () => {
+  test("uses descriptions supplied by the localized client", () => {
+    expect(routeSource).toContain("body.description");
+    expect(routeSource).not.toContain("Income allocation transfer:");
+    expect(routeSource).not.toContain("Income allocation transfers (squashed):");
   });
 });

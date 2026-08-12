@@ -63,8 +63,12 @@ describe("calendar week start", () => {
   });
 
   test("colors Sundays and Saturdays consistently", () => {
-    expect(calendarWeekdayColor(0)).toBe("red.6");
-    expect(calendarWeekdayColor(6)).toBe("blue.6");
+    expect(calendarWeekdayColor(0)).toBe(
+      "var(--mantine-color-red-light-color)",
+    );
+    expect(calendarWeekdayColor(6)).toBe(
+      "var(--mantine-color-blue-light-color)",
+    );
     expect(calendarWeekdayColor(1)).toBe("dimmed");
     expect(calendarWeekdayColor(99)).toBe("dimmed");
   });

@@ -28,6 +28,7 @@ import type {
 } from "@balance-sheet/shared";
 import {
   applyBudgetBalanceCaps,
+  calculateReferenceSpentFromBudgetAllocations,
   calculateSpentFromBudgetAllocations,
   calculateNextCarryover,
   findLatestResetDateForPeriod,
@@ -853,6 +854,7 @@ router.get("/adjustment-logs", async (c) => {
           amount: journalEntryBudgetAllocations.amount,
           currency: journalEntryBudgetAllocations.currency,
           source: journalEntryBudgetAllocations.source,
+          is_reference: journalEntryBudgetAllocations.is_reference,
           date: journalEntries.date,
           created_at: journalEntryBudgetAllocations.created_at,
         })
@@ -881,6 +883,7 @@ router.get("/adjustment-logs", async (c) => {
       | "multiline";
     adjustment_type?: "allocation" | "reset" | "transfer";
     journal_entry_id?: number;
+    is_reference?: boolean;
   };
 
   const combined: LogEntry[] = [
@@ -923,6 +926,7 @@ router.get("/adjustment-logs", async (c) => {
         | "simple"
         | "multiline",
       journal_entry_id: row.journal_entry_id,
+      is_reference: row.is_reference === 1,
     })),
   ];
 
@@ -1058,6 +1062,7 @@ async function fetchEntryAllocsForPeriod(
     journal_entry_id: number;
     budget_category_id: number;
     amount: number;
+    is_reference: number;
     date: string;
     created_at: string;
   }[]
@@ -1067,6 +1072,7 @@ async function fetchEntryAllocsForPeriod(
       journal_entry_id: journalEntryBudgetAllocations.journal_entry_id,
       budget_category_id: journalEntryBudgetAllocations.budget_category_id,
       amount: journalEntryBudgetAllocations.amount,
+      is_reference: journalEntryBudgetAllocations.is_reference,
       date: journalEntries.date,
       created_at: journalEntries.created_at,
     })
@@ -1413,8 +1419,15 @@ async function computeBudgetSummaries(
           isAfterBudgetResetPoint(entryAlloc, currentResetPoint),
         ),
       );
+      const referenceSpent = calculateReferenceSpentFromBudgetAllocations(
+        cat.id,
+        entryAllocsForMonth(ym).filter((entryAlloc) =>
+          isAfterBudgetResetPoint(entryAlloc, currentResetPoint),
+        ),
+      );
 
       let carryover = 0;
+      let referenceReserve = 0;
       let fundingCarryover = 0;
       let borrowedFundingCarryover = 0;
       let lentFundingCarryover = 0;
@@ -1423,6 +1436,13 @@ async function computeBudgetSummaries(
         const monthlyFunding = fundingFor(cat.id, monthKey);
         const base = adhocFor(cat.id, monthKey) + monthlyFunding.net;
         const monthlySpent = calculateSpentFromBudgetAllocations(
+          cat.id,
+          entryAllocsForMonth(monthKey).filter((entryAlloc) =>
+            isAfterBudgetResetPoint(entryAlloc, resetPoint),
+          ),
+        );
+        if (resetPoint) referenceReserve = 0;
+        referenceReserve += calculateReferenceSpentFromBudgetAllocations(
           cat.id,
           entryAllocsForMonth(monthKey).filter((entryAlloc) =>
             isAfterBudgetResetPoint(entryAlloc, resetPoint),
@@ -1444,6 +1464,8 @@ async function computeBudgetSummaries(
       }
 
       const visibleCarryover = currentResetPoint ? 0 : carryover;
+      if (currentResetPoint) referenceReserve = 0;
+      referenceReserve += referenceSpent;
       const fundingAdjustment =
         (currentResetPoint ? 0 : fundingCarryover) + currentFunding.net;
       const borrowedFunding =
@@ -1504,6 +1526,8 @@ async function computeBudgetSummaries(
         ),
         total_budget: totalBudget,
         spent,
+        reference_spent: referenceSpent,
+        reference_reserve: referenceReserve,
         available: totalBudget - spent,
         funding_adjustment: fundingAdjustment,
         borrowed_funding: borrowedFunding,
@@ -1525,6 +1549,14 @@ async function computeBudgetSummaries(
       categories: categorySummaries,
       total_budget: categorySummaries.reduce((s, c) => s + c.total_budget, 0),
       total_spent: categorySummaries.reduce((s, c) => s + c.spent, 0),
+      total_reference_spent: categorySummaries.reduce(
+        (s, c) => s + (c.reference_spent ?? 0),
+        0,
+      ),
+      total_reference_reserve: categorySummaries.reduce(
+        (s, c) => s + (c.reference_reserve ?? 0),
+        0,
+      ),
       total_available: categorySummaries.reduce((s, c) => s + c.available, 0),
     };
   });

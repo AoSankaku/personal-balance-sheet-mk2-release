@@ -754,6 +754,7 @@ router.get("/", async (c) => {
       amount: fromStorageMoneyAmount(a.amount, a.currency, scaleOptions),
       currency: normalizeCurrency(a.currency),
       source: a.source,
+      is_reference: a.is_reference === 1,
     })),
     income_budget_allocations: incomeAllocsMap.get(entry.id) ?? [],
     depreciation_schedule_id: scheduleByEntry.get(entry.id) ?? null,
@@ -802,6 +803,7 @@ router.post("/", async (c) => {
       budget_category_id: number;
       amount: number;
       currency?: string;
+      is_reference?: boolean;
     }>;
     budget_source?: "simple" | "multiline";
     income_budget_allocations?: Array<{
@@ -1040,12 +1042,13 @@ router.post("/", async (c) => {
       ),
       normalizeCurrency(a.currency ?? budgetCurrency),
       body.budget_source ?? null,
+      a.is_reference ? 1 : 0,
     ]);
     statements.push(
       c.env.DB.prepare(
         `INSERT INTO journal_entry_budget_allocations
-          (journal_entry_id, budget_category_id, amount, currency, source)
-         VALUES ${buildNewEntryRowsSql(validAllocations.length, 4)}`,
+          (journal_entry_id, budget_category_id, amount, currency, source, is_reference)
+         VALUES ${buildNewEntryRowsSql(validAllocations.length, 5)}`,
       ).bind(...allocationValues),
     );
   }
@@ -1254,6 +1257,7 @@ router.post("/batch", async (c) => {
         budget_category_id: number;
         amount: number;
         currency?: string;
+        is_reference?: boolean;
       }>;
     }>;
   }>();
@@ -1364,6 +1368,7 @@ router.post("/batch", async (c) => {
             scaleOptions,
           ),
           currency: normalizeCurrency(a.currency ?? budgetCurrency),
+          is_reference: a.is_reference ? 1 : 0,
         })),
       );
     }
@@ -1485,6 +1490,7 @@ router.get("/:id", async (c) => {
       amount: fromStorageMoneyAmount(a.amount, a.currency, scaleOptions),
       currency: normalizeCurrency(a.currency),
       source: a.source,
+      is_reference: a.is_reference === 1,
     })),
     income_budget_allocations: incomeAllocations.map((a) => ({
       budget_category_id: a.budget_category_id,
@@ -1592,6 +1598,39 @@ router.get("/:id", async (c) => {
 });
 
 // PUT /api/journal/:id — replace header + lines + budget allocations
+router.patch("/:id/budget-allocations/reference", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);
+
+  const body = await c.req.json<{ is_reference?: boolean }>();
+  const db = createDb(c.env);
+  const [entry] = await db
+    .select({ id: journalEntries.id })
+    .from(journalEntries)
+    .where(eq(journalEntries.id, id));
+  if (!entry) return c.json({ error: "Not found" }, 404);
+
+  const allocations = await db
+    .select({ id: journalEntryBudgetAllocations.id })
+    .from(journalEntryBudgetAllocations)
+    .where(eq(journalEntryBudgetAllocations.journal_entry_id, id));
+  if (allocations.length === 0) {
+    return c.json({ error: "No budget allocations found" }, 409);
+  }
+
+  const isReference = body.is_reference !== false;
+  await db
+    .update(journalEntryBudgetAllocations)
+    .set({ is_reference: isReference ? 1 : 0 })
+    .where(eq(journalEntryBudgetAllocations.journal_entry_id, id));
+
+  return c.json({
+    journal_entry_id: id,
+    updated_allocations: allocations.length,
+    is_reference: isReference,
+  });
+});
+
 router.put("/:id", async (c) => {
   const id = Number(c.req.param("id"));
   if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);
@@ -1610,6 +1649,7 @@ router.put("/:id", async (c) => {
       budget_category_id: number;
       amount: number;
       currency?: string;
+      is_reference?: boolean;
     }>;
     budget_source?: "simple" | "multiline";
     income_budget_allocations?: Array<{
@@ -1946,12 +1986,13 @@ router.put("/:id", async (c) => {
       ),
       normalizeCurrency(allocation.currency ?? budgetCurrency),
       body.budget_source ?? null,
+      allocation.is_reference ? 1 : 0,
     ]);
     statements.push(
       c.env.DB.prepare(
         `INSERT INTO journal_entry_budget_allocations
-          (journal_entry_id, budget_category_id, amount, currency, source)
-         VALUES ${buildRowsSql(validAllocations.length, 5)}`,
+          (journal_entry_id, budget_category_id, amount, currency, source, is_reference)
+         VALUES ${buildRowsSql(validAllocations.length, 6)}`,
       ).bind(...allocationValues),
     );
   }

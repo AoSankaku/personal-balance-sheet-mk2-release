@@ -8,9 +8,10 @@ import {
   Paper,
   Radio,
   Stack,
+  Table,
   Text,
 } from "@mantine/core";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   IncomeTransferHistoricalCandidate,
   IncomeTransferRequirementGroup,
@@ -22,6 +23,14 @@ import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
 import { formatCurrency } from "../lib/numberFormat";
 import { showFeedback } from "../lib/feedback";
+import {
+  applyBudgetPlacementTransfers,
+  calculateBudgetPlacement,
+} from "../lib/budgetPlacement";
+import {
+  sumAllocatableCashBalances,
+  summarizeBudgetFunding,
+} from "../lib/allocatableBudget";
 import { ConfirmModal } from "./ConfirmModal";
 
 type TransferCandidate = JournalEntry & {
@@ -43,7 +52,13 @@ export function IncomeTransferTasks({
   showTitle = true,
 }: IncomeTransferTasksProps) {
   const { t, locale } = useLang();
-  const { refresh: refreshAppData } = useAppData();
+  const {
+    accounts,
+    budgetSummary,
+    budgetSummaryTotal,
+    displayCurrency,
+    refresh: refreshAppData,
+  } = useAppData();
   const [groups, setGroups] = useState<IncomeTransferRequirementGroup[]>([]);
   const [completedGroups, setCompletedGroups] = useState<
     IncomeTransferRequirementGroup[]
@@ -66,6 +81,64 @@ export function IncomeTransferTasks({
   const [squashConfirmation, setSquashConfirmation] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  const squashPlacementImpact = useMemo(() => {
+    if (!squashPreview) return null;
+    const categorySummaries =
+      budgetSummaryTotal?.categories ?? budgetSummary?.categories ?? [];
+    const currency = (displayCurrency || "JPY").toUpperCase();
+    const before = calculateBudgetPlacement({
+      accounts,
+      categorySummaries,
+      currency,
+    });
+    const afterAccounts = applyBudgetPlacementTransfers(
+      accounts,
+      squashPreview.transfers,
+      currency,
+    );
+    const after = calculateBudgetPlacement({
+      accounts: afterAccounts,
+      categorySummaries,
+      currency,
+    });
+    const afterById = new Map(
+      after.placementGroups.map((group) => [group.group_id, group]),
+    );
+    const changedGroups = before.placementGroups.flatMap((group) => {
+      const afterGroup = afterById.get(group.group_id);
+      if (
+        !afterGroup ||
+        Math.abs(group.difference - afterGroup.difference) < 0.000_001
+      ) {
+        return [];
+      }
+      return [{
+        group_id: group.group_id,
+        label: group.account_names.join(" + "),
+        before: group.difference,
+        after: afterGroup.difference,
+      }];
+    });
+    const funding = summarizeBudgetFunding(
+      sumAllocatableCashBalances(accounts, currency),
+      categorySummaries.map((summary) => summary.available),
+      categorySummaries.reduce(
+        (sum, summary) => sum + (summary.reference_reserve ?? 0),
+        0,
+      ),
+    );
+    return {
+      changedGroups,
+      reconciliationGap: funding.adjustedReconciliationGap,
+    };
+  }, [
+    accounts,
+    budgetSummary,
+    budgetSummaryTotal,
+    displayCurrency,
+    squashPreview,
+  ]);
 
   const refresh = useCallback(async () => {
     try {
@@ -215,7 +288,11 @@ export function IncomeTransferTasks({
           {squashPreview != null &&
             squashPreview.original_transfer_count >
               squashPreview.squashed_transfer_count && (
-              <Paper withBorder p="sm" bg="blue.0">
+              <Paper
+                withBorder
+                p="sm"
+                bg="var(--mantine-color-blue-light)"
+              >
                 <Stack gap="xs">
                   <Text size="sm" fw={700}>
                     {t("incomeTransferSquashTitle")}
@@ -247,6 +324,67 @@ export function IncomeTransferTasks({
                         </Text>
                       ))}
                     </Stack>
+                  )}
+                  {squashPlacementImpact && (
+                    <Paper withBorder p="xs" bg="var(--mantine-color-body)">
+                      <Stack gap={4}>
+                        <Text size="xs" fw={700}>
+                          {t("incomeTransferSquashPlacementTitle")}
+                        </Text>
+                        {squashPlacementImpact.changedGroups.length === 0 ? (
+                          <Text size="xs" c="dimmed">
+                            {t("incomeTransferSquashPlacementNoChange")}
+                          </Text>
+                        ) : (
+                          <Table fz="xs">
+                            <Table.Thead>
+                              <Table.Tr>
+                                <Table.Th>{t("accountName")}</Table.Th>
+                                <Table.Th className="currency-cell">
+                                  {t("incomeTransferSquashPlacementBefore")}
+                                </Table.Th>
+                                <Table.Th className="currency-cell">
+                                  {t("incomeTransferSquashPlacementAfter")}
+                                </Table.Th>
+                              </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                              {squashPlacementImpact.changedGroups.map(
+                                (group) => (
+                                  <Table.Tr key={group.group_id}>
+                                    <Table.Td>{group.label}</Table.Td>
+                                    <Table.Td className="currency-cell">
+                                      {formatCurrency(
+                                        group.before,
+                                        locale,
+                                        displayCurrency || "JPY",
+                                      )}
+                                    </Table.Td>
+                                    <Table.Td className="currency-cell">
+                                      {formatCurrency(
+                                        group.after,
+                                        locale,
+                                        displayCurrency || "JPY",
+                                      )}
+                                    </Table.Td>
+                                  </Table.Tr>
+                                ),
+                              )}
+                            </Table.Tbody>
+                          </Table>
+                        )}
+                        <Text size="xs" c="orange">
+                          {t("incomeTransferSquashGlobalGapUnchanged").replace(
+                            "{amount}",
+                            formatCurrency(
+                              squashPlacementImpact.reconciliationGap,
+                              locale,
+                              displayCurrency || "JPY",
+                            ),
+                          )}
+                        </Text>
+                      </Stack>
+                    </Paper>
                   )}
                   <Button
                     size="xs"
@@ -301,6 +439,10 @@ export function IncomeTransferTasks({
                     void run(() =>
                       api.incomeTransferRequirements.complete(
                         group.requirement_ids[0]!,
+                        t("incomeTransferJournalDescription").replace(
+                          "{description}",
+                          group.requirements[0]?.source_income_description ?? "-",
+                        ),
                       ),
                     )
                   }
@@ -478,7 +620,14 @@ export function IncomeTransferTasks({
         opened={squashConfirmation}
         onClose={() => setSquashConfirmation(false)}
         onConfirm={() => {
-          void run(() => api.incomeTransferRequirements.squash());
+          void run(() =>
+            api.incomeTransferRequirements.squash(
+              t("incomeTransferSquashJournalDescription").replace(
+                "{count}",
+                String(squashPreview?.squashed_transfer_count ?? 0),
+              ),
+            ),
+          );
         }}
         title={t("incomeTransferSquashConfirmTitle")}
         message={t("incomeTransferSquashConfirm")}

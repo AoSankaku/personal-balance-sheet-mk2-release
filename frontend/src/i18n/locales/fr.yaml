@@ -402,6 +402,15 @@ budgetTargetAccountsLabel: "Comptes cibles"
 budgetTargetAccountsDesc: "Utilisé uniquement à des fins de conseils de placement. Les budgets et comptes liés sont regroupés et comparés par solde total."
 budgetTargetManyToManyError: "Cela créerait un placement plusieurs-à-plusieurs. Utilisez soit un budget avec plusieurs comptes, soit plusieurs budgets avec un seul compte."
 budgetPlacementTitle: "Placement budgétaire"
+budgetReconciliationTitle: "Rapprochement budgétaire global"
+budgetReconciliationCash: "Trésorerie attribuable"
+budgetReconciliationNetBudget: "Solde budgétaire net"
+budgetReconciliationNetGap: "Écart net de rapprochement"
+budgetReconciliationReferenceReserve: "Réserve des dépenses non suivies"
+budgetReconciliationAdjustedGap: "Écart après réserve"
+budgetReconciliationPositiveClaims: "Engagements budgétaires positifs"
+budgetReconciliationFundingGap: "Écart de financement positif"
+budgetReconciliationHint: "L’écart net est de {gap} ; {reference} est réservé aux dépenses non suivies, soit {adjustedGap} après réserve. Les dépassements non financés sont de {overspending}."
 budgetPlacementExpected: "Cible"
 budgetPlacementActual: "Réel"
 budgetPlacementDifference: "Différence"
@@ -772,6 +781,18 @@ depreciationNone: "Aucune dépréciation constatée pour cette période."
 depreciationBudgetPressure: "Pression budgétaire (% des dépenses totales)"
 depreciationBudgetPressureNoExpense: "Aucune dépense enregistrée pour cette année."
 budgetConsistencyTitle: "Contrôle de cohérence budgétaire"
+budgetUnallocatedIncomeIssue: "Revenu reçu dans les fonds budgétaires mais non réparti : {amount}"
+budgetExcludedCashConsumptionIssue: "Une consommation budgétaire normale est enregistrée pour une dépense en espèces non suivies : {amount}"
+budgetReferenceAllocationTitle: Écriture budgétaire de référence
+budgetReferenceAllocationHint: La source de paiement est hors des fonds budgétaires, mais cette dépense prévue réduit le solde et le montant allouable et reste séparée dans le rapprochement.
+budgetMarkReferenceAction: Rendre indicative
+budgetMarkReferenceSuccess: La ventilation budgétaire est désormais une écriture de référence
+budgetReferenceSpentLabel: Dont dépenses indicatives
+budgetReferenceAllocationBadge: Ventilation budgétaire (référence)
+budgetReferenceEntriesTitle: Dépenses de référence en espèces non suivies
+budgetReferenceEntriesHint: "{count} écritures, soit {amount}. Leur effet suit les limites de réinitialisation et de date de référence."
+budgetResetCardSettlementTitle: "Paiement d’une dette de carte antérieure à la réinitialisation"
+budgetResetCardSettlementHint: "Ces {count} écritures ({amount} au total) sont estimées régler une dette de carte existant lors de la réinitialisation. Les achats correspondants antérieurs à la réinitialisation sont exclus du budget actuel."
 budgetConsistencyClear: "Toutes les transactions {n} correspondent aux allocations budgétaires."
 budgetConsistencyIssues: "Transaction(s) suspecte(s) {n} détectée(s)"
 budgetConsistencyChecked: "{n} vérifié"
@@ -1381,8 +1402,15 @@ incomeTransferSquashTitle: Réduire les virements en attente
 incomeTransferSquashHint: "Compense tous les mouvements en attente pour réduire {before} virements au minimum de {after}."
 incomeTransferSquashNoTransfer: Tous les mouvements se compensent ; aucun virement n’est nécessaire.
 incomeTransferSquashAction: Créer les virements minimaux et terminer
+incomeTransferSquashPlacementTitle: "Placement budgétaire avant et après"
+incomeTransferSquashPlacementBefore: "Avant"
+incomeTransferSquashPlacementAfter: "Après"
+incomeTransferSquashPlacementNoChange: "Les écarts de placement ne changent pas pour la devise affichée."
+incomeTransferSquashGlobalGapUnchanged: "Les virements entre comptes ne changent ni la trésorerie totale ni le solde budgétaire net ; l’écart net de {amount} restera donc inchangé."
 incomeTransferSquashConfirmTitle: Créer le nombre minimal de virements ?
 incomeTransferSquashConfirm: Termine toutes les tâches en attente avec les virements nets affichés. Effectuez les virements réels avant de confirmer.
+incomeTransferJournalDescription: "Virement de répartition du revenu : {description}"
+incomeTransferSquashJournalDescription: "Virements de répartition du revenu (regroupés) : {count}"
 incomeTransferNettedReference: Terminé sans virement
 incomeTransferSquashedCompleted: "{count} tâches regroupées"
 incomeTransferFindExisting: Rechercher un virement existant

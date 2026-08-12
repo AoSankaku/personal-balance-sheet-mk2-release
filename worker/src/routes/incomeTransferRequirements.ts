@@ -233,6 +233,12 @@ router.get("/squash-preview", async (c) => {
 });
 
 router.post("/squash", async (c) => {
+  const body = await c.req.json<{ description?: unknown }>().catch(() => ({}));
+  const description =
+    typeof body.description === "string" ? body.description.trim() : "";
+  if (!description) {
+    return c.json({ error: "description is required" }, 400);
+  }
   const db = createDb(c.env);
   const pendingRows = await loadPendingRequirements(db);
   if (pendingRows.length === 0) {
@@ -288,7 +294,7 @@ router.post("/squash", async (c) => {
        RETURNING id, date, description, source, created_at`,
     ).bind(
       preview.journal_date,
-      `Income allocation transfers (squashed): ${squashed.length}`,
+      description,
     ),
   ];
   for (const lineChunk of chunkForD1InClause(lineRows, 20)) {
@@ -593,13 +599,19 @@ router.post("/", async (c) => {
 
 router.post("/:id/complete", async (c) => {
   const id = Number(c.req.param("id"));
+  const body = await c.req.json<{ description?: unknown }>().catch(() => ({}));
+  const description =
+    typeof body.description === "string" ? body.description.trim() : "";
+  if (!description) {
+    return c.json({ error: "description is required" }, 400);
+  }
   const db = createDb(c.env);
   const rows = await pendingGroup(db, id);
   if (rows.length === 0) {
     return c.json({ error: "pending requirement not found" }, 404);
   }
   const [source] = await db
-    .select({ date: journalEntries.date, description: journalEntries.description })
+    .select({ date: journalEntries.date })
     .from(journalEntries)
     .where(eq(journalEntries.id, rows[0]!.source_income_journal_entry_id));
   if (!source) return c.json({ error: "source income not found" }, 409);
@@ -613,7 +625,7 @@ router.post("/:id/complete", async (c) => {
        RETURNING id, date, description, source, created_at`,
     ).bind(
       source.date,
-      `Income allocation transfer: ${source.description}`,
+      description,
     ),
     c.env.DB.prepare(
       `INSERT INTO journal_lines

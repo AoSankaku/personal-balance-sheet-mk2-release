@@ -295,6 +295,15 @@ function BudgetCategoryCard({
         {formatCurrency(summary.total_budget, locale, currency)}
         {summary.total_budget > 0 && ` · ${pct.toFixed(1)}%`}
       </Text>
+      {(summary.reference_spent ?? 0) > 0 && (
+        <Text size="xs" c="blue">
+          {t("budgetReferenceSpentLabel")}: {formatCurrency(
+            summary.reference_spent ?? 0,
+            locale,
+            currency,
+          )}
+        </Text>
+      )}
       {goal !== null && (
         <>
           <Progress
@@ -1087,6 +1096,15 @@ export default function OverviewPage() {
                   selectedCurrency,
                 )}
               </Text>
+              {(displaySummary.total_reference_spent ?? 0) > 0 && (
+                <Text size="xs" c="blue" mt={2}>
+                  {t("budgetReferenceSpentLabel")}: {formatCurrency(
+                    displaySummary.total_reference_spent ?? 0,
+                    locale,
+                    selectedCurrency,
+                  )}
+                </Text>
+              )}
             </Box>
             <Group gap="sm">
               <Text

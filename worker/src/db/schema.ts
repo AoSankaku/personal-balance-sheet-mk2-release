@@ -298,6 +298,8 @@ export const journalEntryBudgetAllocations = sqliteTable(
     amount: integer("amount").notNull().default(0),
     currency: text("currency").notNull().default("JPY"),
     source: text("source"),
+    /** 1 = allocation classified separately for reconciliation */
+    is_reference: integer("is_reference").notNull().default(0),
     created_at: text("created_at")
       .notNull()
       .default(sql`(datetime('now'))`),

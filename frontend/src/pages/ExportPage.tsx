@@ -132,6 +132,10 @@ export default function ExportPage() {
         --mantine-color-default-color: var(${light ? "--mantine-color-black" : "--mantine-color-white"});
         --mantine-color-default-border: var(${light ? "--mantine-color-gray-4" : "--mantine-color-dark-4"});
         --mantine-color-dimmed: var(${light ? "--mantine-color-gray-6" : "--mantine-color-dark-2"});
+        --report-info-background: ${light ? "var(--mantine-color-blue-0)" : "rgba(34, 139, 230, 0.12)"};
+        --report-info-border: ${light ? "var(--mantine-color-blue-3)" : "rgba(116, 192, 252, 0.42)"};
+        --report-info-icon: var(${light ? "--mantine-color-blue-6" : "--mantine-color-blue-4"});
+        --report-info-color: var(${light ? "--mantine-color-blue-9" : "--mantine-color-blue-1"});
         background-color: var(${light ? "--mantine-color-white" : "--mantine-color-dark-7"});
         color: var(${light ? "--mantine-color-black" : "--mantine-color-dark-0"});
         color-scheme: ${light ? "light" : "dark"};
@@ -1041,17 +1045,21 @@ ${deprSection}
                     display: "flex",
                     alignItems: "flex-start",
                     gap: 6,
-                    background: "#e8f4fb",
-                    borderLeft: "3px solid #93c5fd",
+                    background: "var(--report-info-background)",
+                    borderLeft: "3px solid var(--report-info-border)",
                     borderRadius: 4,
                     padding: "6px 10px",
                   }}
                 >
                   <IconInfoCircle
                     size={14}
-                    style={{ color: "#2563eb", flexShrink: 0, marginTop: 1 }}
+                    style={{
+                      color: "var(--report-info-icon)",
+                      flexShrink: 0,
+                      marginTop: 1,
+                    }}
                   />
-                  <Text size="xs" style={{ color: "#1e3a5f" }}>
+                  <Text size="xs" style={{ color: "var(--report-info-color)" }}>
                     {t("exportDepreciationNote")}
                   </Text>
                 </Box>

@@ -1,4 +1,5 @@
 import {
+  Alert,
   Button,
   Group,
   Modal,
@@ -10,6 +11,7 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
+import { IconInfoCircle } from "@tabler/icons-react";
 import { DateInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -705,6 +707,11 @@ export function SimpleEntryForm({
   const selectedPaymentAccount = accounts.find(
     (account) => account.id === form.values.expensePaidFromId,
   );
+  const usesReferenceBudgetAllocations = Boolean(
+    selectedPaymentAccount?.type === "asset" &&
+      selectedPaymentAccount.category === "cash" &&
+      selectedPaymentAccount.include_in_allocatable === false,
+  );
 
   useEffect(() => {
     if (!initialDraft?.depreciation) return;
@@ -826,6 +833,15 @@ export function SimpleEntryForm({
               values.creditCardStatementOffsetMonths,
           }
         : {};
+    const markReference = <
+      T extends { budget_category_id: number; amount: number },
+    >(
+      allocations: T[] | undefined,
+    ) =>
+      allocations?.map((allocation) => ({
+        ...allocation,
+        is_reference: usesReferenceBudgetAllocations,
+      }));
     // ── Depreciation path ──────────────────────────────────────────────
     if (values.entryType === "expense" && depreciationEnabled) {
       if (
@@ -987,7 +1003,7 @@ export function SimpleEntryForm({
             },
           ],
           budget_allocations: budget_allocations.length
-            ? budget_allocations
+            ? markReference(budget_allocations)
             : undefined,
           budget_source: "simple",
         });
@@ -1008,12 +1024,12 @@ export function SimpleEntryForm({
             },
           ],
           budget_allocations: advanceBudgetCatId
-            ? [
+            ? markReference([
                 {
                   budget_category_id: advanceBudgetCatId,
                   amount: -totalAmount,
                 },
-              ]
+              ])
             : undefined,
           budget_source: "simple",
         });
@@ -1039,7 +1055,7 @@ export function SimpleEntryForm({
               ...paymentOffset,
             },
           ],
-          budget_allocations,
+          budget_allocations: markReference(budget_allocations),
           budget_source: "simple",
         });
       }
@@ -1451,7 +1467,7 @@ export function SimpleEntryForm({
             : {}),
         },
       ],
-      budget_allocations,
+      budget_allocations: markReference(budget_allocations),
       budget_source: "simple",
       income_budget_allocations,
       income_transfer_destinations,
@@ -1961,41 +1977,53 @@ export function SimpleEntryForm({
         </SimpleGrid>
 
         {(entryType === "expense" || entryType === "business_advance") && (
-          <ExpenseSection
-            form={form}
-            isMobile={!!isMobile}
-            expenseOptions={expenseOptions}
-            expenseOnlyOptions={expenseOnlyOptions}
-            paidFromOptions={paidFromOptions}
-            assetOptions={assetOptions}
-            depreciableAssetOptions={depreciableAssetOptions}
-            selectedPaymentAccount={selectedPaymentAccount}
-            budgetSettings={budgetSettings}
-            budgetDist={budgetDist}
-            showZeroCategories={showZeroCategories}
-            setShowZeroCategories={setShowZeroCategories}
-            budgetDistributionSummary={budgetDistributionSummary}
-            businessRatio={businessRatio}
-            businessAmount={businessAmount}
-            personalAmount={personalAmount}
-            personalRatio={personalRatio}
-            depreciationEnabled={depreciationEnabled}
-            setDepreciationEnabled={setDepreciationEnabled}
-            depreciationAssetAccountId={depreciationAssetAccountId}
-            setDepreciationAssetAccountId={setDepreciationAssetAccountId}
-            depreciationExpenseAccountId={depreciationExpenseAccountId}
-            setDepreciationExpenseAccountId={setDepreciationExpenseAccountId}
-            depreciationInputMode={depreciationInputMode}
-            setDepreciationInputMode={setDepreciationInputMode}
-            depreciationMonths={depreciationMonths}
-            setDepreciationMonths={setDepreciationMonths}
-            depreciationMonthlyAmount={depreciationMonthlyAmount}
-            setDepreciationMonthlyAmount={setDepreciationMonthlyAmount}
-            onDepreciationSubmit={onDepreciationSubmit}
-            handleExpenseAccountChange={handleExpenseAccountChange}
-            handleRatioChange={handleRatioChange}
-            handleBudgetAmountChange={handleBudgetAmountChange}
-          />
+          <>
+            <ExpenseSection
+              form={form}
+              isMobile={!!isMobile}
+              expenseOptions={expenseOptions}
+              expenseOnlyOptions={expenseOnlyOptions}
+              paidFromOptions={paidFromOptions}
+              assetOptions={assetOptions}
+              depreciableAssetOptions={depreciableAssetOptions}
+              selectedPaymentAccount={selectedPaymentAccount}
+              budgetSettings={budgetSettings}
+              budgetDist={budgetDist}
+              showZeroCategories={showZeroCategories}
+              setShowZeroCategories={setShowZeroCategories}
+              budgetDistributionSummary={budgetDistributionSummary}
+              businessRatio={businessRatio}
+              businessAmount={businessAmount}
+              personalAmount={personalAmount}
+              personalRatio={personalRatio}
+              depreciationEnabled={depreciationEnabled}
+              setDepreciationEnabled={setDepreciationEnabled}
+              depreciationAssetAccountId={depreciationAssetAccountId}
+              setDepreciationAssetAccountId={setDepreciationAssetAccountId}
+              depreciationExpenseAccountId={depreciationExpenseAccountId}
+              setDepreciationExpenseAccountId={setDepreciationExpenseAccountId}
+              depreciationInputMode={depreciationInputMode}
+              setDepreciationInputMode={setDepreciationInputMode}
+              depreciationMonths={depreciationMonths}
+              setDepreciationMonths={setDepreciationMonths}
+              depreciationMonthlyAmount={depreciationMonthlyAmount}
+              setDepreciationMonthlyAmount={setDepreciationMonthlyAmount}
+              onDepreciationSubmit={onDepreciationSubmit}
+              handleExpenseAccountChange={handleExpenseAccountChange}
+              handleRatioChange={handleRatioChange}
+              handleBudgetAmountChange={handleBudgetAmountChange}
+            />
+            {usesReferenceBudgetAllocations && budgetDist.length > 0 && (
+              <Alert
+                color="blue"
+                variant="light"
+                icon={<IconInfoCircle size={18} />}
+                title={t("budgetReferenceAllocationTitle")}
+              >
+                {t("budgetReferenceAllocationHint")}
+              </Alert>
+            )}
+          </>
         )}
 
         {entryType === "income" && (

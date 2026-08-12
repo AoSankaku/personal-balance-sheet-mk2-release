@@ -18,6 +18,13 @@ export interface BudgetPlacementTarget {
   ratio: number;
 }
 
+export interface BudgetPlacementTransfer {
+  from_account_id: number;
+  to_account_id: number;
+  amount: number;
+  currency: string;
+}
+
 export interface BudgetPlacementCategorySummary {
   category: {
     id: number;
@@ -25,6 +32,7 @@ export interface BudgetPlacementCategorySummary {
     target_accounts?: BudgetPlacementTarget[];
   };
   available: number;
+  reference_reserve?: number;
 }
 
 export interface BudgetPlacementGroup {
@@ -78,6 +86,41 @@ function isValidPlacementAccount(
   return true;
 }
 
+export function applyBudgetPlacementTransfers(
+  accounts: BudgetPlacementAccount[],
+  transfers: BudgetPlacementTransfer[],
+  currency: string,
+): BudgetPlacementAccount[] {
+  const normalizedCurrency = currency.toUpperCase();
+  const deltas = new Map<number, number>();
+  for (const transfer of transfers) {
+    if (transfer.currency.toUpperCase() !== normalizedCurrency) continue;
+    deltas.set(
+      transfer.from_account_id,
+      (deltas.get(transfer.from_account_id) ?? 0) - transfer.amount,
+    );
+    deltas.set(
+      transfer.to_account_id,
+      (deltas.get(transfer.to_account_id) ?? 0) + transfer.amount,
+    );
+  }
+
+  return accounts.map((account) => {
+    const delta = deltas.get(account.id) ?? 0;
+    if (delta === 0) return account;
+    const current =
+      account.balances?.[normalizedCurrency] ??
+      (normalizedCurrency === "JPY" ? (account.balance ?? 0) : 0);
+    return {
+      ...account,
+      balances: {
+        ...(account.balances ?? {}),
+        [normalizedCurrency]: current + delta,
+      },
+    };
+  });
+}
+
 export function calculateBudgetPlacement({
   accounts,
   categorySummaries,
@@ -97,7 +140,12 @@ export function calculateBudgetPlacement({
   const accountById = new Map(accounts.map((account) => [account.id, account]));
   const categoryById = new Map<
     number,
-    { name: string; available: number; targetAccountIds: number[] }
+    {
+      name: string;
+      available: number;
+      referenceReserve: number;
+      targetAccountIds: number[];
+    }
   >();
   const categoryToAccounts = new Map<number, Set<number>>();
   const accountToCategories = new Map<number, Set<number>>();
@@ -126,13 +174,16 @@ export function calculateBudgetPlacement({
       ),
     ];
     if (targetAccountIds.length === 0) {
-      unplacedBudget += Math.max(summary.available, 0);
+      unplacedBudget +=
+        Math.max(summary.available, 0) +
+        Math.max(summary.reference_reserve ?? 0, 0);
       continue;
     }
 
     categoryById.set(summary.category.id, {
       name: summary.category.name,
       available: summary.available,
+      referenceReserve: Math.max(summary.reference_reserve ?? 0, 0),
       targetAccountIds,
     });
     categoryToAccounts.set(summary.category.id, new Set(targetAccountIds));
@@ -184,7 +235,9 @@ export function calculateBudgetPlacement({
       return {
         budget_category_id: categoryId,
         budget_category_name: category.name,
-        amount: Math.max(category.available, 0),
+        amount:
+          Math.max(category.available, 0) +
+          category.referenceReserve,
       };
     });
     const expected = sumBudgetClaims(

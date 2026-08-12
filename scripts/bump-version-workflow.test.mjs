@@ -7,19 +7,37 @@ const workflow = YAML.parse(
   readFileSync(".github/workflows/bump-version.yml", "utf8"),
 );
 
-describe("bump version workflow paths", () => {
-  test("ignores repository docs and version automation files", () => {
-    expect(workflow.on.push["paths-ignore"]).toEqual([
-      "*.md",
-      ".github/workflows/bump-version.yml",
-      "scripts/bump-version*.test.mjs",
-    ]);
+describe("bump version workflow", () => {
+  test("runs for every main push so dev is always synchronized", () => {
+    expect(workflow.on.push.branches).toEqual(["main"]);
+    expect(workflow.on.push["paths-ignore"]).toBeUndefined();
   });
 
-  test("does not ignore application guide Markdown files", () => {
-    expect(workflow.on.push["paths-ignore"]).not.toContain("**/*.md");
-    expect(workflow.on.push["paths-ignore"]).not.toContain(
-      "frontend/src/guides/**",
+  test("skips the version bump only for repository docs and automation files", () => {
+    const changesStep = workflow.jobs["bump-version"].steps.find(
+      (step) => step.name === "Determine whether to bump version",
+    );
+    const incrementStep = workflow.jobs["bump-version"].steps.find(
+      (step) => step.name === "Increment version",
+    );
+
+    expect(changesStep.run).toContain(
+      ".github/workflows/bump-version.yml|scripts/bump-version*.test.mjs",
+    );
+    expect(changesStep.run).toContain('if [[ "$path" == */* ]]');
+    expect(incrementStep.if).toBe(
+      "steps.changes.outputs.should-bump == 'true'",
+    );
+  });
+
+  test("updates only the application version source", () => {
+    const commitStep = workflow.jobs["bump-version"].steps.find(
+      (step) => step.name === "Commit version",
+    );
+
+    expect(commitStep.run).toContain("git add frontend/src/lib/version.ts");
+    expect(commitStep.if).toBe(
+      "steps.changes.outputs.should-bump == 'true'",
     );
   });
 
@@ -31,5 +49,6 @@ describe("bump version workflow paths", () => {
     expect(syncStep.run).toContain("git fetch origin dev");
     expect(syncStep.run).toContain("git merge-base --is-ancestor origin/dev HEAD");
     expect(syncStep.run).toContain("git push origin HEAD:dev");
+    expect(syncStep.if).toBeUndefined();
   });
 });
