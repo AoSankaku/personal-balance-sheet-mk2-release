@@ -304,6 +304,24 @@ function BudgetCategoryCard({
           )}
         </Text>
       )}
+      {(summary.depreciation_spent ?? 0) > 0 && (
+        <Text size="xs" c="violet">
+          {t("budgetDepreciationRecognizedLabel")}: {formatCurrency(
+            summary.depreciation_spent ?? 0,
+            locale,
+            currency,
+          )}
+        </Text>
+      )}
+      {(summary.depreciation_reserve ?? 0) > 0 && (
+        <Text size="xs" c="violet">
+          {t("budgetDepreciationReserveLabel")}: {formatCurrency(
+            summary.depreciation_reserve ?? 0,
+            locale,
+            currency,
+          )}
+        </Text>
+      )}
       {goal !== null && (
         <>
           <Progress
@@ -1100,6 +1118,15 @@ export default function OverviewPage() {
                 <Text size="xs" c="blue" mt={2}>
                   {t("budgetReferenceSpentLabel")}: {formatCurrency(
                     displaySummary.total_reference_spent ?? 0,
+                    locale,
+                    selectedCurrency,
+                  )}
+                </Text>
+              )}
+              {(displaySummary.total_depreciation_reserve ?? 0) > 0 && (
+                <Text size="xs" c="violet" mt={2}>
+                  {t("budgetDepreciationReserveLabel")}: {formatCurrency(
+                    displaySummary.total_depreciation_reserve ?? 0,
                     locale,
                     selectedCurrency,
                   )}

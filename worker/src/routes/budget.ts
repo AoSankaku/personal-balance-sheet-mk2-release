@@ -17,6 +17,9 @@ import {
   budgetFundingAllocations,
   budgetSettings,
   accounts,
+  depreciationEntries,
+  depreciationSchedules,
+  depreciationBudgetReservations,
 } from "../db/schema";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
 import type {
@@ -28,8 +31,8 @@ import type {
 } from "@balance-sheet/shared";
 import {
   applyBudgetBalanceCaps,
+  calculateDepreciationBudgetMonth,
   calculateReferenceSpentFromBudgetAllocations,
-  calculateSpentFromBudgetAllocations,
   calculateNextCarryover,
   findLatestResetDateForPeriod,
   findLatestResetPointForPeriod,
@@ -56,6 +59,10 @@ const router = new Hono<{ Bindings: Env }>();
 const sourceFundingEntries = alias(
   journalEntries,
   "source_budget_funding_entries",
+);
+const depreciationSourceEntries = alias(
+  journalEntries,
+  "depreciation_source_entries",
 );
 
 function normalizeCurrency(currency: string | null | undefined): string {
@@ -1063,6 +1070,7 @@ async function fetchEntryAllocsForPeriod(
     budget_category_id: number;
     amount: number;
     is_reference: number;
+    depreciation_schedule_id: number | null;
     date: string;
     created_at: string;
   }[]
@@ -1073,6 +1081,7 @@ async function fetchEntryAllocsForPeriod(
       budget_category_id: journalEntryBudgetAllocations.budget_category_id,
       amount: journalEntryBudgetAllocations.amount,
       is_reference: journalEntryBudgetAllocations.is_reference,
+      depreciation_schedule_id: depreciationEntries.schedule_id,
       date: journalEntries.date,
       created_at: journalEntries.created_at,
     })
@@ -1080,6 +1089,10 @@ async function fetchEntryAllocsForPeriod(
     .innerJoin(
       journalEntries,
       eq(journalEntryBudgetAllocations.journal_entry_id, journalEntries.id),
+    )
+    .leftJoin(
+      depreciationEntries,
+      eq(depreciationEntries.journal_entry_id, journalEntries.id),
     )
     .where(
       and(
@@ -1281,6 +1294,47 @@ async function computeBudgetSummaries(
     amount: fromStorageMoneyAmount(row.amount, currency, scaleOptions),
   }));
 
+  const depreciationReservationRows =
+    allMonths.length > 0
+      ? await db
+          .select({
+            schedule_id: depreciationBudgetReservations.schedule_id,
+            budget_category_id:
+              depreciationBudgetReservations.budget_category_id,
+            amount: depreciationBudgetReservations.amount,
+            date: depreciationSourceEntries.date,
+            created_at: depreciationSourceEntries.created_at,
+          })
+          .from(depreciationBudgetReservations)
+          .innerJoin(
+            depreciationSchedules,
+            eq(
+              depreciationSchedules.id,
+              depreciationBudgetReservations.schedule_id,
+            ),
+          )
+          .innerJoin(
+            depreciationSourceEntries,
+            eq(
+              depreciationSourceEntries.id,
+              depreciationSchedules.source_journal_entry_id,
+            ),
+          )
+          .where(
+            and(
+              eq(depreciationBudgetReservations.currency, currency),
+              sql`${depreciationSourceEntries.date} >= ${calculationStartYm + "-01"}`,
+              sql`${depreciationSourceEntries.date} <= ${monthEndDate(lastTargetYm)}`,
+            ),
+          )
+      : [];
+  const decodedDepreciationReservationRows = depreciationReservationRows.map(
+    (row) => ({
+      ...row,
+      amount: fromStorageMoneyAmount(row.amount, currency, scaleOptions),
+    }),
+  );
+
   const incomeAccountRows = await db
     .select({ id: accounts.id })
     .from(accounts)
@@ -1389,6 +1443,15 @@ async function computeBudgetSummaries(
       );
     }
 
+    function depreciationReservationsForMonth(yearMonthKey: string) {
+      const range = monthDateRangeMap.get(yearMonthKey);
+      if (!range) return [];
+      return decodedDepreciationReservationRows.filter(
+        (reservation) =>
+          reservation.date >= range.start && reservation.date <= range.end,
+      );
+    }
+
     function monthlyIncomeForTarget(): number {
       const range = monthDateRangeMap.get(ym);
       if (!range) return 0;
@@ -1413,12 +1476,6 @@ async function computeBudgetSummaries(
       const currentFunding = fundingFor(cat.id, ym);
       const ownBudgetBase = adhocFor(cat.id, ym);
       const budgetBase = ownBudgetBase + currentFunding.net;
-      const spent = calculateSpentFromBudgetAllocations(
-        cat.id,
-        entryAllocsForMonth(ym).filter((entryAlloc) =>
-          isAfterBudgetResetPoint(entryAlloc, currentResetPoint),
-        ),
-      );
       const referenceSpent = calculateReferenceSpentFromBudgetAllocations(
         cat.id,
         entryAllocsForMonth(ym).filter((entryAlloc) =>
@@ -1427,20 +1484,29 @@ async function computeBudgetSummaries(
       );
 
       let carryover = 0;
+      let cashBasisCarryover = 0;
       let referenceReserve = 0;
       let fundingCarryover = 0;
       let borrowedFundingCarryover = 0;
       let lentFundingCarryover = 0;
+      const activeDepreciationReservations = new Map<number, number>();
+
+      function spendingForMonth(monthKey: string) {
+        const resetPoint = resetPointFor(cat.id, monthKey);
+        return calculateDepreciationBudgetMonth({
+          budgetCategoryId: cat.id,
+          resetPoint,
+          reservations: depreciationReservationsForMonth(monthKey),
+          allocations: entryAllocsForMonth(monthKey),
+          activeReservations: activeDepreciationReservations,
+        });
+      }
+
       for (const monthKey of monthsForTarget.slice(0, -1)) {
         const resetPoint = resetPointFor(cat.id, monthKey);
         const monthlyFunding = fundingFor(cat.id, monthKey);
         const base = adhocFor(cat.id, monthKey) + monthlyFunding.net;
-        const monthlySpent = calculateSpentFromBudgetAllocations(
-          cat.id,
-          entryAllocsForMonth(monthKey).filter((entryAlloc) =>
-            isAfterBudgetResetPoint(entryAlloc, resetPoint),
-          ),
-        );
+        const monthlySpending = spendingForMonth(monthKey);
         if (resetPoint) referenceReserve = 0;
         referenceReserve += calculateReferenceSpentFromBudgetAllocations(
           cat.id,
@@ -1451,7 +1517,13 @@ async function computeBudgetSummaries(
         carryover = calculateNextCarryover({
           budgetBase: base,
           carryover: resetPoint ? 0 : carryover,
-          spent: monthlySpent,
+          spent: monthlySpending.spent,
+          isInPositiveRolloverWindow: true,
+        });
+        cashBasisCarryover = calculateNextCarryover({
+          budgetBase: base,
+          carryover: resetPoint ? 0 : cashBasisCarryover,
+          spent: monthlySpending.cash_basis_spent,
           isInPositiveRolloverWindow: true,
         });
         fundingCarryover =
@@ -1463,7 +1535,12 @@ async function computeBudgetSummaries(
           (resetPoint ? 0 : lentFundingCarryover) + monthlyFunding.lent;
       }
 
+      const currentSpending = spendingForMonth(ym);
+      const spent = currentSpending.spent;
       const visibleCarryover = currentResetPoint ? 0 : carryover;
+      const visibleCashBasisCarryover = currentResetPoint
+        ? 0
+        : cashBasisCarryover;
       if (currentResetPoint) referenceReserve = 0;
       referenceReserve += referenceSpent;
       const fundingAdjustment =
@@ -1491,6 +1568,7 @@ async function computeBudgetSummaries(
         },
       );
       const totalBudget = budgetBase + visibleCarryover;
+      const cashBasisTotalBudget = budgetBase + visibleCashBasisCarryover;
       let monthsWithContributions = 0;
       for (const monthKey of monthsForTarget.slice(0, -1)) {
         if (adhocFor(cat.id, monthKey) !== 0) monthsWithContributions++;
@@ -1528,6 +1606,15 @@ async function computeBudgetSummaries(
         spent,
         reference_spent: referenceSpent,
         reference_reserve: referenceReserve,
+        depreciation_spent: currentSpending.recognized_depreciation,
+        depreciation_reserve: currentSpending.reservation_remaining,
+        depreciation_reservation_added: currentSpending.reservation_added,
+        uncovered_depreciation_spent:
+          currentSpending.uncovered_depreciation,
+        cash_basis_carryover: visibleCashBasisCarryover,
+        cash_basis_total_budget: cashBasisTotalBudget,
+        cash_basis_available:
+          cashBasisTotalBudget - currentSpending.cash_basis_spent,
         available: totalBudget - spent,
         funding_adjustment: fundingAdjustment,
         borrowed_funding: borrowedFunding,
@@ -1540,7 +1627,25 @@ async function computeBudgetSummaries(
       });
     }
 
+    const cashBasisSummaries = categorySummaries.map((summary) => ({
+      ...summary,
+      carryover: summary.cash_basis_carryover ?? summary.carryover,
+      total_budget: summary.cash_basis_total_budget ?? summary.total_budget,
+      available: summary.cash_basis_available ?? summary.available,
+    }));
     applyBudgetBalanceCaps(categorySummaries);
+    applyBudgetBalanceCaps(cashBasisSummaries);
+    const cashBasisByCategoryId = new Map(
+      cashBasisSummaries.map((summary) => [summary.category.id, summary]),
+    );
+    for (const summary of categorySummaries) {
+      const cashBasis = cashBasisByCategoryId.get(summary.category.id);
+      summary.depreciation_non_cash_offset = Math.max(
+        0,
+        Math.max(cashBasis?.available ?? summary.available, 0) -
+          Math.max(summary.available, 0),
+      );
+    }
 
     return {
       year_month: ym,
@@ -1555,6 +1660,14 @@ async function computeBudgetSummaries(
       ),
       total_reference_reserve: categorySummaries.reduce(
         (s, c) => s + (c.reference_reserve ?? 0),
+        0,
+      ),
+      total_depreciation_reserve: categorySummaries.reduce(
+        (s, c) => s + (c.depreciation_reserve ?? 0),
+        0,
+      ),
+      total_depreciation_non_cash_offset: categorySummaries.reduce(
+        (s, c) => s + (c.depreciation_non_cash_offset ?? 0),
         0,
       ),
       total_available: categorySummaries.reduce((s, c) => s + c.available, 0),

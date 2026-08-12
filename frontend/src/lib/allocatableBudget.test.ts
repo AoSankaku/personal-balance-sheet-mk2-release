@@ -21,4 +21,13 @@ describe("summarizeBudgetFunding", () => {
     expect(summary.adjustedReconciliationGap).toBe(0);
     expect(summary.fundingGap).toBe(0);
   });
+
+  test("keeps post-reset non-cash depreciation from freeing allocatable money", () => {
+    const summary = summarizeBudgetFunding(100_000, [90_000], 0, 10_000);
+
+    expect(summary.reconciliationGap).toBe(10_000);
+    expect(summary.depreciationNonCashOffset).toBe(10_000);
+    expect(summary.adjustedReconciliationGap).toBe(0);
+    expect(summary.fundingGap).toBe(0);
+  });
 });

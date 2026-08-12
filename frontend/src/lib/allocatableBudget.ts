@@ -46,6 +46,7 @@ export interface BudgetFundingSummary {
   positiveBudgetClaims: number;
   unfundedOverspending: number;
   referenceReserve: number;
+  depreciationNonCashOffset: number;
   reconciliationGap: number;
   adjustedReconciliationGap: number;
   fundingGap: number;
@@ -55,6 +56,7 @@ export function summarizeBudgetFunding(
   cashBalance: number,
   budgetAvailableValues: number[],
   referenceReserve = 0,
+  depreciationNonCashOffset = 0,
 ): BudgetFundingSummary {
   const netBudgetBalance = budgetAvailableValues.reduce(
     (sum, available) => sum + available,
@@ -67,10 +69,18 @@ export function summarizeBudgetFunding(
     positiveBudgetClaims,
     unfundedOverspending: sumBudgetOverspending(budgetAvailableValues),
     referenceReserve,
+    depreciationNonCashOffset,
     reconciliationGap: cashBalance - netBudgetBalance,
     adjustedReconciliationGap:
-      cashBalance - netBudgetBalance - referenceReserve,
-    fundingGap: cashBalance - positiveBudgetClaims - referenceReserve,
+      cashBalance -
+      netBudgetBalance -
+      referenceReserve -
+      depreciationNonCashOffset,
+    fundingGap:
+      cashBalance -
+      positiveBudgetClaims -
+      referenceReserve -
+      depreciationNonCashOffset,
   };
 }
 
@@ -78,10 +88,12 @@ export function computeAllocatableBudget(
   cashBalance: number,
   budgetAvailableValues: number[],
   referenceReserve = 0,
+  depreciationNonCashOffset = 0,
 ): number {
   return summarizeBudgetFunding(
     cashBalance,
     budgetAvailableValues,
     referenceReserve,
+    depreciationNonCashOffset,
   ).fundingGap;
 }

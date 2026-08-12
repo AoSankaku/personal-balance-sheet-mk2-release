@@ -407,10 +407,12 @@ budgetReconciliationCash: 可分配現金
 budgetReconciliationNetBudget: 預算淨餘額
 budgetReconciliationNetGap: 淨核對差額
 budgetReconciliationReferenceReserve: 未追蹤支出預留額
+budgetReconciliationDepreciationReserve: 剩餘折舊預算預留額
+budgetReconciliationDepreciationOffset: 重設後的非現金折舊額
 budgetReconciliationAdjustedGap: 扣除預留後的差額
 budgetReconciliationPositiveClaims: 正預算需求額
 budgetReconciliationFundingGap: 正預算資金差額
-budgetReconciliationHint: "淨差額為 {gap}，其中 {reference} 預留給未追蹤支出，扣除後為 {adjustedGap}。未獲資金支持的超支為 {overspending}。"
+budgetReconciliationHint: "淨差額為 {gap}，其中 {reference} 預留給未追蹤支出，{depreciation} 為重設後的非現金折舊額；扣除兩者後為 {adjustedGap}。未獲資金支持的超支為 {overspending}。"
 budgetPlacementExpected: 目標
 budgetPlacementActual: 實際
 budgetPlacementDifference: 差異
@@ -788,6 +790,8 @@ budgetReferenceAllocationHint: 付款來源不屬於預算資金，但此計畫�
 budgetMarkReferenceAction: 設為參考記錄
 budgetMarkReferenceSuccess: 已將預算明細改為參考記錄
 budgetReferenceSpentLabel: 其中參考支出
+budgetDepreciationRecognizedLabel: 本月認列的折舊額
+budgetDepreciationReserveLabel: 剩餘折舊預算預留額
 budgetReferenceAllocationBadge: 預算明細（參考）
 budgetReferenceEntriesTitle: 未追蹤現金的參考預算支出
 budgetReferenceEntriesHint: "共 {count} 筆，合計 {amount}。對餘額與可分配金額的影響依循重設及基準日期邊界。"

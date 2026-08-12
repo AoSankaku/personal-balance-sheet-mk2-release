@@ -407,10 +407,12 @@ budgetReconciliationCash: Allocatable cash
 budgetReconciliationNetBudget: Net budget balance
 budgetReconciliationNetGap: Net reconciliation gap
 budgetReconciliationReferenceReserve: Untracked spending reserve
+budgetReconciliationDepreciationReserve: Remaining depreciation budget reserve
+budgetReconciliationDepreciationOffset: Post-reset non-cash depreciation
 budgetReconciliationAdjustedGap: Gap after reserve
 budgetReconciliationPositiveClaims: Positive budget claims
 budgetReconciliationFundingGap: Positive-claims funding gap
-budgetReconciliationHint: "The net gap is {gap}; {reference} is reserved for untracked spending, leaving {adjustedGap} after the reserve. Unfunded overspending is {overspending}."
+budgetReconciliationHint: "The net gap is {gap}; {reference} is reserved for untracked spending and {depreciation} is post-reset non-cash depreciation, leaving {adjustedGap} after both adjustments. Unfunded overspending is {overspending}."
 budgetPlacementExpected: Target
 budgetPlacementActual: Actual
 budgetPlacementDifference: Difference
@@ -788,6 +790,8 @@ budgetReferenceAllocationHint: The payment source is outside budget funds, but t
 budgetMarkReferenceAction: Make reference
 budgetMarkReferenceSuccess: Changed the budget breakdown to a reference record
 budgetReferenceSpentLabel: Of which reference spending
+budgetDepreciationRecognizedLabel: Depreciation recognized this month
+budgetDepreciationReserveLabel: Remaining depreciation budget reserve
 budgetReferenceAllocationBadge: Budget breakdown (reference)
 budgetReferenceEntriesTitle: Reference spending from untracked cash
 budgetReferenceEntriesHint: "{count} entries totaling {amount}. Their effect on balances and allocatable money follows reset and as-of boundaries."

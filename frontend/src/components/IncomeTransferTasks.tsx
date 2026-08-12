@@ -127,6 +127,11 @@ export function IncomeTransferTasks({
         (sum, summary) => sum + (summary.reference_reserve ?? 0),
         0,
       ),
+      categorySummaries.reduce(
+        (sum, summary) =>
+          sum + (summary.depreciation_non_cash_offset ?? 0),
+        0,
+      ),
     );
     return {
       changedGroups,

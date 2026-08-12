@@ -519,6 +519,20 @@ export interface BudgetCategorySummary {
   reference_spent?: number;
   /** Reference spending since the latest category reset, reserved from allocatable money. */
   reference_reserve?: number;
+  /** Depreciation recognized in the selected month. */
+  depreciation_spent?: number;
+  /** Purchase amount still reserved for future depreciation. */
+  depreciation_reserve?: number;
+  /** New depreciation reservation created in the selected month. */
+  depreciation_reservation_added?: number;
+  /** Depreciation after a reset that is no longer backed by a purchase reservation. */
+  uncovered_depreciation_spent?: number;
+  /** Positive-claim reduction caused by uncovered non-cash depreciation. */
+  depreciation_non_cash_offset?: number;
+  /** Internal cash-basis shadow values used for reconciliation. */
+  cash_basis_carryover?: number;
+  cash_basis_total_budget?: number;
+  cash_basis_available?: number;
   available: number;
   /** Net temporary financing included in available: borrowed minus lent. */
   funding_adjustment?: number;
@@ -549,6 +563,10 @@ export interface BudgetSummary {
   total_reference_spent?: number;
   /** Reference spending reserved from allocatable money after category resets. */
   total_reference_reserve?: number;
+  /** Remaining purchase reservation for future depreciation. */
+  total_depreciation_reserve?: number;
+  /** Non-cash depreciation offset after resets. */
+  total_depreciation_non_cash_offset?: number;
   total_available: number;
 }
 

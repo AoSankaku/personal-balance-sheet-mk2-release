@@ -181,6 +181,102 @@ export function calculateReferenceSpentFromBudgetAllocations(
   return -allocatedAmount;
 }
 
+export interface DepreciationBudgetReservationEvent
+  extends BudgetTimelineEvent {
+  budget_category_id: number;
+  schedule_id: number;
+  amount: number;
+}
+
+export interface DepreciationBudgetAllocationEvent
+  extends BudgetTimelineEvent {
+  budget_category_id: number;
+  amount: number;
+  depreciation_schedule_id?: number | null;
+}
+
+export interface DepreciationBudgetMonthResult {
+  spent: number;
+  cash_basis_spent: number;
+  recognized_depreciation: number;
+  reservation_added: number;
+  uncovered_depreciation: number;
+  reservation_remaining: number;
+}
+
+/**
+ * Applies one month's spending to the budget-side depreciation reservation.
+ * A purchase reserves the full cash outflow immediately. Later depreciation
+ * consumes that reservation without consuming the category twice. A reset
+ * clears old reservations; depreciation on or after the reset date then
+ * becomes an uncovered, non-cash budget expense.
+ */
+export function calculateDepreciationBudgetMonth({
+  budgetCategoryId,
+  resetPoint,
+  reservations,
+  allocations,
+  activeReservations,
+}: {
+  budgetCategoryId: number;
+  resetPoint: BudgetResetPoint | null;
+  reservations: DepreciationBudgetReservationEvent[];
+  allocations: DepreciationBudgetAllocationEvent[];
+  activeReservations: Map<number, number>;
+}): DepreciationBudgetMonthResult {
+  if (resetPoint) activeReservations.clear();
+
+  let reservationAdded = 0;
+  for (const reservation of reservations) {
+    if (
+      reservation.budget_category_id !== budgetCategoryId ||
+      !isAfterBudgetResetPoint(reservation, resetPoint)
+    ) {
+      continue;
+    }
+    reservationAdded += reservation.amount;
+    activeReservations.set(reservation.schedule_id, reservation.amount);
+  }
+
+  let ordinarySpent = 0;
+  let uncoveredDepreciation = 0;
+  let recognizedDepreciation = 0;
+  for (const allocation of allocations) {
+    if (allocation.budget_category_id !== budgetCategoryId) continue;
+    const amount = -allocation.amount;
+    if (allocation.depreciation_schedule_id == null) {
+      if (isAfterBudgetResetPoint(allocation, resetPoint)) {
+        ordinarySpent += amount;
+      }
+      continue;
+    }
+
+    // Depreciation entries are pre-created with the schedule. Their economic
+    // date, not created_at, determines whether they survive a same-day reset.
+    if (resetPoint && allocation.date < resetPoint.date) continue;
+    recognizedDepreciation += amount;
+    const scheduleId = allocation.depreciation_schedule_id;
+    const remaining = activeReservations.get(scheduleId);
+    if (remaining == null) {
+      uncoveredDepreciation += amount;
+    } else {
+      activeReservations.set(scheduleId, Math.max(remaining - amount, 0));
+    }
+  }
+
+  return {
+    spent: ordinarySpent + reservationAdded + uncoveredDepreciation,
+    cash_basis_spent: ordinarySpent + reservationAdded,
+    recognized_depreciation: recognizedDepreciation,
+    reservation_added: reservationAdded,
+    uncovered_depreciation: uncoveredDepreciation,
+    reservation_remaining: [...activeReservations.values()].reduce(
+      (sum, amount) => sum + amount,
+      0,
+    ),
+  };
+}
+
 export function calculateNextCarryover({
   budgetBase,
   carryover,

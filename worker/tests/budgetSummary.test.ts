@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   applyBudgetBalanceCaps,
+  calculateDepreciationBudgetMonth,
   calculateNextCarryover,
   calculateReferenceSpentFromBudgetAllocations,
   calculateSpentFromBudgetAllocations,
@@ -11,6 +12,91 @@ import {
   sumBudgetAdjustmentLogsAfterResetsByPeriod,
   sumBudgetAdjustmentLogsByPeriod,
 } from "../src/lib/budgetSummary";
+
+describe("calculateDepreciationBudgetMonth", () => {
+  test("reserves the purchase immediately and recognizes depreciation without double spending", () => {
+    const activeReservations = new Map<number, number>();
+    const purchaseMonth = calculateDepreciationBudgetMonth({
+      budgetCategoryId: 1,
+      resetPoint: null,
+      reservations: [
+        {
+          budget_category_id: 1,
+          schedule_id: 10,
+          amount: 600,
+          date: "2026-05-01",
+          created_at: "2026-05-01 10:00:00",
+        },
+      ],
+      allocations: [
+        {
+          budget_category_id: 1,
+          amount: -100,
+          date: "2026-05-31",
+          created_at: "2026-05-01 10:00:00",
+          depreciation_schedule_id: 10,
+        },
+      ],
+      activeReservations,
+    });
+
+    expect(purchaseMonth).toEqual({
+      spent: 600,
+      cash_basis_spent: 600,
+      recognized_depreciation: 100,
+      reservation_added: 600,
+      uncovered_depreciation: 0,
+      reservation_remaining: 500,
+    });
+
+    const nextMonth = calculateDepreciationBudgetMonth({
+      budgetCategoryId: 1,
+      resetPoint: null,
+      reservations: [],
+      allocations: [
+        {
+          budget_category_id: 1,
+          amount: -100,
+          date: "2026-06-30",
+          created_at: "2026-05-01 10:00:00",
+          depreciation_schedule_id: 10,
+        },
+      ],
+      activeReservations,
+    });
+
+    expect(nextMonth.spent).toBe(0);
+    expect(nextMonth.recognized_depreciation).toBe(100);
+    expect(nextMonth.reservation_remaining).toBe(400);
+  });
+
+  test("clears a pre-reset reservation but keeps same-day depreciation as non-cash spending", () => {
+    const activeReservations = new Map([[10, 500]]);
+    const result = calculateDepreciationBudgetMonth({
+      budgetCategoryId: 1,
+      resetPoint: {
+        date: "2026-06-01",
+        created_at: "2026-06-01 12:00:00",
+      },
+      reservations: [],
+      allocations: [
+        {
+          budget_category_id: 1,
+          amount: -100,
+          date: "2026-06-01",
+          created_at: "2026-05-01 10:00:00",
+          depreciation_schedule_id: 10,
+        },
+      ],
+      activeReservations,
+    });
+
+    expect(result.spent).toBe(100);
+    expect(result.cash_basis_spent).toBe(0);
+    expect(result.uncovered_depreciation).toBe(100);
+    expect(result.reservation_remaining).toBe(0);
+  });
+});
 
 describe("groupBudgetEntryAllocationsByMonth", () => {
   test("groups one range-query result into every requested month", () => {
