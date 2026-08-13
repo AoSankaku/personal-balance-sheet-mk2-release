@@ -407,12 +407,25 @@ budgetReconciliationCash: Allocatable cash
 budgetReconciliationNetBudget: Net budget balance
 budgetReconciliationNetGap: Net reconciliation gap
 budgetReconciliationReferenceReserve: Untracked spending reserve
-budgetReconciliationDepreciationReserve: Remaining depreciation budget reserve
+budgetReconciliationDepreciationReserve: Remaining purchase reservation
 budgetReconciliationDepreciationOffset: Post-reset non-cash depreciation
 budgetReconciliationAdjustedGap: Gap after reserve
 budgetReconciliationPositiveClaims: Positive budget claims
 budgetReconciliationFundingGap: Positive-claims funding gap
 budgetReconciliationHint: "The net gap is {gap}; {reference} is reserved for untracked spending and {depreciation} is post-reset non-cash depreciation, leaving {adjustedGap} after both adjustments. Unfunded overspending is {overspending}."
+budgetFundingOverviewTitle: Amount available to allocate
+budgetFundingOverviewHint: Allocatable cash minus the amount already secured for budgets.
+budgetFundingReservedLabel: Already secured
+budgetFundingAvailableLabel: Available for new allocations
+budgetFundingShortageLabel: Funding shortage
+budgetReconciliationDetails: View detailed reconciliation
+budgetPlacementTableHint: Compare the cash each budget needs with the actual balance in its holding account.
+budgetPlacementAccounts: Holding accounts
+budgetPlacementRequired: Cash required for budgets
+budgetPlacementHeld: Actual account balance
+budgetPlacementSurplusShortage: Surplus / shortage
+budgetPlacementSurplus: Surplus
+budgetPlacementShortage: Shortage
 budgetPlacementExpected: Target
 budgetPlacementActual: Actual
 budgetPlacementDifference: Difference
@@ -791,7 +804,13 @@ budgetMarkReferenceAction: Make reference
 budgetMarkReferenceSuccess: Changed the budget breakdown to a reference record
 budgetReferenceSpentLabel: Of which reference spending
 budgetDepreciationRecognizedLabel: Depreciation recognized this month
-budgetDepreciationReserveLabel: Remaining depreciation budget reserve
+budgetDepreciationReserveLabel: Remaining purchase reservation
+budgetDepreciationOverviewTitle: Depreciation budget
+budgetDepreciationOverviewHint: Separates the amount secured at purchase from depreciation recognized each month.
+budgetDepreciationReferenceBadge: Reference view
+budgetDepreciationActiveStatus: Purchase reserve active
+budgetDepreciationResetStatus: Reserve reset · depreciation continues
+budgetDepreciationRecognizedStatus: Monthly depreciation only
 budgetReferenceAllocationBadge: Budget breakdown (reference)
 budgetReferenceEntriesTitle: Reference spending from untracked cash
 budgetReferenceEntriesHint: "{count} entries totaling {amount}. Their effect on balances and allocatable money follows reset and as-of boundaries."

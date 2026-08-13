@@ -51,6 +51,10 @@ import {
 } from "../lib/overviewSummaryLoading";
 import classes from "./OverviewPage.module.css";
 import { getCachedTodayBudgetSummary } from "../lib/offlineAppCache";
+import {
+  summarizeDepreciationBudget,
+  type DepreciationBudgetPresentation,
+} from "../lib/depreciationBudgetPresentation";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
@@ -355,6 +359,95 @@ function BudgetCategoryCard({
   );
 }
 
+function DepreciationBudgetCard({
+  presentation,
+  locale,
+  currency,
+}: {
+  presentation: DepreciationBudgetPresentation;
+  locale: string;
+  currency: string;
+}) {
+  const { t } = useLang();
+  const statusLabel =
+    presentation.status === "active"
+      ? t("budgetDepreciationActiveStatus")
+      : presentation.status === "post_reset"
+        ? t("budgetDepreciationResetStatus")
+        : t("budgetDepreciationRecognizedStatus");
+
+  return (
+    <Box className={classes.depreciationBudgetItem}>
+      <Group justify="space-between" align="flex-start" gap="md">
+        <Group gap="sm" align="flex-start" wrap="nowrap">
+          <ThemeIcon variant="light" color="violet" size={34} radius="xl">
+            <IconCalendarDollar size={18} />
+          </ThemeIcon>
+          <Box>
+            <Group gap="xs" wrap="wrap">
+              <Text fw={700} size="sm">
+                {t("budgetDepreciationOverviewTitle")}
+              </Text>
+              <Badge size="xs" variant="light" color="violet">
+                {t("budgetDepreciationReferenceBadge")}
+              </Badge>
+            </Group>
+            <Text size="xs" c="dimmed" mt={3}>
+              {t("budgetDepreciationOverviewHint")}
+            </Text>
+          </Box>
+        </Group>
+        <Badge
+          size="sm"
+          variant="outline"
+          color={presentation.status === "active" ? "violet" : "gray"}
+        >
+          {statusLabel}
+        </Badge>
+      </Group>
+
+      <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm" mt="md">
+        <Box>
+          <Text size="xs" c="dimmed">
+            {t("budgetDepreciationReserveLabel")}
+          </Text>
+          <Text fw={750} c="violet" className="currency-token">
+            {formatCurrency(
+              presentation.activePurchaseReserve,
+              locale,
+              currency,
+            )}
+          </Text>
+        </Box>
+        <Box>
+          <Text size="xs" c="dimmed">
+            {t("budgetDepreciationRecognizedLabel")}
+          </Text>
+          <Text fw={750} className="currency-token">
+            {formatCurrency(
+              presentation.recognizedThisMonth,
+              locale,
+              currency,
+            )}
+          </Text>
+        </Box>
+        <Box>
+          <Text size="xs" c="dimmed">
+            {t("budgetReconciliationDepreciationOffset")}
+          </Text>
+          <Text fw={750} className="currency-token">
+            {formatCurrency(
+              presentation.postResetNonCashOffset,
+              locale,
+              currency,
+            )}
+          </Text>
+        </Box>
+      </SimpleGrid>
+    </Box>
+  );
+}
+
 function RecentTransactionRow({
   entry,
   accountTypeMap,
@@ -578,6 +671,10 @@ export default function OverviewPage() {
   const displaySummary = selectedDate
     ? filteredSummaryRequest.summary
     : budgetSummary;
+  const depreciationBudget = useMemo(
+    () => summarizeDepreciationBudget(displaySummary),
+    [displaySummary],
+  );
 
   const handlePrevMonth = () => {
     if (selectedDate) {
@@ -1005,7 +1102,7 @@ export default function OverviewPage() {
             ))}
           </Box>
         </Box>
-      ) : budgetCategories.length === 0 ? (
+      ) : budgetCategories.length === 0 && !depreciationBudget.hasActivity ? (
         <Center py="xl">
           <Stack align="center" gap="xs">
             <Text c="dimmed" size="sm">
@@ -1022,6 +1119,13 @@ export default function OverviewPage() {
             <Text fw={700}>{t("budgetTitle")}</Text>
           </Group>
           <Box className={classes.categoryGrid}>
+            {depreciationBudget.hasActivity && (
+              <DepreciationBudgetCard
+                presentation={depreciationBudget}
+                locale={locale}
+                currency={selectedCurrency}
+              />
+            )}
             {(displaySummary?.categories ?? [])
               .filter((s) => s.category.budget_group !== "貯蓄")
               .map((s) => (
@@ -1118,15 +1222,6 @@ export default function OverviewPage() {
                 <Text size="xs" c="blue" mt={2}>
                   {t("budgetReferenceSpentLabel")}: {formatCurrency(
                     displaySummary.total_reference_spent ?? 0,
-                    locale,
-                    selectedCurrency,
-                  )}
-                </Text>
-              )}
-              {(displaySummary.total_depreciation_reserve ?? 0) > 0 && (
-                <Text size="xs" c="violet" mt={2}>
-                  {t("budgetDepreciationReserveLabel")}: {formatCurrency(
-                    displaySummary.total_depreciation_reserve ?? 0,
                     locale,
                     selectedCurrency,
                   )}

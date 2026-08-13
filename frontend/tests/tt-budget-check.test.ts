@@ -167,6 +167,18 @@ describe("budget check presentation", () => {
       't("budgetPlacementUnfundedOverspendingHint")',
     );
     expect(placement).toContain('t("budgetPlacementTotal")');
+    expect(placement).toContain('t("budgetFundingOverviewTitle")');
+    expect(placement).toContain('t("budgetReconciliationDetails")');
+    expect(placement).toContain("securedAmount");
+  });
+
+  test("shows depreciation as a distinct reference budget on the overview", () => {
+    const overview = source("src/pages/OverviewPage.tsx");
+
+    expect(overview).toContain("summarizeDepreciationBudget");
+    expect(overview).toContain("<DepreciationBudgetCard");
+    expect(overview).toContain('t("budgetDepreciationOverviewTitle")');
+    expect(overview).toContain('t("budgetDepreciationResetStatus")');
   });
 
   test("places the date filter inside the consistency check area", () => {

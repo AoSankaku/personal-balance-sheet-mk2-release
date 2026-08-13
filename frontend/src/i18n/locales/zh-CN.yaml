@@ -407,12 +407,25 @@ budgetReconciliationCash: 可分配现金
 budgetReconciliationNetBudget: 预算净余额
 budgetReconciliationNetGap: 净核对差额
 budgetReconciliationReferenceReserve: 未追踪支出预留额
-budgetReconciliationDepreciationReserve: 剩余折旧预算预留额
+budgetReconciliationDepreciationReserve: 剩余购买预留额
 budgetReconciliationDepreciationOffset: 重置后的非现金折旧额
 budgetReconciliationAdjustedGap: 扣除预留后的差额
 budgetReconciliationPositiveClaims: 正预算需求额
 budgetReconciliationFundingGap: 正预算资金差额
 budgetReconciliationHint: "净差额为 {gap}，其中 {reference} 预留给未追踪支出，{depreciation} 为重置后的非现金折旧额；扣除两者后为 {adjustedGap}。未获资金支持的超支为 {overspending}。"
+budgetFundingOverviewTitle: 可继续分配的金额
+budgetFundingOverviewHint: 可分配现金减去已经为预算预留的金额。
+budgetFundingReservedLabel: 已预留
+budgetFundingAvailableLabel: 可用于新分配
+budgetFundingShortageLabel: 预算资金不足
+budgetReconciliationDetails: 查看详细核对
+budgetPlacementTableHint: 比较各项预算所需现金与其保管账户中的实际余额。
+budgetPlacementAccounts: 保管账户
+budgetPlacementRequired: 预算所需现金
+budgetPlacementHeld: 账户实际余额
+budgetPlacementSurplusShortage: 结余／不足
+budgetPlacementSurplus: 结余
+budgetPlacementShortage: 不足
 budgetPlacementExpected: 目标
 budgetPlacementActual: 实际
 budgetPlacementDifference: 差异
@@ -791,7 +804,13 @@ budgetMarkReferenceAction: 设为参考记录
 budgetMarkReferenceSuccess: 已将预算明细改为参考记录
 budgetReferenceSpentLabel: 其中参考支出
 budgetDepreciationRecognizedLabel: 本月确认的折旧额
-budgetDepreciationReserveLabel: 剩余折旧预算预留额
+budgetDepreciationReserveLabel: 剩余购买预留额
+budgetDepreciationOverviewTitle: 折旧预算
+budgetDepreciationOverviewHint: 分别显示购买时预留的金额和每月确认的折旧额。
+budgetDepreciationReferenceBadge: 参考视图
+budgetDepreciationActiveStatus: 购买预留有效
+budgetDepreciationResetStatus: 预留已重置 · 折旧继续
+budgetDepreciationRecognizedStatus: 仅每月折旧
 budgetReferenceAllocationBadge: 预算明细（参考）
 budgetReferenceEntriesTitle: 未追踪现金的参考预算支出
 budgetReferenceEntriesHint: "共 {count} 笔，合计 {amount}。对余额和可分配金额的影响遵循重置及基准日期边界。"
