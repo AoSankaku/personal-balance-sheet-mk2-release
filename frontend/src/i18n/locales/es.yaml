@@ -407,12 +407,25 @@ budgetReconciliationCash: "Efectivo asignable"
 budgetReconciliationNetBudget: "Saldo presupuestario neto"
 budgetReconciliationNetGap: "Diferencia neta de conciliación"
 budgetReconciliationReferenceReserve: "Reserva de gastos no rastreados"
-budgetReconciliationDepreciationReserve: "Reserva presupuestaria de depreciación restante"
+budgetReconciliationDepreciationReserve: "Reserva de compra restante"
 budgetReconciliationDepreciationOffset: "Depreciación no monetaria tras el reinicio"
 budgetReconciliationAdjustedGap: "Diferencia tras la reserva"
 budgetReconciliationPositiveClaims: "Compromisos presupuestarios positivos"
 budgetReconciliationFundingGap: "Diferencia de financiación positiva"
 budgetReconciliationHint: "La diferencia neta es {gap}; {reference} se reserva para gastos no rastreados y {depreciation} corresponde a depreciación no monetaria tras el reinicio, quedando {adjustedGap} después de ambos ajustes. El exceso sin financiar es {overspending}."
+budgetFundingOverviewTitle: "Importe disponible para asignar"
+budgetFundingOverviewHint: "Efectivo asignable menos los importes ya reservados para presupuestos."
+budgetFundingReservedLabel: "Ya reservado"
+budgetFundingAvailableLabel: "Disponible para nuevas asignaciones"
+budgetFundingShortageLabel: "Déficit de financiación"
+budgetReconciliationDetails: "Ver conciliación detallada"
+budgetPlacementTableHint: "Compara el efectivo que necesita cada presupuesto con el saldo real de su cuenta de custodia."
+budgetPlacementAccounts: "Cuentas de custodia"
+budgetPlacementRequired: "Efectivo requerido"
+budgetPlacementHeld: "Saldo real de la cuenta"
+budgetPlacementSurplusShortage: "Superávit / déficit"
+budgetPlacementSurplus: "Superávit"
+budgetPlacementShortage: "Déficit"
 budgetPlacementExpected: "Objetivo"
 budgetPlacementActual: "Actual"
 budgetPlacementDifference: "Diferencia"
@@ -791,7 +804,13 @@ budgetMarkReferenceAction: Marcar referencia
 budgetMarkReferenceSuccess: El desglose presupuestario se cambió a un registro de referencia
 budgetReferenceSpentLabel: Del cual gasto de referencia
 budgetDepreciationRecognizedLabel: Depreciación reconocida este mes
-budgetDepreciationReserveLabel: Reserva presupuestaria de depreciación restante
+budgetDepreciationReserveLabel: Reserva de compra restante
+budgetDepreciationOverviewTitle: Presupuesto de depreciación
+budgetDepreciationOverviewHint: Separa el importe reservado al comprar de la depreciación reconocida cada mes.
+budgetDepreciationReferenceBadge: Vista de referencia
+budgetDepreciationActiveStatus: Reserva de compra activa
+budgetDepreciationResetStatus: Reserva reiniciada · depreciación activa
+budgetDepreciationRecognizedStatus: Solo depreciación mensual
 budgetReferenceAllocationBadge: Desglose presupuestario (referencia)
 budgetReferenceEntriesTitle: Gasto de referencia con efectivo no rastreado
 budgetReferenceEntriesHint: "{count} registros por {amount}. Su efecto sigue los límites de reinicio y fecha de referencia."

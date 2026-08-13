@@ -1,17 +1,25 @@
 import {
+  Accordion,
   Alert,
   Badge,
   Group,
   List,
   Paper,
   ScrollArea,
+  SimpleGrid,
   Stack,
   Table,
   Text,
+  ThemeIcon,
   Title,
 } from "@mantine/core";
 import type { Account, BudgetCategorySummary } from "@balance-sheet/shared";
-import { IconAlertTriangle } from "@tabler/icons-react";
+import {
+  IconAlertTriangle,
+  IconCoins,
+  IconLock,
+  IconWallet,
+} from "@tabler/icons-react";
 import { useLang } from "../i18n";
 import {
   accountDisplayNameFromName,
@@ -128,13 +136,22 @@ export function BudgetPlacementTable({
     (sum, summary) => sum + (summary.depreciation_reserve ?? 0),
     0,
   );
+  const securedAmount =
+    fundingSummary.positiveBudgetClaims +
+    fundingSummary.referenceReserve +
+    fundingSummary.depreciationNonCashOffset;
   const reconciliationIsClear =
     Math.abs(fundingSummary.adjustedReconciliationGap) < 0.000_001;
 
   return (
     <Stack gap="md">
-      <Group justify="space-between">
-        <Title order={4}>{title ?? t("budgetPlacementTitle")}</Title>
+      <Group justify="space-between" align="flex-start">
+        <Stack gap={2}>
+          <Title order={4}>{title ?? t("budgetPlacementTitle")}</Title>
+          <Text size="sm" c="dimmed">
+            {t("budgetPlacementTableHint")}
+          </Text>
+        </Stack>
         {hasUnplaced && (
           <Badge color="gray" variant="light">
             {t("budgetPlacementUnplaced")}:{" "}
@@ -147,151 +164,207 @@ export function BudgetPlacementTable({
         )}
       </Group>
 
-      <Paper withBorder radius="md" p="sm">
-        <Text size="sm" fw={600} mb="xs">
-          {t("budgetReconciliationTitle")}
+      <Paper withBorder radius="lg" p="md">
+        <Text fw={700}>{t("budgetFundingOverviewTitle")}</Text>
+        <Text size="sm" c="dimmed" mt={2}>
+          {t("budgetFundingOverviewHint")}
         </Text>
-        <ScrollArea>
-          <Table fz="sm" style={{ minWidth: 900 }}>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t("budgetReconciliationCash")}</Table.Th>
-                <Table.Th>{t("budgetReconciliationNetBudget")}</Table.Th>
-                <Table.Th>{t("budgetReconciliationNetGap")}</Table.Th>
-                <Table.Th>{t("budgetReconciliationReferenceReserve")}</Table.Th>
-                <Table.Th>{t("budgetReconciliationDepreciationReserve")}</Table.Th>
-                <Table.Th>{t("budgetReconciliationDepreciationOffset")}</Table.Th>
-                <Table.Th>{t("budgetReconciliationAdjustedGap")}</Table.Th>
-                <Table.Th>{t("budgetReconciliationPositiveClaims")}</Table.Th>
-                <Table.Th>{t("budgetReconciliationFundingGap")}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              <Table.Tr>
-                <Table.Td className="currency-cell">
+
+        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm" mt="md">
+          <Paper withBorder radius="md" p="sm">
+            <Group gap="sm" wrap="nowrap">
+              <ThemeIcon variant="light" color="blue" radius="xl">
+                <IconWallet size={17} />
+              </ThemeIcon>
+              <Stack gap={2} style={{ minWidth: 0 }}>
+                <Text size="xs" c="dimmed">
+                  {t("budgetReconciliationCash")}
+                </Text>
+                <Text fw={750} className="currency-token">
                   {formatCurrency(
                     fundingSummary.allocatableCash,
                     locale,
                     currency,
                   )}
-                </Table.Td>
-                <Table.Td className="currency-cell">
-                  {formatCurrency(
-                    fundingSummary.netBudgetBalance,
+                </Text>
+              </Stack>
+            </Group>
+          </Paper>
+
+          <Paper withBorder radius="md" p="sm">
+            <Group gap="sm" wrap="nowrap">
+              <ThemeIcon variant="light" color="violet" radius="xl">
+                <IconLock size={17} />
+              </ThemeIcon>
+              <Stack gap={2} style={{ minWidth: 0 }}>
+                <Text size="xs" c="dimmed">
+                  {t("budgetFundingReservedLabel")}
+                </Text>
+                <Text fw={750} className="currency-token">
+                  {formatCurrency(securedAmount, locale, currency)}
+                </Text>
+              </Stack>
+            </Group>
+          </Paper>
+
+          <Paper
+            withBorder
+            radius="md"
+            p="sm"
+            style={{
+              background:
+                fundingSummary.fundingGap >= 0
+                  ? "var(--mantine-color-teal-light)"
+                  : "var(--mantine-color-orange-light)",
+            }}
+          >
+            <Group gap="sm" wrap="nowrap">
+              <ThemeIcon
+                variant="filled"
+                color={fundingSummary.fundingGap >= 0 ? "teal" : "orange"}
+                radius="xl"
+              >
+                <IconCoins size={17} />
+              </ThemeIcon>
+              <Stack gap={2} style={{ minWidth: 0 }}>
+                <Text size="xs" c="dimmed">
+                  {t(
+                    fundingSummary.fundingGap >= 0
+                      ? "budgetFundingAvailableLabel"
+                      : "budgetFundingShortageLabel",
+                  )}
+                </Text>
+                <Text
+                  fw={800}
+                  c={fundingSummary.fundingGap >= 0 ? "teal" : "orange"}
+                  className="currency-token"
+                >
+                  {formatSignedCurrency(
+                    fundingSummary.fundingGap,
                     locale,
                     currency,
                   )}
-                </Table.Td>
-                <Table.Td className="currency-cell">
-                  <Text
-                    size="sm"
-                    fw={700}
-                    c={reconciliationIsClear ? "teal" : "orange"}
-                  >
-                    {formatSignedCurrency(
+                </Text>
+              </Stack>
+            </Group>
+          </Paper>
+        </SimpleGrid>
+
+        <Text size="xs" c="dimmed" ta="center" mt="sm">
+          {formatCurrency(fundingSummary.allocatableCash, locale, currency)} −{" "}
+          {formatCurrency(securedAmount, locale, currency)} ={" "}
+          {formatSignedCurrency(fundingSummary.fundingGap, locale, currency)}
+        </Text>
+
+        <Accordion variant="contained" radius="md" mt="md">
+          <Accordion.Item value="reconciliation-details">
+            <Accordion.Control>
+              {t("budgetReconciliationDetails")}
+            </Accordion.Control>
+            <Accordion.Panel>
+              <Table fz="sm" withRowBorders={false}>
+                <Table.Tbody>
+                  {[
+                    [
+                      t("budgetReconciliationNetBudget"),
+                      fundingSummary.netBudgetBalance,
+                    ],
+                    [
+                      t("budgetReconciliationNetGap"),
+                      fundingSummary.reconciliationGap,
+                    ],
+                    [
+                      t("budgetReconciliationReferenceReserve"),
+                      fundingSummary.referenceReserve,
+                    ],
+                    [
+                      t("budgetReconciliationDepreciationReserve"),
+                      depreciationReserve,
+                    ],
+                    [
+                      t("budgetReconciliationDepreciationOffset"),
+                      fundingSummary.depreciationNonCashOffset,
+                    ],
+                    [
+                      t("budgetReconciliationAdjustedGap"),
+                      fundingSummary.adjustedReconciliationGap,
+                    ],
+                    [
+                      t("budgetReconciliationPositiveClaims"),
+                      fundingSummary.positiveBudgetClaims,
+                    ],
+                  ].map(([label, amount]) => (
+                    <Table.Tr key={String(label)}>
+                      <Table.Td>{label}</Table.Td>
+                      <Table.Td className="currency-cell">
+                        <Text
+                          size="sm"
+                          fw={600}
+                          c={
+                            label === t("budgetReconciliationAdjustedGap")
+                              ? reconciliationIsClear
+                                ? "teal"
+                                : "orange"
+                              : undefined
+                          }
+                        >
+                          {formatSignedCurrency(
+                            amount as number,
+                            locale,
+                            currency,
+                          )}
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+              <Text size="xs" c="dimmed" mt="xs">
+                {t("budgetReconciliationHint")
+                  .replace(
+                    "{overspending}",
+                    formatCurrency(
+                      fundingSummary.unfundedOverspending,
+                      locale,
+                      currency,
+                    ),
+                  )
+                  .replace(
+                    "{gap}",
+                    formatSignedCurrency(
                       fundingSummary.reconciliationGap,
                       locale,
                       currency,
-                    )}
-                  </Text>
-                </Table.Td>
-                <Table.Td className="currency-cell">
-                  {formatCurrency(
-                    fundingSummary.referenceReserve,
-                    locale,
-                    currency,
-                  )}
-                </Table.Td>
-                <Table.Td className="currency-cell">
-                  {formatCurrency(depreciationReserve, locale, currency)}
-                </Table.Td>
-                <Table.Td className="currency-cell">
-                  {formatCurrency(
-                    fundingSummary.depreciationNonCashOffset,
-                    locale,
-                    currency,
-                  )}
-                </Table.Td>
-                <Table.Td className="currency-cell">
-                  <Text
-                    size="sm"
-                    fw={700}
-                    c={reconciliationIsClear ? "teal" : "orange"}
-                  >
-                    {formatSignedCurrency(
+                    ),
+                  )
+                  .replace(
+                    "{reference}",
+                    formatCurrency(
+                      fundingSummary.referenceReserve,
+                      locale,
+                      currency,
+                    ),
+                  )
+                  .replace(
+                    "{adjustedGap}",
+                    formatSignedCurrency(
                       fundingSummary.adjustedReconciliationGap,
                       locale,
                       currency,
-                    )}
-                  </Text>
-                </Table.Td>
-                <Table.Td className="currency-cell">
-                  {formatCurrency(
-                    fundingSummary.positiveBudgetClaims,
-                    locale,
-                    currency,
-                  )}
-                </Table.Td>
-                <Table.Td className="currency-cell">
-                  <Text
-                    size="sm"
-                    fw={700}
-                    c={fundingSummary.fundingGap >= 0 ? "teal" : "orange"}
-                  >
-                    {formatSignedCurrency(
-                      fundingSummary.fundingGap,
+                    ),
+                  )
+                  .replace(
+                    "{depreciation}",
+                    formatCurrency(
+                      fundingSummary.depreciationNonCashOffset,
                       locale,
                       currency,
-                    )}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
-            </Table.Tbody>
-          </Table>
-        </ScrollArea>
-        <Text size="xs" c="dimmed" mt="xs">
-          {t("budgetReconciliationHint")
-            .replace(
-              "{overspending}",
-              formatCurrency(
-                fundingSummary.unfundedOverspending,
-                locale,
-                currency,
-              ),
-            )
-            .replace(
-              "{gap}",
-              formatSignedCurrency(
-                fundingSummary.reconciliationGap,
-                locale,
-                currency,
-              ),
-            )
-            .replace(
-              "{reference}",
-              formatCurrency(
-                fundingSummary.referenceReserve,
-                locale,
-                currency,
-              ),
-            )
-            .replace(
-              "{adjustedGap}",
-              formatSignedCurrency(
-                fundingSummary.adjustedReconciliationGap,
-                locale,
-                currency,
-              ),
-            )
-            .replace(
-              "{depreciation}",
-              formatCurrency(
-                fundingSummary.depreciationNonCashOffset,
-                locale,
-                currency,
-              ),
-            )}
-        </Text>
+                    ),
+                  )}
+              </Text>
+            </Accordion.Panel>
+          </Accordion.Item>
+        </Accordion>
       </Paper>
 
       {placement.unfundedOverspending > 0 && (
@@ -335,15 +408,15 @@ export function BudgetPlacementTable({
           <Table withTableBorder withColumnBorders style={{ minWidth: 680 }}>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>{t("accountName")}</Table.Th>
+                <Table.Th>{t("budgetPlacementAccounts")}</Table.Th>
                 <Table.Th className="currency-cell">
-                  {t("budgetPlacementExpected")}
+                  {t("budgetPlacementRequired")}
                 </Table.Th>
                 <Table.Th className="currency-cell">
-                  {t("budgetPlacementActual")}
+                  {t("budgetPlacementHeld")}
                 </Table.Th>
                 <Table.Th className="currency-cell">
-                  {t("budgetPlacementDifference")}
+                  {t("budgetPlacementSurplusShortage")}
                 </Table.Th>
               </Table.Tr>
             </Table.Thead>
@@ -416,6 +489,13 @@ export function BudgetPlacementTable({
                       c={row.difference >= 0 ? "teal" : "orange"}
                     >
                       {formatSignedCurrency(row.difference, locale, currency)}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {t(
+                        row.difference >= 0
+                          ? "budgetPlacementSurplus"
+                          : "budgetPlacementShortage",
+                      )}
                     </Text>
                   </Table.Td>
                 </Table.Tr>

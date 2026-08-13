@@ -407,12 +407,25 @@ budgetReconciliationCash: "Trésorerie attribuable"
 budgetReconciliationNetBudget: "Solde budgétaire net"
 budgetReconciliationNetGap: "Écart net de rapprochement"
 budgetReconciliationReferenceReserve: "Réserve des dépenses non suivies"
-budgetReconciliationDepreciationReserve: "Réserve budgétaire d’amortissement restante"
+budgetReconciliationDepreciationReserve: "Réservation d’achat restante"
 budgetReconciliationDepreciationOffset: "Amortissement non monétaire après réinitialisation"
 budgetReconciliationAdjustedGap: "Écart après réserve"
 budgetReconciliationPositiveClaims: "Engagements budgétaires positifs"
 budgetReconciliationFundingGap: "Écart de financement positif"
 budgetReconciliationHint: "L’écart net est de {gap} ; {reference} est réservé aux dépenses non suivies et {depreciation} correspond à l’amortissement non monétaire après réinitialisation, soit {adjustedGap} après ajustements. Les dépassements non financés sont de {overspending}."
+budgetFundingOverviewTitle: "Montant encore attribuable"
+budgetFundingOverviewHint: "Trésorerie attribuable moins les montants déjà réservés aux budgets."
+budgetFundingReservedLabel: "Déjà réservé"
+budgetFundingAvailableLabel: "Disponible pour de nouvelles attributions"
+budgetFundingShortageLabel: "Insuffisance de financement"
+budgetReconciliationDetails: "Voir le rapprochement détaillé"
+budgetPlacementTableHint: "Compare la trésorerie requise par chaque budget avec le solde réel de son compte de conservation."
+budgetPlacementAccounts: "Comptes de conservation"
+budgetPlacementRequired: "Trésorerie requise"
+budgetPlacementHeld: "Solde réel du compte"
+budgetPlacementSurplusShortage: "Excédent / insuffisance"
+budgetPlacementSurplus: "Excédent"
+budgetPlacementShortage: "Insuffisance"
 budgetPlacementExpected: "Cible"
 budgetPlacementActual: "Réel"
 budgetPlacementDifference: "Différence"
@@ -791,7 +804,13 @@ budgetMarkReferenceAction: Rendre indicative
 budgetMarkReferenceSuccess: La ventilation budgétaire est désormais une écriture de référence
 budgetReferenceSpentLabel: Dont dépenses indicatives
 budgetDepreciationRecognizedLabel: Amortissement comptabilisé ce mois-ci
-budgetDepreciationReserveLabel: Réserve budgétaire d’amortissement restante
+budgetDepreciationReserveLabel: Réservation d’achat restante
+budgetDepreciationOverviewTitle: Budget d’amortissement
+budgetDepreciationOverviewHint: Distingue le montant réservé lors de l’achat de l’amortissement comptabilisé chaque mois.
+budgetDepreciationReferenceBadge: Vue de référence
+budgetDepreciationActiveStatus: Réservation d’achat active
+budgetDepreciationResetStatus: Réservation réinitialisée · amortissement actif
+budgetDepreciationRecognizedStatus: Amortissement mensuel uniquement
 budgetReferenceAllocationBadge: Ventilation budgétaire (référence)
 budgetReferenceEntriesTitle: Dépenses de référence en espèces non suivies
 budgetReferenceEntriesHint: "{count} écritures, soit {amount}. Leur effet suit les limites de réinitialisation et de date de référence."
