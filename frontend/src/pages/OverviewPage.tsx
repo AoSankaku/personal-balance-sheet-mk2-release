@@ -359,7 +359,7 @@ function BudgetCategoryCard({
   );
 }
 
-function DepreciationBudgetCard({
+function DepreciationBudgetReference({
   presentation,
   locale,
   currency,
@@ -377,73 +377,58 @@ function DepreciationBudgetCard({
         : t("budgetDepreciationRecognizedStatus");
 
   return (
-    <Box className={classes.depreciationBudgetItem}>
-      <Group justify="space-between" align="flex-start" gap="md">
-        <Group gap="sm" align="flex-start" wrap="nowrap">
-          <ThemeIcon variant="light" color="violet" size={34} radius="xl">
-            <IconCalendarDollar size={18} />
-          </ThemeIcon>
-          <Box>
-            <Group gap="xs" wrap="wrap">
-              <Text fw={700} size="sm">
-                {t("budgetDepreciationOverviewTitle")}
-              </Text>
-              <Badge size="xs" variant="light" color="violet">
-                {t("budgetDepreciationReferenceBadge")}
-              </Badge>
-            </Group>
-            <Text size="xs" c="dimmed" mt={3}>
-              {t("budgetDepreciationOverviewHint")}
-            </Text>
-          </Box>
+    <Box
+      className={classes.depreciationBudgetReference}
+      title={t("budgetDepreciationOverviewHint")}
+    >
+      <Group justify="space-between" align="center" gap="xs" wrap="wrap">
+        <Group gap={6} wrap="wrap">
+          <IconCalendarDollar
+            size={14}
+            color="var(--mantine-color-dimmed)"
+            aria-hidden="true"
+          />
+          <Text fw={600} size="xs" c="dimmed">
+            {t("budgetDepreciationOverviewTitle")}
+          </Text>
+          <Badge size="xs" variant="transparent" color="gray" px={3}>
+            {statusLabel}
+          </Badge>
         </Group>
-        <Badge
-          size="sm"
-          variant="outline"
-          color={presentation.status === "active" ? "violet" : "gray"}
-        >
-          {statusLabel}
-        </Badge>
-      </Group>
 
-      <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm" mt="md">
-        <Box>
+        <Group gap="md" wrap="wrap" className={classes.depreciationMetrics}>
           <Text size="xs" c="dimmed">
-            {t("budgetDepreciationReserveLabel")}
+            {t("budgetDepreciationReserveLabel")}: {" "}
+            <Text span fw={600} className="currency-token">
+              {formatCurrency(
+                presentation.activePurchaseReserve,
+                locale,
+                currency,
+              )}
+            </Text>
           </Text>
-          <Text fw={750} c="violet" className="currency-token">
-            {formatCurrency(
-              presentation.activePurchaseReserve,
-              locale,
-              currency,
-            )}
-          </Text>
-        </Box>
-        <Box>
           <Text size="xs" c="dimmed">
-            {t("budgetDepreciationRecognizedLabel")}
+            {t("budgetDepreciationRecognizedLabel")}: {" "}
+            <Text span fw={600} className="currency-token">
+              {formatCurrency(
+                presentation.recognizedThisMonth,
+                locale,
+                currency,
+              )}
+            </Text>
           </Text>
-          <Text fw={750} className="currency-token">
-            {formatCurrency(
-              presentation.recognizedThisMonth,
-              locale,
-              currency,
-            )}
-          </Text>
-        </Box>
-        <Box>
           <Text size="xs" c="dimmed">
-            {t("budgetReconciliationDepreciationOffset")}
+            {t("budgetReconciliationDepreciationOffset")}: {" "}
+            <Text span fw={600} className="currency-token">
+              {formatCurrency(
+                presentation.postResetNonCashOffset,
+                locale,
+                currency,
+              )}
+            </Text>
           </Text>
-          <Text fw={750} className="currency-token">
-            {formatCurrency(
-              presentation.postResetNonCashOffset,
-              locale,
-              currency,
-            )}
-          </Text>
-        </Box>
-      </SimpleGrid>
+        </Group>
+      </Group>
     </Box>
   );
 }
@@ -1102,7 +1087,7 @@ export default function OverviewPage() {
             ))}
           </Box>
         </Box>
-      ) : budgetCategories.length === 0 && !depreciationBudget.hasActivity ? (
+      ) : budgetCategories.length === 0 ? (
         <Center py="xl">
           <Stack align="center" gap="xs">
             <Text c="dimmed" size="sm">
@@ -1119,13 +1104,6 @@ export default function OverviewPage() {
             <Text fw={700}>{t("budgetTitle")}</Text>
           </Group>
           <Box className={classes.categoryGrid}>
-            {depreciationBudget.hasActivity && (
-              <DepreciationBudgetCard
-                presentation={depreciationBudget}
-                locale={locale}
-                currency={selectedCurrency}
-              />
-            )}
             {(displaySummary?.categories ?? [])
               .filter((s) => s.category.budget_group !== "貯蓄")
               .map((s) => (
@@ -1256,6 +1234,14 @@ export default function OverviewPage() {
           </Group>
         </Box>
       ) : null}
+
+      {depreciationBudget.hasActivity && (
+        <DepreciationBudgetReference
+          presentation={depreciationBudget}
+          locale={locale}
+          currency={selectedCurrency}
+        />
+      )}
 
       <Box className={classes.quickLinks}>
         <UnstyledButton

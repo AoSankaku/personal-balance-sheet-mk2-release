@@ -172,13 +172,16 @@ describe("budget check presentation", () => {
     expect(placement).toContain("securedAmount");
   });
 
-  test("shows depreciation as a distinct reference budget on the overview", () => {
+  test("keeps depreciation as secondary reference information on the overview", () => {
     const overview = source("src/pages/OverviewPage.tsx");
 
     expect(overview).toContain("summarizeDepreciationBudget");
-    expect(overview).toContain("<DepreciationBudgetCard");
+    expect(overview).toContain("<DepreciationBudgetReference");
     expect(overview).toContain('t("budgetDepreciationOverviewTitle")');
     expect(overview).toContain('t("budgetDepreciationResetStatus")');
+    expect(overview.lastIndexOf("<DepreciationBudgetReference")).toBeGreaterThan(
+      overview.lastIndexOf("className={classes.summaryStrip}"),
+    );
   });
 
   test("places the date filter inside the consistency check area", () => {
