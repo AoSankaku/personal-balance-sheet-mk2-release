@@ -94,6 +94,14 @@ describe("accounting integrity API regressions", () => {
     expect((await changed.json() as { deduct_from_budget: boolean }).deduct_from_budget).toBe(false);
   });
 
+  test("seeded cards use the same budget deduction default as created cards", async () => {
+    const database = createTestD1();
+    databases.push(database);
+    const response = await adminRouter.request("/seed", { method: "POST", headers: { "content-type": "application/json" }, body: '{"locale":"ja"}' }, { DB: database.DB });
+    expect(response.status).toBe(200);
+    expect(database.sqlite.query("SELECT deduct_from_budget FROM accounts WHERE category='credit_card'").get()).toEqual({ deduct_from_budget: 1 });
+  });
+
   test("reference toggling cannot make excluded-cash spending consume a budget", async () => {
     const database = fixture();
     const response = await post(journalRouter, database, { date: "2026-10-02", description: "excluded",
