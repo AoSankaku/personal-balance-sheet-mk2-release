@@ -270,7 +270,7 @@ describe("calculateSpentFromBudgetAllocations", () => {
     ).toBe(20_000);
   });
 
-  test("includes reference allocations in budget consumption and reports the subset", () => {
+  test("excludes reference allocations from budget consumption while reporting them", () => {
     const allocations = [
       {
         journal_entry_id: 1,
@@ -285,10 +285,51 @@ describe("calculateSpentFromBudgetAllocations", () => {
       },
     ];
 
-    expect(calculateSpentFromBudgetAllocations(2, allocations)).toBe(2_180);
+    expect(calculateSpentFromBudgetAllocations(2, allocations)).toBe(1_000);
     expect(
       calculateReferenceSpentFromBudgetAllocations(2, allocations),
     ).toBe(1_180);
+  });
+
+  test("keeps reference amounts from deepening an existing negative budget", () => {
+    const allocations = [
+      { journal_entry_id: 1, budget_category_id: 2, amount: -500 },
+      {
+        journal_entry_id: 2,
+        budget_category_id: 2,
+        amount: -1_000,
+        is_reference: true,
+      },
+    ];
+
+    expect(calculateSpentFromBudgetAllocations(2, allocations)).toBe(500);
+    expect(calculateReferenceSpentFromBudgetAllocations(2, allocations)).toBe(
+      1_000,
+    );
+  });
+});
+
+describe("ordinary reference allocations in depreciation-aware budget months", () => {
+  test("reports ordinary references without spending or reserving budget", () => {
+    const result = calculateDepreciationBudgetMonth({
+      budgetCategoryId: 2,
+      resetPoint: null,
+      reservations: [],
+      allocations: [
+        {
+          budget_category_id: 2,
+          amount: -1_000,
+          date: "2026-05-03",
+          created_at: "2026-05-03 10:00:00",
+          is_reference: true,
+        },
+      ],
+      activeReservations: new Map(),
+    });
+
+    expect(result.spent).toBe(0);
+    expect(result.cash_basis_spent).toBe(0);
+    expect(result.reservation_remaining).toBe(0);
   });
 });
 
