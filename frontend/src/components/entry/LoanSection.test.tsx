@@ -5,7 +5,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { HouseholdForm } from "../SimpleEntryForm";
 
-mock.module("../../i18n", () => ({
+mock.module(import.meta.resolve("../../i18n/LangContext.tsx"), () => ({
+  LangProvider: ({ children }: { children: unknown }) => children,
   useLang: () => ({ t: (key: string) => key }),
 }));
 
@@ -28,11 +29,15 @@ function account(
   };
 }
 
-function render(accounts: Account[], loanAccountId: number) {
+function render(
+  accounts: Account[],
+  loanAccountId: number,
+  loanCounterAccountId = 1,
+) {
   const form = {
     values: {
       loanAccountId,
-      loanCounterAccountId: 1,
+      loanCounterAccountId,
       loanDirection: "increase",
       loanDifferenceAccountId: null,
       amount: 1_000,
@@ -83,6 +88,22 @@ describe("LoanSection budget funding controls", () => {
         account(2, "liability", "credit_card"),
       ],
       2,
+    );
+
+    expect(html).not.toContain("loanFundingBreakdownTitle");
+  });
+
+  test("hides funding allocation when the counter account is a credit card", () => {
+    const html = render(
+      [
+        account(1, "asset", "cash", { include_in_allocatable: true }),
+        account(2, "liability", "long_term_loan", {
+          deduct_from_budget: false,
+        }),
+        account(3, "liability", "credit_card"),
+      ],
+      2,
+      3,
     );
 
     expect(html).not.toContain("loanFundingBreakdownTitle");

@@ -29,6 +29,7 @@ import {
   isLongTermBorrowingCategory,
   isBusinessAdvanceCategory,
 } from "@balance-sheet/shared";
+import { isBudgetAsset } from "../../../shared/budgetScope";
 import {
   buildExpenseBudgetAllocations,
   computeBudgetDistributionAmounts,
@@ -114,6 +115,62 @@ export interface SimpleEntryMeta {
   depreciationUpdate?: {
     scheduleId: number;
     input: UpdateDepreciationInput;
+  };
+}
+
+type IncomeBudgetSubmissionFields = Pick<
+  CreateJournalInput,
+  "income_budget_allocations" | "income_transfer_destinations"
+>;
+
+export function buildIncomeBudgetSubmissionFields(input: {
+  canAllocateIncome: boolean;
+  incomeBudgetAllocations?: NonNullable<
+    CreateJournalInput["income_budget_allocations"]
+  >;
+  incomeTransferDestinations?: NonNullable<
+    CreateJournalInput["income_transfer_destinations"]
+  >;
+}): IncomeBudgetSubmissionFields {
+  if (!input.canAllocateIncome) {
+    return {
+      income_budget_allocations: undefined,
+      income_transfer_destinations: undefined,
+    };
+  }
+  return {
+    income_budget_allocations: input.incomeBudgetAllocations,
+    income_transfer_destinations: input.incomeTransferDestinations,
+  };
+}
+
+type LoanBudgetSubmissionFields = Pick<
+  CreateJournalInput,
+  | "loan_settlement_opening"
+  | "loan_settlement_journal_entry_ids"
+  | "budget_funding"
+  | "budget_funding_components"
+>;
+
+export function buildLoanBudgetSubmissionFields(
+  input:
+    | { creditCardInvolved: true }
+    | {
+        creditCardInvolved: false;
+        loanSettlementOpening: boolean | undefined;
+        loanSettlementJournalEntryIds: number[] | undefined;
+        budgetFunding: NonNullable<CreateJournalInput["budget_funding"]>;
+        budgetFundingComponents: NonNullable<
+          CreateJournalInput["budget_funding_components"]
+        >;
+      },
+): LoanBudgetSubmissionFields {
+  if (input.creditCardInvolved) return {};
+  return {
+    loan_settlement_opening: input.loanSettlementOpening,
+    loan_settlement_journal_entry_ids: input.loanSettlementJournalEntryIds,
+    budget_funding: input.budgetFunding,
+    budget_funding_components: input.budgetFundingComponents,
   };
 }
 
@@ -1222,136 +1279,169 @@ export function SimpleEntryForm({
       // Determine if this is an opening event
       const isOpening =
         values.loanDirection === "increase" || values.loanDirection === "lend";
-      let explicitFundingAllocations;
-      try {
-        explicitFundingAllocations = buildBudgetFundingAllocations(
-          loanAmount,
-          new Map(
-            Object.entries(loanFundingCategoryAmounts).map(
-              ([categoryId, fundingAmount]) => [
-                Number(categoryId),
-                Number(fundingAmount) || 0,
-              ],
-            ),
-          ),
-        );
-      } catch {
-        showFeedback({
-          message: t("loanFundingExceedsPrincipal"),
-          color: "red",
-        });
-        return;
-      }
-      const automaticSettlement =
-        !isOpening && isShortTerm && settledEntryIds.length > 0;
-      const calculatedFunding = calculateMultiLineBudgetFundingImpact({
-        lines,
-        accounts,
-        currency: selectedCurrency,
-        decimalPlaces: currencyDecimalPlaces,
-      }).components.find(
-        (component) =>
-          component.kind ===
-          fundingKindForLoanDirection(values.loanDirection),
+      const counterAccount = accounts.find(
+        (account) => account.id === values.loanCounterAccountId,
       );
-      if (!calculatedFunding) {
-        throw new Error("budget_funding_component_not_detected");
-      }
-      let fundingComponent = buildFundingComponentInput({
-        component: calculatedFunding,
-        appliedAmount: calculatedFunding.applied_amount,
-        categoryAmounts: loanFundingCategoryAmounts,
-        currency: selectedCurrency,
-        decimalPlaces: currencyDecimalPlaces,
-        sourceJournalEntryIds: automaticSettlement
-          ? settledEntryIds
-          : undefined,
-      });
-      if (automaticSettlement) {
-        const sourceEntries = await Promise.all(
-          settledEntryIds.map((sourceId) => api.journal.get(sourceId)),
-        );
-        const sourceAllocations = sourceEntries.flatMap((sourceEntry) => {
-          const saved = (
-            sourceEntry.budget_funding_components?.flatMap(
-              (component) => component.allocations,
-            ) ??
-            sourceEntry.budget_funding?.allocations ??
-            []
-          ).filter((allocation) => allocation.amount > 0);
-          const savedTotal = saved.reduce(
-            (sum, allocation) => sum + allocation.amount,
-            0,
-          );
-          const sourcePrincipal =
-            unsettledEntries.find(
-              (entry) => entry.journal_entry_id === sourceEntry.id,
-            )?.amount ?? savedTotal;
-          return [
-            ...saved.map((allocation) => ({
-              budget_category_id: allocation.budget_category_id,
-              amount: allocation.amount,
-              source_journal_entry_id: sourceEntry.id,
-            })),
-            ...(sourcePrincipal - savedTotal > 0
-              ? [{
-                  budget_category_id: null,
-                  amount: sourcePrincipal - savedTotal,
-                  source_journal_entry_id: sourceEntry.id,
-                }]
-              : []),
-          ];
+      const creditCardInvolved = [acct, counterAccount].some(
+        (account) =>
+          account?.type === "liability" &&
+          account.category === "credit_card",
+      );
+      let loanBudgetMetadata: LoanBudgetSubmissionFields;
+      if (creditCardInvolved) {
+        loanBudgetMetadata = buildLoanBudgetSubmissionFields({
+          creditCardInvolved: true,
         });
-        if (sourceAllocations.length === 0) {
-          sourceAllocations.push({
-            budget_category_id: null,
-            amount: calculatedFunding.principal_amount,
-            source_journal_entry_id: settledEntryIds[0]!,
+      } else {
+        let explicitFundingAllocations;
+        try {
+          explicitFundingAllocations = buildBudgetFundingAllocations(
+            loanAmount,
+            new Map(
+              Object.entries(loanFundingCategoryAmounts).map(
+                ([categoryId, fundingAmount]) => [
+                  Number(categoryId),
+                  Number(fundingAmount) || 0,
+                ],
+              ),
+            ),
+          );
+        } catch {
+          showFeedback({
+            message: t("loanFundingExceedsPrincipal"),
+            color: "red",
           });
+          return;
         }
-        const principalParts = splitByLargestRemainder(
-          calculatedFunding.principal_amount,
-          sourceAllocations.map((allocation) => allocation.amount),
-          currencyDecimalPlaces,
+        const automaticSettlement =
+          !isOpening && isShortTerm && settledEntryIds.length > 0;
+        const calculatedFunding = calculateMultiLineBudgetFundingImpact({
+          lines,
+          accounts,
+          currency: selectedCurrency,
+          decimalPlaces: currencyDecimalPlaces,
+        }).components.find(
+          (component) =>
+            component.kind ===
+            fundingKindForLoanDirection(values.loanDirection),
         );
-        const appliedParts = splitByLargestRemainder(
-          calculatedFunding.applied_amount,
-          principalParts,
-          currencyDecimalPlaces,
-        );
-        const allocations = sourceAllocations.flatMap((allocation, index) => {
-          const principalPart = principalParts[index] ?? 0;
-          const appliedPart = Math.min(
-            principalPart,
-            appliedParts[index] ?? 0,
-          );
-          return [
-            ...(appliedPart > 0
-              ? [{
-                  ...allocation,
-                  amount: appliedPart,
-                  currency: selectedCurrency,
-                  effect: "apply" as const,
-                }]
-              : []),
-            ...(principalPart - appliedPart > 0
-              ? [{
-                  ...allocation,
-                  amount: principalPart - appliedPart,
-                  currency: selectedCurrency,
-                  effect: "component_only" as const,
-                }]
-              : []),
-          ];
+        if (!calculatedFunding) {
+          throw new Error("budget_funding_component_not_detected");
+        }
+        let fundingComponent = buildFundingComponentInput({
+          component: calculatedFunding,
+          appliedAmount: calculatedFunding.applied_amount,
+          categoryAmounts: loanFundingCategoryAmounts,
+          currency: selectedCurrency,
+          decimalPlaces: currencyDecimalPlaces,
+          sourceJournalEntryIds: automaticSettlement
+            ? settledEntryIds
+            : undefined,
         });
-        fundingComponent = {
-          kind: calculatedFunding.kind,
-          principal_amount: calculatedFunding.principal_amount,
-          applied_amount: calculatedFunding.applied_amount,
-          component_only_amount: calculatedFunding.component_only_amount,
-          allocations,
-          source_journal_entry_ids: settledEntryIds,
-        };
+        if (automaticSettlement) {
+          const sourceEntries = await Promise.all(
+            settledEntryIds.map((sourceId) => api.journal.get(sourceId)),
+          );
+          const sourceAllocations = sourceEntries.flatMap((sourceEntry) => {
+            const saved = (
+              sourceEntry.budget_funding_components?.flatMap(
+                (component) => component.allocations,
+              ) ??
+              sourceEntry.budget_funding?.allocations ??
+              []
+            ).filter((allocation) => allocation.amount > 0);
+            const savedTotal = saved.reduce(
+              (sum, allocation) => sum + allocation.amount,
+              0,
+            );
+            const sourcePrincipal =
+              unsettledEntries.find(
+                (entry) => entry.journal_entry_id === sourceEntry.id,
+              )?.amount ?? savedTotal;
+            return [
+              ...saved.map((allocation) => ({
+                budget_category_id: allocation.budget_category_id,
+                amount: allocation.amount,
+                source_journal_entry_id: sourceEntry.id,
+              })),
+              ...(sourcePrincipal - savedTotal > 0
+                ? [{
+                    budget_category_id: null,
+                    amount: sourcePrincipal - savedTotal,
+                    source_journal_entry_id: sourceEntry.id,
+                  }]
+                : []),
+            ];
+          });
+          if (sourceAllocations.length === 0) {
+            sourceAllocations.push({
+              budget_category_id: null,
+              amount: calculatedFunding.principal_amount,
+              source_journal_entry_id: settledEntryIds[0]!,
+            });
+          }
+          const principalParts = splitByLargestRemainder(
+            calculatedFunding.principal_amount,
+            sourceAllocations.map((allocation) => allocation.amount),
+            currencyDecimalPlaces,
+          );
+          const appliedParts = splitByLargestRemainder(
+            calculatedFunding.applied_amount,
+            principalParts,
+            currencyDecimalPlaces,
+          );
+          const allocations = sourceAllocations.flatMap((allocation, index) => {
+            const principalPart = principalParts[index] ?? 0;
+            const appliedPart = Math.min(
+              principalPart,
+              appliedParts[index] ?? 0,
+            );
+            return [
+              ...(appliedPart > 0
+                ? [{
+                    ...allocation,
+                    amount: appliedPart,
+                    currency: selectedCurrency,
+                    effect: "apply" as const,
+                  }]
+                : []),
+              ...(principalPart - appliedPart > 0
+                ? [{
+                    ...allocation,
+                    amount: principalPart - appliedPart,
+                    currency: selectedCurrency,
+                    effect: "component_only" as const,
+                  }]
+                : []),
+            ];
+          });
+          fundingComponent = {
+            kind: calculatedFunding.kind,
+            principal_amount: calculatedFunding.principal_amount,
+            applied_amount: calculatedFunding.applied_amount,
+            component_only_amount: calculatedFunding.component_only_amount,
+            allocations,
+            source_journal_entry_ids: settledEntryIds,
+          };
+        }
+
+        loanBudgetMetadata = buildLoanBudgetSubmissionFields({
+          creditCardInvolved: false,
+          loanSettlementOpening: isOpening && isShortTerm ? true : undefined,
+          loanSettlementJournalEntryIds:
+            hasSettlements && isShortTerm ? settledEntryIds : undefined,
+          budgetFunding: {
+            kind: fundingKindForLoanDirection(values.loanDirection),
+            principal_amount: loanAmount,
+            allocations: automaticSettlement
+              ? undefined
+              : explicitFundingAllocations,
+            source_journal_entry_ids: automaticSettlement
+              ? settledEntryIds
+              : undefined,
+          },
+          budgetFundingComponents: [fundingComponent],
+        });
       }
 
       await onSubmit({
@@ -1361,20 +1451,7 @@ export function SimpleEntryForm({
         budget_allocations:
           combinedBudgetAllocs.length > 0 ? combinedBudgetAllocs : undefined,
         budget_source: "simple",
-        loan_settlement_opening: isOpening && isShortTerm ? true : undefined,
-        loan_settlement_journal_entry_ids:
-          hasSettlements && isShortTerm ? settledEntryIds : undefined,
-        budget_funding: {
-          kind: fundingKindForLoanDirection(values.loanDirection),
-          principal_amount: loanAmount,
-          allocations: automaticSettlement
-            ? undefined
-            : explicitFundingAllocations,
-          source_journal_entry_ids: automaticSettlement
-            ? settledEntryIds
-            : undefined,
-        },
-        budget_funding_components: [fundingComponent],
+        ...loanBudgetMetadata,
       });
 
       if (!isEditing) {
@@ -1447,6 +1524,21 @@ export function SimpleEntryForm({
             }];
           })
         : undefined;
+    const incomeBudgetFields =
+      values.entryType === "income"
+        ? buildIncomeBudgetSubmissionFields({
+            canAllocateIncome: isBudgetAsset(
+              accounts.find(
+                (account) => account.id === values.incomeDepositedToId,
+              ),
+            ),
+            incomeBudgetAllocations: income_budget_allocations,
+            incomeTransferDestinations: income_transfer_destinations,
+          })
+        : {
+            income_budget_allocations,
+            income_transfer_destinations,
+          };
 
     await onSubmit({
       date: transactionDate,
@@ -1469,8 +1561,7 @@ export function SimpleEntryForm({
       ],
       budget_allocations: markReference(budget_allocations),
       budget_source: "simple",
-      income_budget_allocations,
-      income_transfer_destinations,
+      ...incomeBudgetFields,
     });
     if (!isEditing) {
       dirtyIncomeDistCategoryIds.current.clear();
@@ -1579,6 +1670,10 @@ export function SimpleEntryForm({
   function handleLoanCounterAccountChange(v: string | null) {
     const accountId = v ? Number(v) : null;
     form.setFieldValue("loanCounterAccountId", accountId);
+    const account = accounts.find((candidate) => candidate.id === accountId);
+    if (account?.type === "liability" && account.category === "credit_card") {
+      setSettledEntryIds([]);
+    }
     setLoanCounterBudgetDist([]);
     if (accountId) {
       const acct = accounts.find((a) => a.id === accountId);
@@ -1691,6 +1786,21 @@ export function SimpleEntryForm({
     setSelectedFilterId(next);
   }
 
+  function handleIncomeDepositChange(next: string | null) {
+    const accountId = next ? Number(next) : null;
+    form.setFieldValue("incomeDepositedToId", accountId);
+    if (isBudgetAsset(accounts.find((account) => account.id === accountId))) {
+      return;
+    }
+    dirtyIncomeDistCategoryIds.current.clear();
+    skipFirstIncomeRecompute.current = false;
+    setSelectedFilterId(null);
+    setIsRegularIncome(false);
+    setIncomeDist([]);
+    setFilterStepPreview([]);
+    setIncomeTransferDestination({});
+  }
+
   function replaceIncomeDist(
     rows: { budget_category_id: number; name: string; amount: number }[],
   ) {
@@ -1699,6 +1809,23 @@ export function SimpleEntryForm({
   }
 
   const entryType = form.values.entryType;
+  const canAllocateIncome = isBudgetAsset(
+    accounts.find(
+      (account) => account.id === form.values.incomeDepositedToId,
+    ),
+  );
+  useEffect(() => {
+    if (accounts.length === 0 || entryType !== "income" || canAllocateIncome) {
+      return;
+    }
+    dirtyIncomeDistCategoryIds.current.clear();
+    skipFirstIncomeRecompute.current = false;
+    setSelectedFilterId(null);
+    setIsRegularIncome(false);
+    setIncomeDist([]);
+    setFilterStepPreview([]);
+    setIncomeTransferDestination({});
+  }, [entryType, accounts.length, canAllocateIncome]);
   const transferBudgetOptions = useMemo(
     () =>
       getTransferBudgetCategoryOptions({
@@ -1748,18 +1875,21 @@ export function SimpleEntryForm({
     : incomeDist;
   const incomeTransferNeeds = useMemo(
     () =>
-      incomeDist
-        .filter((distribution) => distribution.amount > 0)
-        .map((distribution) => ({
-          ...distribution,
-          ...resolveIncomeTransferAccounts({
-            categoryId: distribution.budget_category_id,
-            depositAccountId: form.values.incomeDepositedToId,
-            categories: budgetCategories,
-            accounts,
-          }),
-        })),
+      canAllocateIncome
+        ? incomeDist
+            .filter((distribution) => distribution.amount > 0)
+            .map((distribution) => ({
+              ...distribution,
+              ...resolveIncomeTransferAccounts({
+                categoryId: distribution.budget_category_id,
+                depositAccountId: form.values.incomeDepositedToId,
+                categories: budgetCategories,
+                accounts,
+              }),
+            }))
+        : [],
     [
+      canAllocateIncome,
       incomeDist,
       form.values.incomeDepositedToId,
       budgetCategories,
@@ -1836,7 +1966,11 @@ export function SimpleEntryForm({
 
   // When filter or amount changes, recompute income distribution
   useEffect(() => {
-    if (entryType !== "income" || !selectedFilterId) return;
+    if (
+      entryType !== "income" ||
+      !canAllocateIncome ||
+      !selectedFilterId
+    ) return;
     // Skip the first run when restoring from a draft (incomeDist already set)
     if (skipFirstIncomeRecompute.current) {
       skipFirstIncomeRecompute.current = false;
@@ -1870,6 +2004,7 @@ export function SimpleEntryForm({
   }, [
     selectedFilterId,
     entryType,
+    canAllocateIncome,
     budgetFilters,
     budgetCategories,
     form.values.amount,
@@ -1882,7 +2017,7 @@ export function SimpleEntryForm({
     initialDraft?.selectedFilterId ?? null,
   );
   useEffect(() => {
-    if (!selectedFilterId || !isRegularIncome) {
+    if (!canAllocateIncome || !selectedFilterId || !isRegularIncome) {
       setFilterStepPreview([]);
       prevFilterForDefaultRef.current = null;
       return;
@@ -1898,7 +2033,14 @@ export function SimpleEntryForm({
       computeFilterSteps(filter.steps, form.values.amount, getCatName),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFilterId, isRegularIncome, budgetFilters, budgetCategories, t]);
+  }, [
+    canAllocateIncome,
+    selectedFilterId,
+    isRegularIncome,
+    budgetFilters,
+    budgetCategories,
+    t,
+  ]);
 
   // Counter account options for loan: all directions allow asset + liability; borrow also allows expense
   const liabilityCounterGroup =
@@ -2047,6 +2189,8 @@ export function SimpleEntryForm({
             showManualIncomeDist={showManualIncomeDist}
             handleIncomeDistChange={handleIncomeDistChange}
             handleIncomeTypeChange={handleIncomeTypeChange}
+            canAllocateIncome={canAllocateIncome}
+            onIncomeDepositChange={handleIncomeDepositChange}
             />
             {incomeTransferNeeds.length > 0 && (
               <Stack gap="xs">

@@ -196,6 +196,7 @@ export default function SettingsPage() {
         payday: values.payday,
         is_depreciable: values.is_depreciable,
         include_in_allocatable: values.include_in_allocatable,
+        deduct_from_budget: values.deduct_from_budget,
         budget_ratios: values.budget_ratios,
       });
       accountId = updated.id;

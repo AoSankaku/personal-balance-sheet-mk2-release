@@ -1,7 +1,14 @@
 import type { Account, JournalEntry } from "@balance-sheet/shared";
+import {
+  budgetAccountDelta,
+  isBudgetLiability,
+  isBudgetAccount,
+  isBudgetAsset,
+} from "../../../shared/budgetScope";
 import type { BudgetResetBoundary } from "./budgetFundingCompleteness";
 import {
   getAllocatableAssetDelta,
+  getLoanBudgetFundingPrincipal,
   isEntryAfterBudgetReset,
 } from "./budgetFundingCompleteness";
 
@@ -23,13 +30,7 @@ function lineCurrencyMatches(lineCurrency: string | undefined, currency: string)
 }
 
 function isAllocatableCash(account: Account | undefined): boolean {
-  return Boolean(
-    account &&
-      account.type === "asset" &&
-      account.category === "cash" &&
-      account.include_in_allocatable !== false &&
-      account.is_depreciable !== true,
-  );
+  return isBudgetAsset(account);
 }
 
 export function shouldUseReferenceBudgetAllocations(
@@ -42,31 +43,35 @@ export function shouldUseReferenceBudgetAllocations(
   accountMap: Map<number, Account>,
   currency: string,
 ): boolean {
-  let allocatableCashOutflow = 0;
-  let excludedCashOutflow = 0;
+  let excludedCashMovement = 0;
+  let budgetAccountMovement = 0;
+  let creditCardMovement = 0;
 
   for (const line of lines) {
     if (!lineCurrencyMatches(line.currency, currency)) continue;
     const account = accountMap.get(line.account_id);
-    if (
-      !account ||
-      account.type !== "asset" ||
-      account.category !== "cash" ||
-      account.is_depreciable === true
-    ) {
-      continue;
+    if (!account) continue;
+    const movement = line.debit - line.credit;
+    if (Math.abs(movement) <= BUDGET_ALLOCATION_EPSILON) continue;
+
+    if (isBudgetAccount(account)) budgetAccountMovement += Math.abs(movement);
+    if (account.type === "liability" && account.category === "credit_card") {
+      creditCardMovement += Math.abs(movement);
     }
-    const outflow = Math.max(line.credit - line.debit, 0);
-    if (isAllocatableCash(account)) {
-      allocatableCashOutflow += outflow;
-    } else {
-      excludedCashOutflow += outflow;
+    if (
+      account.type === "asset" &&
+      account.category === "cash" &&
+      account.is_depreciable !== true &&
+      !isAllocatableCash(account)
+    ) {
+      excludedCashMovement += Math.abs(movement);
     }
   }
 
   return (
-    excludedCashOutflow > BUDGET_ALLOCATION_EPSILON &&
-    allocatableCashOutflow <= BUDGET_ALLOCATION_EPSILON
+    excludedCashMovement > BUDGET_ALLOCATION_EPSILON &&
+    budgetAccountMovement <= BUDGET_ALLOCATION_EPSILON &&
+    creditCardMovement <= BUDGET_ALLOCATION_EPSILON
   );
 }
 
@@ -88,9 +93,9 @@ export function getUnallocatedAllocatableIncomeAmount(
     return sum + line.credit - line.debit;
   }, 0);
   if (income <= BUDGET_ALLOCATION_EPSILON) return 0;
-  const allocatableIncrease = getAllocatableAssetDelta(
-    entry,
-    accountMap,
+  const allocatableIncrease = budgetAccountDelta(
+    entry.lines,
+    [...accountMap.values()],
     currency,
   );
   return Math.max(0, Math.min(income, allocatableIncrease));
@@ -157,7 +162,9 @@ export function findPreResetCreditCardSettlements(
     [...accountMap.values()]
       .filter(
         (account) =>
-          account.type === "liability" && account.category === "credit_card",
+          account.type === "liability" &&
+          account.category === "credit_card" &&
+          !isBudgetLiability(account),
       )
       .map((account) => account.id),
   );
@@ -229,4 +236,26 @@ export function findPreResetCreditCardSettlements(
   }
 
   return result;
+}
+
+export function isBudgetNeutralLoanFunding(
+  entry: JournalEntry,
+  accountMap: Map<number, Account>,
+  currency: string,
+): boolean {
+  if (
+    getLoanBudgetFundingPrincipal(entry, accountMap, currency) <=
+    BUDGET_ALLOCATION_EPSILON
+  ) {
+    return false;
+  }
+  return (
+    Math.abs(
+      budgetAccountDelta(
+        entry.lines,
+        [...accountMap.values()],
+        currency,
+      ),
+    ) <= BUDGET_ALLOCATION_EPSILON
+  );
 }

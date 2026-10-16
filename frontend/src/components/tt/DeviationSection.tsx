@@ -542,38 +542,14 @@ export function DeviationSection({
     if (!snapshot || !unknownFundsAccount) return;
     setProcessing(true);
     try {
-      for (const preview of journalPreview) {
-        const debitAcct = accounts.find(
-          (a) => getDisplayName(a.name) === preview.debit_account,
-        );
-        const creditAcct = accounts.find(
-          (a) => getDisplayName(a.name) === preview.credit_account,
-        );
-        if (!debitAcct || !creditAcct) continue;
-        await api.journal.create({
-          date: preview.date,
-          description:
-            locale === "ja"
-              ? `不明金処理 - ${preview.debit_account !== t("sysUnknownFunds") ? preview.debit_account : preview.credit_account}`
-              : `Unknown funds - ${preview.debit_account !== t("sysUnknownFunds") ? preview.debit_account : preview.credit_account}`,
-          lines: [
-            {
-              account_id: debitAcct.id,
-              debit: preview.amount,
-              credit: 0,
-              currency: preview.currency,
-            },
-            {
-              account_id: creditAcct.id,
-              debit: 0,
-              credit: preview.amount,
-              currency: preview.currency,
-            },
-          ],
-          budget_source: "multiline",
-        });
-      }
-      showFeedback({ message: t("ttUnknownFundsRecorded"), color: "teal" });
+      const entries = generalRows
+        .filter((row) => hasDifference(row.deviation, row.currency))
+        .map((row) => ({
+          account_id: row.account_id,
+          currency: normalizeCurrency(row.currency),
+        }));
+      await api.trialBalance.adjustSnapshot(snapshot.id, entries);
+      showFeedback({ message: t("ttBalanceAdjustmentsSaved"), color: "teal" });
       closeConfirm();
       await refreshAfterJournalChange();
     } catch {
@@ -701,7 +677,7 @@ export function DeviationSection({
         <Text size="xs" c="teal" fw={500}>
           {t("ttLastCleanSnapshot")}: {latestCleanSnapshot.snapshot_date}
           {latestCleanSnapshot.snapshot_time
-            ? ` ${latestCleanSnapshot.snapshot_time}`
+            ? ` · ${t("ttSnapshotRecordedAt").replace("{time}", latestCleanSnapshot.snapshot_time)}`
             : ""}
         </Text>
       )}
@@ -711,7 +687,7 @@ export function DeviationSection({
           data={snapshots.map((s) => ({
             value: String(s.id),
             label: s.snapshot_time
-              ? `${s.snapshot_date} ${s.snapshot_time}`
+              ? `${s.snapshot_date} · ${t("ttSnapshotRecordedAt").replace("{time}", s.snapshot_time)}`
               : s.snapshot_date,
           }))}
           value={selectedId}
@@ -1273,7 +1249,7 @@ export function DeviationSection({
                 onClick={openConfirm}
                 disabled={!unknownFundsAccount}
               >
-                {t("ttProcessAsUnknownFunds")}
+                {t("ttApplySnapshotAdjustments")}
               </Button>
               <Button
                 color="blue"
@@ -1373,7 +1349,7 @@ export function DeviationSection({
       <Modal
         opened={confirmOpen}
         onClose={closeConfirm}
-        title={t("ttProcessAsUnknownFunds")}
+        title={t("ttApplySnapshotAdjustments")}
         size="lg"
       >
         <Stack gap="md">
@@ -1394,14 +1370,14 @@ export function DeviationSection({
                   <Table.Td>{p.debit_account}</Table.Td>
                   <Table.Td>{p.credit_account}</Table.Td>
                   <Table.Td className="currency-cell">
-                    {formatJPY(p.amount, locale)}
+                    {formatAccountCurrency(p.amount, p.currency)}
                   </Table.Td>
                 </Table.Tr>
               ))}
             </Table.Tbody>
           </Table>
           <Text size="sm" c="dimmed">
-            {t("ttUnknownFundsConfirmMsg")}
+            {t("ttSnapshotAdjustmentConfirm")}
           </Text>
           <Group justify="flex-end">
             <Button variant="default" onClick={closeConfirm}>

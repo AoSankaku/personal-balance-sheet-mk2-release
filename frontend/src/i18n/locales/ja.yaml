@@ -1006,6 +1006,16 @@ ttUnknownFundsJournalPreview: 以下の仕訳を記録します：
 ttUnknownFundsConfirmMsg: 上記の仕訳を記録して残高差異を修正しますか？
 ttUnknownFundsRecorded: 不明金仕訳を記録しました
 ttDeviationSelectSnapshot: 基準日を選択
+ttApplySnapshotAdjustments: 基準残高に合わせて調整
+ttBalanceAdjustmentsSaved: 残高調整を記録しました。過去の仕訳が変わると再計算されます。
+ttSnapshotAdjustmentConfirm: 選択した残高と日末時点の帳簿残高を合わせる仕訳を記録します。過去の仕訳が変更されると再計算されます。
+ttSnapshotEndOfDayHint: 基準日における1日の終わりの残高として記録します。表示時刻はこの残高を記録した時刻です。
+ttSnapshotRecordedAt: "{time}に記録"
+ttUnknownFundsBalance: 不明金残高
+ttUnknownFundsReclassConfirm: 元の不明金仕訳を雑損または雑益に振り替えます。新しい仕訳は追加せず、既存仕訳を更新します。
+ttUnknownFundsDebit: 借方
+ttUnknownFundsCredit: 貸方
+ttUnknownFundsAmount: 金額
 ttUnknownFundsTitle: 不明金の仕訳一覧
 ttUnknownFundsEmpty: 不明金の仕訳はありません。
 ttUnknownFundsFixKnown: 原因判明・修正
@@ -1458,3 +1468,9 @@ incomeTransferRegister: 確認して移動予定に登録
 incomeTransferTargetMissing: 配置先口座が未設定です。カテゴリ設定で配置先を指定してください。
 incomeTransferEditConflict: 完了済みの口座移動と矛盾するため保存できません。帳簿の口座移動タスクで完了を取り消してから編集してください。
 budgetFundingExcludedInfo: 対象外口座だけで貸し借り元本が変動したため、予算への反映はありません。編集して廃棄・自己資金化の履歴を確定できます。
+
+deductFromBudgetLabel: "予算総額から控除する"
+deductFromBudgetHint: "この負債の残高を予算対象資産から差し引きます。カードは初期設定で有効です。"
+incomeOutsideBudgetHint: "この口座への収入は予算を増やしません。予算対象口座へ振り替えた時に未割当が増えます。"
+budgetHistorySourceFunding: "貸借の予算への反映"
+loanFundingNoBudgetImpactHint: "この元本の移動は予算総額を変えません。利息などの費用は別に記録します。"

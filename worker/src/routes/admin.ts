@@ -2,6 +2,8 @@ import { count, eq, like, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { createDb, type Env } from "../db";
 import { exportD1ToSQLite } from "../lib/exportSqlite";
+import { prepareMutation } from "../lib/d1Mutation";
+import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
 import {
   accounts,
   budgetAdjustmentLogs,
@@ -88,28 +90,34 @@ router.post("/erase", async (c) => {
     switch (scope) {
       case "ledger_this_month": {
         // Delete budget runtime data for this month first
-        await db
+        await c.env.DB.batch([
+        prepareMutation(c.env.DB, db
           .delete(budgetAdjustmentLogs)
-          .where(sql`${budgetAdjustmentLogs.year_month} = ${yearMonth}`);
-        await db
+          .where(sql`${budgetAdjustmentLogs.year_month} = ${yearMonth}`)),
+        prepareMutation(c.env.DB, db
           .delete(budgetAllocations)
-          .where(sql`${budgetAllocations.year_month} = ${yearMonth}`);
+          .where(sql`${budgetAllocations.year_month} = ${yearMonth}`)),
         // Delete journal entries (cascades: journal_lines, journal_entry_budget_allocations)
-        await db
+        prepareMutation(c.env.DB, db
           .delete(journalEntries)
-          .where(like(journalEntries.date, `${yearMonth}-%`));
+          .where(like(journalEntries.date, `${yearMonth}-%`))),
+        ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB),
+        ]);
         break;
       }
       case "ledger_this_year": {
-        await db
+        await c.env.DB.batch([
+        prepareMutation(c.env.DB, db
           .delete(budgetAdjustmentLogs)
-          .where(like(budgetAdjustmentLogs.year_month, `${year}-%`));
-        await db
+          .where(like(budgetAdjustmentLogs.year_month, `${year}-%`))),
+        prepareMutation(c.env.DB, db
           .delete(budgetAllocations)
-          .where(like(budgetAllocations.year_month, `${year}-%`));
-        await db
+          .where(like(budgetAllocations.year_month, `${year}-%`))),
+        prepareMutation(c.env.DB, db
           .delete(journalEntries)
-          .where(like(journalEntries.date, `${year}-%`));
+          .where(like(journalEntries.date, `${year}-%`))),
+        ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB),
+        ]);
         break;
       }
       case "ledger_all": {
@@ -363,6 +371,7 @@ router.post("/seed", async (c) => {
         name: a.name[locale],
         type: a.type,
         category: a.category,
+        deduct_from_budget: a.type === "liability" && a.category === "credit_card" ? 1 : 0,
         currency: "JPY",
       })),
     )

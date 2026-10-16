@@ -181,6 +181,106 @@ describe("budget adjustment log API", () => {
     expect(resets.map((log) => log.amount)).toEqual([-40, -100]);
   });
 
+  test("uses the journal timestamp for same-day edited allocations and agrees with summary", async () => {
+    const harness = makeHarness();
+    harnesses.push(harness);
+    const accountIds = harness.sqlite
+      .query(
+        "INSERT INTO accounts (name, type, category) VALUES ('Cash', 'asset', 'cash'), ('Food expense', 'expense', 'expense') RETURNING id",
+      )
+      .all<{ id: number }>()
+      .map((row) => row.id);
+    const entryId = Number(
+      harness.sqlite
+        .query(
+          "INSERT INTO journal_entries (date, description, created_at) VALUES ('2026-05-10', 'Edited expense', '2026-05-10 09:00:00') RETURNING id",
+        )
+        .get<{ id: number }>()!.id,
+    );
+    harness.sqlite
+      .query(
+        "INSERT INTO journal_lines (journal_entry_id, account_id, debit, credit, currency) VALUES (?, ?, 100, 0, 'JPY'), (?, ?, 0, 100, 'JPY')",
+      )
+      .run(entryId, accountIds[1]!, entryId, accountIds[0]!);
+    harness.sqlite
+      .query(
+        "INSERT INTO journal_entry_budget_allocations (journal_entry_id, budget_category_id, amount, currency, source, created_at) VALUES (?, ?, -100, 'JPY', 'simple', '2026-05-10 11:00:00')",
+      )
+      .run(entryId, harness.categoryId);
+    harness.sqlite
+      .query(
+        "INSERT INTO budget_adjustment_logs (budget_category_id, year_month, amount, currency, date, adjustment_type, created_at) VALUES (?, '2026-05', 999, 'JPY', '2026-05-10', 'reset', '2026-05-10 10:00:00')",
+      )
+      .run(harness.categoryId);
+
+    const logs = await listLogs(harness.env);
+    expect(logs.find((log) => log.type === "reset")?.amount).toBe(100);
+
+    const summaryResponse = await budgetRouter.request(
+      "/summary?year_month=2026-05&currency=JPY",
+      {},
+      harness.env,
+    );
+    expect(summaryResponse.status).toBe(200);
+    const summary = (await summaryResponse.json()) as {
+      categories: { category: { id: number }; spent: number }[];
+    };
+    expect(
+      summary.categories.find(
+        (category) => category.category.id === harness.categoryId,
+      )?.spent,
+    ).toBe(0);
+  });
+
+  test("includes loan funding when a reset is backdated across its entry", async () => {
+    const harness = makeHarness();
+    harnesses.push(harness);
+    const openingEntryId = Number(
+      harness.sqlite
+        .query(
+          "INSERT INTO journal_entries (date, description) VALUES ('2026-04-05', 'Borrow') RETURNING id",
+        )
+        .get<{ id: number }>()!.id,
+    );
+    harness.sqlite
+      .query(
+        "INSERT INTO budget_funding_allocations (journal_entry_id, budget_category_id, kind, amount, currency, effect) VALUES (?, ?, 'borrow', 300, 'JPY', 'apply')",
+      )
+      .run(openingEntryId, harness.categoryId);
+
+    const reset = await createAdjustment(
+      harness.env,
+      harness.categoryId,
+      "2026-04-25",
+      999,
+      "reset",
+    );
+    const backdateReset = await budgetRouter.request(
+      `/adjustment-logs/${reset.id}`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ date: "2026-04-20" }),
+      },
+      harness.env,
+    );
+    expect(backdateReset.status).toBe(200);
+
+    const logs = await listLogs(harness.env);
+    expect(logs.find((log) => log.type === "funding")?.amount).toBe(300);
+    expect(logs.find((log) => log.type === "reset")?.amount).toBe(-300);
+
+    const resetsOnlyResponse = await budgetRouter.request(
+      "/adjustment-logs?currency=JPY&resets_only=1",
+      {},
+      harness.env,
+    );
+    expect(resetsOnlyResponse.status).toBe(200);
+    expect(await resetsOnlyResponse.json()).toMatchObject([
+      { type: "reset", amount: -300 },
+    ]);
+  });
+
   test("ordinary reference allocations are visible but do not spend or reserve a budget", async () => {
     const harness = makeHarness();
     harnesses.push(harness);
@@ -292,7 +392,7 @@ describe("budget adjustment log API", () => {
       amount: 120,
     });
 
-    const rejectDerivedAmount = await budgetRouter.request(
+    const ignoreDerivedAmount = await budgetRouter.request(
       `/adjustment-logs/${reset.id}`,
       {
         method: "PATCH",
@@ -301,7 +401,10 @@ describe("budget adjustment log API", () => {
       },
       harness.env,
     );
-    expect(rejectDerivedAmount.status).toBe(400);
+    expect(ignoreDerivedAmount.status).toBe(200);
+    expect(
+      (await listLogs(harness.env)).find((log) => log.type === "reset")?.amount,
+    ).toBe(0);
 
     const updateResetMetadata = await budgetRouter.request(
       `/adjustment-logs/${reset.id}`,
@@ -318,5 +421,8 @@ describe("budget adjustment log API", () => {
       year_month: "2026-02",
       note: "reconciled",
     });
+    expect(
+      (await listLogs(harness.env)).find((log) => log.type === "reset")?.amount,
+    ).toBe(-120);
   });
 });

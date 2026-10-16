@@ -34,6 +34,7 @@ export function replayBudgetHistory<T extends BudgetHistoryLog>(
     return (
       left.date.localeCompare(right.date) ||
       left.created_at.localeCompare(right.created_at) ||
+      Number(isReset(left)) - Number(isReset(right)) ||
       left.id - right.id
     );
   });

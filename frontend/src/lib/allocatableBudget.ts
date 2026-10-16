@@ -1,4 +1,5 @@
 import type { Account } from "@balance-sheet/shared";
+export { sumBudgetResourceBalances } from "../../../shared/budgetScope";
 
 export function isAllocatableCashAccount(account: Account): boolean {
   return (

@@ -86,6 +86,20 @@ describe("replayBudgetHistory", () => {
     expect(balances.get("reset:8")).toBe(0);
   });
 
+  test("places non-reset events before resets at the same timestamp", () => {
+    const reset = log(1, "reset", 999, "2026-01-10", {
+      adjustment_type: "reset",
+      created_at: "2026-01-10T10:00:00.000Z",
+    });
+    const expense = log(2, "simple", -100, "2026-01-10", {
+      created_at: "2026-01-10T10:00:00.000Z",
+    });
+
+    const { logs: replayed } = replayBudgetHistory([reset, expense]);
+
+    expect(replayed.find((row) => row.type === "reset")?.amount).toBe(100);
+  });
+
   test("isolates balances by category and currency and excludes reference rows", () => {
     const logs = [
       log(1, "simple", -100, "2026-01-01"),

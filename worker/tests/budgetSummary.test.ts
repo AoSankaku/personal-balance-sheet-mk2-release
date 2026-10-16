@@ -307,6 +307,23 @@ describe("calculateSpentFromBudgetAllocations", () => {
       1_000,
     );
   });
+
+  test("does not let a reference refund restore a negative budget", () => {
+    const allocations = [
+      { journal_entry_id: 1, budget_category_id: 2, amount: -500 },
+      {
+        journal_entry_id: 2,
+        budget_category_id: 2,
+        amount: 100,
+        is_reference: true,
+      },
+    ];
+
+    expect(calculateSpentFromBudgetAllocations(2, allocations)).toBe(500);
+    expect(calculateReferenceSpentFromBudgetAllocations(2, allocations)).toBe(
+      -100,
+    );
+  });
 });
 
 describe("ordinary reference allocations in depreciation-aware budget months", () => {

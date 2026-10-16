@@ -44,6 +44,7 @@ import {
 } from "../lib/budgetSummary";
 import { sumBudgetFundingAfterResetsByPeriod } from "../lib/budgetFunding";
 import { filterBudgetCategoriesForVisibility } from "../lib/budgetCategoryArchive";
+import { replayBudgetHistory } from "../../../shared/budgetHistory";
 import {
   findInvalidMoneyField,
   fromStorageMoneyAmount,
@@ -92,6 +93,15 @@ function decimalPlacesForCurrency(
 function normalizeNote(note: string | null | undefined): string | null {
   const trimmed = note?.trim() ?? "";
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function isValidIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return (
+    Number.isFinite(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value
+  );
 }
 
 function buildTargetAccountMap(
@@ -349,7 +359,7 @@ router.patch("/categories/:id", async (c) => {
     { path: "balance_cap", value: body.balance_cap, nullable: true },
   ]);
   if (invalidMoneyField) {
-    return c.json(invalidMoneyResponse(invalidMoneyField, body.currency), 400);
+    return c.json(invalidMoneyResponse(invalidMoneyField), 400);
   }
 
   const db = createDb(c.env);
@@ -850,26 +860,64 @@ router.get("/adjustment-logs", async (c) => {
     .from(budgetAdjustmentLogs)
     .orderBy(sql`${budgetAdjustmentLogs.date} DESC`);
 
-  // Journal-entry-backed expense allocations (simple / multiline)
-  const journalAllocRows = resetsOnly
-    ? []
-    : await db
-        .select({
-          id: journalEntryBudgetAllocations.id,
-          journal_entry_id: journalEntryBudgetAllocations.journal_entry_id,
-          budget_category_id: journalEntryBudgetAllocations.budget_category_id,
-          amount: journalEntryBudgetAllocations.amount,
-          currency: journalEntryBudgetAllocations.currency,
-          source: journalEntryBudgetAllocations.source,
-          is_reference: journalEntryBudgetAllocations.is_reference,
-          date: journalEntries.date,
-          created_at: journalEntryBudgetAllocations.created_at,
-        })
-        .from(journalEntryBudgetAllocations)
-        .innerJoin(
-          journalEntries,
-          eq(journalEntryBudgetAllocations.journal_entry_id, journalEntries.id),
-        );
+  // Journal-entry-backed expense allocations are needed even for reset-only
+  // responses because they determine the reset's effective amount.
+  const journalAllocRows = await db
+    .select({
+      id: journalEntryBudgetAllocations.id,
+      journal_entry_id: journalEntryBudgetAllocations.journal_entry_id,
+      budget_category_id: journalEntryBudgetAllocations.budget_category_id,
+      amount: journalEntryBudgetAllocations.amount,
+      currency: journalEntryBudgetAllocations.currency,
+      source: journalEntryBudgetAllocations.source,
+      is_reference: journalEntryBudgetAllocations.is_reference,
+      date: journalEntries.date,
+      // Use the journal's stable creation time so later allocation edits do
+      // not move historical spending across a same-day reset.
+      created_at: journalEntries.created_at,
+    })
+    .from(journalEntryBudgetAllocations)
+    .innerJoin(
+      journalEntries,
+      eq(journalEntryBudgetAllocations.journal_entry_id, journalEntries.id),
+    );
+
+  const fundingRows = await db
+    .select({
+      id: budgetFundingAllocations.id,
+      journal_entry_id: budgetFundingAllocations.journal_entry_id,
+      budget_category_id: budgetFundingAllocations.budget_category_id,
+      kind: budgetFundingAllocations.kind,
+      effect: budgetFundingAllocations.effect,
+      amount: budgetFundingAllocations.amount,
+      currency: budgetFundingAllocations.currency,
+      created_at: budgetFundingAllocations.created_at,
+      date: journalEntries.date,
+      source_date: sourceFundingEntries.date,
+      source_created_at: sourceFundingEntries.created_at,
+    })
+    .from(budgetFundingAllocations)
+    .innerJoin(
+      journalEntries,
+      eq(budgetFundingAllocations.journal_entry_id, journalEntries.id),
+    )
+    .leftJoin(
+      sourceFundingEntries,
+      eq(
+        budgetFundingAllocations.source_journal_entry_id,
+        sourceFundingEntries.id,
+      ),
+    );
+
+  const decodedAdjustmentHistory = adjLogs.map((row) => ({
+    budget_category_id: row.budget_category_id,
+    year_month: row.year_month,
+    amount: fromStorageMoneyAmount(row.amount, row.currency, scaleOptions),
+    currency: normalizeCurrency(row.currency),
+    date: row.date,
+    adjustment_type: row.adjustment_type,
+    created_at: row.created_at,
+  }));
 
   type LogEntry = {
     id: number;
@@ -887,7 +935,8 @@ router.get("/adjustment-logs", async (c) => {
       | "income"
       | "transfer"
       | "simple"
-      | "multiline";
+      | "multiline"
+      | "funding";
     adjustment_type?: "allocation" | "reset" | "transfer";
     journal_entry_id?: number;
     is_reference?: boolean;
@@ -912,11 +961,11 @@ router.get("/adjustment-logs", async (c) => {
           ? "income"
           : "manual") as "reset" | "transfer" | "income" | "manual",
       adjustment_type:
-        row.adjustment_type === "reset"
+        (row.adjustment_type === "reset"
           ? "reset"
           : row.adjustment_type === "transfer"
             ? "transfer"
-            : "allocation",
+            : "allocation") as "allocation" | "reset" | "transfer",
       journal_entry_id: row.journal_entry_id ?? undefined,
     })),
     ...journalAllocRows.map((row) => ({
@@ -935,10 +984,69 @@ router.get("/adjustment-logs", async (c) => {
       journal_entry_id: row.journal_entry_id,
       is_reference: row.is_reference === 1,
     })),
+    ...fundingRows.flatMap((row) => {
+      if (row.budget_category_id == null) return [];
+
+      const yearMonth = row.date.slice(0, 7);
+      const fundingAmount = fromStorageMoneyAmount(
+        row.amount,
+        row.currency,
+        scaleOptions,
+      );
+      const effectiveAmount =
+        sumBudgetFundingAfterResetsByPeriod(
+          [
+            {
+              journal_entry_id: row.journal_entry_id,
+              budget_category_id: row.budget_category_id,
+              kind: row.kind,
+              effect: row.effect,
+              amount: fundingAmount,
+              date: row.date,
+              created_at: row.created_at,
+              source_date: row.source_date,
+              source_created_at: row.source_created_at,
+            },
+          ],
+          decodedAdjustmentHistory.filter((log) =>
+            log.currency === normalizeCurrency(row.currency) &&
+            log.adjustment_type === "reset" &&
+            (log.date < row.date ||
+              (log.date === row.date && log.created_at <= row.created_at)),
+          ),
+          new Map([
+            [
+              yearMonth,
+              { start: `${yearMonth}-01`, end: monthEndDate(yearMonth) },
+            ],
+          ]),
+        ).get(`${row.budget_category_id}:${yearMonth}`)?.net ?? 0;
+
+      return [
+        {
+          id: row.id,
+          budget_category_id: row.budget_category_id,
+          budget_category_name:
+            catMap.get(row.budget_category_id) ?? null,
+          year_month: yearMonth,
+          amount: effectiveAmount,
+          currency: row.currency,
+          date: row.date,
+          created_at: row.created_at,
+          note: null,
+          type: "funding" as const,
+          journal_entry_id: row.journal_entry_id,
+          is_reference: effectiveAmount === 0,
+        },
+      ];
+    }),
   ];
 
-  const filtered = combined.filter((row) => {
-    if (normalizeCurrency(row.currency) !== currency) return false;
+  // Recompute reset amounts using full history before applying query filters.
+  const replayed = replayBudgetHistory(
+    combined.filter((row) => normalizeCurrency(row.currency) === currency),
+  ).logs;
+  const filtered = replayed.filter((row) => {
     if (resetsOnly && row.adjustment_type !== "reset") return false;
     if (from && row.date < from) return false;
     if (to && row.date > to) return false;
@@ -982,6 +1090,7 @@ router.patch("/adjustment-logs/:id", async (c) => {
     note?: string | null;
   }>();
   const db = createDb(c.env);
+  const scaleOptions = await loadMoneyScaleOptions(db);
 
   const [existing] = await db
     .select()
@@ -990,27 +1099,43 @@ router.patch("/adjustment-logs/:id", async (c) => {
 
   if (!existing) return c.json({ error: "not found" }, 404);
 
-  const invalidMoneyField = findInvalidMoneyField([
-    {
-      path: "amount",
-      value: body.amount,
-      currency: existing.currency,
-      decimalPlaces: decimalPlacesForCurrency(scaleOptions, existing.currency),
-    },
-  ]);
-  if (invalidMoneyField) {
-    return c.json(invalidMoneyResponse(invalidMoneyField, existing.currency), 400);
+  if (body.date !== undefined && !isValidIsoDate(body.date)) {
+    return c.json({ error: "date must be a valid YYYY-MM-DD date" }, 400);
+  }
+
+  const isReset = existing.adjustment_type === "reset";
+  if (body.amount !== undefined && !isReset) {
+    const invalidMoneyField = findInvalidMoneyField([
+      {
+        path: "amount",
+        value: body.amount,
+        currency: existing.currency,
+        decimalPlaces: decimalPlacesForCurrency(
+          scaleOptions,
+          existing.currency,
+        ),
+      },
+    ]);
+    if (invalidMoneyField) {
+      return c.json(
+        invalidMoneyResponse(invalidMoneyField, existing.currency),
+        400,
+      );
+    }
   }
 
   const updates: Record<string, unknown> = {};
-  if (body.amount !== undefined) {
+  if (body.amount !== undefined && !isReset) {
     updates.amount = toStorageMoneyAmount(
       body.amount,
       existing.currency,
       scaleOptions,
     );
   }
-  if (body.date !== undefined) updates.date = body.date;
+  if (body.date !== undefined) {
+    updates.date = body.date;
+    updates.year_month = body.date.slice(0, 7);
+  }
   if ("note" in body) updates.note = normalizeNote(body.note);
 
   if (Object.keys(updates).length > 0) {
@@ -1485,7 +1610,6 @@ async function computeBudgetSummaries(
 
       let carryover = 0;
       let cashBasisCarryover = 0;
-      let referenceReserve = 0;
       let fundingCarryover = 0;
       let borrowedFundingCarryover = 0;
       let lentFundingCarryover = 0;
@@ -1507,13 +1631,6 @@ async function computeBudgetSummaries(
         const monthlyFunding = fundingFor(cat.id, monthKey);
         const base = adhocFor(cat.id, monthKey) + monthlyFunding.net;
         const monthlySpending = spendingForMonth(monthKey);
-        if (resetPoint) referenceReserve = 0;
-        referenceReserve += calculateReferenceSpentFromBudgetAllocations(
-          cat.id,
-          entryAllocsForMonth(monthKey).filter((entryAlloc) =>
-            isAfterBudgetResetPoint(entryAlloc, resetPoint),
-          ),
-        );
         carryover = calculateNextCarryover({
           budgetBase: base,
           carryover: resetPoint ? 0 : carryover,
@@ -1541,8 +1658,6 @@ async function computeBudgetSummaries(
       const visibleCashBasisCarryover = currentResetPoint
         ? 0
         : cashBasisCarryover;
-      if (currentResetPoint) referenceReserve = 0;
-      referenceReserve += referenceSpent;
       const fundingAdjustment =
         (currentResetPoint ? 0 : fundingCarryover) + currentFunding.net;
       const borrowedFunding =
@@ -1605,7 +1720,7 @@ async function computeBudgetSummaries(
         total_budget: totalBudget,
         spent,
         reference_spent: referenceSpent,
-        reference_reserve: referenceReserve,
+        reference_reserve: 0,
         depreciation_spent: currentSpending.recognized_depreciation,
         depreciation_reserve: currentSpending.reservation_remaining,
         depreciation_reservation_added: currentSpending.reservation_added,

@@ -1,3 +1,6 @@
+import { journalBalanceError } from "../lib/journalValidation";
+import { normalizeJournalBudgetScope } from "../lib/journalBudgetScope";
+import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { Hono } from "hono";
@@ -1491,13 +1494,10 @@ router.post("/:id/complete-with-journal", async (c) => {
   if (invalidMoney) {
     return c.json(invalidMoneyResponse(invalidMoney.path, invalidMoney.currency), 400);
   }
-  if (!journal.is_currency_exchange) {
-    const debit = journal.lines.reduce((sum, line) => sum + (line.debit ?? 0), 0);
-    const credit = journal.lines.reduce((sum, line) => sum + (line.credit ?? 0), 0);
-    if (Math.abs(debit - credit) > 0.001) {
-      return c.json({ error: "unbalanced entry" }, 400);
-    }
-  }
+  const balanceError = journalBalanceError(journal.lines, journal.is_currency_exchange === true, scaleOptions);
+  if (balanceError) return c.json({ error: balanceError }, 400);
+  const scopeError = await normalizeJournalBudgetScope(db, journal, scaleOptions);
+  if (scopeError) return c.json({ error: scopeError }, 400);
 
   const checkoutItemIds = normalizeIdList(body.checkout_item_ids) ?? [id];
   const checkoutKeepItemIds = normalizeIdList(body.checkout_keep_item_ids) ?? [];
@@ -1742,7 +1742,7 @@ router.post("/:id/complete-with-journal", async (c) => {
   );
 
   try {
-    await c.env.DB.batch(statements);
+    await c.env.DB.batch([...(statements), ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
   } catch (error) {
     const [existing] = await db
       .select()

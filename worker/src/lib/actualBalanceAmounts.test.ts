@@ -16,6 +16,7 @@ describe("actual balance amount storage", () => {
       snapshot_id: 7,
       account_id: 3,
       amount: 12_345_678,
+      money_scale: 8,
       currency: "BTC",
     });
   });

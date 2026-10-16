@@ -713,6 +713,13 @@ export default function LedgerPage() {
         </Badge>
       );
     }
+    if (log.type === "funding") {
+      return (
+        <Badge color="grape" variant="light" size="sm">
+          {t("budgetHistorySourceFunding")}
+        </Badge>
+      );
+    }
     if (log.type === "reset") {
       return (
         <Badge color="red" variant="light" size="sm">
@@ -744,7 +751,8 @@ export default function LedgerPage() {
         {(log.type === "income" ||
           log.type === "transfer" ||
           log.type === "simple" ||
-          log.type === "multiline") &&
+          log.type === "multiline" ||
+          log.type === "funding") &&
           log.journal_entry_id && (
             <ActionIcon
               size="sm"
@@ -1653,6 +1661,7 @@ export default function LedgerPage() {
             value={editAmount}
             onChange={setEditAmount}
             allowDecimal={false}
+            disabled={editingLog?.type === "reset"}
           />
           <DatePickerInput
             label={t("thDate")}

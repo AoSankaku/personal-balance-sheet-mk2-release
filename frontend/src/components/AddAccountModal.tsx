@@ -101,6 +101,7 @@ interface AccountFormValues {
   payday: string | null;
   is_depreciable: boolean;
   include_in_allocatable: boolean;
+  deduct_from_budget: boolean;
   budget_ratios: { budget_category_id: number; ratio: number | string }[];
   closing_day: string | null;
   confirmation_day: number | string;
@@ -152,6 +153,7 @@ export function AddAccountModal({
       payday: null,
       is_depreciable: false,
       include_in_allocatable: true,
+      deduct_from_budget: false,
       budget_ratios: [],
       closing_day: null,
       confirmation_day: "",
@@ -187,6 +189,7 @@ export function AddAccountModal({
             : null,
         is_depreciable: editAccount.is_depreciable ?? false,
         include_in_allocatable: editAccount.include_in_allocatable ?? true,
+        deduct_from_budget: editAccount.deduct_from_budget ?? editAccount.category === "credit_card",
         budget_ratios: buildInitialRatios(editAccount.budget_ratios),
         closing_day:
           existingCreditCardSettings != null
@@ -209,6 +212,7 @@ export function AddAccountModal({
         payday: null,
         is_depreciable: false,
         include_in_allocatable: true,
+        deduct_from_budget: false,
         budget_ratios: buildInitialRatios(),
         closing_day: null,
         confirmation_day: "",
@@ -221,6 +225,10 @@ export function AddAccountModal({
   }, [editAccount, opened, budgetCategories.length]);
 
   const selectedType = form.values.type;
+
+  useEffect(() => {
+    if (!isEdit) form.setFieldValue("deduct_from_budget", selectedType === "liability" && form.values.category === "credit_card");
+  }, [isEdit, selectedType, form.values.category]);
 
   useEffect(() => {
     if (isEdit) return;
@@ -255,6 +263,8 @@ export function AddAccountModal({
       input.include_in_allocatable =
         values.category === "cash" ? values.include_in_allocatable : false;
     }
+
+    if (values.type === "liability") input.deduct_from_budget = values.deduct_from_budget;
 
     if (values.type === "expense" && budgetCategories.length > 0) {
       input.budget_ratios = values.budget_ratios
@@ -406,6 +416,15 @@ export function AddAccountModal({
                 }
               />
             </Stack>
+          )}
+
+          {selectedType === "liability" && (
+            <Checkbox
+              label={t("deductFromBudgetLabel")}
+              description={t("deductFromBudgetHint")}
+              checked={form.values.deduct_from_budget}
+              onChange={(event) => form.setFieldValue("deduct_from_budget", event.currentTarget.checked)}
+            />
           )}
 
           {selectedType === "liability" &&

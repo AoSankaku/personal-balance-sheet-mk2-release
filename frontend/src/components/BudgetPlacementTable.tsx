@@ -32,7 +32,7 @@ import {
   type BudgetPlacementHint,
 } from "../lib/budgetPlacement";
 import {
-  sumAllocatableCashBalances,
+  sumBudgetResourceBalances,
   summarizeBudgetFunding,
 } from "../lib/allocatableBudget";
 
@@ -121,7 +121,7 @@ export function BudgetPlacementTable({
     ) + unplacedActual;
   const totalDifference = totalActual - totalExpected;
   const fundingSummary = summarizeBudgetFunding(
-    sumAllocatableCashBalances(accounts, currency),
+    sumBudgetResourceBalances(accounts, currency),
     categorySummaries.map((summary) => summary.available),
     categorySummaries.reduce(
       (sum, summary) => sum + (summary.reference_reserve ?? 0),

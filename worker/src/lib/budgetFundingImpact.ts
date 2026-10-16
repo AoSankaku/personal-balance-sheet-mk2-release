@@ -1,3 +1,4 @@
+import { budgetAccountDelta } from "../../../shared/budgetScope";
 import type {
   Account,
   BudgetFundingKind,
@@ -69,16 +70,6 @@ export function splitAmountByLargestRemainder<Key>(
   }));
 }
 
-function isAllocatableAsset(account: Account | undefined): boolean {
-  return Boolean(
-    account &&
-      account.type === "asset" &&
-      account.category === "cash" &&
-      account.include_in_allocatable !== false &&
-      account.is_depreciable !== true,
-  );
-}
-
 function principalKind(
   account: Account | undefined,
   netDebit: number,
@@ -114,13 +105,11 @@ export function calculateBudgetFundingImpact(input: {
   const scale = 10 ** decimalPlaces;
   const accountMap = new Map(input.accounts.map((account) => [account.id, account]));
   const netByAccount = new Map<number, number>();
-  let allocatableAssetDelta = 0;
+  const allocatableAssetDelta = budgetAccountDelta(input.lines, input.accounts, currency);
 
   for (const line of input.lines) {
     if ((line.currency || "JPY").toUpperCase() !== currency) continue;
     const netDebit = (line.debit ?? 0) - (line.credit ?? 0);
-    const account = accountMap.get(line.account_id);
-    if (isAllocatableAsset(account)) allocatableAssetDelta += netDebit;
     netByAccount.set(
       line.account_id,
       (netByAccount.get(line.account_id) ?? 0) + netDebit,

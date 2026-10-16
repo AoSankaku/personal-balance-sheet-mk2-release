@@ -50,4 +50,34 @@ describe("simple-entry budget-scope payloads", () => {
       buildLoanBudgetSubmissionFields({ creditCardInvolved: true }),
     ).toEqual({});
   });
+
+  test("keeps component-only principal bookkeeping for an ordinary loan", () => {
+    const fundingComponent = {
+      kind: "borrow" as const,
+      principal_amount: 1_000,
+      applied_amount: 0,
+      component_only_amount: 1_000,
+      allocations: [
+        {
+          budget_category_id: null,
+          amount: 1_000,
+          currency: "JPY",
+          effect: "component_only" as const,
+        },
+      ],
+    };
+    const fields = buildLoanBudgetSubmissionFields({
+      creditCardInvolved: false,
+      loanSettlementOpening: undefined,
+      loanSettlementJournalEntryIds: undefined,
+      budgetFunding: {
+        kind: "borrow",
+        principal_amount: 1_000,
+        allocations: [{ budget_category_id: null, amount: 1_000 }],
+      },
+      budgetFundingComponents: [fundingComponent],
+    });
+
+    expect(fields.budget_funding_components).toEqual([fundingComponent]);
+  });
 });

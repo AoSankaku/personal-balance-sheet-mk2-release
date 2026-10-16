@@ -8,11 +8,15 @@ import {
   budgetCategoryAccounts,
   budgetCategories,
   accountCompletions,
+  actualBalanceEntries,
 } from "../db/schema";
 import type { AccountBudgetRatio } from "@balance-sheet/shared";
 import { resolveAsOfDate } from "../lib/appDate";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
 import { fromStorageMoneyAmount } from "../lib/moneyValidation";
+import { isBudgetAccount } from "../../../shared/budgetScope";
+import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
+import { prepareMutation } from "../lib/d1Mutation";
 
 const router = new Hono<{ Bindings: Env }>();
 
@@ -34,6 +38,7 @@ router.get("/", async (c) => {
       payday: accounts.payday,
       is_depreciable: accounts.is_depreciable,
       include_in_allocatable: accounts.include_in_allocatable,
+      deduct_from_budget: accounts.deduct_from_budget,
       is_system: accounts.is_system,
       created_at: accounts.created_at,
       completion_id: accountCompletions.id,
@@ -118,6 +123,7 @@ router.get("/", async (c) => {
         payday: r.payday ?? null,
         is_depreciable: r.is_depreciable === 1,
         include_in_allocatable: r.include_in_allocatable === 1,
+        deduct_from_budget: r.deduct_from_budget === 1,
         is_system: r.is_system === 1,
         is_completed: r.completion_id != null,
         balance,
@@ -137,9 +143,13 @@ router.post("/", async (c) => {
     payday?: number | null;
     is_depreciable?: boolean;
     include_in_allocatable?: boolean;
+    deduct_from_budget?: boolean;
     budget_ratios?: { budget_category_id: number; ratio: number }[];
   }>();
 
+  if (body.deduct_from_budget !== undefined && typeof body.deduct_from_budget !== "boolean") {
+    return c.json({ error: "deduct_from_budget must be a boolean" }, 400);
+  }
   if (!body.name || !body.type || !body.category) {
     return c.json({ error: "name, type, and category are required" }, 400);
   }
@@ -179,6 +189,7 @@ router.post("/", async (c) => {
         body.include_in_allocatable !== false
           ? 1
           : 0,
+      deduct_from_budget: body.type === "liability" && (body.deduct_from_budget ?? body.category === "credit_card") ? 1 : 0,
     })
     .returning();
 
@@ -224,6 +235,7 @@ router.post("/", async (c) => {
       payday: account.payday ?? null,
       is_depreciable: account.is_depreciable === 1,
       include_in_allocatable: account.include_in_allocatable === 1,
+        deduct_from_budget: account.deduct_from_budget === 1,
       balance: 0,
       balances: {},
       budget_ratios: ratioRows,
@@ -243,6 +255,7 @@ router.patch("/:id", async (c) => {
     payday?: number | null;
     is_depreciable?: boolean;
     include_in_allocatable?: boolean;
+    deduct_from_budget?: boolean;
     budget_ratios?: { budget_category_id: number; ratio: number }[];
   }>();
 
@@ -277,7 +290,13 @@ router.patch("/:id", async (c) => {
     }
   }
 
+  if (body.deduct_from_budget !== undefined && typeof body.deduct_from_budget !== "boolean") {
+    return c.json({ error: "deduct_from_budget must be a boolean" }, 400);
+  }
   const updates: Record<string, unknown> = {};
+  if (body.deduct_from_budget !== undefined && existing.type === "liability") {
+    updates.deduct_from_budget = body.deduct_from_budget ? 1 : 0;
+  }
   if (body.name !== undefined) updates.name = body.name;
   if (body.category !== undefined) updates.category = body.category;
   if (body.payday !== undefined && existing.type === "income") {
@@ -326,6 +345,7 @@ router.patch("/:id", async (c) => {
       payday: accounts.payday,
       is_depreciable: accounts.is_depreciable,
       include_in_allocatable: accounts.include_in_allocatable,
+      deduct_from_budget: accounts.deduct_from_budget,
       created_at: accounts.created_at,
     })
     .from(accounts)
@@ -354,6 +374,7 @@ router.patch("/:id", async (c) => {
     payday: result.payday ?? null,
     is_depreciable: result.is_depreciable === 1,
     include_in_allocatable: result.include_in_allocatable === 1,
+        deduct_from_budget: result.deduct_from_budget === 1,
     budget_ratios: ratioRows,
   });
 });
@@ -439,14 +460,21 @@ router.post("/:id/replace", async (c) => {
     return c.json({ error: "Accounts must be the same type" }, 400);
   }
 
+  if (isBudgetAccount(original) !== isBudgetAccount(replacement)) {
+    return c.json({ error: "budget_scope_change_requires_individual_edit" }, 409);
+  }
+  const [confirmation] = await db.select({ id: actualBalanceEntries.id }).from(actualBalanceEntries).where(eq(actualBalanceEntries.account_id, id)).limit(1);
+  if (confirmation) return c.json({ error: "account_has_balance_confirmations" }, 409);
+
   // Execute as D1 batch (atomic)
-  await db.batch([
-    db
+  await c.env.DB.batch([
+    prepareMutation(c.env.DB, db
       .update(journalLines)
       .set({ account_id: replaceWithId })
-      .where(eq(journalLines.account_id, id)),
-    db.delete(cryptoWallets).where(eq(cryptoWallets.account_id, id)),
-    db.delete(accounts).where(eq(accounts.id, id)),
+      .where(eq(journalLines.account_id, id))),
+    prepareMutation(c.env.DB, db.delete(cryptoWallets).where(eq(cryptoWallets.account_id, id))),
+    prepareMutation(c.env.DB, db.delete(accounts).where(eq(accounts.id, id))),
+    ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB),
   ]);
 
   return c.json({ success: true });

@@ -1,3 +1,4 @@
+import { isBudgetAccount } from "../../../shared/budgetScope";
 import { eq, desc, sql, inArray, and, gte, lte, like } from "drizzle-orm";
 import { Hono } from "hono";
 import type {
@@ -19,6 +20,7 @@ import {
   depreciationEntries,
   loanSettlements,
   accountCompletions,
+  actualBalanceAdjustments,
 } from "../db/schema";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
 import {
@@ -31,6 +33,10 @@ import {
 import { resolveAsOfDate } from "../lib/appDate";
 import { serializeLoanSettlement } from "../lib/loanSettlement";
 import { calculateBudgetFundingImpact } from "../lib/budgetFundingImpact";
+import { journalBalanceError } from "../lib/journalValidation";
+import { normalizeJournalBudgetScope } from "../lib/journalBudgetScope";
+import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
+import { prepareMutation } from "../lib/d1Mutation";
 
 /** Categories that are considered long-term loan/lending */
 const LONG_TERM_LOAN_CATEGORIES = new Set([
@@ -212,6 +218,7 @@ async function validateBudgetFundingComponentsAgainstLines(input: {
       ...account,
       is_depreciable: account.is_depreciable === 1,
       include_in_allocatable: account.include_in_allocatable === 1,
+      deduct_from_budget: account.deduct_from_budget === 1,
       is_system: account.is_system === 1,
     })),
     currency: input.currency,
@@ -825,7 +832,7 @@ router.post("/", async (c) => {
       amount: number;
       currency?: string;
     }>;
-    /** Skip debit=credit balance check for currency exchange entries */
+    /** Validate a two-leg exchange in distinct currencies. */
     is_currency_exchange?: boolean;
   }>();
 
@@ -955,19 +962,8 @@ router.post("/", async (c) => {
     );
   }
 
-  if (!body.is_currency_exchange) {
-    const totalDebit = body.lines.reduce((s, l) => s + (l.debit ?? 0), 0);
-    const totalCredit = body.lines.reduce((s, l) => s + (l.credit ?? 0), 0);
-
-    if (Math.abs(totalDebit - totalCredit) > 0.001) {
-      return c.json(
-        {
-          error: `Unbalanced entry: debit ${totalDebit} ≠ credit ${totalCredit}`,
-        },
-        400,
-      );
-    }
-  }
+  const balanceError = journalBalanceError(body.lines, body.is_currency_exchange === true, scaleOptions);
+  if (balanceError) return c.json({ error: balanceError }, 400);
   if (
     body.budget_funding &&
     !BUDGET_FUNDING_KINDS.has(body.budget_funding.kind)
@@ -993,7 +989,7 @@ router.post("/", async (c) => {
   const componentLineValidationError =
     await validateBudgetFundingComponentsAgainstLines({
       db,
-      components: body.budget_funding_components,
+      components: body.budget_funding_components ?? (body.budget_funding ? normalizeBudgetFundingComponents(body) : undefined),
       lines: body.lines,
       currency: budgetCurrency,
       decimalPlaces: decimalPlacesByCurrency[budgetCurrency] ?? 0,
@@ -1001,6 +997,8 @@ router.post("/", async (c) => {
   if (componentLineValidationError) {
     return c.json({ error: componentLineValidationError }, 400);
   }
+  const budgetScopeError = await normalizeJournalBudgetScope(db, body, scaleOptions);
+  if (budgetScopeError) return c.json({ error: budgetScopeError }, 400);
   const validAllocations = (body.budget_allocations ?? []).filter(
     (a) => a.budget_category_id && a.amount !== 0,
   );
@@ -1221,7 +1219,7 @@ router.post("/", async (c) => {
     );
   }
 
-  const results = await c.env.DB.batch(statements);
+  const results = await c.env.DB.batch([...statements, ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
   const entry = (results[0] as D1QueryResult<typeof journalEntries.$inferSelect>)
     .results?.[0];
   if (!entry) throw new Error("Failed to create journal entry");
@@ -1311,74 +1309,24 @@ router.post("/batch", async (c) => {
     );
   }
 
-  const created = [];
-
+  const validEntries = [];
   for (const entry of body.entries) {
-    if (
-      !entry.date ||
-      !entry.description ||
-      !Array.isArray(entry.lines) ||
-      entry.lines.length < 2
-    ) {
-      continue; // skip malformed entries
-    }
-
-    const totalDebit = entry.lines.reduce((s, l) => s + (l.debit ?? 0), 0);
-    const totalCredit = entry.lines.reduce((s, l) => s + (l.credit ?? 0), 0);
-    if (Math.abs(totalDebit - totalCredit) > 0.001) continue; // skip unbalanced
-
-    const insertedEntries = await db
-      .insert(journalEntries)
-      .values({
-        date: entry.date,
-        description: entry.description,
-        source: "csv_import",
-      })
-      .returning();
-    const newEntry = insertedEntries[0];
-    if (!newEntry) continue;
-
-    const insertedLines = await db
-      .insert(journalLines)
-      .values(
-        entry.lines.map((l) => ({
-          journal_entry_id: newEntry.id,
-          account_id: l.account_id,
-          debit: toStorageMoneyAmount(l.debit ?? 0, l.currency, scaleOptions),
-          credit: toStorageMoneyAmount(l.credit ?? 0, l.currency, scaleOptions),
-          currency: normalizeCurrency(l.currency),
-          credit_card_billing_offset_months:
-            l.credit_card_billing_offset_months ?? null,
-        })),
-      )
-      .returning();
-
-    const validAllocations = (entry.budget_allocations ?? []).filter(
-      (a) => a.budget_category_id && a.amount !== 0,
-    );
-    const budgetCurrency = budgetCurrencyFromLines(entry.lines);
-    if (validAllocations.length > 0) {
-      await db.insert(journalEntryBudgetAllocations).values(
-        validAllocations.map((a) => ({
-          journal_entry_id: newEntry.id,
-          budget_category_id: a.budget_category_id,
-          amount: toStorageMoneyAmount(
-            a.amount,
-            a.currency ?? budgetCurrency,
-            scaleOptions,
-          ),
-          currency: normalizeCurrency(a.currency ?? budgetCurrency),
-          is_reference: a.is_reference ? 1 : 0,
-        })),
-      );
-    }
-
-    created.push({
-      ...newEntry,
-      lines: insertedLines.map((line) =>
-        decodeJournalLineAmount(line, scaleOptions),
-      ),
-    });
+    if (!entry.date || !entry.description || !Array.isArray(entry.lines) || entry.lines.length < 2) continue;
+    if (journalBalanceError(entry.lines, false, scaleOptions)) continue;
+    const scopeError = await normalizeJournalBudgetScope(db, entry, scaleOptions);
+    if (scopeError) return c.json({ error: scopeError }, 400);
+    validEntries.push(entry);
+  }
+  const created = [];
+  for (const entry of validEntries) {
+    const response = await router.request("/", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify(entry),
+    }, c.env);
+    if (!response.ok) return c.json(await response.json(), response.status as 400);
+    const saved = await response.json() as { id: number };
+    await db.update(journalEntries).set({ source: "csv_import" }).where(eq(journalEntries.id, saved.id));
+    created.push({ ...saved, source: "csv_import" });
   }
 
   return c.json(created, 201);
@@ -1611,7 +1559,7 @@ router.patch("/:id/budget-allocations/reference", async (c) => {
   if (!entry) return c.json({ error: "Not found" }, 404);
 
   const allocations = await db
-    .select({ id: journalEntryBudgetAllocations.id })
+    .select()
     .from(journalEntryBudgetAllocations)
     .where(eq(journalEntryBudgetAllocations.journal_entry_id, id));
   if (allocations.length === 0) {
@@ -1619,6 +1567,24 @@ router.patch("/:id/budget-allocations/reference", async (c) => {
   }
 
   const isReference = body.is_reference !== false;
+  if (!isReference) {
+    const decimalPlacesByCurrency = await loadCurrencyDecimalPlaces(db);
+    const scaleOptions = { decimalPlacesByCurrency };
+    const lines = await db.select().from(journalLines).where(eq(journalLines.journal_entry_id, id));
+    const candidate = {
+      lines: lines.map((line) => decodeJournalLineAmount(line, scaleOptions)),
+      budget_allocations: allocations.map((allocation) => ({
+        budget_category_id: allocation.budget_category_id,
+        amount: fromStorageMoneyAmount(allocation.amount, allocation.currency, scaleOptions),
+        currency: allocation.currency,
+        is_reference: false,
+      })),
+    };
+    const scopeError = await normalizeJournalBudgetScope(db, candidate, scaleOptions);
+    if (scopeError || candidate.budget_allocations.some((allocation) => allocation.is_reference)) {
+      return c.json({ error: scopeError ?? "Excluded cash allocations must remain references" }, 409);
+    }
+  }
   await db
     .update(journalEntryBudgetAllocations)
     .set({ is_reference: isReference ? 1 : 0 })
@@ -1797,17 +1763,8 @@ router.put("/:id", async (c) => {
     );
   }
 
-  if (!body.is_currency_exchange) {
-    const totalDebit = body.lines.reduce((s, l) => s + (l.debit ?? 0), 0);
-    const totalCredit = body.lines.reduce((s, l) => s + (l.credit ?? 0), 0);
-    if (Math.abs(totalDebit - totalCredit) > 0.001)
-      return c.json(
-        {
-          error: `Unbalanced entry: debit ${totalDebit} ≠ credit ${totalCredit}`,
-        },
-        400,
-      );
-  }
+  const balanceError = journalBalanceError(body.lines, body.is_currency_exchange === true, scaleOptions);
+  if (balanceError) return c.json({ error: balanceError }, 400);
   if (
     body.budget_funding &&
     !BUDGET_FUNDING_KINDS.has(body.budget_funding.kind)
@@ -1820,6 +1777,8 @@ router.put("/:id", async (c) => {
     .from(journalEntries)
     .where(eq(journalEntries.id, id));
   if (existing.length === 0) return c.json({ error: "Not found" }, 404);
+  const [managed] = await db.select({ id: actualBalanceAdjustments.id }).from(actualBalanceAdjustments).where(eq(actualBalanceAdjustments.journal_entry_id, id));
+  if (managed) return c.json({ error: "managed_balance_adjustment", message: "Edit or delete the balance confirmation instead" }, 409);
   let preserveIncomeTransferRequirements = false;
   if (body.income_transfer_destinations === undefined) {
     const completedRequirements = await db
@@ -1900,6 +1859,8 @@ router.put("/:id", async (c) => {
     }
   }
 
+  const budgetScopeError = await normalizeJournalBudgetScope(db, body, scaleOptions);
+  if (budgetScopeError) return c.json({ error: budgetScopeError }, 400);
   const validAllocations = (body.budget_allocations ?? []).filter(
     (a) => a.budget_category_id && a.amount !== 0,
   );
@@ -1921,7 +1882,7 @@ router.put("/:id", async (c) => {
   const componentLineValidationError =
     await validateBudgetFundingComponentsAgainstLines({
       db,
-      components: body.budget_funding_components,
+      components: body.budget_funding_components ?? (body.budget_funding ? normalizeBudgetFundingComponents(body) : undefined),
       lines: body.lines,
       currency: budgetCurrency,
       decimalPlaces: decimalPlacesByCurrency[budgetCurrency] ?? 0,
@@ -2190,7 +2151,7 @@ router.put("/:id", async (c) => {
     );
   }
 
-  const results = await c.env.DB.batch(statements);
+  const results = await c.env.DB.batch([...statements, ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
   const newLines =
     (results[lineResultIndex] as D1QueryResult<
       typeof journalLines.$inferSelect
@@ -2225,36 +2186,16 @@ router.delete("/:id", async (c) => {
     ...new Set(affectedLines.map((l) => l.account_id)),
   ];
 
-  // If this entry is a settlement entry (settled_by_journal_entry_id = id),
-  // revert those opening entries to unsettled BEFORE deletion.
-  // (The FK SET NULL would null the column but leave is_settled = 1, so we fix it first.)
-  await db
-    .update(loanSettlements)
-    .set({ is_settled: 0, settled_by_journal_entry_id: null, settled_at: null })
-    .where(eq(loanSettlements.settled_by_journal_entry_id, id));
-
-  // A copied repayment/collection split must not become a standalone category
-  // adjustment when its source entry disappears (the FK would otherwise SET NULL).
-  // The remaining cash movement is therefore treated as unallocated funding.
-  await db
-    .delete(budgetFundingAllocations)
-    .where(eq(budgetFundingAllocations.source_journal_entry_id, id));
-
-  // Removing a generated income-allocation transfer reopens every task that
-  // was completed by that entry. This must happen before the FK clears the ID.
-  await db
-    .update(incomeTransferRequirements)
-    .set({
-      transfer_journal_entry_id: null,
-      completion_source: null,
-      completed_at: null,
-    })
-    .where(eq(incomeTransferRequirements.transfer_journal_entry_id, id));
-
-  const deleted = await db
-    .delete(journalEntries)
-    .where(eq(journalEntries.id, id))
-    .returning();
+  const [managed] = await db.select({ id: actualBalanceAdjustments.id }).from(actualBalanceAdjustments).where(eq(actualBalanceAdjustments.journal_entry_id, id));
+  if (managed) return c.json({ error: "managed_balance_adjustment", message: "Delete the balance confirmation instead" }, 409);
+  const results = await c.env.DB.batch([
+    prepareMutation(c.env.DB, db.update(loanSettlements).set({ is_settled: 0, settled_by_journal_entry_id: null, settled_at: null }).where(eq(loanSettlements.settled_by_journal_entry_id, id))),
+    prepareMutation(c.env.DB, db.delete(budgetFundingAllocations).where(eq(budgetFundingAllocations.source_journal_entry_id, id))),
+    prepareMutation(c.env.DB, db.update(incomeTransferRequirements).set({ transfer_journal_entry_id: null, completion_source: null, completed_at: null }).where(eq(incomeTransferRequirements.transfer_journal_entry_id, id))),
+    prepareMutation(c.env.DB, db.delete(journalEntries).where(eq(journalEntries.id, id)).returning()),
+    ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB),
+  ]);
+  const deleted = results[3]!.results;
 
   if (deleted.length === 0) {
     return c.json({ error: "Not found" }, 404);
@@ -2343,8 +2284,14 @@ async function fetchEntriesWithLines(
 async function executeBulkDelete(
   db: ReturnType<typeof createDb>,
   entryIds: number[],
+  binding: D1Database,
 ) {
   if (entryIds.length === 0) return 0;
+  for (const chunk of chunkIds(entryIds)) {
+    const [owned] = await db.select({ id: actualBalanceAdjustments.id }).from(actualBalanceAdjustments).where(inArray(actualBalanceAdjustments.journal_entry_id, chunk)).limit(1);
+    if (owned) return null;
+  }
+  const mutations: D1PreparedStatement[] = [];
 
   const allAccountIds = new Set<number>();
   for (const chunk of chunkIds(entryIds)) {
@@ -2361,38 +2308,14 @@ async function executeBulkDelete(
   }
 
   for (const chunk of chunkIds(entryIds)) {
-    await db
-      .update(loanSettlements)
-      .set({
-        is_settled: 0,
-        settled_by_journal_entry_id: null,
-        settled_at: null,
-      })
-      .where(
-        sql`${loanSettlements.settled_by_journal_entry_id} IN (${sql.join(
-          chunk.map((id) => sql`${id}`),
-          sql`, `,
-        )})`,
-      );
-  }
-
-  for (const chunk of chunkIds(entryIds)) {
-    await db.delete(budgetFundingAllocations).where(
-      sql`${budgetFundingAllocations.source_journal_entry_id} IN (${sql.join(
-        chunk.map((id) => sql`${id}`),
-        sql`, `,
-      )})`,
+    mutations.push(
+      prepareMutation(binding, db.update(loanSettlements).set({ is_settled: 0, settled_by_journal_entry_id: null, settled_at: null }).where(inArray(loanSettlements.settled_by_journal_entry_id, chunk))),
+      prepareMutation(binding, db.delete(budgetFundingAllocations).where(inArray(budgetFundingAllocations.source_journal_entry_id, chunk))),
+      prepareMutation(binding, db.update(incomeTransferRequirements).set({ transfer_journal_entry_id: null, completion_source: null, completed_at: null }).where(inArray(incomeTransferRequirements.transfer_journal_entry_id, chunk))),
+      prepareMutation(binding, db.delete(journalEntries).where(inArray(journalEntries.id, chunk))),
     );
   }
-
-  for (const chunk of chunkIds(entryIds)) {
-    await db.delete(journalEntries).where(
-      sql`${journalEntries.id} IN (${sql.join(
-        chunk.map((id) => sql`${id}`),
-        sql`, `,
-      )})`,
-    );
-  }
+  await binding.batch([...mutations, ...buildActualBalanceAdjustmentRefreshStatements(binding)]);
 
   await syncLongTermCompletions(db, [...allAccountIds]);
 
@@ -2452,20 +2375,19 @@ router.post("/bulk-replace", async (c) => {
     return c.json({ affected_lines: 0 });
   }
 
-  let affected_lines = 0;
+  const [fromAccount] = await db.select().from(accounts).where(eq(accounts.id, body.from_account_id));
+  const [toAccount] = await db.select().from(accounts).where(eq(accounts.id, body.to_account_id));
+  if (!fromAccount || !toAccount) return c.json({ error: "Unknown replacement account" }, 400);
+  if (isBudgetAccount(fromAccount) !== isBudgetAccount(toAccount)) return c.json({ error: "budget_scope_change_requires_individual_edit" }, 409);
   for (const chunk of chunkIds(targetEntryIds)) {
-    const updated = await db
-      .update(journalLines)
-      .set({ account_id: body.to_account_id })
-      .where(
-        sql`${journalLines.account_id} = ${body.from_account_id} AND ${journalLines.journal_entry_id} IN (${sql.join(
-          chunk.map((id) => sql`${id}`),
-          sql`, `,
-        )})`,
-      )
-      .returning({ id: journalLines.id });
-    affected_lines += updated.length;
+    const [owned] = await db.select({ id: actualBalanceAdjustments.id }).from(actualBalanceAdjustments).where(inArray(actualBalanceAdjustments.journal_entry_id, chunk)).limit(1);
+    if (owned) return c.json({ error: "managed_balance_adjustment" }, 409);
   }
+  const replacements = chunkIds(targetEntryIds).map((chunk) => prepareMutation(c.env.DB,
+    db.update(journalLines).set({ account_id: body.to_account_id }).where(and(eq(journalLines.account_id, body.from_account_id), inArray(journalLines.journal_entry_id, chunk))).returning({ id: journalLines.id })
+  ));
+  const replacementResults = await c.env.DB.batch([...replacements, ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
+  const affected_lines = replacementResults.slice(0, replacements.length).reduce((sum, result) => sum + result.results.length, 0);
 
   await syncLongTermCompletions(db, [body.from_account_id, body.to_account_id]);
 
@@ -2496,7 +2418,8 @@ router.post("/bulk-delete", async (c) => {
     if (body.entry_ids.length === 0) {
       return c.json({ deleted_entries: 0 });
     }
-    const deleted_entries = await executeBulkDelete(db, body.entry_ids);
+    const deleted_entries = await executeBulkDelete(db, body.entry_ids, c.env.DB);
+    if (deleted_entries === null) return c.json({ error: "managed_balance_adjustment" }, 409);
     return c.json({ deleted_entries });
   }
 
@@ -2563,7 +2486,8 @@ router.post("/bulk-delete", async (c) => {
     return c.json({ entries, deleted_entries: entryIdSet.size, dry_run: true });
   }
 
-  const deleted_entries = await executeBulkDelete(db, [...entryIdSet]);
+  const deleted_entries = await executeBulkDelete(db, [...entryIdSet], c.env.DB);
+  if (deleted_entries === null) return c.json({ error: "managed_balance_adjustment" }, 409);
   return c.json({ deleted_entries });
 });
 

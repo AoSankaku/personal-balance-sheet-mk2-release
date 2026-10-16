@@ -5,8 +5,10 @@ import {
   getExcludedCashBudgetConsumptionAmount,
   getUnallocatedAllocatableIncomeAmount,
   hasBudgetAllocationMismatch,
+  isBudgetNeutralLoanFunding,
   shouldUseReferenceBudgetAllocations,
 } from "./budgetConsistency";
+import { isLoanBudgetFundingMissing } from "./budgetFundingCompleteness";
 
 function account(
   id: number,
@@ -87,6 +89,21 @@ describe("budget consistency", () => {
     expect(
       getUnallocatedAllocatableIncomeAmount(journalEntry, accounts, "JPY"),
     ).toBe(0);
+  });
+
+  test("flags unallocated income that reduces deducted credit-card debt", () => {
+    const accounts = new Map([
+      [1, account(1, "liability", "credit_card")],
+      [2, account(2, "income", "other")],
+    ]);
+    const journalEntry = entry(1, "2026-06-01", "2026-06-01T00:00:00Z", [
+      [1, 245, 0],
+      [2, 0, 245],
+    ]);
+
+    expect(
+      getUnallocatedAllocatableIncomeAmount(journalEntry, accounts, "JPY"),
+    ).toBe(245);
   });
 
   test("finds budget consumption paid from excluded cash", () => {
@@ -216,10 +233,61 @@ describe("budget consistency", () => {
     ).toBe(false);
   });
 
+  test("requires component-only history for borrowing fully offset by deductible debt", () => {
+    const accounts = new Map([
+      [1, account(1, "asset", "cash")],
+      [2, account(2, "liability", "long_term_loan")],
+    ]);
+    const borrowed = entry(1, "2026-07-01", "2026-07-01T00:00:00Z", [
+      [1, 1_000, 0],
+      [2, 0, 1_000],
+    ]);
+    accounts.set(2, {
+      ...accounts.get(2)!,
+      deduct_from_budget: true,
+    });
+
+    expect(isLoanBudgetFundingMissing(borrowed, accounts, null, "JPY")).toBe(
+      true,
+    );
+  });
+
+  test("classifies deducted-loan principal using the net budget resource delta", () => {
+    const deductedLoanAccounts = new Map([
+      [1, account(1, "asset", "cash")],
+      [2, {
+        ...account(2, "liability", "long_term_loan"),
+        deduct_from_budget: true,
+      }],
+    ]);
+    const borrowed = entry(1, "2026-07-01", "2026-07-01T00:00:00Z", [
+      [1, 1_000, 0],
+      [2, 0, 1_000],
+    ]);
+
+    expect(
+      isBudgetNeutralLoanFunding(borrowed, deductedLoanAccounts, "JPY"),
+    ).toBe(true);
+
+    const excludedLoanAccounts = new Map([
+      [1, account(1, "asset", "cash")],
+      [2, {
+        ...account(2, "liability", "long_term_loan"),
+        deduct_from_budget: false,
+      }],
+    ]);
+    expect(
+      isBudgetNeutralLoanFunding(borrowed, excludedLoanAccounts, "JPY"),
+    ).toBe(false);
+  });
+
   test("attributes later payments to pre-reset card debt before new debt", () => {
     const accounts = new Map([
       [1, account(1, "asset", "cash")],
-      [2, account(2, "liability", "credit_card")],
+      [2, {
+        ...account(2, "liability", "credit_card"),
+        deduct_from_budget: false,
+      }],
       [3, account(3, "expense", "other")],
     ]);
     const journal = [
@@ -260,7 +328,10 @@ describe("budget consistency", () => {
   test("reduces carried card debt with a non-cash credit before a payment", () => {
     const accounts = new Map([
       [1, account(1, "asset", "cash")],
-      [2, account(2, "liability", "credit_card")],
+      [2, {
+        ...account(2, "liability", "credit_card"),
+        deduct_from_budget: false,
+      }],
       [3, account(3, "expense", "other")],
       [4, account(4, "income", "other")],
     ]);
@@ -287,5 +358,32 @@ describe("budget consistency", () => {
         "JPY",
       ).map(({ amount }) => amount),
     ).toEqual([70]);
+  });
+
+  test("does not flag settlements of credit-card debt deducted from budget resources", () => {
+    const accounts = new Map([
+      [1, account(1, "asset", "cash")],
+      [2, account(2, "liability", "credit_card")],
+      [3, account(3, "expense", "other")],
+    ]);
+    const journal = [
+      entry(1, "2026-04-20", "2026-04-20T00:00:00Z", [
+        [3, 100, 0],
+        [2, 0, 100],
+      ]),
+      entry(2, "2026-05-27", "2026-05-27T00:00:00Z", [
+        [2, 100, 0],
+        [1, 0, 100],
+      ]),
+    ];
+
+    expect(
+      findPreResetCreditCardSettlements(
+        journal,
+        accounts,
+        { date: "2026-05-01", created_at: "2026-05-01T12:00:00Z" },
+        "JPY",
+      ),
+    ).toEqual([]);
   });
 });

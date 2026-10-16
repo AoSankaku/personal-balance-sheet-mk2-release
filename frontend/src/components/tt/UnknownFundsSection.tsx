@@ -16,12 +16,13 @@ import { api } from "../../api/client";
 import { useLang } from "../../i18n";
 import { useAppData } from "../../context/AppDataContext";
 import { showFeedback } from "../../lib/feedback";
-import { formatJPY } from "../../lib/numberFormat";
+import { getEffectiveSymbol } from "../../lib/currencyUtils";
+import { formatCurrency } from "../../lib/numberFormat";
 import { useAccountDisplayName } from "./ttUtils";
 
 export function UnknownFundsSection() {
   const { t, locale } = useLang();
-  const { accounts, journal, refresh } = useAppData();
+  const { accounts, journal, refresh, enabledCurrencies } = useAppData();
   const getDisplayName = useAccountDisplayName();
   const [processing, setProcessing] = useState<number | null>(null);
   const [confirmEntry, setConfirmEntry] = useState<{
@@ -32,63 +33,34 @@ export function UnknownFundsSection() {
   const unknownFundsAccount = accounts.find(
     (a) => a.name === "__system:unknown_funds__",
   );
-  const miscExpenseAccount = accounts.find(
-    (a) => a.name === "__system:misc_expense__",
-  );
-  const miscIncomeAccount = accounts.find(
-    (a) => a.name === "__system:misc_income__",
-  );
+  const formatAmount = (amount: number, currency: string | null | undefined) => {
+    const code = (currency || "JPY").toUpperCase();
+    return formatCurrency(
+      amount,
+      locale,
+      code,
+      getEffectiveSymbol(code, enabledCurrencies),
+    );
+  };
 
   // Find journal entries involving the 不明金 account
   const unknownFundEntries = useMemo(() => {
     if (!unknownFundsAccount) return [];
-    return journal.filter((e) =>
-      e.lines.some((l) => l.account_id === unknownFundsAccount.id),
+    return journal.filter((entry) =>
+      entry.lines.some(
+        (line) =>
+          line.account_id === unknownFundsAccount.id &&
+          (line.debit !== 0 || line.credit !== 0),
+      ),
     );
   }, [journal, unknownFundsAccount]);
 
   async function handleProcessMisc(entry: JournalEntry) {
-    if (!unknownFundsAccount || !miscExpenseAccount || !miscIncomeAccount)
-      return;
-
-    const ufLines = entry.lines.filter(
-      (l) => l.account_id === unknownFundsAccount.id,
-    );
+    if (!unknownFundsAccount) return;
 
     setProcessing(entry.id);
     try {
-      for (const ufLine of ufLines) {
-        // If 不明金 was debited (missing money) → 雑損 (expense) takes over
-        // If 不明金 was credited (extra money) → 雑益 (income) takes over
-        const ufBalance = ufLine.debit - ufLine.credit;
-        const amount = Math.abs(ufBalance);
-
-        let debitAcctId: number;
-        let creditAcctId: number;
-
-        if (ufBalance > 0) {
-          // 不明金 has debit balance → missing money → expense
-          debitAcctId = miscExpenseAccount.id;
-          creditAcctId = unknownFundsAccount.id;
-        } else {
-          // 不明金 has credit balance → extra money → income
-          debitAcctId = unknownFundsAccount.id;
-          creditAcctId = miscIncomeAccount.id;
-        }
-
-        await api.journal.create({
-          date: entry.date,
-          description:
-            locale === "ja"
-              ? `雑損・雑益処理 - ${entry.description}`
-              : `Misc reclassification - ${entry.description}`,
-          lines: [
-            { account_id: debitAcctId, debit: amount, credit: 0 },
-            { account_id: creditAcctId, debit: 0, credit: amount },
-          ],
-          budget_source: "multiline",
-        });
-      }
+      await api.trialBalance.resolveUnknownFunds(entry.id);
       showFeedback({ message: t("ttUnknownFundsProcessed"), color: "teal" });
       setConfirmEntry(null);
       await refresh();
@@ -123,10 +95,19 @@ export function UnknownFundsSection() {
         {t("ttUnknownFundsTitle")}
       </Text>
       {unknownFundEntries.map((entry) => {
-        const ufLine = entry.lines.find(
-          (l) => l.account_id === unknownFundsAccount.id,
+        const unknownLines = entry.lines.filter(
+          (line) =>
+            line.account_id === unknownFundsAccount.id &&
+            (line.debit !== 0 || line.credit !== 0),
         );
-        const ufBalance = ufLine ? ufLine.debit - ufLine.credit : 0;
+        const unknownBalances = new Map<string, number>();
+        for (const line of unknownLines) {
+          const currency = (line.currency || "JPY").toUpperCase();
+          unknownBalances.set(
+            currency,
+            (unknownBalances.get(currency) ?? 0) + line.debit - line.credit,
+          );
+        }
 
         return (
           <Paper key={entry.id} withBorder p="md" radius="md">
@@ -136,25 +117,35 @@ export function UnknownFundsSection() {
                   {entry.date} — {entry.description}
                 </Text>
                 <Text size="xs" c="dimmed">
-                  {"Unknown funds balance"}:{" "}
-                  <Text
-                    span
-                    fw={600}
-                    c={ufBalance > 0 ? "red" : "teal"}
-                    size="xs"
-                  >
-                    {ufBalance >= 0 ? "+" : ""}
-                    {formatJPY(ufBalance, locale)}
-                  </Text>
-                </Text>
-                <Box mt={4}>
-                  {entry.lines.map((l) => (
-                    <Text key={l.id} size="xs" c="dimmed">
-                      {l.debit > 0
-                        ? `DR ${getDisplayName(l.account_name)} ${formatJPY(l.debit, locale)}`
-                        : `CR ${getDisplayName(l.account_name)} ${formatJPY(l.credit, locale)}`}
+                  {t("ttUnknownFundsBalance")}: {" "}
+                  {[...unknownBalances.entries()].map(([currency, balance]) => (
+                    <Text
+                      key={currency}
+                      span
+                      fw={600}
+                      c={balance > 0 ? "red" : "teal"}
+                      size="xs"
+                    >
+                      {balance >= 0 ? "+" : ""}
+                      {formatAmount(balance, currency)}{" "}
                     </Text>
                   ))}
+                </Text>
+                <Box mt={4}>
+                  {entry.lines
+                    .filter(
+                      (line) =>
+                        line.account_id !== unknownFundsAccount.id ||
+                        line.debit !== 0 ||
+                        line.credit !== 0,
+                    )
+                    .map((l) => (
+                      <Text key={l.id} size="xs" c="dimmed">
+                        {l.debit > 0
+                          ? `DR ${getDisplayName(l.account_name)} ${formatAmount(l.debit, l.currency)}`
+                          : `CR ${getDisplayName(l.account_name)} ${formatAmount(l.credit, l.currency)}`}
+                      </Text>
+                    ))}
                 </Box>
               </Box>
               <Button
@@ -185,36 +176,47 @@ export function UnknownFundsSection() {
             >
               {t("ttMiscReclassWarning")}
             </Alert>
-            <Text size="sm">{t("ttUnknownFundsMiscConfirm")}</Text>
+            <Text size="sm">{t("ttUnknownFundsReclassConfirm")}</Text>
             {(() => {
               const entry = confirmEntry.entry;
-              const ufLine = entry.lines.find(
-                (l) => l.account_id === unknownFundsAccount.id,
+              const unknownLines = entry.lines.filter(
+                (line) =>
+                  line.account_id === unknownFundsAccount.id &&
+                  (line.debit !== 0 || line.credit !== 0),
               );
-              const ufBalance = ufLine ? ufLine.debit - ufLine.credit : 0;
-              const amount = Math.abs(ufBalance);
-              const isExpense = ufBalance > 0;
               return (
                 <Table fz="sm" withRowBorders>
                   <Table.Thead>
                     <Table.Tr>
-                      <Table.Th>{locale === "ja" ? "借方" : "Debit"}</Table.Th>
-                      <Table.Th>{locale === "ja" ? "貸方" : "Credit"}</Table.Th>
-                      <Table.Th className="currency-cell">Amount</Table.Th>
+                      <Table.Th>{t("ttUnknownFundsDebit")}</Table.Th>
+                      <Table.Th>{t("ttUnknownFundsCredit")}</Table.Th>
+                      <Table.Th className="currency-cell">
+                        {t("ttUnknownFundsAmount")}
+                      </Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    <Table.Tr>
-                      <Table.Td>
-                        {isExpense ? t("sysMiscExpense") : t("sysUnknownFunds")}
-                      </Table.Td>
-                      <Table.Td>
-                        {isExpense ? t("sysUnknownFunds") : t("sysMiscIncome")}
-                      </Table.Td>
-                      <Table.Td className="currency-cell">
-                        {formatJPY(amount, locale)}
-                      </Table.Td>
-                    </Table.Tr>
+                    {unknownLines.map((line) => {
+                      const isExpense = line.debit > 0;
+                      const amount = line.debit + line.credit;
+                      return (
+                        <Table.Tr key={line.id}>
+                          <Table.Td>
+                            {isExpense
+                              ? t("sysMiscExpense")
+                              : t("sysUnknownFunds")}
+                          </Table.Td>
+                          <Table.Td>
+                            {isExpense
+                              ? t("sysUnknownFunds")
+                              : t("sysMiscIncome")}
+                          </Table.Td>
+                          <Table.Td className="currency-cell">
+                            {formatAmount(amount, line.currency)}
+                          </Table.Td>
+                        </Table.Tr>
+                      );
+                    })}
                   </Table.Tbody>
                 </Table>
               );

@@ -4,10 +4,11 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { HouseholdForm } from "../SimpleEntryForm";
 
-mock.module("../../i18n", () => ({
+mock.module(import.meta.resolve("../../i18n/LangContext.tsx"), () => ({
+  LangProvider: ({ children }: { children: unknown }) => children,
   useLang: () => ({ t: (key: string) => key }),
 }));
-mock.module("../../context/AppDataContext", () => ({
+mock.module(import.meta.resolve("../../context/AppDataContext.tsx"), () => ({
   useAppData: () => ({ displayCurrencySymbol: "¥" }),
 }));
 

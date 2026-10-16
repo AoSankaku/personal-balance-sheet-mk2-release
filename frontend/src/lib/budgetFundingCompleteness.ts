@@ -3,6 +3,7 @@ import type {
   BudgetAdjustmentLog,
   JournalEntry,
 } from "@balance-sheet/shared";
+import { isBudgetAsset } from "../../../shared/budgetScope";
 import { calculateMultiLineBudgetFundingImpact } from "./multiLineBudgetFunding";
 
 export interface BudgetResetBoundary {
@@ -57,13 +58,7 @@ function isLoanOrLendingAccount(account: Account | undefined): boolean {
 }
 
 function isAllocatableBudgetAsset(account: Account | undefined): boolean {
-  return Boolean(
-    account &&
-      account.type === "asset" &&
-      account.category === "cash" &&
-      account.include_in_allocatable !== false &&
-      account.is_depreciable !== true,
-  );
+  return isBudgetAsset(account);
 }
 
 export function getAllocatableAssetDelta(
@@ -158,7 +153,7 @@ export function isLoanBudgetFundingMissing(
     );
     return Math.abs(expectedPrincipal - savedPrincipal) > 0.000_001;
   }
-  return impact.components.some((component) => component.applied_amount > 0);
+  return impact.components.length > 0;
 }
 
 export function getLoanBudgetFundingPrincipal(

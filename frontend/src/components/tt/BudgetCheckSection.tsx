@@ -32,7 +32,6 @@ import { useAppData } from "../../context/AppDataContext";
 import { usePrivacy } from "../../context/PrivacyContext";
 import {
   findLatestBudgetResetBoundary,
-  getAllocatableAssetDelta,
   getLoanBudgetFundingPrincipal,
   isEntryAfterBudgetReset,
   isLoanBudgetFundingMissing,
@@ -41,6 +40,7 @@ import {
   findPreResetCreditCardSettlements,
   getExcludedCashBudgetConsumptionAmount,
   getUnallocatedAllocatableIncomeAmount,
+  isBudgetNeutralLoanFunding,
 } from "../../lib/budgetConsistency";
 import { formatCurrency, formatJPY } from "../../lib/numberFormat";
 import { showFeedback } from "../../lib/feedback";
@@ -283,18 +283,11 @@ export function BudgetCheckSection() {
           isEntryAfterBudgetReset(entry, latestResetBoundary) &&
           (entry.budget_funding_components?.length ?? 0) === 0 &&
           (entry.budget_funding?.allocations.length ?? 0) === 0 &&
-          getLoanBudgetFundingPrincipal(
+          isBudgetNeutralLoanFunding(
             entry,
             accountMap,
             displayCurrency || "JPY",
-          ) > 0 &&
-          Math.abs(
-            getAllocatableAssetDelta(
-              entry,
-              accountMap,
-              displayCurrency || "JPY",
-            ),
-          ) < 0.000_001,
+          ),
       ),
     [
       filteredJournal,

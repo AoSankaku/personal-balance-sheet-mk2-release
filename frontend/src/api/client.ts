@@ -241,6 +241,7 @@ export const api = {
         payday?: number | null;
         is_depreciable?: boolean;
         include_in_allocatable?: boolean;
+        deduct_from_budget?: boolean;
         budget_ratios?: AccountBudgetRatio[];
       },
     ) =>
@@ -719,6 +720,14 @@ export const api = {
     },
   },
   trialBalance: {
+    adjustSnapshot: (id: number, entries?: { account_id: number; currency: string }[]) =>
+      mutationRequest<{ ok: boolean }>(`/trial-balance/snapshots/${id}/adjustments`, {
+        method: "POST", body: JSON.stringify({ entries }),
+      }, DERIVED_JOURNAL_PREFIXES),
+    resolveUnknownFunds: (id: number) =>
+      mutationRequest<{ ok: boolean }>(`/trial-balance/unknown-funds/${id}/resolve`, {
+        method: "POST", body: "{}",
+      }, DERIVED_JOURNAL_PREFIXES),
     getLatestSnapshotDate: () =>
       request<{ snapshot_date: string | null }>(
         "/trial-balance/latest-snapshot",
