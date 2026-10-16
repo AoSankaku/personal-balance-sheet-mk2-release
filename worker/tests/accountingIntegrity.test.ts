@@ -183,6 +183,26 @@ describe("accounting integrity API regressions", () => {
     const foreign = await post(journalRouter, database, { ...base,
       income_budget_allocations: [{ budget_category_id: 1001, amount: 10, currency: "USD" }] });
     expect(foreign.status).toBe(400);
+    const negative = await post(journalRouter, database, { ...base,
+      income_budget_allocations: [{ budget_category_id: 1001, amount: -3000 }] });
+    expect(negative.status).toBe(400);
+    expect(database.sqlite.query("SELECT COUNT(*) AS n FROM journal_entries").get()).toEqual({ n: 0 });
+  });
+
+  test("rejects budget distribution for accrued income without budget resources", async () => {
+    const database = fixture();
+    database.sqlite.exec("INSERT INTO accounts(id,name,type,category) VALUES(1007,'Receivable','asset','other')");
+    const response = await post(journalRouter, database, { date: "2026-10-02", description: "accrued reward",
+      lines: [{ account_id: 1007, debit: 3000, credit: 0 }, { account_id: 1004, debit: 0, credit: 3000 }],
+      income_budget_allocations: [{ budget_category_id: 1001, amount: 3000 }] });
+    expect(response.status).toBe(400);
+  });
+
+  test("prevalidates every import source before writing the first valid row", async () => {
+    const database = fixture();
+    const base = { date: "2026-10-02", description: "import", lines: [{ account_id: 1001, debit: 100, credit: 0 }, { account_id: 1004, debit: 0, credit: 100 }] };
+    const response = await post(journalRouter, database, { entries: [base, { ...base, lines: [{ account_id: 999999, debit: 100, credit: 0 }, { account_id: 1004, debit: 0, credit: 100 }] }] }, "/batch");
+    expect(response.status).toBe(400);
     expect(database.sqlite.query("SELECT COUNT(*) AS n FROM journal_entries").get()).toEqual({ n: 0 });
   });
 
