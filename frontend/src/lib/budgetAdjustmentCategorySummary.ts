@@ -1,5 +1,7 @@
 import type { BudgetAdjustmentLog } from "@balance-sheet/shared";
+import { replayBudgetHistory } from "../../../shared/budgetHistory";
 import { sortBudgetAdjustmentLogs } from "./budgetAdjustmentLogSort";
+import { budgetAdjustmentLogKey } from "./budgetAdjustmentLogBalances";
 
 export interface BudgetAdjustmentCategorySummary {
   budget_category_id: number;
@@ -19,6 +21,7 @@ export function summarizeBudgetAdjustmentLogsByCategory(
   logs: BudgetAdjustmentLog[],
   budgetCategoryOrderIds: number[] = [],
   availableByCategoryId: ReadonlyMap<number, number> = new Map(),
+  historyBalanceByKey?: ReadonlyMap<string, number>,
 ): BudgetAdjustmentCategorySummary[] {
   const groups = new Map<number, BudgetAdjustmentLog[]>();
   const categoryOrder = new Map(
@@ -33,24 +36,35 @@ export function summarizeBudgetAdjustmentLogsByCategory(
 
   return [...groups.entries()]
     .map(([budgetCategoryId, groupLogs]) => {
-      const sortedLogs = sortBudgetAdjustmentLogs(groupLogs, {
+      const localReplay = historyBalanceByKey
+        ? null
+        : replayBudgetHistory(groupLogs);
+      const categoryLogs = localReplay?.logs ?? groupLogs;
+      const balanceByKey = historyBalanceByKey ?? localReplay!.balances;
+      const sortedLogs = sortBudgetAdjustmentLogs(categoryLogs, {
         key: "date",
         dir: "desc",
       });
       const latestLog = sortedLogs[0]!;
-      const adjustedTotal = groupLogs.reduce((sum, log) => sum + log.amount, 0);
-      let balanceAfter = adjustedTotal;
-      const logBalances = sortedLogs.map((log) => {
-        const row = { log, adjusted_total_after: balanceAfter };
-        balanceAfter -= log.amount;
-        return row;
-      });
+      const adjustedTotal = groupLogs.reduce(
+        (sum, log) => sum + (log.is_reference ? 0 : log.amount),
+        0,
+      );
+      const logBalances = sortedLogs.map((log) => ({
+        log,
+        adjusted_total_after:
+          balanceByKey.get(budgetAdjustmentLogKey(log)) ?? 0,
+      }));
+      const balanceAtLatestLog =
+        balanceByKey.get(budgetAdjustmentLogKey(latestLog));
       return {
         budget_category_id: budgetCategoryId,
         budget_category_name: latestLog.budget_category_name,
         adjustment_total: adjustedTotal,
         adjusted_total:
-          availableByCategoryId.get(budgetCategoryId) ?? adjustedTotal,
+          availableByCategoryId.get(budgetCategoryId) ??
+          balanceAtLatestLog ??
+          adjustedTotal,
         entry_count: groupLogs.length,
         latest_log: latestLog,
         logs: sortedLogs,
