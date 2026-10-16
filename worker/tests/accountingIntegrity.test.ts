@@ -83,6 +83,17 @@ describe("accounting integrity API regressions", () => {
     expect(await foodAvailable(database)).toEqual({ available: 10000, reserve: 0 });
   });
 
+  test("permits tracked income cancellation but isolates excluded-cash cancellations", async () => {
+    const database = fixture();
+    const body = (cash: number) => ({ date: "2026-10-02", description: "income cancellation",
+      lines: [{ account_id: 1004, debit: 3000, credit: 0 }, { account_id: cash, debit: 0, credit: 3000 }],
+      income_budget_allocations: [{ budget_category_id: 1001, amount: -3000 }] });
+    expect((await post(journalRouter, database, body(1001))).status).toBe(201);
+    expect((await foodAvailable(database)).available).toBe(7000);
+    expect((await post(journalRouter, database, body(1002))).status).toBe(400);
+    expect((await foodAvailable(database)).available).toBe(7000);
+  });
+
   test("new cards default to budget deduction and the setting round trips", async () => {
     const database = fixture();
     const created = await post(accountsRouter, database, { name: "new card", type: "liability", category: "credit_card" });
