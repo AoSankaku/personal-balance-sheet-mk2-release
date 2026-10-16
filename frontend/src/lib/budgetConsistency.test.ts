@@ -178,6 +178,44 @@ describe("budget consistency", () => {
     ).toBe(false);
   });
 
+  test("uses reference allocations for a refund into excluded cash", () => {
+    const accounts = new Map([
+      [1, account(1, "asset", "cash", false)],
+      [2, account(2, "expense", "food")],
+    ]);
+
+    expect(
+      shouldUseReferenceBudgetAllocations(
+        [
+          { account_id: 2, debit: 0, credit: 300, currency: "JPY" },
+          { account_id: 1, debit: 300, credit: 0, currency: "JPY" },
+        ],
+        accounts,
+        "JPY",
+      ),
+    ).toBe(true);
+  });
+
+  test("does not classify excluded cash plus a credit card as reference-only", () => {
+    const accounts = new Map([
+      [1, account(1, "asset", "cash", false)],
+      [2, account(2, "liability", "credit_card")],
+      [3, account(3, "expense", "food")],
+    ]);
+
+    expect(
+      shouldUseReferenceBudgetAllocations(
+        [
+          { account_id: 3, debit: 1_000, credit: 0, currency: "JPY" },
+          { account_id: 1, debit: 0, credit: 400, currency: "JPY" },
+          { account_id: 2, debit: 0, credit: 600, currency: "JPY" },
+        ],
+        accounts,
+        "JPY",
+      ),
+    ).toBe(false);
+  });
+
   test("attributes later payments to pre-reset card debt before new debt", () => {
     const accounts = new Map([
       [1, account(1, "asset", "cash")],
