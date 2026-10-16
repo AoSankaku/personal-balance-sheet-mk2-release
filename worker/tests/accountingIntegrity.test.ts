@@ -102,6 +102,19 @@ describe("accounting integrity API regressions", () => {
     expect(database.sqlite.query("SELECT deduct_from_budget FROM accounts WHERE category='credit_card'").get()).toEqual({ deduct_from_budget: 1 });
   });
 
+  test("deducted loan principal cannot allocate budget through the legacy payload", async () => {
+    const database = fixture();
+    database.sqlite.exec("INSERT INTO accounts(id,name,type,category,deduct_from_budget) VALUES(1007,'Loan','liability','long_term_loan',1)");
+    const base = { date: "2026-10-02", description: "borrow", lines: [{ account_id: 1001, debit: 500, credit: 0 }, { account_id: 1007, debit: 0, credit: 500 }] };
+    const invalid = await post(journalRouter, database, { ...base, budget_funding: { kind: "borrow", principal_amount: 500, allocations: [{ budget_category_id: 1001, amount: 500 }] } });
+    expect(invalid.status).toBe(400);
+    const valid = await post(journalRouter, database, { ...base, budget_funding_components: [{ kind: "borrow", principal_amount: 500, applied_amount: 0, component_only_amount: 500, allocations: [{ budget_category_id: null, amount: 500, effect: "component_only" }] }] });
+    expect(valid.status).toBe(201);
+    expect((await foodAvailable(database)).available).toBe(10000);
+    const rows = await accountsRouter.request("/", {}, { DB: database.DB });
+    expect(sumBudgetResourceBalances(await rows.json() as Parameters<typeof sumBudgetResourceBalances>[0], "JPY")).toBe(0);
+  });
+
   test("reference toggling cannot make excluded-cash spending consume a budget", async () => {
     const database = fixture();
     const response = await post(journalRouter, database, { date: "2026-10-02", description: "excluded",
