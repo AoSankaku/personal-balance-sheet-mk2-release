@@ -9,6 +9,7 @@ const EXACT_PAGE_TITLE_KEYS: Record<string, TranslationKey> = {
   "/fs/crypto": "tabTrialBalance",
   "/fs/report": "settingsNavExportTitle",
   "/fs/tt": "tabTrialBalance",
+  "/fs/budget": "budgetTitle",
   "/fs/db": "tabLoanMgmt",
   "/fs/sv": "tabSavings",
   "/ledger": "navLedger",

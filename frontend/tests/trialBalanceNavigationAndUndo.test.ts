@@ -28,26 +28,32 @@ describe("trial-balance primary navigation and forced-completion undo", () => {
       "ja.yaml": [
         "tabTrialBalance: 残高照合",
         "tabTrialBalanceDesc: 帳簿と実際の残高を照合",
+        "tabBudgetDesc: 予算の整合性を確認",
       ],
       "en.yaml": [
         "tabTrialBalance: Balance Reconciliation",
         "tabTrialBalanceDesc: Compare book and actual balances",
+        "tabBudgetDesc: Check budget consistency",
       ],
       "fr.yaml": [
         'tabTrialBalance: "Rapprochement des soldes"',
         'tabTrialBalanceDesc: "Comparer les soldes comptables et réels"',
+        'tabBudgetDesc: "Vérifier la cohérence du budget"',
       ],
       "es.yaml": [
         'tabTrialBalance: "Conciliación de saldos"',
         'tabTrialBalanceDesc: "Comparar saldos contables y reales"',
+        'tabBudgetDesc: "Comprobar la coherencia del presupuesto"',
       ],
       "zh-CN.yaml": [
         "tabTrialBalance: 余额核对",
         "tabTrialBalanceDesc: 核对账面余额与实际余额",
+        "tabBudgetDesc: 检查预算一致性",
       ],
       "zh-TW.yaml": [
         "tabTrialBalance: 餘額核對",
         "tabTrialBalanceDesc: 核對帳面餘額與實際餘額",
+        "tabBudgetDesc: 檢查預算一致性",
       ],
     } as const;
 
@@ -59,27 +65,31 @@ describe("trial-balance primary navigation and forced-completion undo", () => {
     }
   });
 
-  test("keeps balance reconciliation prominent and hides the undecided report card", () => {
+  test("places balance reconciliation and budget side by side as primary destinations", () => {
     const assetsPage = source("src/pages/AssetsPage.tsx");
+    const app = source("src/App.tsx");
+    const budgetPage = source("src/pages/BudgetPage.tsx");
+    const trialBalancePage = source("src/pages/TtPage.tsx");
     const trialBalanceIndex = assetsPage.indexOf('to: "/fs/tt"');
+    const budgetIndex = assetsPage.indexOf('to: "/fs/budget"');
     const balanceSheetIndex = assetsPage.indexOf('to: "/fs/bs"');
 
     expect(trialBalanceIndex).toBeGreaterThan(-1);
+    expect(budgetIndex).toBeGreaterThan(trialBalanceIndex);
+    expect(budgetIndex).toBeLessThan(balanceSheetIndex);
     expect(trialBalanceIndex).toBeLessThan(balanceSheetIndex);
-    expect(assetsPage).toContain('const isTrialBalanceBtn = to === "/fs/tt"');
-    expect(assetsPage).toContain(
-      'variant={isTrialBalanceBtn ? "light" : "default"}',
-    );
-    expect(assetsPage).toContain(
-      'gridColumn: isTrialBalanceBtn ? "1 / -1" : undefined',
-    );
-    expect(assetsPage).toContain(
-      "padding: isTrialBalanceBtn ? rem(24) : rem(16)",
-    );
-    expect(assetsPage).toContain("size={isTrialBalanceBtn ? 64 : 48}");
+    expect(assetsPage).toContain('<SimpleGrid cols={{ base: 1, sm: 2 }}');
+    expect(assetsPage).toContain('label: t("budgetTitle")');
+    expect(assetsPage).toContain('desc: t("tabBudgetDesc")');
     expect(assetsPage).toContain('cols={{ base: 2, md: 4 }}');
     expect(assetsPage).not.toContain('to: "/fs/report"');
     expect(assetsPage).not.toContain('to: "/fs/crypto"');
+
+    expect(app).toContain('path="/fs/budget"');
+    expect(budgetPage).toContain("<BudgetCheckSection />");
+    expect(budgetPage).not.toContain("<ActualInputSection");
+    expect(trialBalancePage).not.toContain('value: "budget"');
+    expect(trialBalancePage).toContain('to={`/fs/budget${legacyBudgetQuery}`}');
   });
 
   test("places optional crypto fetching after manual account inputs", () => {

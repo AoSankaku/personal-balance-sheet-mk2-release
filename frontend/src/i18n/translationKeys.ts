@@ -1110,6 +1110,7 @@ export const translationKeys = [
   "ttSegActualInput",
   "ttSegDeviation",
   "ttSegBudgetCheck",
+  "tabBudgetDesc",
   "ttSegUnknownFunds",
   "ttActualInputTitle",
   "ttActualInputDesc",

@@ -830,6 +830,7 @@ suspiciousExpenseMismatch: "費用額と予算配分の差異: 実際¥{actual} 
 suspiciousIncomeMismatch: "収入額と予算分配の差異: 実際¥{actual} / 分配¥{distributed}"
 tabTrialBalance: 残高照合
 tabTrialBalanceDesc: 帳簿と実際の残高を照合
+tabBudgetDesc: 予算の整合性を確認
 tabLoanMgmt: ローン管理
 tabLoanMgmtDesc: 貸し借りを管理
 sectionShortTermLending: 短期貸付
@@ -1053,8 +1054,8 @@ sysShortTermLending: 短期貸付
 sysShortTermLoan: 短期借入
 sysAccountBadge: システム
 sysAccountTooltip: システム科目 — 削除・名称変更できません
-budgetCheckMovedNotice: 予算整合性チェックは試算表ページに移動しました。
-budgetCheckMovedLink: 試算表ページへ →
+budgetCheckMovedNotice: 予算整合性チェックは予算ページに移動しました。
+budgetCheckMovedLink: 予算ページへ →
 fiscalHealthTitle: 財政健全度指標
 fiscalHealthSafe: 安全
 fiscalHealthCaution: 注意

@@ -830,6 +830,7 @@ suspiciousExpenseMismatch: "支出與分配差異：實際 ¥{actual} / 已分�
 suspiciousIncomeMismatch: "收入與分配差異：實際 ¥{actual} / 已分配 ¥{distributed}"
 tabTrialBalance: 餘額核對
 tabTrialBalanceDesc: 核對帳面餘額與實際餘額
+tabBudgetDesc: 檢查預算一致性
 tabLoanMgmt: 貸款管理
 tabLoanMgmtDesc: 管理貸出與借入
 sectionShortTermLending: 短期貸出
@@ -1053,8 +1054,8 @@ sysShortTermLending: 短期貸出
 sysShortTermLoan: 短期借入
 sysAccountBadge: 系統
 sysAccountTooltip: 系統帳戶 - 不能刪除或重新命名
-budgetCheckMovedNotice: 預算一致性檢查已移至試算表頁面。
-budgetCheckMovedLink: 前往試算表 →
+budgetCheckMovedNotice: 預算一致性檢查已移至預算頁面。
+budgetCheckMovedLink: 前往預算頁面 →
 fiscalHealthTitle: 財務健康指數
 fiscalHealthSafe: 健康
 fiscalHealthCaution: 注意

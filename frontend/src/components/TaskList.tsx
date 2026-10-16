@@ -161,7 +161,7 @@ export function TaskList({ onNavigate, tasks }: TaskListProps) {
         <UnstyledButton
           className="task-menu__item task-menu__budget-card"
           aria-label={`${t("taskBudgetNegativeTitle")}. ${t("taskBudgetNegative")}. ${t("taskBudgetNegativeAction")}`}
-          onClick={() => openTask("/fs/tt?segment=budget&basis=today")}
+          onClick={() => openTask("/fs/budget?basis=today")}
         >
           <Group align="flex-start" gap="sm" wrap="nowrap">
             <ThemeIcon color="red" variant="light" radius="xl" size={34}>

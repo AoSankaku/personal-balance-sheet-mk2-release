@@ -33,7 +33,7 @@ Income entries can apply a budget filter to distribute the deposit across catego
 
 Cash/bank accounts have an "include in allocatable budget source" setting. Only enabled accounts count as allocatable cash and as actual balances in budget placement.
 
-The Budget Placement table appears in Settings -> Budget Settings and Financial Statements -> Trial Balance -> Budget Consistency Check.
+The Budget Placement table appears in Settings -> Budget Settings and Financial Statements -> Budget -> Budget Consistency Check.
 
 | Display | Meaning |
 | --- | --- |
@@ -41,7 +41,7 @@ The Budget Placement table appears in Settings -> Budget Settings and Financial 
 | Actual | Actual cash/bank balance for the target accounts |
 | Difference | Actual - Target |
 
-Target amounts use the same rule as allocatable money: only positive category balances are added. Negative balances do not reduce targets; they appear separately as unfunded budget overspending. In Trial Balance, you can switch between the today and future-income-inclusive bases, and the shortage notification opens the today view.
+Target amounts use the same rule as allocatable money: only positive category balances are added. Negative balances do not reduce targets; they appear separately as unfunded budget overspending. On the Budget page, you can switch between the today and future-income-inclusive bases, and the shortage notification opens the today view.
 
 If one budget links to multiple accounts, or multiple budgets link to one account, related budgets and accounts are merged into one group. When differences exist, hints show how much to move between account groups, or how much budget to add or reduce.
 
@@ -53,4 +53,4 @@ The real transfer and the budget movement are separate events. Budget-account li
 
 ## Budget Consistency
 
-Trial Balance -> Budget Consistency Check detects mismatches between journal entry amounts and saved budget allocation amounts. For multi-line entries and transactions outside budget tracking, the app does not guess budget categories unless explicit allocations are saved.
+Budget -> Budget Consistency Check detects mismatches between journal entry amounts and saved budget allocation amounts. For multi-line entries and transactions outside budget tracking, the app does not guess budget categories unless explicit allocations are saved.

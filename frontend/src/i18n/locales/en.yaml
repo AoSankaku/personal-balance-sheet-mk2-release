@@ -830,6 +830,7 @@ suspiciousExpenseMismatch: "Expense vs allocation gap: actual ¥{actual} / alloc
 suspiciousIncomeMismatch: "Income vs distribution gap: actual ¥{actual} / distributed ¥{distributed}"
 tabTrialBalance: Balance Reconciliation
 tabTrialBalanceDesc: Compare book and actual balances
+tabBudgetDesc: Check budget consistency
 tabLoanMgmt: Loan Mgmt
 tabLoanMgmtDesc: Manage loans & borrowings
 sectionShortTermLending: Short-term Lending
@@ -1053,8 +1054,8 @@ sysShortTermLending: Short-term Lending
 sysShortTermLoan: Short-term Loan
 sysAccountBadge: System
 sysAccountTooltip: System account — cannot be deleted or renamed
-budgetCheckMovedNotice: Budget consistency check has moved to the Trial Balance page.
-budgetCheckMovedLink: Go to Trial Balance →
+budgetCheckMovedNotice: Budget consistency check has moved to the Budget page.
+budgetCheckMovedLink: Go to Budget →
 fiscalHealthTitle: Financial Health Index
 fiscalHealthSafe: Healthy
 fiscalHealthCaution: Caution

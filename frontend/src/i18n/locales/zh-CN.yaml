@@ -830,6 +830,7 @@ suspiciousExpenseMismatch: "支出与分配差异：实际 ¥{actual} / 已分�
 suspiciousIncomeMismatch: "收入与分配差异：实际 ¥{actual} / 已分配 ¥{distributed}"
 tabTrialBalance: 余额核对
 tabTrialBalanceDesc: 核对账面余额与实际余额
+tabBudgetDesc: 检查预算一致性
 tabLoanMgmt: 贷款管理
 tabLoanMgmtDesc: 管理贷出与借入
 sectionShortTermLending: 短期贷出
@@ -1053,8 +1054,8 @@ sysShortTermLending: 短期贷出
 sysShortTermLoan: 短期借入
 sysAccountBadge: 系统
 sysAccountTooltip: 系统账户 - 不能删除或重命名
-budgetCheckMovedNotice: 预算一致性检查已移至试算表页面。
-budgetCheckMovedLink: 前往试算表 →
+budgetCheckMovedNotice: 预算一致性检查已移至预算页面。
+budgetCheckMovedLink: 前往预算页面 →
 fiscalHealthTitle: 财务健康指数
 fiscalHealthSafe: 健康
 fiscalHealthCaution: 注意

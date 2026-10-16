@@ -8,7 +8,7 @@ import {
   Title,
 } from "@mantine/core";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import type {
   ActualBalanceSnapshot,
   CreditCardStateEntry,
@@ -18,7 +18,6 @@ import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { ActualInputSection } from "../components/tt/ActualInputSection";
 import { DeviationSection } from "../components/tt/DeviationSection";
-import { BudgetCheckSection } from "../components/tt/BudgetCheckSection";
 import { UnknownFundsSection } from "../components/tt/UnknownFundsSection";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import type { TrialBalanceCarryForwardDraft } from "../lib/trialBalanceCarryForward";
@@ -27,7 +26,7 @@ import type { TrialBalanceCarryForwardDraft } from "../lib/trialBalanceCarryForw
 // Main page
 // ──────────────────────────────────────────────
 
-const SEGMENTS = ["actual", "deviation", "budget", "unknown"] as const;
+const SEGMENTS = ["actual", "deviation", "unknown"] as const;
 type Segment = (typeof SEGMENTS)[number];
 
 function getSegmentParam(searchParams: URLSearchParams): Segment {
@@ -49,6 +48,12 @@ export default function TtPage() {
   const [ccState, setCcState] = useState<CreditCardStateEntry[]>([]);
   const [carryForwardDraft, setCarryForwardDraft] =
     useState<TrialBalanceCarryForwardDraft | null>(null);
+  const legacyBudgetParams = new URLSearchParams(searchParams);
+  legacyBudgetParams.delete("segment");
+  const legacyBudgetParamsString = legacyBudgetParams.toString();
+  const legacyBudgetQuery = legacyBudgetParamsString
+    ? `?${legacyBudgetParamsString}`
+    : "";
 
   useEffect(() => {
     api.trialBalance
@@ -125,6 +130,10 @@ export default function TtPage() {
     setCarryForwardDraft(null);
   }, []);
 
+  if (searchParams.get("segment") === "budget") {
+    return <Navigate to={`/fs/budget${legacyBudgetQuery}`} replace />;
+  }
+
   if (loading) {
     return (
       <Stack gap="lg">
@@ -155,7 +164,6 @@ export default function TtPage() {
             { value: "actual", label: t("ttSegActualInput") },
             { value: "deviation", label: t("ttSegDeviation") },
             { value: "unknown", label: t("ttSegUnknownFunds") },
-            { value: "budget", label: t("ttSegBudgetCheck") },
           ]}
         />
       </ScrollArea>
@@ -187,8 +195,6 @@ export default function TtPage() {
       )}
 
       {segment === "unknown" && <UnknownFundsSection />}
-
-      {segment === "budget" && <BudgetCheckSection />}
     </Stack>
   );
 }
