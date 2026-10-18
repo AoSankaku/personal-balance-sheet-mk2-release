@@ -15,7 +15,8 @@ function fixture() {
       (1002,'Excluded cash','asset','cash',0,0),
       (1003,'Expense','expense','food',1,0),
       (1005,'Card','liability','credit_card',1,1),
-      (1007,'Other expense','expense','other',1,0);
+      (1007,'Other expense','expense','other',1,0),
+      (1008,'Income','income','salary',1,0);
     INSERT INTO budget_categories(id,name) VALUES(1001,'First'),(1002,'Second');
     INSERT INTO budget_adjustment_logs(budget_category_id,year_month,amount,currency,date)
       VALUES(1001,'2026-10',10000,'JPY','2026-10-01'),(1002,'2026-10',10000,'JPY','2026-10-01');
@@ -105,6 +106,15 @@ describe("expense budget allocation limits", () => {
     const body = payload(965);
     body.budget_allocations = [{ budget_category_id: 1001, amount: 100 }];
     expect((await request(database, body)).status).toBe(400);
+  });
+
+  test("does not let a zero-valued unrelated line bypass the limit", async () => {
+    const database = fixture();
+    const body = payload(965);
+    body.lines.push({ account_id: 1008, debit: 0, credit: 0, currency: "JPY" });
+    body.budget_allocations[1]!.amount -= 1;
+    expect((await request(database, body)).status).toBe(400);
+    expect(database.sqlite.query("SELECT COUNT(*) AS n FROM journal_entries").get()).toEqual({ n: 0 });
   });
 
   test("preserves compound expenses with a simultaneous refund", async () => {
