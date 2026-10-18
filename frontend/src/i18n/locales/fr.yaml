@@ -830,6 +830,7 @@ suspiciousExpenseMismatch: "Écart entre dépenses et allocation: ¥{actual} r�
 suspiciousIncomeMismatch: "Écart de revenu par rapport à la distribution: réel ¥{actual} / distribué ¥{distributed}"
 tabTrialBalance: "Rapprochement des soldes"
 tabTrialBalanceDesc: "Comparer les soldes comptables et réels"
+tabBudgetDesc: "Vérifier la cohérence du budget"
 tabLoanMgmt: "Gestion des prêts"
 tabLoanMgmtDesc: "Gérer les prêts et emprunts"
 sectionShortTermLending: "Prêts à court terme"
@@ -1005,6 +1006,16 @@ ttUnknownFundsJournalPreview: "Les écritures de journal suivantes seront enregi
 ttUnknownFundsConfirmMsg: "Enregistrer ces écritures pour corriger les écarts de solde?"
 ttUnknownFundsRecorded: "Entrées de fonds inconnues enregistrées"
 ttDeviationSelectSnapshot: "Sélectionnez un instantané"
+ttApplySnapshotAdjustments: Ajuster aux soldes relevés
+ttBalanceAdjustmentsSaved: Les ajustements de solde ont été enregistrés et seront recalculés si des écritures antérieures changent.
+ttSnapshotAdjustmentConfirm: Ces écritures rapprochent les soldes sélectionnés de ce relevé de fin de journée. Elles seront recalculées si des écritures antérieures changent.
+ttSnapshotEndOfDayHint: Les soldes sont enregistrés à la fin de la date sélectionnée. L’heure affichée indique l’enregistrement du relevé.
+ttSnapshotRecordedAt: "enregistré à {time}"
+ttUnknownFundsBalance: Solde des fonds inconnus
+ttUnknownFundsReclassConfirm: Reclasser les lignes d’origine des fonds inconnus en produit ou charge divers ? L’écriture existante sera modifiée sans en créer une autre.
+ttUnknownFundsDebit: Débit
+ttUnknownFundsCredit: Crédit
+ttUnknownFundsAmount: Montant
 ttUnknownFundsTitle: "Entrées de fonds inconnues"
 ttUnknownFundsEmpty: "Aucune entrée de fonds inconnu trouvée."
 ttUnknownFundsFixKnown: "Cause trouvée – correcte"
@@ -1053,8 +1064,8 @@ sysShortTermLending: "Prêt à court terme"
 sysShortTermLoan: "Emprunt à court terme"
 sysAccountBadge: "Système"
 sysAccountTooltip: "Compte système - ne peut pas être supprimé ni renommé"
-budgetCheckMovedNotice: "Le contrôle de cohérence budgétaire a été déplacé vers la page Balance de vérification."
-budgetCheckMovedLink: "Accédez à la balance de vérification →"
+budgetCheckMovedNotice: "Le contrôle de cohérence budgétaire a été déplacé vers la page Budget."
+budgetCheckMovedLink: "Accéder au budget →"
 fiscalHealthTitle: "Indice de santé financière"
 fiscalHealthSafe: "Sain"
 fiscalHealthCaution: "Prudence"
@@ -1457,3 +1468,9 @@ incomeTransferRegister: Confirmer et enregistrer
 incomeTransferTargetMissing: Aucun compte de placement n'est configuré. Définissez-en un dans la catégorie budgétaire.
 incomeTransferEditConflict: Cette modification contredit un virement terminé. Annulez son achèvement dans la tâche de virement du journal avant de modifier.
 budgetFundingExcludedInfo: Le principal a changé uniquement via des comptes exclus. Modifiez l'écriture pour confirmer l'abandon ou la conversion budgétaire.
+
+deductFromBudgetLabel: "Déduire des ressources budgétaires"
+deductFromBudgetHint: "Déduire le solde de cette dette des actifs budgétaires. Activé par défaut pour les cartes."
+incomeOutsideBudgetHint: "Les revenus reçus ici n’augmentent pas le budget. Un transfert vers un compte budgétaire augmente les fonds non affectés."
+budgetHistorySourceFunding: "Financement budgétaire des prêts"
+loanFundingNoBudgetImpactHint: "Ce mouvement de capital ne modifie pas les ressources budgétaires. Comptabilisez les intérêts et autres charges séparément."

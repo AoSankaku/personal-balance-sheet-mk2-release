@@ -41,6 +41,7 @@ import type {
   CreateJournalInput,
   JournalEntry,
 } from "@balance-sheet/shared";
+import { replayBudgetHistory } from "../../../shared/budgetHistory";
 import { api } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
@@ -67,7 +68,6 @@ import {
 } from "../lib/budgetAdjustmentLogSort";
 import {
   budgetAdjustmentLogKey,
-  buildBudgetAdjustmentLogBalanceMap,
 } from "../lib/budgetAdjustmentLogBalances";
 import { summarizeBudgetAdjustmentLogsByCategory } from "../lib/budgetAdjustmentCategorySummary";
 import {
@@ -583,18 +583,22 @@ export default function LedgerPage() {
     appliedFilterCreatedRange,
   ]);
 
-  const latestResetByCategory = useMemo(
-    () => buildLatestBudgetResetByCategory(adjustmentLogs),
+  const replayedBudgetHistory = useMemo(
+    () => replayBudgetHistory(adjustmentLogs),
     [adjustmentLogs],
+  );
+  const latestResetByCategory = useMemo(
+    () => buildLatestBudgetResetByCategory(replayedBudgetHistory.logs),
+    [replayedBudgetHistory],
   );
   const visibleAdjustmentLogs = useMemo(
     () =>
-      filterBudgetAdjustmentHistory(adjustmentLogs, {
+      filterBudgetAdjustmentHistory(replayedBudgetHistory.logs, {
         from: budgetLogRange[0] ? toDateStr(budgetLogRange[0]) : undefined,
         to: budgetLogRange[1] ? toDateStr(budgetLogRange[1]) : undefined,
         showBeforeLatestReset,
       }),
-    [adjustmentLogs, budgetLogRange, showBeforeLatestReset],
+    [replayedBudgetHistory, budgetLogRange, showBeforeLatestReset],
   );
   const sortedLogs = useMemo(() => {
     return sortBudgetAdjustmentLogs(
@@ -604,8 +608,8 @@ export default function LedgerPage() {
     );
   }, [visibleAdjustmentLogs, budgetSort, budgetCategories]);
   const budgetLogBalanceByKey = useMemo(
-    () => buildBudgetAdjustmentLogBalanceMap(visibleAdjustmentLogs),
-    [visibleAdjustmentLogs],
+    () => replayedBudgetHistory.balances,
+    [replayedBudgetHistory],
   );
   const budgetAvailableByCategoryId = useMemo(
     () =>
@@ -622,8 +626,14 @@ export default function LedgerPage() {
         visibleAdjustmentLogs,
         budgetCategories.map((category) => category.id),
         budgetAvailableByCategoryId,
+        replayedBudgetHistory.balances,
       ),
-    [visibleAdjustmentLogs, budgetCategories, budgetAvailableByCategoryId],
+    [
+      visibleAdjustmentLogs,
+      budgetCategories,
+      budgetAvailableByCategoryId,
+      replayedBudgetHistory,
+    ],
   );
 
   const journalPageCount = Math.max(
@@ -703,6 +713,13 @@ export default function LedgerPage() {
         </Badge>
       );
     }
+    if (log.type === "funding") {
+      return (
+        <Badge color="grape" variant="light" size="sm">
+          {t("budgetHistorySourceFunding")}
+        </Badge>
+      );
+    }
     if (log.type === "reset") {
       return (
         <Badge color="red" variant="light" size="sm">
@@ -734,7 +751,8 @@ export default function LedgerPage() {
         {(log.type === "income" ||
           log.type === "transfer" ||
           log.type === "simple" ||
-          log.type === "multiline") &&
+          log.type === "multiline" ||
+          log.type === "funding") &&
           log.journal_entry_id && (
             <ActionIcon
               size="sm"
@@ -1643,6 +1661,7 @@ export default function LedgerPage() {
             value={editAmount}
             onChange={setEditAmount}
             allowDecimal={false}
+            disabled={editingLog?.type === "reset"}
           />
           <DatePickerInput
             label={t("thDate")}

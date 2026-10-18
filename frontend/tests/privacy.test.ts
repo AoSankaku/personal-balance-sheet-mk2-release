@@ -62,18 +62,22 @@ describe("privacy formatting", () => {
     expect(privateIndexedLabel("Liability", 11)).toBe("Liability12");
   });
 
-  test("blocks trial balance and loan management routes in privacy mode", () => {
+  test("blocks reconciliation, budget, and loan management routes in privacy mode", () => {
     const source = readFileSync(
       new URL("../src/App.tsx", import.meta.url),
       "utf8",
     );
 
     expect(source).toContain('path="/fs/tt"');
+    expect(source).toContain('path="/fs/budget"');
     expect(source).toContain('path="/fs/db"');
     expect(source).toContain('path="/fs/db/long-term-loan/:id"');
     expect(source).toContain('path="/fs/db/long-term-lend/:id"');
     expect(source).toContain(
       "element={privacyMode ? <PrivacyModeBlocked /> : <TtPage />}",
+    );
+    expect(source).toContain(
+      "element={privacyMode ? <PrivacyModeBlocked /> : <BudgetPage />}",
     );
     expect(source).toContain(
       "element={privacyMode ? <PrivacyModeBlocked /> : <DbPage />}",

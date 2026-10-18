@@ -391,13 +391,9 @@ export function ActualInputSection({
       });
       if (general_entries.length === 0) return;
 
-      const now = new Date();
-      const isToday =
-        date.getFullYear() === now.getFullYear() &&
-        date.getMonth() === now.getMonth() &&
-        date.getDate() === now.getDate();
-      const hh = isToday ? String(now.getHours()).padStart(2, "0") : "23";
-      const mm = isToday ? String(now.getMinutes()).padStart(2, "0") : "59";
+      const recordedAt = new Date();
+      const hh = String(recordedAt.getHours()).padStart(2, "0");
+      const mm = String(recordedAt.getMinutes()).padStart(2, "0");
 
       const snapshot = await api.trialBalance.createSnapshot({
         snapshot_date: dateStr,
@@ -1092,6 +1088,9 @@ export function ActualInputSection({
               w={200}
               size="sm"
             />
+            <Text size="xs" c="dimmed">
+              {t("ttSnapshotEndOfDayHint")}
+            </Text>
             <Text size="sm" c="dimmed">
               {t("ttActualGeneralDesc")}
             </Text>

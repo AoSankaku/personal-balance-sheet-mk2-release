@@ -31,6 +31,7 @@ import {
   IconScale,
   IconTrendingDown,
   IconTrendingUp,
+  IconWallet,
 } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -74,6 +75,104 @@ const DONUT_COLORS = [
   "yellow.5",
   "orange.5",
 ];
+
+interface FinancialNavigationButtonProps {
+  to: string;
+  Icon: typeof IconScale;
+  label: string;
+  desc: string;
+  color: string;
+  prominent?: boolean;
+  badgeCount?: number;
+}
+
+function FinancialNavigationButton({
+  to,
+  Icon,
+  label,
+  desc,
+  color,
+  prominent = false,
+  badgeCount = 0,
+}: FinancialNavigationButtonProps) {
+  return (
+    <Box pos="relative" style={{ overflow: "visible" }}>
+      <Button
+        component={Link}
+        to={to}
+        variant={prominent ? "light" : "default"}
+        color={prominent ? color : undefined}
+        w="100%"
+        styles={{
+          root: {
+            height: "100%",
+            minHeight: prominent ? rem(156) : undefined,
+            padding: prominent ? rem(24) : rem(16),
+          },
+          inner: { flexDirection: "column" },
+          label: {
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: rem(4),
+          },
+        }}
+      >
+        <ThemeIcon
+          size={prominent ? 64 : 48}
+          radius="md"
+          color={color}
+          variant="light"
+        >
+          <Icon size={prominent ? 34 : 26} />
+        </ThemeIcon>
+        <Text
+          size={prominent ? "lg" : "sm"}
+          fw={prominent ? 700 : 600}
+          ta="center"
+          style={{ whiteSpace: "normal" }}
+        >
+          {label}
+        </Text>
+        <Text
+          size={prominent ? "sm" : "xs"}
+          c="dimmed"
+          ta="center"
+          style={{ whiteSpace: "normal" }}
+        >
+          {desc}
+        </Text>
+      </Button>
+      {badgeCount > 0 && (
+        <Box
+          pos="absolute"
+          style={{
+            top: 6,
+            right: 6,
+            zIndex: 10,
+            minWidth: 20,
+            height: 20,
+            borderRadius: 10,
+            background: "var(--mantine-color-red-6)",
+            color: "#fff",
+            fontSize: rem(11),
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "0 5px",
+            lineHeight: 1,
+            pointerEvents: "none",
+            boxShadow: "0 0 0 2px var(--mantine-color-body)",
+          }}
+        >
+          {badgeCount}
+        </Box>
+      )}
+    </Box>
+  );
+}
 
 export default function AssetsPage() {
   const { t, locale } = useLang();
@@ -1057,8 +1156,8 @@ export default function AssetsPage() {
         </Accordion>
       </Paper>
 
-      {/* Sub-page navigation */}
-      <SimpleGrid cols={{ base: 2, md: 4 }} mt="sm">
+      {/* Primary financial workflows */}
+      <SimpleGrid cols={{ base: 1, sm: 2 }} mt="sm">
         {(
           [
             {
@@ -1068,6 +1167,23 @@ export default function AssetsPage() {
               desc: t("tabTrialBalanceDesc"),
               color: "violet",
             },
+            {
+              to: "/fs/budget",
+              Icon: IconWallet,
+              label: t("budgetTitle"),
+              desc: t("tabBudgetDesc"),
+              color: "orange",
+            },
+          ] as const
+        ).map((item) => (
+          <FinancialNavigationButton key={item.to} {...item} prominent />
+        ))}
+      </SimpleGrid>
+
+      {/* Supporting financial statements and management pages */}
+      <SimpleGrid cols={{ base: 2, md: 4 }} mt="sm">
+        {(
+          [
             {
               to: "/fs/bs",
               Icon: IconFileAnalytics,
@@ -1097,94 +1213,13 @@ export default function AssetsPage() {
               color: "green",
             },
           ] as const
-        ).map(({ to, Icon, label, desc, color }) => {
-          const isTrialBalanceBtn = to === "/fs/tt";
-          const isLoanBtn = to === "/fs/db";
-          const showBadge = isLoanBtn && unresolvedShortTermCount > 0;
-          return (
-            <Box
-              key={to}
-              pos="relative"
-              style={{
-                overflow: "visible",
-                gridColumn: isTrialBalanceBtn ? "1 / -1" : undefined,
-              }}
-            >
-              <Button
-                component={Link}
-                to={to}
-                variant={isTrialBalanceBtn ? "light" : "default"}
-                color={isTrialBalanceBtn ? "violet" : undefined}
-                w="100%"
-                styles={{
-                  root: {
-                    height: "auto",
-                    padding: isTrialBalanceBtn ? rem(24) : rem(16),
-                  },
-                  inner: { flexDirection: "column" },
-                  label: {
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: rem(4),
-                  },
-                }}
-              >
-                <ThemeIcon
-                  size={isTrialBalanceBtn ? 64 : 48}
-                  radius="md"
-                  color={color}
-                  variant="light"
-                >
-                  <Icon size={isTrialBalanceBtn ? 34 : 26} />
-                </ThemeIcon>
-                <Text
-                  size={isTrialBalanceBtn ? "lg" : "sm"}
-                  fw={isTrialBalanceBtn ? 700 : 600}
-                  ta="center"
-                  style={{ whiteSpace: "normal" }}
-                >
-                  {label}
-                </Text>
-                <Text
-                  size={isTrialBalanceBtn ? "sm" : "xs"}
-                  c="dimmed"
-                  ta="center"
-                  style={{ whiteSpace: "normal" }}
-                >
-                  {desc}
-                </Text>
-              </Button>
-              {showBadge && (
-                <Box
-                  pos="absolute"
-                  style={{
-                    top: 6,
-                    right: 6,
-                    zIndex: 10,
-                    minWidth: 20,
-                    height: 20,
-                    borderRadius: 10,
-                    background: "var(--mantine-color-red-6)",
-                    color: "#fff",
-                    fontSize: rem(11),
-                    fontWeight: 700,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "0 5px",
-                    lineHeight: 1,
-                    pointerEvents: "none",
-                    boxShadow: "0 0 0 2px var(--mantine-color-body)",
-                  }}
-                >
-                  {unresolvedShortTermCount}
-                </Box>
-              )}
-            </Box>
-          );
-        })}
+        ).map((item) => (
+          <FinancialNavigationButton
+            key={item.to}
+            {...item}
+            badgeCount={item.to === "/fs/db" ? unresolvedShortTermCount : 0}
+          />
+        ))}
       </SimpleGrid>
 
       {/* Net worth history chart — only shown when ≥ 2 months of data */}

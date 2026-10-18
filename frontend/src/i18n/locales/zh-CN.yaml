@@ -830,6 +830,7 @@ suspiciousExpenseMismatch: "支出与分配差异：实际 ¥{actual} / 已分�
 suspiciousIncomeMismatch: "收入与分配差异：实际 ¥{actual} / 已分配 ¥{distributed}"
 tabTrialBalance: 余额核对
 tabTrialBalanceDesc: 核对账面余额与实际余额
+tabBudgetDesc: 检查预算一致性
 tabLoanMgmt: 贷款管理
 tabLoanMgmtDesc: 管理贷出与借入
 sectionShortTermLending: 短期贷出
@@ -1005,6 +1006,16 @@ ttUnknownFundsJournalPreview: 将记录以下分录：
 ttUnknownFundsConfirmMsg: 记录这些分录以修正余额差异？
 ttUnknownFundsRecorded: 不明资金分录已记录
 ttDeviationSelectSnapshot: 选择快照
+ttApplySnapshotAdjustments: 按实际余额进行调整
+ttBalanceAdjustmentsSaved: 已记录余额调整；如果更早的交易发生变化，系统会重新计算。
+ttSnapshotAdjustmentConfirm: 这些分录会将所选余额与该日结束时的余额核对一致。更早的分录发生变化时会重新计算。
+ttSnapshotEndOfDayHint: 余额按所选日期结束时记录。显示的时间是此余额的记录时间。
+ttSnapshotRecordedAt: "记录时间：{time}"
+ttUnknownFundsBalance: 未知资金余额
+ttUnknownFundsReclassConfirm: 将原未知资金分录重新分类为杂项收入或费用？此操作会更新现有分录，不会新增分录。
+ttUnknownFundsDebit: 借方
+ttUnknownFundsCredit: 贷方
+ttUnknownFundsAmount: 金额
 ttUnknownFundsTitle: 不明资金分录
 ttUnknownFundsEmpty: 未找到不明资金分录。
 ttUnknownFundsFixKnown: 已查明原因 — 修正
@@ -1053,8 +1064,8 @@ sysShortTermLending: 短期贷出
 sysShortTermLoan: 短期借入
 sysAccountBadge: 系统
 sysAccountTooltip: 系统账户 - 不能删除或重命名
-budgetCheckMovedNotice: 预算一致性检查已移至试算表页面。
-budgetCheckMovedLink: 前往试算表 →
+budgetCheckMovedNotice: 预算一致性检查已移至预算页面。
+budgetCheckMovedLink: 前往预算页面 →
 fiscalHealthTitle: 财务健康指数
 fiscalHealthSafe: 健康
 fiscalHealthCaution: 注意
@@ -1457,3 +1468,9 @@ incomeTransferRegister: 确认并登记转移
 incomeTransferTargetMissing: 尚未配置预算放置账户。请在预算分类设置中指定。
 incomeTransferEditConflict: 此修改与已完成的账户转移冲突。请先在账簿的转移任务中取消完成，再进行编辑。
 budgetFundingExcludedInfo: 借贷本金仅通过非预算账户发生变化，因此预算未改变。可编辑分录以确认预算废弃或自有资金化记录。
+
+deductFromBudgetLabel: "从预算总额中扣除"
+deductFromBudgetHint: "从预算资产中扣除此负债余额。信用卡默认启用。"
+incomeOutsideBudgetHint: "存入此账户的收入不会增加预算。转入预算账户时，未分配金额才会增加。"
+budgetHistorySourceFunding: "借贷的预算资金"
+loanFundingNoBudgetImpactHint: "此本金变动不会改变预算总额。利息等费用请单独记录。"

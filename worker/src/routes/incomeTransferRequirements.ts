@@ -1,3 +1,4 @@
+import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import type {
@@ -257,14 +258,14 @@ router.post("/squash", async (c) => {
   const ids = pendingRows.map((row) => row.id);
   if (squashed.length === 0) {
     await c.env.DB.batch(
-      chunkForD1InClause(ids).map((idChunk) =>
+      [...(chunkForD1InClause(ids).map((idChunk) =>
         c.env.DB.prepare(
           `UPDATE income_transfer_requirements
            SET completion_source = 'created', completed_at = ?
            WHERE id IN (${placeholders(idChunk.length)})
              AND completion_source IS NULL`,
         ).bind(now, ...idChunk),
-      ),
+      )), ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)],
     );
     return c.json({
       transfer_journal_entry: null,
@@ -325,7 +326,7 @@ router.post("/squash", async (c) => {
       ).bind(now, ...idChunk),
     );
   }
-  const results = await c.env.DB.batch(statements);
+  const results = await c.env.DB.batch([...(statements), ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
   const created = (results[0] as D1QueryResult<{
     id: number;
     date: string;
@@ -618,7 +619,7 @@ router.post("/:id/complete", async (c) => {
   const amount = rows.reduce((sum, row) => sum + row.amount, 0);
   const now = new Date().toISOString();
   const ids = rows.map((row) => row.id);
-  const results = await c.env.DB.batch([
+  const results = await c.env.DB.batch([...([
     c.env.DB.prepare(
       `INSERT INTO journal_entries (date, description, source)
        VALUES (?, ?, 'manual')
@@ -648,7 +649,7 @@ router.post("/:id/complete", async (c) => {
            completed_at = ?
        WHERE id IN (${placeholders(ids.length)})`,
     ).bind(now, ...ids),
-  ]);
+  ]), ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
   const created = (results[0] as D1QueryResult<{
     id: number;
     date: string;
@@ -794,25 +795,14 @@ router.post("/:id/cancel", async (c) => {
           ),
         );
   const ids = rows.map((row) => row.id);
-  await c.env.DB.batch(
-    chunkForD1InClause(ids).map((idChunk) =>
-      c.env.DB.prepare(
-        `UPDATE income_transfer_requirements
-         SET transfer_journal_entry_id = NULL,
-             completion_source = NULL,
-             completed_at = NULL
-         WHERE id IN (${placeholders(idChunk.length)})`,
-      ).bind(...idChunk),
-    ),
-  );
-  if (
-    anchor.completion_source === "created" &&
-    anchor.transfer_journal_entry_id != null
-  ) {
-    await db
-      .delete(journalEntries)
-      .where(eq(journalEntries.id, anchor.transfer_journal_entry_id));
+  const undoStatements = chunkForD1InClause(ids).map((idChunk) => c.env.DB.prepare(
+    `UPDATE income_transfer_requirements SET transfer_journal_entry_id = NULL, completion_source = NULL, completed_at = NULL WHERE id IN (${placeholders(idChunk.length)})`
+  ).bind(...idChunk));
+  if (anchor.completion_source === "created" && anchor.transfer_journal_entry_id != null) {
+    undoStatements.push(c.env.DB.prepare("DELETE FROM journal_entries WHERE id = ?").bind(anchor.transfer_journal_entry_id));
   }
+  await c.env.DB.batch([...(undoStatements), ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
+
   return c.json({
     requirement_ids: ids,
     deleted_transfer_journal_entry:

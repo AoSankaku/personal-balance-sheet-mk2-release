@@ -50,6 +50,8 @@ export const accounts = sqliteTable("accounts", {
   include_in_allocatable: integer("include_in_allocatable")
     .notNull()
     .default(1),
+  /** Subtract this liability from budget resources; assets never use this flag. */
+  deduct_from_budget: integer("deduct_from_budget").notNull().default(0),
   /** 1 = special system account (不明金/雑損/雑益); not editable or deletable by users */
   is_system: integer("is_system").notNull().default(0),
   created_at: text("created_at")
@@ -849,6 +851,8 @@ export const actualBalanceEntries = sqliteTable("actual_balance_entries", {
     .notNull()
     .references(() => accounts.id, { onDelete: "cascade" }),
   amount: integer("amount").notNull(),
+  /** NULL identifies observations stored using the legacy default currency scale. */
+  money_scale: integer("money_scale"),
   currency: text("currency").notNull().default("JPY"),
   created_at: text("created_at")
     .notNull()
@@ -863,6 +867,20 @@ export const actualBalanceEntries = sqliteTable("actual_balance_entries", {
     sql`typeof(${table.amount}) = 'integer'`,
   ),
 }));
+
+export const actualBalanceAdjustments = sqliteTable("actual_balance_adjustments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  actual_balance_entry_id: integer("actual_balance_entry_id")
+    .notNull().unique()
+    .references(() => actualBalanceEntries.id, { onDelete: "cascade" }),
+  journal_entry_id: integer("journal_entry_id")
+    .notNull().unique()
+    .references(() => journalEntries.id, { onDelete: "cascade" }),
+  /** Derived net debit in storage units, recomputed atomically from checkpoints. */
+  amount: integer("amount").notNull().default(0),
+  is_resolved: integer("is_resolved").notNull().default(0),
+  default_money_scale: integer("default_money_scale"),
+});
 
 export const actualBalanceCreditCardState = sqliteTable(
   "actual_balance_credit_card_state",
@@ -1099,6 +1117,8 @@ export type ActualBalanceCreditCardState =
   typeof actualBalanceCreditCardState.$inferSelect;
 export type NewActualBalanceCreditCardState =
   typeof actualBalanceCreditCardState.$inferInsert;
+export type ActualBalanceAdjustment = typeof actualBalanceAdjustments.$inferSelect;
+export type NewActualBalanceAdjustment = typeof actualBalanceAdjustments.$inferInsert;
 export type LoanSettlement = typeof loanSettlements.$inferSelect;
 export type NewLoanSettlement = typeof loanSettlements.$inferInsert;
 export type BudgetFundingAllocation =

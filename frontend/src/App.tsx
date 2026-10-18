@@ -38,6 +38,7 @@ const ProductApiSettingsPage = lazy(
   () => import("./pages/ProductApiSettingsPage"),
 );
 const TtPage = lazy(() => import("./pages/TtPage"));
+const BudgetPage = lazy(() => import("./pages/BudgetPage"));
 const DbPage = lazy(() => import("./pages/DbPage"));
 const SvPage = lazy(() => import("./pages/SvPage"));
 const PlannedExpensePage = lazy(() => import("./pages/PlannedExpensePage"));
@@ -118,6 +119,10 @@ export default function App() {
               <Route
                 path="/fs/tt"
                 element={privacyMode ? <PrivacyModeBlocked /> : <TtPage />}
+              />
+              <Route
+                path="/fs/budget"
+                element={privacyMode ? <PrivacyModeBlocked /> : <BudgetPage />}
               />
               <Route
                 path="/fs/db"

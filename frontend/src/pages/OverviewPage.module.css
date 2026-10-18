@@ -84,15 +84,15 @@
   border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
-.depreciationBudgetItem {
-  grid-column: 1 / -1;
+.depreciationBudgetReference {
   min-width: 0;
-  margin-bottom: 0.35rem;
-  padding: 1rem 1.1rem;
-  border: 1px solid
-    light-dark(rgba(121, 80, 242, 0.18), rgba(190, 165, 255, 0.2));
-  border-radius: 1rem;
-  background: light-dark(rgba(245, 240, 255, 0.62), rgba(121, 80, 242, 0.07));
+  margin-top: -0.75rem;
+  padding: 0 0.25rem 0.75rem;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.depreciationMetrics {
+  justify-content: flex-end;
 }
 
 .summaryStrip {
@@ -153,6 +153,10 @@
 
   .categoryGrid {
     grid-template-columns: 1fr;
+  }
+
+  .depreciationMetrics {
+    justify-content: flex-start;
   }
 
   .quickLinks {

@@ -34,7 +34,7 @@ Los asientos de ingreso pueden aplicar un filtro de presupuesto para distribuir 
 
 Las cuentas de efectivo/bancarias tienen una configuración "incluir en fuente de presupuesto asignable". Solo las cuentas habilitadas cuentan como efectivo asignable y como saldos reales en la colocación del presupuesto.
 
-La tabla de Colocación del Presupuesto aparece en Configuración -> Configuración de Presupuesto y Estados Financieros -> Balance de Comprobación -> Verificación de Consistencia del Presupuesto.
+La tabla de Colocación del Presupuesto aparece en Configuración -> Configuración de Presupuesto y Estados Financieros -> Presupuesto -> Verificación de Consistencia del Presupuesto.
 
 | Visualización | Significado |
 | --- | --- |
@@ -42,7 +42,7 @@ La tabla de Colocación del Presupuesto aparece en Configuración -> Configuraci
 | Real | Saldo real de efectivo/bancario para las cuentas objetivo |
 | Diferencia | Real - Objetivo |
 
-Los objetivos siguen la misma regla que el dinero asignable: solo se suman los saldos positivos de las categorías. Los saldos negativos no reducen los objetivos y se muestran por separado como exceso de presupuesto sin financiar. En el Balance de Comprobación se puede alternar entre la base de hoy y la que incluye ingresos futuros; la notificación de falta de fondos abre la vista de hoy.
+Los objetivos siguen la misma regla que el dinero asignable: solo se suman los saldos positivos de las categorías. Los saldos negativos no reducen los objetivos y se muestran por separado como exceso de presupuesto sin financiar. En la página Presupuesto se puede alternar entre la base de hoy y la que incluye ingresos futuros; la notificación de falta de fondos abre la vista de hoy.
 
 Si un presupuesto se vincula a múltiples cuentas, o múltiples presupuestos se vinculan a una cuenta, los presupuestos y cuentas relacionados se fusionan en un grupo. Cuando existen diferencias, las sugerencias muestran cuánto mover entre grupos de cuentas, o cuánto presupuesto agregar o reducir.
 
@@ -54,4 +54,4 @@ La transferencia real y el movimiento de presupuesto son eventos separados. Los 
 
 ## Consistencia del Presupuesto
 
-Balance de Comprobación -> Verificación de Consistencia del Presupuesto detecta discrepancias entre los montos de los asientos contables y los montos de asignación presupuestaria guardados. Para entradas multilínea y transacciones fuera del seguimiento de presupuesto, la aplicación no adivina categorías de presupuesto a menos que se hayan guardado asignaciones explícitas.
+Presupuesto -> Verificación de Consistencia del Presupuesto detecta discrepancias entre los montos de los asientos contables y los montos de asignación presupuestaria guardados. Para entradas multilínea y transacciones fuera del seguimiento de presupuesto, la aplicación no adivina categorías de presupuesto a menos que se hayan guardado asignaciones explícitas.

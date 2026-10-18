@@ -28,7 +28,7 @@ import {
   calculateBudgetPlacement,
 } from "../lib/budgetPlacement";
 import {
-  sumAllocatableCashBalances,
+  sumBudgetResourceBalances,
   summarizeBudgetFunding,
 } from "../lib/allocatableBudget";
 import { ConfirmModal } from "./ConfirmModal";
@@ -121,7 +121,7 @@ export function IncomeTransferTasks({
       }];
     });
     const funding = summarizeBudgetFunding(
-      sumAllocatableCashBalances(accounts, currency),
+      sumBudgetResourceBalances(accounts, currency),
       categorySummaries.map((summary) => summary.available),
       categorySummaries.reduce(
         (sum, summary) => sum + (summary.reference_reserve ?? 0),

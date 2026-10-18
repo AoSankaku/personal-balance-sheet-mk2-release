@@ -4,6 +4,7 @@ import type {
   BudgetFundingKind,
   CreateJournalLineInput,
 } from "@balance-sheet/shared";
+import { budgetAccountDelta } from "../../../shared/budgetScope";
 
 const lending = new Set<Account["category"]>([
   "lending",
@@ -67,19 +68,14 @@ export function calculateMultiLineBudgetFundingImpact(input: {
   const currency = input.currency.toUpperCase();
   const accountMap = new Map(input.accounts.map((account) => [account.id, account]));
   const netByAccount = new Map<number, number>();
-  let cashDelta = 0;
+  const budgetResourceDelta = budgetAccountDelta(
+    input.lines,
+    input.accounts,
+    currency,
+  );
   for (const line of input.lines) {
     if ((line.currency || "JPY").toUpperCase() !== currency) continue;
     const net = line.debit - line.credit;
-    const account = accountMap.get(line.account_id);
-    if (
-      account?.type === "asset" &&
-      account.category === "cash" &&
-      account.include_in_allocatable !== false &&
-      !account.is_depreciable
-    ) {
-      cashDelta += net;
-    }
     netByAccount.set(line.account_id, (netByAccount.get(line.account_id) ?? 0) + net);
   }
   const principal = new Map<BudgetFundingKind, number>();
@@ -109,11 +105,13 @@ export function calculateMultiLineBudgetFundingImpact(input: {
       applied.set(kind, Math.min(weights[index]!, shares[index]!));
     });
   };
-  allocate(cashDelta, positiveKinds);
-  allocate(-cashDelta, negativeKinds);
+  allocate(budgetResourceDelta, positiveKinds);
+  allocate(-budgetResourceDelta, negativeKinds);
   const order: BudgetFundingKind[] = ["borrow", "repay", "lend", "collect"];
   return {
-    allocatable_asset_delta: cashDelta,
+    // Retain the historical field name for API compatibility; this is the
+    // complete budget-resource delta, including configured budget liabilities.
+    allocatable_asset_delta: budgetResourceDelta,
     components: order.flatMap((kind) => {
       const principalAmount = principal.get(kind) ?? 0;
       if (principalAmount <= 0) return [];

@@ -753,7 +753,7 @@ export default function PlPage() {
         <Text size="sm" c="dimmed">
           {t("budgetCheckMovedNotice")}
         </Text>
-        <Anchor component={Link} to="/fs/tt" size="sm" mt={4} display="block">
+        <Anchor component={Link} to="/fs/budget" size="sm" mt={4} display="block">
           {t("budgetCheckMovedLink")}
         </Anchor>
       </Paper>

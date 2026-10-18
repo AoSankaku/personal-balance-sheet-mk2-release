@@ -830,6 +830,7 @@ suspiciousExpenseMismatch: "Brecha de gasto versus asignación: real ¥{actual} 
 suspiciousIncomeMismatch: "Brecha de ingresos versus distribución: real ¥{actual} / distribuida ¥{distributed}"
 tabTrialBalance: "Conciliación de saldos"
 tabTrialBalanceDesc: "Comparar saldos contables y reales"
+tabBudgetDesc: "Comprobar la coherencia del presupuesto"
 tabLoanMgmt: "Gestión de préstamos"
 tabLoanMgmtDesc: "Gestionar préstamos y empréstitos"
 sectionShortTermLending: "Préstamos a corto plazo"
@@ -1005,6 +1006,16 @@ ttUnknownFundsJournalPreview: "Se registrarán los siguientes asientos de diario
 ttUnknownFundsConfirmMsg: "¿Registrar estas entradas para corregir las discrepancias del saldo?"
 ttUnknownFundsRecorded: "Se registraron entradas de fondos desconocidos"
 ttDeviationSelectSnapshot: "Seleccionar instantánea"
+ttApplySnapshotAdjustments: Ajustar a los saldos confirmados
+ttBalanceAdjustmentsSaved: Se registraron los ajustes de saldo y se recalcularán si cambian transacciones anteriores.
+ttSnapshotAdjustmentConfirm: Estos asientos concilian los saldos seleccionados con este saldo de fin de día. Se recalcularán si cambian asientos anteriores.
+ttSnapshotEndOfDayHint: Los saldos se registran al final del día seleccionado. La hora mostrada indica cuándo se guardó este saldo.
+ttSnapshotRecordedAt: "registrado a las {time}"
+ttUnknownFundsBalance: Saldo de fondos desconocidos
+ttUnknownFundsReclassConfirm: ¿Reclasificar las líneas originales de fondos desconocidos como ingreso o gasto diverso? Se actualizará el asiento existente sin agregar otro.
+ttUnknownFundsDebit: Debe
+ttUnknownFundsCredit: Haber
+ttUnknownFundsAmount: Importe
 ttUnknownFundsTitle: "Entradas de fondos desconocidos"
 ttUnknownFundsEmpty: "No se encontraron entradas de fondos desconocidos."
 ttUnknownFundsFixKnown: "Causa encontrada: correcta"
@@ -1053,8 +1064,8 @@ sysShortTermLending: "Préstamo a corto plazo"
 sysShortTermLoan: "Deuda a corto plazo"
 sysAccountBadge: "Sistema"
 sysAccountTooltip: "Cuenta del sistema - no se puede eliminar ni renombrar"
-budgetCheckMovedNotice: "La verificación de coherencia presupuestaria se ha trasladado a la página Balance de comprobación."
-budgetCheckMovedLink: "Ir al saldo de prueba →"
+budgetCheckMovedNotice: "La verificación de coherencia presupuestaria se ha trasladado a la página Presupuesto."
+budgetCheckMovedLink: "Ir al presupuesto →"
 fiscalHealthTitle: "Índice de salud financiera"
 fiscalHealthSafe: "Saludable"
 fiscalHealthCaution: "Precaución"
@@ -1457,3 +1468,9 @@ incomeTransferRegister: Confirmar y registrar
 incomeTransferTargetMissing: No hay una cuenta de colocación configurada. Defínela en la categoría presupuestaria.
 incomeTransferEditConflict: Este cambio contradice una transferencia completada. Cancela su finalización desde la tarea de transferencia del libro antes de editar.
 budgetFundingExcludedInfo: El principal cambió solo mediante cuentas excluidas. Edita el asiento para confirmar el descarte o la conversión presupuestaria.
+
+deductFromBudgetLabel: "Deducir de los recursos del presupuesto"
+deductFromBudgetHint: "Resta el saldo de esta deuda de los activos presupuestarios. Activado por defecto para las tarjetas."
+incomeOutsideBudgetHint: "Los ingresos recibidos aquí no aumentan el presupuesto. Al transferirlos a una cuenta presupuestaria aumentan los fondos sin asignar."
+budgetHistorySourceFunding: "Financiación presupuestaria de préstamos"
+loanFundingNoBudgetImpactHint: "Este movimiento de capital no cambia los recursos presupuestarios. Registra los intereses y otros gastos por separado."

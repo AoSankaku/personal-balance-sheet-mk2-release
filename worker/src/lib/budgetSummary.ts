@@ -159,7 +159,9 @@ export function calculateSpentFromBudgetAllocations(
   const allocatedAmount = entryAllocs
     .filter(
       (entryAlloc) =>
-        entryAlloc.budget_category_id === budgetCategoryId,
+        entryAlloc.budget_category_id === budgetCategoryId &&
+        entryAlloc.is_reference !== true &&
+        entryAlloc.is_reference !== 1,
     )
     .reduce((sum, entryAlloc) => sum + entryAlloc.amount, 0);
 
@@ -193,6 +195,7 @@ export interface DepreciationBudgetAllocationEvent
   budget_category_id: number;
   amount: number;
   depreciation_schedule_id?: number | null;
+  is_reference?: boolean | number;
 }
 
 export interface DepreciationBudgetMonthResult {
@@ -245,6 +248,9 @@ export function calculateDepreciationBudgetMonth({
     if (allocation.budget_category_id !== budgetCategoryId) continue;
     const amount = -allocation.amount;
     if (allocation.depreciation_schedule_id == null) {
+      if (allocation.is_reference === true || allocation.is_reference === 1) {
+        continue;
+      }
       if (isAfterBudgetResetPoint(allocation, resetPoint)) {
         ordinarySpent += amount;
       }

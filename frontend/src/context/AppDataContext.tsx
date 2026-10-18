@@ -37,7 +37,7 @@ import type {
 import { getEffectiveSymbol } from "../lib/currencyUtils";
 import {
   computeAllocatableBudget,
-  sumAllocatableCashBalances,
+  sumBudgetResourceBalances,
   sumBudgetClaims,
 } from "../lib/allocatableBudget";
 import {
@@ -368,7 +368,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const assetBalanceToday = useMemo(
     () =>
-      sumAllocatableCashBalances(
+      sumBudgetResourceBalances(
         accountsToday,
         normalizeCurrency(displayCurrency),
       ),
@@ -377,7 +377,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const assetBalanceTotal = useMemo(
     () =>
-      sumAllocatableCashBalances(accounts, normalizeCurrency(displayCurrency)),
+      sumBudgetResourceBalances(accounts, normalizeCurrency(displayCurrency)),
     [accounts, displayCurrency],
   );
 

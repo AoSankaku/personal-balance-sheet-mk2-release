@@ -15,7 +15,7 @@ describe("task menu design", () => {
     expect(list).toContain('t("taskBudgetNegativeTitle")');
     expect(list).toContain('t("taskBudgetNegativeAction")');
     expect(list).toContain("task-menu__budget-card");
-    expect(list).toContain('openTask("/fs/tt?segment=budget&basis=today")');
+    expect(list).toContain('openTask("/fs/budget?basis=today")');
   });
 
   test("opens the standard task page from the clickable task header", () => {

@@ -96,6 +96,8 @@ export interface Account {
   is_depreciable?: boolean;
   /** True if this cash/bank asset account is counted as allocatable budget money */
   include_in_allocatable?: boolean;
+  /** Subtract this liability's balance from budget resources. Defaults to true for cards. */
+  deduct_from_budget?: boolean;
   /** True if this is a special system account (不明金, 雑損, 雑益) — not editable/deletable */
   is_system?: boolean;
   /** True if this long-term loan/lending account has been marked as completed (balance reached 0) */
@@ -114,6 +116,7 @@ export interface CreateAccountInput {
   is_depreciable?: boolean;
   /** Include this cash/bank asset account in allocatable budget money */
   include_in_allocatable?: boolean;
+  deduct_from_budget?: boolean;
 }
 
 export interface JournalLine {
@@ -638,10 +641,11 @@ export interface BudgetAdjustmentLog {
     | "income"
     | "transfer"
     | "simple"
-    | "multiline";
+    | "multiline"
+    | "funding";
   adjustment_type?: "allocation" | "reset" | "transfer";
   journal_entry_id?: number;
-  /** Allocation classified separately for reconciliation; it still consumes budget. */
+  /** Informational allocation that does not change the budget balance. */
   is_reference?: boolean;
 }
 
@@ -1117,7 +1121,7 @@ export interface ActualBalanceGeneralEntry {
   account_name: string;
   amount: number;
   currency: string;
-  /** Book value at snapshot time (computed from journal_lines) */
+  /** End-of-day book value on snapshot_date (computed from journal_lines). */
   book_value: number;
 }
 
@@ -1126,7 +1130,7 @@ export type CreditCardSnapshotStatus = "open" | "confirmed" | "paid";
 export interface ActualBalanceSnapshot {
   id: number;
   snapshot_date: string;
-  /** Optional HH:MM time label (e.g. "14:30") */
+  /** Recorded-at HH:MM metadata; balances always use the end of snapshot_date. */
   snapshot_time: string | null;
   created_at: string;
   general_entries: ActualBalanceGeneralEntry[];
@@ -1134,7 +1138,7 @@ export interface ActualBalanceSnapshot {
 
 export interface CreateActualBalanceSnapshotInput {
   snapshot_date: string;
-  /** Optional HH:MM time label sent from the client at save time */
+  /** Optional recorded-at HH:MM metadata, not an intraday accounting cutoff. */
   snapshot_time?: string;
   general_entries: {
     account_id: number;

@@ -42,6 +42,7 @@ export const IMPORT_TABLE_ORDER = [
   "long_term_loan_plans",
   "long_term_loan_plan_rows",
   "actual_balance_entries",
+  "actual_balance_adjustments",
 ];
 
 const SYSTEM_TABLES = new Set([
