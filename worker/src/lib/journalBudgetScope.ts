@@ -1,5 +1,5 @@
 import { inArray } from "drizzle-orm";
-import { budgetAccountDelta, isBudgetAsset } from "../../../shared/budgetScope";
+import { budgetAccountDelta, isBudgetAccount, isBudgetAsset } from "../../../shared/budgetScope";
 import { createDb } from "../db";
 import { accounts } from "../db/schema";
 import { splitAmountByLargestRemainder } from "./budgetFundingImpact";
@@ -66,7 +66,32 @@ export async function normalizeJournalBudgetScope(
     // For one-sided expenses/refunds, explicit allocations apply up to the tracked
     // portion; the excluded remainder stays visible solely as reference history.
     const hasExcludedSource = (expense > 0 && excludedCash < 0) || (expense < 0 && excludedCash > 0);
-    if (!hasExcludedSource) { normalized.push(...allocations); continue; }
+    if (!hasExcludedSource) {
+      // A one-sided tracked expense/refund cannot distribute more than its
+      // actual amount. Keep compound expenses/refunds and noncash flows separate.
+      const expenseDirection = Math.sign(expense);
+      const isTrackedExpense = expense !== 0 && lines.every((line) => {
+        const account = byId.get(line.account_id)!;
+        const delta = (line.debit ?? 0) - (line.credit ?? 0);
+        return account.type === "expense"
+          ? delta === 0 || Math.sign(delta) === expenseDirection
+          : isBudgetAccount(account);
+      });
+      if (isTrackedExpense) {
+        if (active.some((allocation) => allocation.amount !== 0 && Math.sign(allocation.amount) !== -expenseDirection)) {
+          return "Budget allocation direction does not match the expense or refund";
+        }
+        const expenseUnits = lines.reduce((sum, line) => byId.get(line.account_id)!.type === "expense"
+          ? sum + toStorageMoneyAmount(line.debit ?? 0, currency, scale) - toStorageMoneyAmount(line.credit ?? 0, currency, scale)
+          : sum, 0);
+        const allocatedUnits = active.reduce((sum, allocation) => sum + Math.abs(toStorageMoneyAmount(allocation.amount, currency, scale)), 0);
+        if (allocatedUnits > Math.abs(expenseUnits)) {
+          return "Budget allocations exceed the expense or refund amount";
+        }
+      }
+      normalized.push(...allocations);
+      continue;
+    }
     if (active.some((allocation) => allocation.amount !== 0 && Math.sign(allocation.amount) !== -Math.sign(expense))) {
       return "Budget allocation direction does not match the expense or refund";
     }

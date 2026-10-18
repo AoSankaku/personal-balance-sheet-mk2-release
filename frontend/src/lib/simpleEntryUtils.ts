@@ -109,6 +109,7 @@ export function computeBudgetDistributionAmounts(
 export function buildExpenseBudgetAllocations(
   totalAmount: number,
   distribution: BudgetDistributionAllocation[],
+  sign: 1 | -1 = -1,
 ): { budget_category_id: number; amount: number }[] {
   const computedAmounts = computeBudgetDistributionAmounts(
     totalAmount,
@@ -124,10 +125,10 @@ export function buildExpenseBudgetAllocations(
 
       return {
         budget_category_id: item.budget_category_id,
-        amount: -amount,
+        amount: sign * amount,
       };
     })
-    .filter((allocation) => allocation.amount < 0);
+    .filter((allocation) => allocation.amount !== 0);
 }
 
 export function summarizeBudgetDistribution(
