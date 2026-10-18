@@ -73,8 +73,9 @@ export async function normalizeJournalBudgetScope(
       const isTrackedExpense = expense !== 0 && lines.every((line) => {
         const account = byId.get(line.account_id)!;
         const delta = (line.debit ?? 0) - (line.credit ?? 0);
+        if (delta === 0) return true;
         return account.type === "expense"
-          ? delta === 0 || Math.sign(delta) === expenseDirection
+          ? Math.sign(delta) === expenseDirection
           : isBudgetAccount(account);
       });
       if (isTrackedExpense) {
