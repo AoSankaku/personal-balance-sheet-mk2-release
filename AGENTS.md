@@ -29,6 +29,18 @@ cd worker && bun run db:migrate
 cd worker && bun run db:migrate:remote
 ```
 
+### Production database snapshots — required
+
+Before every production DB migration:
+
+1. Export the entire remote D1 database with `wrangler d1 export --remote`, including both schema and data without table filters. A Time Travel bookmark alone does not satisfy this requirement.
+2. Save the SQL snapshot in a new timestamped, revision-specific directory under the Git-ignored `backups/` directory. Never overwrite an earlier snapshot or commit snapshots, production database IDs, financial data, or stored credentials.
+3. Confirm a successful export, a nonempty SQL file, and its SHA-256 checksum. Verify that the snapshot restores into a new disposable local database before applying the production migration. Do not use an existing local or production database for this verification.
+4. Record the snapshot path, checksum, target source revision, currently deployed application revision/version, verification result, and pre-migration Time Travel bookmark in a local deployment receipt. Preserve the application version compatible with the snapshot for rollback.
+5. Proceed with the production migration only after the snapshot and restoration verification succeed. If either fails, resolve the failure before migrating or running `git merge-dev`.
+
+See README.md's production backup procedure. Snapshot files and receipts remain local and untracked.
+
 ### Migration system — important quirks
 
 `db:migrate` = `wrangler d1 migrations apply balance-sheet-db --local`
