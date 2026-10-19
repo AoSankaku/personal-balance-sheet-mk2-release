@@ -35,7 +35,9 @@ for(let month=1;month<=30;month++) {
   h.sqlite.query("INSERT INTO journal_lines(journal_entry_id,account_id,debit,credit) VALUES(?,1003,10000,0),(?,1002,0,10000)").run(id,id);
   h.sqlite.query("INSERT INTO depreciation_entries(schedule_id,journal_entry_id,month_number) VALUES(100,?,?)").run(id,month);
 }
-const server=Bun.serve({hostname:"127.0.0.1",port:8787,fetch:request=>
+const port = Number(process.env.DEPRECIATION_QA_PORT ?? 8787);
+if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Invalid QA port");
+const server=Bun.serve({hostname:"127.0.0.1",port,fetch:request=>
   new URL(request.url).pathname === "/__depreciation-budget-qa"
     ? Response.json({ isolated: true, monthlySources: true })
     : app.fetch(request,{DB:h.DB,DISABLE_ADMIN_API:"1"})});
