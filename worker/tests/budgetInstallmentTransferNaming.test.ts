@@ -30,13 +30,12 @@ test("new installment transfer entries and special budgets use the expense-sprea
     JOIN depreciation_entries e ON e.journal_entry_id=j.id WHERE e.schedule_id=?`).all(scheduleId) as { description: string }[];
   expect(descriptions).toHaveLength(2);
   for (const row of descriptions) {
-    expect(row.description).toContain("予算分割振替");
-    expect(row.description).not.toContain("減価償却");
+    expect(row.description).toContain("予算分割振替（減価償却）");
   }
   const category = fixture.sqlite.query(`SELECT c.name,c.budget_group FROM budget_categories c
     JOIN depreciation_schedules s ON s.budget_special_category_id=c.id WHERE s.id=?`).get(scheduleId) as { name: string; budget_group: string };
-  expect(category.name).toContain("予算分割振替");
-  expect(category.budget_group).toBe("予算分割振替");
+  expect(category.name).toContain("予算分割振替（減価償却）");
+  expect(category.budget_group).toBe("予算分割振替（減価償却）");
 });
 
 test("configured schedule regeneration uses the expense-spreading wording", async () => {
@@ -68,8 +67,7 @@ test("configured schedule regeneration uses the expense-spreading wording", asyn
     JOIN depreciation_entries e ON e.journal_entry_id=j.id WHERE e.schedule_id=?`).all(scheduleId) as { description: string }[];
   expect(descriptions).toHaveLength(3);
   for (const row of descriptions) {
-    expect(row.description).toContain("予算分割振替");
-    expect(row.description).not.toContain("減価償却");
+    expect(row.description).toContain("予算分割振替（減価償却）");
   }
 });
 
@@ -97,7 +95,6 @@ test("legacy schedule regeneration uses the expense-spreading wording", async ()
     JOIN depreciation_entries e ON e.journal_entry_id=j.id WHERE e.schedule_id=?`).all(scheduleId) as { description: string }[];
   expect(descriptions).toHaveLength(3);
   for (const row of descriptions) {
-    expect(row.description).toContain("予算分割振替");
-    expect(row.description).not.toContain("減価償却");
+    expect(row.description).toContain("予算分割振替（減価償却）");
   }
 });

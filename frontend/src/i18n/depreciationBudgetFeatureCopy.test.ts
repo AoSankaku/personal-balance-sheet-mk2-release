@@ -4,12 +4,12 @@ import { join } from "node:path";
 import { parse } from "yaml";
 
 const featureNames = {
-  en: "Budget installment transfers",
-  ja: "予算分割振替",
-  fr: "Transferts budgétaires échelonnés",
-  es: "Transferencias presupuestarias en cuotas",
-  "zh-CN": "预算分期转账",
-  "zh-TW": "預算分期轉帳",
+  en: "Budget installment transfers (depreciation)",
+  ja: "予算分割振替（減価償却）",
+  fr: "Transferts budgétaires échelonnés (amortissement)",
+  es: "Transferencias presupuestarias en cuotas (depreciación)",
+  "zh-CN": "预算分期转账（折旧）",
+  "zh-TW": "預算分期轉帳（折舊）",
 } as const;
 
 const featureLabelKeys = [
@@ -99,7 +99,7 @@ describe("budget installment transfer feature copy", () => {
       expect(translations.depreciationLabel).toBe(featureName);
     });
 
-    test(`${locale} labels do not describe formal depreciation`, () => {
+    test(`${locale} uses depreciation only within the agreed feature name`, () => {
       const translations = parse(
         readFileSync(join(import.meta.dir, "locales", `${locale}.yaml`), "utf8"),
       ) as Record<string, string>;
@@ -116,9 +116,21 @@ describe("budget installment transfer feature copy", () => {
       ]);
       for (const key of allFeatureKeys) {
         // Placeholder identifiers are internal translation keys and are not rendered copy.
-        const visibleCopy = translations[key].replace(/\{[^}]+\}/gu, "");
+        const visibleCopy = translations[key]
+          .replace(/\{[^}]+\}/gu, "")
+          .toLocaleLowerCase()
+          .replaceAll(featureName.toLocaleLowerCase(), "");
         expect(visibleCopy, `${locale}.${key}`).not.toMatch(formalDepreciationTerms);
       }
     });
   }
+
+  test("the Japanese account checkbox explains budget exclusion and its source role", () => {
+    const translations = parse(
+      readFileSync(join(import.meta.dir, "locales", "ja.yaml"), "utf8"),
+    ) as Record<string, string>;
+    expect(translations.isDepreciableLabel).toBe(
+      "予算の対象外とし、予算分割振替（減価償却）元として扱う",
+    );
+  });
 });
