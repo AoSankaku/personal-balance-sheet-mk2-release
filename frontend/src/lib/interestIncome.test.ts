@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { Account, IncomeTransferRequirementGroup, JournalEntry } from "@balance-sheet/shared";
 import { buildInterestIncomeDefault, partitionInterestIncomeTransfers } from "./interestIncome";
+import { summarizePendingIncomeTransfers } from "./pendingIncomeTransferSummary";
+import * as interestIncome from "./interestIncome";
 
 const rule = { income_account_id: 5, budget_category_id: 10, transfer_thresholds: { JPY: 1000, USD: 10 } };
 const accounts = [{ id: 5, type: "income" }, { id: 6, type: "income" }] as Account[];
@@ -19,6 +21,10 @@ function partition(groups: IncomeTransferRequirementGroup[], journal = groups.ma
 }
 
 describe("interest income defaults", () => {
+  test("saving thresholds removes disabled currencies and preserves other enabled currencies", () => {
+    expect(typeof interestIncome.buildInterestTransferThresholds).toBe("function");
+    expect(interestIncome.buildInterestTransferThresholds({ JPY: 1000, USD: 10, EUR: 20 }, [{ code: "JPY" }, { code: "EUR" }], "JPY", 2000)).toEqual({ JPY: 2000, EUR: 20 });
+  });
   test("allocates the full income to the configured category by ID", () => {
     expect(buildInterestIncomeDefault({ rule, incomeAccountId: 5, amount: 112, categories })).toEqual([{ budget_category_id: 10, name: "Free spending", amount: 112 }]);
   });
@@ -62,5 +68,15 @@ describe("small interest transfers reuse pending tasks", () => {
     const groups = [group(1, 112)];
     expect(partitionInterestIncomeTransfers({ groups, journal: [entry(1)], accounts, rule: null }).actionable).toEqual(groups);
     expect(partitionInterestIncomeTransfers({ groups, journal: [entry(1)], accounts, rule: { ...rule, transfer_thresholds: { JPY: 0 } } }).actionable).toEqual(groups);
+  });
+  test("reconciliation retains every pending task while distinguishing deferred ones", () => {
+    const journal = [entry(1), entry(2)];
+    journal[0].income_transfer_requirements = group(1, 112).requirements;
+    journal[1].income_transfer_requirements = group(2, 122).requirements;
+    const summary = summarizePendingIncomeTransfers(journal, { accounts, rule });
+    expect(summary.taskCount).toBe(2);
+    expect(summary.actionableTaskCount).toBe(0);
+    expect(summary.deferredTaskCount).toBe(2);
+    expect(summary.taskCountByAccount.get(1)).toBe(2);
   });
 });
