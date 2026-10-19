@@ -53,7 +53,7 @@ privacyModeBlockedTitle: "Mode confidentialité actif"
 privacyModeBlockedMessage: "Cette page n'est pas utilisable en mode confidentialité. Désactivez-le dans Paramètres > Général pour modifier les données."
 settingsSectionAccounts: "Comptes"
 sectionAssets: "Actifs"
-sectionDepreciableAssets: "Immobilisations amortissables"
+sectionDepreciableAssets: "Actifs des Transferts budgétaires échelonnés (amortissement)"
 sectionLiabilities: "Passifs"
 sectionEquity: "Capitaux propres"
 sectionIncome: "Revenus"
@@ -408,11 +408,11 @@ budgetReconciliationNetBudget: "Solde budgétaire net"
 budgetReconciliationNetGap: "Écart net de rapprochement"
 budgetReconciliationReferenceReserve: "Réserve des dépenses non suivies"
 budgetReconciliationDepreciationReserve: "Réservation d’achat restante"
-budgetReconciliationDepreciationOffset: "Amortissement non monétaire après réinitialisation"
+budgetReconciliationDepreciationOffset: "Charge mensuelle non monétaire après réinitialisation"
 budgetReconciliationAdjustedGap: "Écart après réserve"
 budgetReconciliationPositiveClaims: "Engagements budgétaires positifs"
 budgetReconciliationFundingGap: "Écart de financement positif"
-budgetReconciliationHint: "L’écart net est de {gap} ; {reference} est réservé aux dépenses non suivies et {depreciation} correspond à l’amortissement non monétaire après réinitialisation, soit {adjustedGap} après ajustements. Les dépassements non financés sont de {overspending}."
+budgetReconciliationHint: "L’écart net est de {gap} ; {reference} est réservé aux dépenses non suivies et {depreciation} correspond à la charge mensuelle non monétaire après réinitialisation, soit {adjustedGap} après ajustements. Les dépassements non financés sont de {overspending}."
 budgetFundingOverviewTitle: "Montant encore attribuable"
 budgetFundingOverviewHint: "Trésorerie attribuable moins les montants déjà réservés aux budgets."
 budgetFundingReservedLabel: "Déjà réservé"
@@ -747,10 +747,13 @@ deleteJournalConfirmMsg: "Etes-vous sûr de vouloir supprimer cette entrée? Cel
 suppressDeleteWarning5min: "Ne pas afficher cet avertissement pendant 5 minutes"
 includeInAllocatableLabel: "Inclure comme source d'allocation budgétaire"
 includeInAllocatableHint: "Seuls les comptes bancaires/espèces vérifiés sont comptés comme argent imputable."
-isDepreciableLabel: "Actif amortissable (equipement, etc.)"
-isDepreciableHint: "Marquer ce compte d'actif comme élément amortissable"
-depreciationSettingsTitle: "Paramètres d'amortissement"
-depreciationSettingsHint: "Selectionnez le compte de depense utilise pour enregistrer amortissement mensuel"
+isDepreciableLabel: "Exclure du budget et utiliser comme compte d’actif source pour les Transferts budgétaires échelonnés (amortissement)"
+isDepreciableHint: "Enregistrez l’achat dans ce compte d’actif, puis transférez-le vers un compte de charges sur plusieurs mois."
+depreciationAssetRequiredTitle: "Créez d’abord un compte d’actif source"
+depreciationAssetRequiredHint: "Dans Paramètres > Comptes, ajoutez un compte d’actif et cochez « Exclure du budget et utiliser comme compte d’actif source pour les Transferts budgétaires échelonnés (amortissement) ». Revenez ensuite ici pour saisir le plan."
+depreciationAssetAccountSettingsButton: "Ouvrir les paramètres des comptes"
+depreciationSettingsTitle: "Paramètres des Transferts budgétaires échelonnés (amortissement)"
+depreciationSettingsHint: "Choisissez le compte de charges utilisé pour les écritures mensuelles."
 depreciationAccountNone: "Aucun compte sélectionné"
 businessOwnerSettingsTitle: "Paramètres d'avances du propriétaire d'entreprise"
 businessOwnerSettingsHint: "Configurer les comptes pour enregistrer les avances de dépenses professionnelles en tant qu'entrepreneur individuel."
@@ -778,21 +781,26 @@ businessAdvanceBalanceHistory: "Historique du solde"
 changeColHeader: "Changement"
 goToSettings: "Allez dans Paramètres"
 currentBalance: "solde actuel"
-depreciationLabel: "Dépréciation"
-depreciationAssetAccountLabel: "Compte actif (equipement, etc.)"
-depreciationExpenseAccountLabel: "Compte de dotation aux amortissements"
-depreciationByMonths: "Par période"
+depreciationLabel: "Transferts budgétaires échelonnés (amortissement)"
+installmentPurchasePaymentGroup: "Achat et paiement"
+installmentMonthlyExpenseGroup: "Charge mensuelle"
+installmentBudgetHandlingGroup: "Traitement budgétaire"
+depreciationAssetAccountLabel: "Compte d’actif de l’achat"
+depreciationExpenseAccountLabel: "Compte de charges"
+depreciationByMonths: "Par nombre de mois"
 depreciationByMonthlyAmount: "Par montant mensuel"
-depreciationMonthsLabel: "Durée d'amortissement (mois)"
-depreciationMonthlyAmountLabel: "Montant de l'amortissement mensuel"
+depreciationMonthsLabel: "Durée du transfert (mois)"
+depreciationMonthlyAmountLabel: "Montant du transfert mensuel"
 depreciationPreview: "Environ"
 depreciationMonthUnit: "mois"
-depreciationCreated: "Plan d'amortissement créé"
-depreciationEntryEditWarning: "La modification d'une écriture d'amortissement individuelle peut interrompre le calcul du calendrier. Mettez à jour l’entrée de l’actif source lorsque cela est possible."
-depreciableAssetsTotal: "Total des actifs amortissables (valeur nette comptable)"
-depreciationReportTitle: "Dépréciation"
-depreciationTotal: "Amortissement total"
-depreciationNone: "Aucune dépréciation constatée pour cette période."
+depreciationCreated: "Plan de dépenses mensuelles créé"
+depreciationEntryEditWarning: "Modifier une écriture mensuelle peut changer le calcul du plan. Si possible, modifiez plutôt {source}."
+depreciationSourcePurchaseEntryLabel: "l’écriture d’achat d’origine"
+depreciationSourceEntryLoadError: "Impossible de charger l’écriture d’achat d’origine. Veuillez réessayer."
+depreciableAssetsTotal: "Solde total des actifs avec dépenses mensuelles"
+depreciationReportTitle: "Transferts budgétaires échelonnés (amortissement)"
+depreciationTotal: "Total des transferts mensuels"
+depreciationNone: "Aucun transfert mensuel enregistré pour cette période."
 depreciationBudgetPressure: "Pression budgétaire (% des dépenses totales)"
 depreciationBudgetPressureNoExpense: "Aucune dépense enregistrée pour cette année."
 budgetConsistencyTitle: "Contrôle de cohérence budgétaire"
@@ -803,120 +811,123 @@ budgetReferenceAllocationHint: La source de paiement est hors des fonds budgéta
 budgetMarkReferenceAction: Rendre indicative
 budgetMarkReferenceSuccess: La ventilation budgétaire est désormais une écriture de référence
 budgetReferenceSpentLabel: Dont dépenses indicatives
-budgetDepreciationRecognizedLabel: Amortissement comptabilisé ce mois-ci
-budgetDepreciationReserveLabel: Réservation d’achat restante
-budgetDepreciationOverviewTitle: Budget d’amortissement
-budgetDepreciationOverviewHint: Distingue le montant réservé lors de l’achat de l’amortissement comptabilisé chaque mois.
-budgetDepreciationReferenceBadge: Vue de référence
-budgetDepreciationActiveStatus: Réservation d’achat active
-budgetDepreciationResetStatus: Réservation réinitialisée · amortissement actif
-budgetDepreciationRecognizedStatus: Amortissement mensuel uniquement
-depreciationBudgetMethodTitle: Traitement budgétaire de ce plan d’amortissement
-depreciationBudgetMethodassignedLabel: "Dépenser le budget attribué et le reconstituer chaque mois (recommandé)"
-depreciationBudgetMethodassignedHint: À l’achat, le budget d’achat est débité. Chaque mois, le même montant est transféré du budget source vers le budget d’achat pour le reconstituer.
-depreciationBudgetMethodspecialLabel: "Imputer à un budget spécial négatif et le reconstituer chaque mois"
-depreciationBudgetMethodspecialHint: À l’achat, un budget spécial lié au bien devient négatif. Chaque mois, le même montant est transféré du budget source vers ce budget spécial pour le reconstituer.
-depreciationBudgetMethodunallocatedLabel: "Dépenser les fonds non affectés, sans reconstitution"
-depreciationBudgetMethodunallocatedHint: La part budgétée de l’achat est imputée aux fonds non affectés à l’achat. L’amortissement comptable continue, sans reconstitution budgétaire mensuelle.
-depreciationBudgetPurchaseCategoryLabel: Budget débité à l’achat
-depreciationBudgetMonthlySourceLabel: Budget source du transfert mensuel
-depreciationBudgetSelectCategory: Sélectionnez une catégorie budgétaire
-depreciationBudgetCategoryRequired: Sélectionnez une catégorie pour continuer.
-depreciationBudgetCategoriesMustDiffer: Choisissez des catégories différentes pour l’achat et la source mensuelle.
-depreciationBudgetConfirmationRequired: Confirmez ce traitement avant l’enregistrement.
-depreciationBudgetUnallocatedWarning: "La part budgétée de l’achat est imputée immédiatement aux fonds non affectés. L’amortissement comptable continue ensuite, mais aucun transfert budgétaire mensuel ne provient des dépenses courantes ou d’autres catégories. Choisissez la méthode du budget attribué ou du budget spécial si vous souhaitez aussi un financement budgétaire mensuel."
+budgetDepreciationRecognizedLabel: "Charge enregistrée ce mois-ci"
+budgetDepreciationReserveLabel: "Réservation d’achat restante"
+budgetDepreciationOverviewTitle: "Budget des transferts mensuels"
+budgetDepreciationOverviewHint: "Présente séparément le montant réservé à l’achat et la charge répartie chaque mois."
+budgetDepreciationReferenceBadge: "Vue de référence"
+budgetDepreciationActiveStatus: "Réservation d’achat active"
+budgetDepreciationResetStatus: "Réserve d’achat réinitialisée · transferts mensuels maintenus"
+budgetDepreciationRecognizedStatus: "Transferts mensuels uniquement"
+depreciationBudgetMethodTitle: "Traitement budgétaire de ce plan de transferts mensuels"
+depreciationBudgetMethodassignedLabel: "Utiliser le budget affecté et le reconstituer chaque mois (recommandé)"
+depreciationBudgetMethodassignedShort: "Budget affecté, complété chaque mois"
+depreciationBudgetMethodassignedHint: "À l’achat, le budget d’achat est débité. Chaque mois, le même montant est transféré du budget source vers le budget d’achat pour le reconstituer."
+depreciationBudgetMethodspecialLabel: "Imputer au budget spécial négatif et le reconstituer chaque mois"
+depreciationBudgetMethodspecialShort: "Budget spécial, complété chaque mois"
+depreciationBudgetMethodspecialHint: "À l’achat, le budget spécial lié à l’achat devient négatif. Chaque mois, le même montant est transféré du budget source vers ce budget spécial pour le reconstituer."
+depreciationBudgetMethodunallocatedLabel: "Utiliser les fonds non affectés, sans reconstitution"
+depreciationBudgetMethodunallocatedShort: "Dépenser les fonds non affectés"
+depreciationBudgetMethodunallocatedHint: "La part budgétée de l’achat est imputée aux fonds non affectés au moment de l’achat. Les écritures mensuelles continuent, sans reconstitution budgétaire mensuelle."
+depreciationBudgetPurchaseCategoryLabel: "Budget débité à l’achat"
+depreciationBudgetMonthlySourceLabel: "Répartition budgétaire"
+depreciationBudgetSelectCategory: "Sélectionnez une catégorie budgétaire"
+depreciationBudgetCategoryRequired: "Sélectionnez une catégorie pour continuer."
+depreciationBudgetCategoriesMustDiffer: "Choisissez des catégories différentes pour l’achat et la source mensuelle."
+depreciationBudgetConfirmationRequired: "Confirmez ce traitement avant l’enregistrement."
+depreciationBudgetUnallocatedWarning: "La part budgétée de l’achat est imputée immédiatement aux fonds non affectés. Les écritures mensuelles continuent, mais aucun transfert budgétaire ne provient des dépenses courantes ou d’autres catégories. Choisissez le budget affecté ou le budget spécial si vous souhaitez un financement budgétaire mensuel."
 depreciationBudgetUnallocatedConfirm: "Je confirme imputer la part budgétée de l’achat aux fonds non affectés et ne faire aucun transfert budgétaire mensuel."
-depreciationBudgetAssignedNegativeWarning: Le budget d’achat devrait être insuffisant et devenir négatif. Envisagez la méthode du budget spécial, qui reconstitue un budget spécial chaque mois.
-depreciationBudgetMethodRequired: Choisissez l’effet de ce plan sur les budgets.
-depreciationBudgetUnset: Traitement budgétaire non défini
-depreciationBudgetStatusActive: Actif
-depreciationBudgetStatusCompleted: Terminé
-depreciationBudgetStatusEnded: Clôturé
-depreciationBudgetRepairTitle: Corriger le traitement budgétaire de l’amortissement
-depreciationBudgetRepairButton: Définir ou corriger la charge budgétaire
-depreciationBudgetRepairHint: Vérifiez les effets avant l’application. Les modifications mettent à jour les événements budgétaires sans recréer l’écriture d’achat.
-depreciationBudgetSchedulesTitle: Traitement budgétaire des amortissements
-depreciationBudgetSchedulesHint: Traitement budgétaire et avancement actuels de chaque plan d’amortissement. Cette liste présente les plans actuels même si le bilan affiche une date antérieure.
-depreciationBudgetSchedulesEmpty: Aucun plan d’amortissement.
-depreciationBudgetSchedulesLoadError: Impossible de charger les plans d’amortissement.
-depreciationBudgetSchedulesRetry: Réessayer
-depreciationBudgetTaskTitle: Vérifier le budget des amortissements
-depreciationBudgetRouteTitle: Affectations mensuelles futures
-depreciationBudgetRouteAdd: Ajouter une affectation datée
-depreciationBudgetRouteDate: Date d’effet de l’affectation
-depreciationBudgetDestinationCategory: Catégorie de destination
-depreciationBudgetSettlementTitle: Règlements
-depreciationBudgetSettlementAdd: Ajouter un règlement
-depreciationBudgetSettlementAmount: Montant du règlement
-depreciationBudgetSettlementDate: Date du règlement
-depreciationBudgetSettlementSource: Source du règlement
-depreciationBudgetUnallocatedSource: Fonds non affectés (U)
-depreciationBudgetEndDate: Arrêter le financement budgétaire après
-depreciationBudgetPreviewButton: Prévisualiser les modifications
-depreciationBudgetPreviewTitle: Aperçu avant et après
-depreciationBudgetPreviewStale: Les paramètres ont changé. Prévisualisez à nouveau avant d’appliquer.
-depreciationBudgetPreviewFailed: Impossible de créer l’aperçu. Vérifiez les paramètres et réessayez.
-depreciationBudgetPreviewNotApplicable: Choisissez les décisions de réinitialisation indiquées, puis prévisualisez à nouveau.
-depreciationBudgetApplyButton: Appliquer les modifications prévisualisées
-depreciationBudgetApplyConfirmTitle: Appliquer les changements du budget d’amortissement ?
-depreciationBudgetApplyConfirmMessage: Appliquer les changements budgétaires affichés ? L’écriture d’achat ne sera pas recréée.
-depreciationBudgetApplied: Traitement budgétaire de l’amortissement mis à jour.
-depreciationBudgetProgressTitle: Progression budgétaire
-depreciationBudgetTargetLabel: Montant à reconstituer
-depreciationBudgetReimbursedLabel: Reconstitué
-depreciationBudgetRemainingLabel: Restant
-depreciationBudgetFutureLabel: Montant futur
-depreciationBudgetBoundaryTitle: Décisions de réinitialisation budgétaire
-depreciationBudgetBoundaryOldReset: Montant avant la réinitialisation
-depreciationBudgetBoundaryNewReset: Montant après la réinitialisation
-depreciationBudgetBoundaryDecision: Décision pour cette réinitialisation
-depreciationBudgetBoundaryOrder: Ordre de traitement
-depreciationBudgetDecisionContinue: Continuer le plan
-depreciationBudgetDecisionEnd: Terminer le plan
-depreciationBudgetDecisionCarry: Reporter le solde de la catégorie dédiée
-depreciationBudgetDecisionSettle: Régler le montant restant
-depreciationBudgetDecisionOrderBefore: Comptabiliser l’amortissement avant la réinitialisation
-depreciationBudgetDecisionOrderAfter: Comptabiliser l’amortissement après la réinitialisation
-depreciationBudgetScopeConfirmationHint: Les écritures existantes ne permettent pas d’identifier l’étendue de la réinitialisation. Choisissez l’étendue réellement réinitialisée.
-depreciationBudgetScopeConfirmationLabel: Étendue de la réinitialisation
-depreciationBudgetScopeUnconfirmed: Étendue non confirmée
-depreciationBudgetScopeCategory: Cette catégorie uniquement
-depreciationBudgetScopeAll: Toutes les catégories
-depreciationBudgetPreviewEventsTitle: Modifications des événements budgétaires
-depreciationBudgetPreviewNoEvents: Aucun événement budgétaire ne sera modifié.
-depreciationBudgetEventPurchase: Achat
-depreciationBudgetEventMonthly: Virement budgétaire mensuel
-depreciationBudgetEventSettlement: Règlement
-depreciationBudgetEventRouting: Transmission du routage budgétaire
-depreciationBudgetEventCarry: Report du solde négatif du budget spécial
-depreciationBudgetTimelineBefore: Avant
-depreciationBudgetTimelineAfter: Après
-depreciationBudgetTimelinePurchase: À l’achat
-depreciationBudgetTimelineReset: À la réinitialisation
-depreciationBudgetTimelineCurrent: Actuel
-depreciationBudgetTimelineTimestamp: Heure
-depreciationBudgetTimelineResetId: Référence de réinitialisation
-depreciationBudgetRelatedBalances: Soldes des catégories liées (Bᵢ)
-depreciationBudgetAmbiguousLegacyWarning: Certaines écritures d’amortissement existantes ne correspondent pas à une répartition budgétaire unique. Vérifiez leurs répartitions et résolvez l’ambiguïté avant d’appliquer les modifications.
-depreciationBudgetTotalLabel: Total (T)
-depreciationBudgetUnallocatedLabel: Non affecté (U)
-depreciationBudgetCategoriesLabel: Solde des catégories (B)
-depreciationBudgetAllocatableLabel: Disponible à l’affectation
-depreciationBudgetArchiveBlockedTitle: Catégorie utilisée par des budgets d’amortissement
-depreciationBudgetArchiveBlockedMessage: Corrigez les plans concernés et déplacez les affectations futures hors de cette catégorie avant de l’archiver.
-depreciationBudgetOpenSchedules: Ouvrir les plans d’amortissement
-depreciationBudgetResetPlansTitle: Budgets d’amortissement concernés par cette réinitialisation
-depreciationBudgetResetPlansHint: Choisissez le traitement de chaque plan. Par défaut, les soldes des catégories dédiées sont reportés et restent intacts.
-depreciationBudgetResetPlansError: Impossible de charger les décisions de réinitialisation. Rechargez l’aperçu avant l’enregistrement.
-depreciationBudgetResetPlanStale: La catégorie ou la date a changé. Recalculez le montant de réinitialisation pour recharger les plans concernés avant l’enregistrement.
-depreciationBudgetResetDecisionRequired: Choisissez une décision pour chaque plan concerné.
-depreciationBudgetResetCarryHint: Le report conserve le solde de la catégorie dédiée et ignore sa réinitialisation.
-depreciationBudgetResetSettlementSource: Catégorie ou fonds non affectés utilisés pour le règlement
-depreciationBudgetArchiveResetUnavailable: Un plan d’amortissement actif utilise encore cette catégorie pour ses affectations futures. Corrigez-les d’abord.
-depreciationBudgetOperationAdd: Ajouté
-depreciationBudgetOperationChange: Modifié
-depreciationBudgetOperationCancel: Annulé
-depreciationBudgetRemoveChange: Supprimer
+depreciationBudgetAssignedNegativeWarning: "Le budget d’achat devrait être insuffisant et devenir négatif. Envisagez la méthode du budget spécial, qui reconstitue un budget spécial chaque mois."
+depreciationBudgetMethodRequired: "Choisissez l’effet de ce plan sur les budgets."
+depreciationBudgetUnset: "Traitement budgétaire non défini"
+depreciationBudgetStatusActive: "Actif"
+depreciationBudgetStatusCompleted: "Terminé"
+depreciationBudgetStatusEnded: "Clôturé"
+depreciationBudgetRepairTitle: "Définir ou corriger les Transferts budgétaires échelonnés (amortissement)"
+depreciationBudgetRepairButton: "Définir ou corriger les Transferts budgétaires échelonnés (amortissement)"
+depreciationBudgetRepairHint: "Vérifiez les effets avant l’application. Les modifications mettent à jour les événements budgétaires sans recréer l’écriture d’achat."
+depreciationBudgetSchedulesTitle: "Plans des Transferts budgétaires échelonnés (amortissement)"
+depreciationBudgetSchedulesHint: "Traitement budgétaire et progression actuels de chaque plan. La liste montre les plans actuels même si le bilan affiche une date antérieure."
+depreciationBudgetSchedulesEmpty: "Aucun plan de transfert mensuel."
+depreciationBudgetSchedulesLoadError: "Impossible de charger les plans de transfert mensuel."
+depreciationBudgetSchedulesRetry: "Réessayer"
+depreciationBudgetTaskTitle: "Vérifier les Transferts budgétaires échelonnés (amortissement)"
+depreciationBudgetRouteTitle: "Affectations mensuelles futures"
+depreciationBudgetRouteAdd: "Ajouter une affectation datée"
+depreciationBudgetRouteDate: "Date d’effet de l’affectation"
+depreciationBudgetDestinationCategory: "Catégorie de destination"
+depreciationBudgetSettlementTitle: "Règlements"
+depreciationBudgetSettlementAdd: "Ajouter un règlement"
+depreciationBudgetSettlementAmount: "Montant du règlement"
+depreciationBudgetSettlementDate: "Date du règlement"
+depreciationBudgetSettlementSource: "Source du règlement"
+depreciationBudgetUnallocatedSource: "Fonds non affectés"
+depreciationBudgetEndDate: "Arrêter le financement budgétaire après"
+depreciationBudgetPreviewButton: "Prévisualiser les modifications"
+depreciationBudgetPreviewTitle: "Aperçu avant et après"
+depreciationBudgetPreviewStale: "Les paramètres ont changé. Prévisualisez à nouveau avant d’appliquer."
+depreciationBudgetPreviewFailed: "Impossible de créer l’aperçu. Vérifiez les paramètres et réessayez."
+depreciationBudgetPreviewNotApplicable: "Choisissez les décisions de réinitialisation indiquées, puis prévisualisez à nouveau."
+depreciationBudgetApplyButton: "Appliquer les modifications prévisualisées"
+depreciationBudgetApplyConfirmTitle: "Appliquer les modifications des Transferts budgétaires échelonnés (amortissement) ?"
+depreciationBudgetApplyConfirmMessage: "Appliquer les changements budgétaires affichés ? L’écriture d’achat ne sera pas recréée."
+depreciationBudgetApplied: "Le traitement budgétaire des transferts mensuels a été mis à jour."
+depreciationBudgetProgressTitle: "Progression des Transferts budgétaires échelonnés (amortissement)"
+depreciationBudgetTargetLabel: "Montant à reconstituer"
+depreciationBudgetReimbursedLabel: "Reconstitué"
+depreciationBudgetRemainingLabel: "Restant"
+depreciationBudgetFutureLabel: "Montant futur"
+depreciationBudgetBoundaryTitle: "Décisions de réinitialisation budgétaire"
+depreciationBudgetBoundaryOldReset: "Montant avant la réinitialisation"
+depreciationBudgetBoundaryNewReset: "Montant après la réinitialisation"
+depreciationBudgetBoundaryDecision: "Décision pour cette réinitialisation"
+depreciationBudgetBoundaryOrder: "Ordre de traitement"
+depreciationBudgetDecisionContinue: "Continuer le plan"
+depreciationBudgetDecisionEnd: "Terminer le plan"
+depreciationBudgetDecisionCarry: "Reporter le solde de la catégorie dédiée"
+depreciationBudgetDecisionSettle: "Régler le montant restant"
+depreciationBudgetDecisionOrderBefore: "Comptabiliser l’écriture mensuelle avant la réinitialisation"
+depreciationBudgetDecisionOrderAfter: "Comptabiliser l’écriture mensuelle après la réinitialisation"
+depreciationBudgetScopeConfirmationHint: "Les écritures existantes ne permettent pas d’identifier l’étendue de la réinitialisation. Choisissez l’étendue réellement réinitialisée."
+depreciationBudgetScopeConfirmationLabel: "Étendue de la réinitialisation"
+depreciationBudgetScopeUnconfirmed: "Étendue non confirmée"
+depreciationBudgetScopeCategory: "Cette catégorie uniquement"
+depreciationBudgetScopeAll: "Toutes les catégories"
+depreciationBudgetPreviewEventsTitle: "Modifications des événements budgétaires"
+depreciationBudgetPreviewNoEvents: "Aucun événement budgétaire ne sera modifié."
+depreciationBudgetEventPurchase: "Achat"
+depreciationBudgetEventMonthly: "Virement budgétaire mensuel"
+depreciationBudgetEventSettlement: "Règlement"
+depreciationBudgetEventRouting: "Transmission du routage budgétaire"
+depreciationBudgetEventCarry: "Report du solde négatif du budget spécial"
+depreciationBudgetTimelineBefore: "Avant"
+depreciationBudgetTimelineAfter: "Après"
+depreciationBudgetTimelinePurchase: "À l’achat"
+depreciationBudgetTimelineReset: "À la réinitialisation"
+depreciationBudgetTimelineCurrent: "Actuel"
+depreciationBudgetTimelineTimestamp: "Heure"
+depreciationBudgetTimelineResetId: "Référence de réinitialisation"
+depreciationBudgetRelatedBalances: "Soldes des catégories liées (Bᵢ)"
+depreciationBudgetAmbiguousLegacyWarning: "Certaines écritures mensuelles existantes ne correspondent pas à une répartition budgétaire unique. Vérifiez leurs répartitions et résolvez l’ambiguïté avant d’appliquer les modifications."
+depreciationBudgetTotalLabel: "Total (T)"
+depreciationBudgetUnallocatedLabel: "Fonds non affectés"
+depreciationBudgetCategoriesLabel: "Solde des catégories (B)"
+depreciationBudgetAllocatableLabel: "Disponible à l’affectation"
+depreciationBudgetArchiveBlockedTitle: "Catégorie utilisée par des plans de transfert mensuel"
+depreciationBudgetArchiveBlockedMessage: "Corrigez les plans concernés et déplacez les affectations futures hors de cette catégorie avant de l’archiver."
+depreciationBudgetOpenSchedules: "Ouvrir les plans de transfert mensuel"
+depreciationBudgetResetPlansTitle: "Plans de transfert mensuel concernés par cette réinitialisation"
+depreciationBudgetResetPlansHint: "Choisissez le traitement de chaque plan. Par défaut, les soldes des catégories dédiées sont reportés et restent intacts."
+depreciationBudgetResetPlansError: "Impossible de charger les décisions de réinitialisation. Rechargez l’aperçu avant l’enregistrement."
+depreciationBudgetResetPlanStale: "La catégorie ou la date a changé. Recalculez le montant de réinitialisation pour recharger les plans concernés avant l’enregistrement."
+depreciationBudgetResetDecisionRequired: "Choisissez une décision pour chaque plan concerné."
+depreciationBudgetResetCarryHint: "Le report conserve le solde de la catégorie dédiée et ignore sa réinitialisation."
+depreciationBudgetResetSettlementSource: "Catégorie ou fonds non affectés utilisés pour le règlement"
+depreciationBudgetArchiveResetUnavailable: "L’archivage est indisponible tant qu’un plan actif utilise encore cette catégorie pour ses transferts futurs. Corrigez d’abord les affectations futures."
+depreciationBudgetOperationAdd: "Ajouté"
+depreciationBudgetOperationChange: "Modifié"
+depreciationBudgetOperationCancel: "Annulé"
+depreciationBudgetRemoveChange: "Supprimer"
 budgetReferenceAllocationBadge: Ventilation budgétaire (référence)
 budgetReferenceEntriesTitle: Dépenses de référence en espèces non suivies
 budgetReferenceEntriesHint: "{count} écritures, soit {amount}. Leur effet suit les limites de réinitialisation et de date de référence."
@@ -1256,24 +1267,24 @@ jsoncPlNote1: "montant du revenu = SOMME (crédit) - SOMME (débit) dans la pér
 jsoncPlNote2: "montant de la dépense = SOMME (débit) - SOMME (crédit) dans la période."
 jsoncPlNote3: "Les comptes avec un montant = 0 sont inclus."
 jsoncNetIncomeComment: "revenu_net = revenu_total - dépenses_totales"
-jsoncDeprSectionTitle: "Progression de l'amortissement"
-jsoncDeprNote1: "Amortissement simplifié des ménages: entrée mensuelle dépense DR / actif CR."
-jsoncDeprNote2: "book_value = total_amount - accumulé <- correspond au solde de l'actif du bilan."
-jsoncDeprNote3: "progress_pct = accumulé / total_amount x 100 (tronqué)"
+jsoncDeprSectionTitle: "Progression des transferts mensuels"
+jsoncDeprNote1: "Répartition des dépenses d’achat : écriture mensuelle débit charges / crédit actif."
+jsoncDeprNote2: "book_value = total_amount - montant transféré <- correspond au solde de l’actif au bilan."
+jsoncDeprNote3: "progress_pct = montant transféré / total_amount x 100 (tronqué)"
 exportPrint: "Imprimer"
 exportSavePDF: "Enregistrer sous PDF"
 exportSQLite: "Télécharger SQLite"
 exportSchemeLight: "Passer à la lumière"
 exportSchemeDark: "Passer au noir"
-exportDepreciationTitle: "Progression de l'amortissement"
-exportDepreciationNote: "Amortissement simplifié des ménages: les dépenses d'amortissement mensuelles réduisent le solde du compte d'actifs directement via les écritures de journal."
+exportDepreciationTitle: "Progression des Transferts budgétaires échelonnés (amortissement)"
+exportDepreciationNote: "Les écritures mensuelles réduisent directement le solde du compte d’actif d’achat."
 exportDepreciationAcquisitionCost: "Coût d'acquisition"
-exportDepreciationPeriod: "Période"
+exportDepreciationPeriod: "Période de transfert"
 exportDepreciationStartDate: "Date de début"
-exportDepreciationAccumulated: "Accumulé"
+exportDepreciationAccumulated: "Total transféré"
 exportDepreciationBookValue: "Valeur comptable"
 exportDepreciationProgress: "Progrès"
-exportDepreciationNone: "Aucun bien amortissable enregistré."
+exportDepreciationNone: "Aucun actif avec dépenses réparties sur plusieurs mois."
 negativeBalanceWarning: "Ce compte a un solde négatif"
 settingsNavCurrencyTitle: "Devises étrangères"
 settingsNavCurrencyDesc: "Activer les devises et cryptomonnaies à utiliser avec le JPY."
@@ -1580,3 +1591,22 @@ deductFromBudgetHint: "Déduire le solde de cette dette des actifs budgétaires.
 incomeOutsideBudgetHint: "Les revenus reçus ici n’augmentent pas le budget. Un transfert vers un compte budgétaire augmente les fonds non affectés."
 budgetHistorySourceFunding: "Financement budgétaire des prêts"
 loanFundingNoBudgetImpactHint: "Ce mouvement de capital ne modifie pas les ressources budgétaires. Comptabilisez les intérêts et autres charges séparément."
+depreciationBudgetMonthlySourceTitle: "Répartition budgétaire"
+depreciationBudgetMonthlySourceHelp: "Détails de répartition et d’arrondi"
+depreciationBudgetMonthlySourceHint: "Les ratios du compte de charges servent de valeurs initiales. Ajustez-les au besoin ; les modifications sont enregistrées dans ce plan."
+depreciationBudgetMonthlySourceRatioLabel: "Part"
+depreciationBudgetMonthlySourceAmountLabel: "Montant mensuel"
+depreciationBudgetMonthlySourceCategoryColumn: "Catégorie budgétaire"
+depreciationBudgetMonthlySourceRatioColumn: "Part (%)"
+depreciationBudgetMonthlySourceAmountColumn: "Transfert mensuel"
+depreciationBudgetMonthlySourceRepresentativeAmount: "Montant représentatif du transfert mensuel"
+depreciationBudgetMonthlySourceManualAmountHint: "Saisir un montant définit sa part. Les transferts réels peuvent varier selon le mois. Les fractions sont réparties à l’unité monétaire minimale, par identifiant de catégorie croissant, les fonds non affectés en dernier."
+depreciationBudgetMonthlySourceRestoreDefaults: "Rétablir les parts du compte"
+depreciationBudgetMonthlySourceOtherCategories: "Afficher les lignes budgétaires à 0 %"
+depreciationBudgetMonthlySourceInvalid: "Le total des parts des sources mensuelles doit être de 100 %."
+depreciationBudgetMonthlySourceUnallocatedHint: "Cette part provient chaque mois des fonds non affectés."
+depreciationBudgetMonthlySourceUnallocatedConfirm: "Je confirme que les transferts mensuels peuvent utiliser les fonds non affectés."
+depreciationBudgetSourceDestinationMustDiffer: "Une catégorie source ne peut pas être également la destination du transfert."
+depreciationBudgetPlanTooLarge: "Ce plan de transfert mensuel est trop volumineux pour être enregistré en toute sécurité. Réduisez le nombre de catégories sources ou raccourcissez la durée du plan."
+depreciationPreviewSummary: "Premier mois : {first} · total : {total}"
+depreciationBudgetExpenseAccountContext: "Compte de charges : {account}"

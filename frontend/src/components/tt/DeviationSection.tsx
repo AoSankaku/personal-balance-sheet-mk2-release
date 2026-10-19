@@ -1469,6 +1469,7 @@ export function DeviationSection({
           closeJournalEdit();
           setEditingEntry(null);
         }}
+        onEditEntryChange={handleEditJournal}
         onSubmit={handleSaveJournalEdit}
       />
 

@@ -683,7 +683,10 @@ router.patch("/allocations", async (c) => {
         date:logDate,currency,resetId,createdAt,decisions:body.depreciation_decisions ?? [],scaleOptions,
         archive:!!body.archive_category});
     } catch (error) {
-      if (error instanceof DepreciationResetError) return c.json({error:error.code,plans:error.plans},409);
+      if (error instanceof DepreciationResetError) {
+        const status = error.code === "depreciation_budget_plan_too_large" ? 400 : 409;
+        return c.json({error:error.code,plans:error.plans},status);
+      }
       throw error;
     }
   }

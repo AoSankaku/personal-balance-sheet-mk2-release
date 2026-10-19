@@ -527,16 +527,16 @@ export default function ExportPage() {
 
     const deprSection =
       deprRows.length === 0
-        ? `<p class="empty">減価償却資産の登録がありません。</p>`
+        ? `<p class="empty">${t("exportDepreciationNone")}</p>`
         : `<table>
-  <thead><tr><th>資産名</th><th class="num">取得価額</th><th>償却期間</th><th class="num">累計償却額</th><th class="num">残存簿価</th><th>進捗</th></tr></thead>
+  <thead><tr><th>${t("accountNameLabel")}</th><th class="num">${t("exportDepreciationAcquisitionCost")}</th><th>${t("exportDepreciationPeriod")}</th><th class="num">${t("exportDepreciationAccumulated")}</th><th class="num">${t("exportDepreciationBookValue")}</th><th>${t("exportDepreciationProgress")}</th></tr></thead>
   <tbody>
     ${deprRows
       .map(
         (row) => `<tr>
       <td><strong>${row.description}</strong><br><span style="font-size:10px;color:#888;">${accountDisplayName(row.asset_account_name)}</span></td>
       <td class="num">${f(row.total_amount)}</td>
-      <td style="text-align:center;">${row.start_date}<br><span style="font-size:10px;color:#888;">${row.months}ヶ月</span></td>
+      <td style="text-align:center;">${row.start_date}<br><span style="font-size:10px;color:#888;">${row.months}${t("depreciationMonthUnit")}</span></td>
       <td class="num">${f(row.accumulated)}</td>
       <td class="num" style="${row.remaining <= 0 ? "color:#888;" : "font-weight:700;"}">${f(row.remaining)}</td>
       <td><div style="background:#eee;border-radius:3px;height:6px;width:100%;margin-bottom:2px;"><div style="background:${row.progressPct >= 100 ? "#aaa" : row.progressPct >= 75 ? "#0d9488" : "#2563eb"};height:6px;border-radius:3px;width:${Math.min(row.progressPct, 100)}%;"></div></div><span style="font-size:10px;">${row.progressPct}%</span></td>
@@ -608,8 +608,8 @@ export default function ExportPage() {
   </tbody>
 </table>
 
-<h2>減価償却の進捗（${toStr || "—"} 時点）</h2>
-<p class="note">家計簿用簡易減価償却：月次の減価償却費は費用科目を通じて直接資産の帳簿価額を減少させます。</p>
+<h2>${t("exportDepreciationTitle")}（${toStr || "—"} 時点）</h2>
+<p class="note">${t("exportDepreciationNote")}</p>
 ${deprSection}
 </body>
 </html>`;

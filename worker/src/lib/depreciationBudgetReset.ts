@@ -1,16 +1,30 @@
 import type { DepreciationBudgetSettings, DepreciationResetInputDecision, DepreciationResetPlan } from "../../../shared/depreciationBudget";
+import { resolveDepreciationMonthlySourceAllocations } from "../../../shared/depreciationBudgetAllocation";
 import { fromStorageMoneyAmount, toStorageMoneyAmount, type MoneyScaleOptions } from "./moneyValidation";
+import { getDepreciationBudgetReceiptGroups } from "./depreciationBudgetReceipts";
 
 interface Schedule {
   id: number;
   description: string;
   budget_method: "assigned" | "special";
   budget_settings: string;
+  months: number;
+  start_date: string;
   budget_revision: number;
   budget_special_category_id: number | null;
   budget_target_amount: number;
   budget_currency: string;
 }
+
+const DEPRECIATION_BUDGET_AUDIT_ROW_MAX_BYTES = 1_800_000;
+type ExistingBudgetEvent = Record<string, unknown> & {
+  id: number;
+  budget_category_id: number;
+  amount: number;
+  date: string;
+  created_at: string;
+  depreciation_event_key: string | null;
+};
 
 export class DepreciationResetError extends Error {
   constructor(public readonly code: string, public readonly plans: DepreciationResetPlan[] = []) { super(code); }
@@ -23,15 +37,20 @@ async function configuredSchedules(DB: D1Database) {
 
 function routeAt(schedule: Schedule, date: string) {
   const settings = JSON.parse(schedule.budget_settings) as DepreciationBudgetSettings;
-  let source = settings.monthly_source_category_id ?? null;
+  let sourceAllocations = resolveDepreciationMonthlySourceAllocations(settings);
   let destination = schedule.budget_method === "special"
     ? schedule.budget_special_category_id : settings.purchase_category_id ?? null;
   for (const route of [...settings.routing_changes ?? []].sort((a,b) => a.date.localeCompare(b.date))) {
     if (route.date > date) break;
-    source = route.monthly_source_category_id;
+    sourceAllocations = resolveDepreciationMonthlySourceAllocations(
+      route.monthly_source_allocations !== undefined || route.monthly_source_category_id != null
+        ? route
+        : settings,
+    );
     destination = route.destination_category_id;
   }
-  return { settings, source, destination };
+  const source = sourceAllocations.length === 1 ? sourceAllocations[0]!.budget_category_id : null;
+  return { settings, source, sourceAllocations, destination };
 }
 
 async function endedBefore(DB:D1Database,settings:DepreciationBudgetSettings,date:string) {
@@ -50,12 +69,18 @@ export async function isManagedDepreciationReset(DB:D1Database,id:number) {
 
 /** The plan's lifetime receipts are independent of category resets. */
 async function remainingAt(DB: D1Database, schedule: Schedule, date: string) {
-  const result = await DB.prepare(`SELECT COALESCE(SUM(amount),0) AS total
-    FROM budget_adjustment_logs WHERE depreciation_schedule_id = ?
-      AND amount > 0 AND date <= ?
-      AND (depreciation_event_key LIKE 'monthly:%' OR depreciation_event_key LIKE 'settlement:%')`)
-    .bind(schedule.id, date).first<{total:number}>();
-  return Math.max(0, schedule.budget_target_amount - (result?.total ?? 0));
+  const settings = JSON.parse(schedule.budget_settings) as DepreciationBudgetSettings;
+  const rows = await DB.prepare(`SELECT budget_category_id,amount,date,currency,created_at,
+      depreciation_event_key,depreciation_event_side
+    FROM budget_adjustment_logs WHERE depreciation_schedule_id = ?`)
+    .bind(schedule.id).all<{
+      budget_category_id: number; amount: number; date: string; currency: string; created_at: string | null;
+      depreciation_event_key: string | null; depreciation_event_side: "source" | "destination" | null;
+    }>();
+  const valid = getDepreciationBudgetReceiptGroups(rows.results ?? [], settings, schedule);
+  const received = [...valid.values()].filter((event) => event.date <= date)
+    .reduce((sum, event) => sum + event.amount, 0);
+  return Math.max(0, schedule.budget_target_amount - received);
 }
 
 export async function getDepreciationResetPlans(DB: D1Database, categoryId: number, date: string, currency: string,
@@ -63,17 +88,19 @@ export async function getDepreciationResetPlans(DB: D1Database, categoryId: numb
   const plans: DepreciationResetPlan[] = [];
   for (const schedule of await configuredSchedules(DB)) {
     if ((schedule.budget_currency || "JPY") !== currency) continue;
-    const { settings, source, destination } = routeAt(schedule, date);
+    const { settings, source, sourceAllocations, destination } = routeAt(schedule, date);
     // Ending monthly reimbursement never releases an outstanding special debt.
     if (await endedBefore(DB,settings,date) &&
       !(schedule.budget_method === "special" && destination === categoryId)) continue;
-    if (source !== categoryId && destination !== categoryId) continue;
+    if (!sourceAllocations.some((allocation) => allocation.budget_category_id === categoryId && allocation.ratio > 0) &&
+      destination !== categoryId) continue;
     const remaining = await remainingAt(DB, schedule, date);
     if (remaining <= 0) continue;
     plans.push({ schedule_id: schedule.id, description: schedule.description, method: schedule.budget_method,
       remaining_amount: fromStorageMoneyAmount(remaining,currency,scaleOptions),
       special_category_id: schedule.budget_method === "special" ? destination : null,
-      monthly_source_category_id: source, destination_category_id: destination });
+      monthly_source_category_id: source, monthly_source_allocations: sourceAllocations,
+      destination_category_id: destination });
   }
   return plans;
 }
@@ -86,13 +113,22 @@ export async function categoryHasDepreciationReferences(DB: D1Database, category
     if (history) return true;
   }
   for (const schedule of await configuredSchedules(DB)) {
-    const { settings, source, destination } = routeAt(schedule,date);
+    const { settings, sourceAllocations, destination } = routeAt(schedule,date);
     const remaining = await remainingAt(DB,schedule,date);
     if (schedule.budget_method === "special" && destination === categoryId && remaining > 0) return true;
     if (remaining <= 0 || await endedBefore(DB,settings,date)) continue;
-    if (source === categoryId || destination === categoryId) return true;
-    if ((settings.routing_changes ?? []).some(route => route.date > date &&
-      (route.monthly_source_category_id === categoryId || route.destination_category_id === categoryId))) return true;
+    if (sourceAllocations.some((allocation) => allocation.budget_category_id === categoryId && allocation.ratio > 0) ||
+      destination === categoryId) return true;
+    if ((settings.routing_changes ?? []).some(route => {
+      if (route.date <= date) return false;
+      const allocations = resolveDepreciationMonthlySourceAllocations(
+        route.monthly_source_allocations !== undefined || route.monthly_source_category_id != null
+          ? route
+          : settings,
+      );
+      return allocations.some((allocation) => allocation.budget_category_id === categoryId && allocation.ratio > 0) ||
+        route.destination_category_id === categoryId;
+    })) return true;
   }
   return false;
 }
@@ -124,7 +160,19 @@ export async function prepareDepreciationReset(DB: D1Database, input: {
       { reset_log_id: input.resetId, action: decision.action,
         ...(decision.action === "settle" ? { settlement_source_category_id: decision.settlement_source_category_id ?? null } : {}) }];
     if (decision.action === "end") settings.end_date = input.date;
-    const beforeEvents = (await DB.prepare("SELECT * FROM budget_adjustment_logs WHERE depreciation_schedule_id=? ORDER BY date,created_at,id").bind(schedule.id).all()).results ?? [];
+    const beforeEvents = (await DB.prepare("SELECT * FROM budget_adjustment_logs WHERE depreciation_schedule_id=? ORDER BY date,created_at,id")
+      .bind(schedule.id).all<ExistingBudgetEvent>()).results ?? [];
+    const removesFutureReceipts = decision.action === "end" || decision.action === "settle";
+    const afterEventRows = beforeEvents
+      .filter((event) => !removesFutureReceipts || !(
+        (event.depreciation_event_key?.startsWith("monthly:") ||
+          event.depreciation_event_key?.startsWith("settlement:")) &&
+        (event.date > input.date || (event.date === input.date && event.created_at > input.createdAt))
+      ))
+      .map((event) => ({
+        id: event.id, category: event.budget_category_id, amount: event.amount,
+        date: event.date, key: event.depreciation_event_key,
+      }));
     if (decision.action === "end" || decision.action === "settle") {
       settings.settlements = settings.settlements?.filter(event => event.date <= input.date);
     }
@@ -141,6 +189,10 @@ export async function prepareDepreciationReset(DB: D1Database, input: {
       const amount = toStorageMoneyAmount(plan.remaining_amount,input.currency,input.scaleOptions);
       const sides = [...(source == null ? [] : [{category:source,amount:-amount,side:"source"}]),
         {category:plan.destination_category_id,amount,side:"destination"}];
+      afterEventRows.push(...sides.map((side) => ({
+        id: 9_999_999_999, category: side.category, amount: side.amount,
+        date: input.date, key: `settlement:${key}`,
+      })));
       for (const side of sides) {
         statements.push(DB.prepare(`INSERT INTO budget_adjustment_logs
           (budget_category_id,year_month,amount,currency,date,adjustment_type,created_at,
@@ -157,6 +209,20 @@ export async function prepareDepreciationReset(DB: D1Database, input: {
     }
     statements.push(DB.prepare("UPDATE depreciation_schedules SET budget_settings=?,budget_revision=budget_revision+1 WHERE id=?")
       .bind(JSON.stringify(settings),schedule.id));
+    const auditRowSize = new TextEncoder().encode(JSON.stringify({
+      schedule_id: schedule.id,
+      revision: schedule.budget_revision + 1,
+      action: "reset",
+      request_key: `reset:${input.resetId}`,
+      before_settings: schedule.budget_settings,
+      after_settings: JSON.stringify(settings),
+      before_events: JSON.stringify(beforeEvents),
+      after_events: JSON.stringify(afterEventRows),
+      created_at: "2026-10-19 00:00:00",
+    })).byteLength;
+    if (auditRowSize > DEPRECIATION_BUDGET_AUDIT_ROW_MAX_BYTES) {
+      throw new DepreciationResetError("depreciation_budget_plan_too_large",plans);
+    }
     statements.push(DB.prepare(`INSERT INTO depreciation_budget_revisions
       (schedule_id,revision,action,request_key,before_settings,after_settings,before_events,after_events)
       VALUES(?,?,'reset',?,?,?,?,(SELECT json_group_array(json_object('id',id,'category',budget_category_id,'amount',amount,'date',date,'key',depreciation_event_key))

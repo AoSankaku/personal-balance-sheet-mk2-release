@@ -2,6 +2,12 @@
 export type DepreciationBudgetMethod = "assigned" | "special" | "unallocated";
 export type DepreciationBudgetStatus = "unset" | "active" | "completed" | "ended";
 
+/** A saved snapshot of how monthly depreciation is funded by budget buckets. */
+export interface DepreciationBudgetSourceAllocation {
+  budget_category_id: number | null;
+  ratio: number;
+}
+
 export interface DepreciationBudgetResetDecision {
   reset_log_id: number;
   action: "continue" | "end" | "carry" | "settle";
@@ -14,7 +20,9 @@ export interface DepreciationBudgetResetDecision {
 
 export interface DepreciationBudgetRoutingChange {
   date: string;
-  monthly_source_category_id: number;
+  /** Legacy single-source setting; used only when the allocation array is absent. */
+  monthly_source_category_id?: number | null;
+  monthly_source_allocations?: DepreciationBudgetSourceAllocation[];
   destination_category_id: number;
 }
 
@@ -29,6 +37,8 @@ export interface DepreciationBudgetSettings {
   method: DepreciationBudgetMethod;
   purchase_category_id?: number | null;
   monthly_source_category_id?: number | null;
+  monthly_source_allocations?: DepreciationBudgetSourceAllocation[];
+  confirm_monthly_unallocated?: boolean;
   confirm_unallocated?: boolean;
   reset_decisions?: DepreciationBudgetResetDecision[];
   routing_changes?: DepreciationBudgetRoutingChange[];
@@ -118,6 +128,7 @@ export interface DepreciationResetPlan {
   remaining_amount: number;
   special_category_id: number | null;
   monthly_source_category_id: number | null;
+  monthly_source_allocations?: DepreciationBudgetSourceAllocation[];
   destination_category_id: number | null;
 }
 

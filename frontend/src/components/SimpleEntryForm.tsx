@@ -46,6 +46,13 @@ import {
   buildTransferBudgetAdjustments,
   getTransferBudgetCategoryOptions,
 } from "../lib/transferBudgetMovement";
+import {
+  buildDepreciationMonthlySourceDefaults,
+  calculateBudgetedDepreciationMonthlyAmounts,
+  calculateDepreciationMonthlyAmounts,
+  getDepreciationMonthlySourceAllocations,
+  snapshotDepreciationMonthlySourceSettings,
+} from "../lib/depreciationMonthlySources";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { showFeedback } from "../lib/feedback";
@@ -901,6 +908,13 @@ export function SimpleEntryForm({
   ]);
 
   async function doSubmit(values: HouseholdForm) {
+    const submittedDepreciationSettings = depreciationBudgetSettings?.method
+      ? snapshotDepreciationMonthlySourceSettings(
+          depreciationBudgetSettings,
+          budgetCategories,
+          depreciationExpenseAccount?.budget_ratios ?? [],
+        )
+      : depreciationBudgetSettings;
     const createsDepreciationSchedule =
       !isEditing &&
       depreciationEnabled &&
@@ -912,17 +926,24 @@ export function SimpleEntryForm({
             ) >
             0));
     if (createsDepreciationSchedule) {
-      if (!depreciationBudgetSettings?.method) {
+      if (!submittedDepreciationSettings?.method) {
         throw new Error(t("depreciationBudgetMethodRequired"));
       }
       const budgetErrors = getDepreciationBudgetFormErrors({
-        method: depreciationBudgetSettings.method,
+        method: submittedDepreciationSettings.method,
         purchaseCategoryId:
-          depreciationBudgetSettings.purchase_category_id,
+          submittedDepreciationSettings.purchase_category_id,
         monthlySourceCategoryId:
-          depreciationBudgetSettings.monthly_source_category_id,
+          submittedDepreciationSettings.monthly_source_category_id,
+        monthlySourceAllocations: getDepreciationMonthlySourceAllocations(
+          submittedDepreciationSettings,
+          budgetCategories,
+          depreciationExpenseAccount?.budget_ratios ?? [],
+        ),
         confirmUnallocated:
-          depreciationBudgetSettings.confirm_unallocated,
+          submittedDepreciationSettings.confirm_unallocated,
+        confirmMonthlyUnallocated:
+          submittedDepreciationSettings.confirm_monthly_unallocated,
       });
       if (budgetErrors.purchaseCategory) {
         throw new Error(t("depreciationBudgetCategoryRequired"));
@@ -935,6 +956,12 @@ export function SimpleEntryForm({
       }
       if (budgetErrors.confirmUnallocated) {
         throw new Error(t("depreciationBudgetConfirmationRequired"));
+      }
+      if (budgetErrors.monthlySourceAllocations) {
+        throw new Error(t("depreciationBudgetMonthlySourceInvalid"));
+      }
+      if (budgetErrors.confirmMonthlyUnallocated) {
+        throw new Error(t("depreciationBudgetMonthlySourceUnallocatedConfirm"));
       }
     }
     const transactionDate = dayjs(values.date).format("YYYY-MM-DD");
@@ -1021,7 +1048,7 @@ export function SimpleEntryForm({
           {
             ...depreciationInput,
             currency: selectedCurrency,
-            budget_settings: depreciationBudgetSettings!,
+            budget_settings: submittedDepreciationSettings!,
             idempotency_key: depreciationIdempotencyKey,
           } satisfies CreateDepreciationInput,
         );
@@ -1076,7 +1103,7 @@ export function SimpleEntryForm({
           total_amount: personalAmount,
           months,
           currency: selectedCurrency,
-          budget_settings: depreciationBudgetSettings!,
+          budget_settings: submittedDepreciationSettings!,
           idempotency_key: depreciationIdempotencyKey,
           purchase_lines: [
             { account_id: advanceAccountId, debit: businessAmount, credit: 0, currency: selectedCurrency },
@@ -1682,6 +1709,9 @@ export function SimpleEntryForm({
         e instanceof ApiError &&
         e.body.error === "income_transfer_completed_conflict"
           ? t("incomeTransferEditConflict")
+          : e instanceof ApiError &&
+              e.body.error === "depreciation_budget_plan_too_large"
+            ? t("depreciationBudgetPlanTooLarge")
           : e instanceof ApiError
             ? e.message
             : String(e);
@@ -1700,6 +1730,28 @@ export function SimpleEntryForm({
         buildBudgetDistribution(accountId),
       ),
     );
+  }
+
+  function handleDepreciationExpenseAccountChange(v: string | null) {
+    const accountId = v ? Number(v) : null;
+    setDepreciationExpenseAccountId(accountId);
+    const account = accounts.find((candidate) => candidate.id === accountId);
+    const defaults = buildDepreciationMonthlySourceDefaults(
+      budgetCategories,
+      account?.budget_ratios ?? [],
+    );
+    setDepreciationBudgetSettings((current) => {
+      if (!current) return current;
+      const firstCategoryId = defaults.find(
+        (allocation) => allocation.budget_category_id != null && allocation.ratio > 0,
+      )?.budget_category_id ?? null;
+      return {
+        ...current,
+        monthly_source_allocations: defaults,
+        monthly_source_category_id: firstCategoryId,
+        confirm_monthly_unallocated: false,
+      };
+    });
   }
 
   function handleIncomeTypeChange(v: string | null) {
@@ -1917,6 +1969,42 @@ export function SimpleEntryForm({
       ? Math.round((form.values.amount * businessRatio) / 100)
       : 0;
   const personalAmount = Math.max(0, form.values.amount - businessAmount);
+  const depreciationTotalAmount =
+    entryType === "business_advance" ? personalAmount : form.values.amount;
+  const depreciationMonthsForPreview =
+    depreciationInputMode === "months"
+      ? Number(depreciationMonths) || 1
+      : Math.max(
+          1,
+          Math.ceil(
+            depreciationTotalAmount / (Number(depreciationMonthlyAmount) || 1),
+          ),
+        );
+  const depreciationPurchaseBudgetAmount =
+    !isBudgetAccount(selectedPaymentAccount)
+      ? 0
+      : entryType === "business_advance"
+        ? personalAmount
+        : form.values.amount;
+  const depreciationDecimalPlaces =
+    enabledCurrencies.find((currency) => currency.code === selectedCurrency)
+      ?.decimal_places ?? (selectedCurrency === "JPY" || selectedCurrency === "KRW" ? 0 : 2);
+  const actualDepreciationMonthlyAmounts = calculateDepreciationMonthlyAmounts({
+    totalAmount: depreciationTotalAmount,
+    months: depreciationMonthsForPreview,
+    purchaseDate: dayjs(form.values.date).format("YYYY-MM-DD"),
+    decimalPlaces: depreciationDecimalPlaces,
+  });
+  const depreciationRepresentativeMonthlyAmount =
+    calculateBudgetedDepreciationMonthlyAmounts({
+      monthlyAmounts: actualDepreciationMonthlyAmounts,
+      budgetedPurchaseAmount: depreciationPurchaseBudgetAmount,
+      depreciationTotal: depreciationTotalAmount,
+      decimalPlaces: depreciationDecimalPlaces,
+    })[0] ?? 0;
+  const depreciationExpenseAccount = accounts.find(
+    (account) => account.id === depreciationExpenseAccountId,
+  );
   const personalRatio = Math.max(0, 100 - businessRatio);
   const expenseBudgetBase =
     entryType === "business_advance" ? personalAmount : form.values.amount;
@@ -2146,7 +2234,15 @@ export function SimpleEntryForm({
             ];
 
   return (
-    <form onSubmit={form.onSubmit(handleSubmit)}>
+    <form
+      onSubmit={form.onSubmit(handleSubmit)}
+      style={
+        depreciationEnabled &&
+        (entryType === "expense" || entryType === "business_advance")
+          ? { maxWidth: 1040, marginInline: "auto" }
+          : undefined
+      }
+    >
       <Stack>
         <SegmentedControl
           data={[
@@ -2206,7 +2302,14 @@ export function SimpleEntryForm({
               depreciationAssetAccountId={depreciationAssetAccountId}
               setDepreciationAssetAccountId={setDepreciationAssetAccountId}
               depreciationExpenseAccountId={depreciationExpenseAccountId}
-              setDepreciationExpenseAccountId={setDepreciationExpenseAccountId}
+              setDepreciationExpenseAccountId={handleDepreciationExpenseAccountChange}
+              depreciationExpenseAccountBudgetRatios={depreciationExpenseAccount?.budget_ratios ?? []}
+              depreciationExpenseAccountName={depreciationExpenseAccount ? accountDisplayName(depreciationExpenseAccount, t) : undefined}
+              depreciationFirstMonthAmount={actualDepreciationMonthlyAmounts[0] ?? 0}
+              depreciationTotalAmount={depreciationTotalAmount}
+              depreciationRepresentativeMonthlyAmount={depreciationRepresentativeMonthlyAmount}
+              depreciationCurrency={selectedCurrency}
+              depreciationCurrencyDecimalPlaces={depreciationDecimalPlaces}
               depreciationInputMode={depreciationInputMode}
               setDepreciationInputMode={setDepreciationInputMode}
               depreciationMonths={depreciationMonths}
@@ -2215,11 +2318,7 @@ export function SimpleEntryForm({
               setDepreciationMonthlyAmount={setDepreciationMonthlyAmount}
               depreciationBudgetSettings={depreciationBudgetSettings}
               setDepreciationBudgetSettings={setDepreciationBudgetSettings}
-              depreciationPurchaseAmount={
-                !isBudgetAccount(selectedPaymentAccount) ? 0 : entryType === "business_advance"
-                  ? personalAmount
-                  : form.values.amount
-              }
+              depreciationPurchaseAmount={depreciationPurchaseBudgetAmount}
               isEditing={isEditing}
               onDepreciationSubmit={onDepreciationSubmit}
               handleExpenseAccountChange={handleExpenseAccountChange}
@@ -2476,7 +2575,16 @@ export function SimpleEntryForm({
                 {t("cancel")}
               </Button>
             )}
-            <Button type="submit">{submitLabel ?? t("add")}</Button>
+            <Button
+              type="submit"
+              disabled={
+                depreciationEnabled &&
+                (entryType === "expense" || entryType === "business_advance") &&
+                depreciableAssetOptions.length === 0
+              }
+            >
+              {submitLabel ?? t("add")}
+            </Button>
           </Group>
         </Group>
       </Stack>

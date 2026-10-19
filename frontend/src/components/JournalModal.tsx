@@ -1,7 +1,16 @@
-import { Alert, Button, Group, Modal, Stack, Tabs, Text } from "@mantine/core";
+import {
+  Alert,
+  Anchor,
+  Button,
+  Group,
+  Modal,
+  Stack,
+  Tabs,
+  Text,
+} from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type Account,
   type CreateJournalInput,
@@ -15,6 +24,8 @@ import {
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { useDepreciationBudget } from "../context/DepreciationBudgetContext";
+import { usePrivacy } from "../context/PrivacyContext";
+import { api } from "../api/client";
 import {
   SimpleEntryForm,
   type HouseholdForm,
@@ -32,6 +43,7 @@ interface Props {
   accounts: Account[];
   editEntry?: JournalEntry;
   onClose: () => void;
+  onEditEntryChange: (entry: JournalEntry) => void;
   onSubmit: (
     values: CreateJournalInput,
     meta?: SimpleEntryMeta,
@@ -390,10 +402,12 @@ export function JournalModal({
   accounts,
   editEntry,
   onClose,
+  onEditEntryChange,
   onSubmit,
 }: Props) {
   const { t } = useLang();
   const { budgetCategories, budgetFilters, budgetSettings } = useAppData();
+  const { privacyMode } = usePrivacy();
   const { schedules: depreciationSchedules, openRepair } =
     useDepreciationBudget();
   const depreciationSchedule = depreciationSchedules.find(
@@ -401,6 +415,27 @@ export function JournalModal({
   ) ?? null;
   const [activeTab, setActiveTab] = useState<string>("simple");
   const [convertWarnOpen, setConvertWarnOpen] = useState(false);
+  const [sourceEntryLoading, setSourceEntryLoading] = useState(false);
+  const [sourceEntryLoadError, setSourceEntryLoadError] = useState(false);
+  const sourceEntryRequestGeneration = useRef(0);
+  const openedRef = useRef(opened);
+  const editEntryIdRef = useRef(editEntry?.id);
+  const privacyModeRef = useRef(privacyMode);
+  const sourceEntryId = depreciationSchedule?.source_journal_entry_id ?? null;
+  const sourceEntryIdRef = useRef(sourceEntryId);
+  openedRef.current = opened;
+  editEntryIdRef.current = editEntry?.id;
+  privacyModeRef.current = privacyMode;
+  sourceEntryIdRef.current = sourceEntryId;
+
+  useEffect(() => {
+    sourceEntryRequestGeneration.current += 1;
+    setSourceEntryLoading(false);
+    setSourceEntryLoadError(false);
+    return () => {
+      sourceEntryRequestGeneration.current += 1;
+    };
+  }, [opened, editEntry?.id, privacyMode, sourceEntryId]);
 
   const { simpleInitDraft, nonConvertibleReason } = useMemo(() => {
     if (!opened || !editEntry) {
@@ -602,7 +637,45 @@ export function JournalModal({
     await onSubmit(values, meta);
   }
 
+  async function handleEditSourcePurchase() {
+    const targetEntryId = sourceEntryIdRef.current;
+    const currentEntryId = editEntryIdRef.current;
+    if (
+      targetEntryId == null ||
+      currentEntryId == null ||
+      !openedRef.current ||
+      privacyModeRef.current ||
+      sourceEntryLoading
+    ) {
+      return;
+    }
+
+    const requestGeneration = ++sourceEntryRequestGeneration.current;
+    setSourceEntryLoading(true);
+    setSourceEntryLoadError(false);
+
+    const isCurrentRequest = () =>
+      requestGeneration === sourceEntryRequestGeneration.current &&
+      openedRef.current &&
+      editEntryIdRef.current === currentEntryId &&
+      sourceEntryIdRef.current === targetEntryId &&
+      privacyModeRef.current === false;
+
+    try {
+      const sourceEntry = await api.journal.get(targetEntryId);
+      if (!isCurrentRequest()) return;
+      onEditEntryChange(sourceEntry);
+    } catch {
+      if (isCurrentRequest()) setSourceEntryLoadError(true);
+    } finally {
+      if (isCurrentRequest()) setSourceEntryLoading(false);
+    }
+  }
+
   function handleClose() {
+    sourceEntryRequestGeneration.current += 1;
+    setSourceEntryLoading(false);
+    setSourceEntryLoadError(false);
     setActiveTab("simple");
     setConvertWarnOpen(false);
     onClose();
@@ -618,9 +691,45 @@ export function JournalModal({
     >
       {editEntry?.depreciation_entry_kind === "monthly" && (
         <Alert color="yellow" mb="md" icon={<IconAlertTriangle size={16} />}>
-          {t("depreciationEntryEditWarning")}
+          {(() => {
+            const [beforeSource, afterSource] = t(
+              "depreciationEntryEditWarning",
+            ).split("{source}");
+            const sourceLabel = t("depreciationSourcePurchaseEntryLabel");
+            return (
+              <>
+                {beforeSource}
+                {sourceEntryId == null ? (
+                  sourceLabel
+                ) : (
+                  <Anchor
+                    component="button"
+                    type="button"
+                    disabled={sourceEntryLoading || privacyMode}
+                    aria-busy={sourceEntryLoading}
+                    onClick={handleEditSourcePurchase}
+                  >
+                    {sourceLabel}
+                  </Anchor>
+                )}
+                {afterSource ?? ""}
+              </>
+            );
+          })()}
         </Alert>
       )}
+      {editEntry?.depreciation_entry_kind === "monthly" &&
+        sourceEntryLoadError && (
+          <Text
+            role="alert"
+            data-testid="depreciation-source-entry-error"
+            c="red"
+            size="sm"
+            mb="md"
+          >
+            {t("depreciationSourceEntryLoadError")}
+          </Text>
+        )}
       {editEntry?.depreciation_entry_kind === "source" && depreciationSchedule && (
         <Alert color={depreciationSchedule.budget.status === "unset" ? "yellow" : "blue"} mb="md">
           <Group justify="space-between" align="center">

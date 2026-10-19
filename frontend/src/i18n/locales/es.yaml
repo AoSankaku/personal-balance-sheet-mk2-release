@@ -53,7 +53,7 @@ privacyModeBlockedTitle: "Modo de privacidad activado"
 privacyModeBlockedMessage: "Esta página no se puede usar con el modo de privacidad activado. Desactívalo en Configuración > General para editar datos."
 settingsSectionAccounts: "Cuentas"
 sectionAssets: "Activos"
-sectionDepreciableAssets: "Activos fijos amortizables"
+sectionDepreciableAssets: "Activos de las Transferencias presupuestarias en cuotas (depreciación)"
 sectionLiabilities: "Pasivos"
 sectionEquity: "Patrimonio"
 sectionIncome: "Ingresos"
@@ -408,11 +408,11 @@ budgetReconciliationNetBudget: "Saldo presupuestario neto"
 budgetReconciliationNetGap: "Diferencia neta de conciliación"
 budgetReconciliationReferenceReserve: "Reserva de gastos no rastreados"
 budgetReconciliationDepreciationReserve: "Reserva de compra restante"
-budgetReconciliationDepreciationOffset: "Depreciación no monetaria tras el reinicio"
+budgetReconciliationDepreciationOffset: "Gasto mensual no monetario tras el reinicio"
 budgetReconciliationAdjustedGap: "Diferencia tras la reserva"
 budgetReconciliationPositiveClaims: "Compromisos presupuestarios positivos"
 budgetReconciliationFundingGap: "Diferencia de financiación positiva"
-budgetReconciliationHint: "La diferencia neta es {gap}; {reference} se reserva para gastos no rastreados y {depreciation} corresponde a depreciación no monetaria tras el reinicio, quedando {adjustedGap} después de ambos ajustes. El exceso sin financiar es {overspending}."
+budgetReconciliationHint: "La diferencia neta es {gap}; {reference} se reserva para gastos no registrados y {depreciation} corresponde al gasto mensual no monetario tras el reinicio, quedando {adjustedGap} después de ambos ajustes. El exceso sin financiar es {overspending}."
 budgetFundingOverviewTitle: "Importe disponible para asignar"
 budgetFundingOverviewHint: "Efectivo asignable menos los importes ya reservados para presupuestos."
 budgetFundingReservedLabel: "Ya reservado"
@@ -747,10 +747,13 @@ deleteJournalConfirmMsg: "¿Estás seguro de que deseas eliminar esta entrada? E
 suppressDeleteWarning5min: "No mostrar esta advertencia durante 5 minutos."
 includeInAllocatableLabel: "Incluir como fuente de asignación presupuestaria"
 includeInAllocatableHint: "Sólo las cuentas bancarias o en efectivo comprobadas se cuentan como dinero asignable."
-isDepreciableLabel: "Activo depreciable (equipos, etc.)"
-isDepreciableHint: "Marcar esta cuenta de activo como elemento depreciable"
-depreciationSettingsTitle: "Configuración de depreciación"
-depreciationSettingsHint: "Selecciona la cuenta de gasto usada para registrar la depreciación mensual"
+isDepreciableLabel: "Excluir del presupuesto y usar como cuenta de activo de origen para las Transferencias presupuestarias en cuotas (depreciación)"
+isDepreciableHint: "Registra la compra en esta cuenta de activo y transfiérela a una cuenta de gastos durante varios meses."
+depreciationAssetRequiredTitle: "Primero crea una cuenta de activo de origen"
+depreciationAssetRequiredHint: "En Configuración > Cuentas, añade una cuenta de activo y marca «Excluir del presupuesto y usar como cuenta de activo de origen para las Transferencias presupuestarias en cuotas (depreciación)». Después, vuelve aquí para introducir el plan."
+depreciationAssetAccountSettingsButton: "Ir a la configuración de cuentas"
+depreciationSettingsTitle: "Configuración de las Transferencias presupuestarias en cuotas (depreciación)"
+depreciationSettingsHint: "Elige la cuenta de gastos para los asientos mensuales."
 depreciationAccountNone: "Ninguna cuenta seleccionada"
 businessOwnerSettingsTitle: "Configuración de anticipos del propietario del negocio"
 businessOwnerSettingsHint: "Configurar cuentas para registrar anticipos de gastos profesionales como autónomo."
@@ -778,21 +781,26 @@ businessAdvanceBalanceHistory: "Historial de saldo"
 changeColHeader: "Cambiar"
 goToSettings: "Ir a configuración"
 currentBalance: "saldo actual"
-depreciationLabel: "Depreciación"
-depreciationAssetAccountLabel: "Cuenta de activo (equipos, etc.)"
-depreciationExpenseAccountLabel: "Cuenta de gastos de depreciación"
-depreciationByMonths: "Por periodo"
-depreciationByMonthlyAmount: "Por monto mensual"
-depreciationMonthsLabel: "Periodo de depreciación (meses)"
-depreciationMonthlyAmountLabel: "Monto de depreciación mensual"
+depreciationLabel: "Transferencias presupuestarias en cuotas (depreciación)"
+installmentPurchasePaymentGroup: "Compra y pago"
+installmentMonthlyExpenseGroup: "Gasto mensual"
+installmentBudgetHandlingGroup: "Tratamiento del presupuesto"
+depreciationAssetAccountLabel: "Cuenta del activo comprado"
+depreciationExpenseAccountLabel: "Cuenta de gastos"
+depreciationByMonths: "Por número de meses"
+depreciationByMonthlyAmount: "Por importe mensual"
+depreciationMonthsLabel: "Duración de la transferencia (meses)"
+depreciationMonthlyAmountLabel: "Importe mensual de transferencia"
 depreciationPreview: "Aprox."
 depreciationMonthUnit: "meses"
-depreciationCreated: "Programa de depreciación creado"
-depreciationEntryEditWarning: "La edición de un asiento de depreciación individual puede interrumpir el cálculo del cronograma. Actualice la entrada del activo de origen cuando sea posible."
-depreciableAssetsTotal: "Total de activos depreciables (valor neto en libros)"
-depreciationReportTitle: "Depreciación"
-depreciationTotal: "Depreciación total"
-depreciationNone: "No se registró depreciación para este período."
+depreciationCreated: "Se creó el plan de gastos mensuales"
+depreciationEntryEditWarning: "Editar un asiento mensual puede cambiar el cálculo del plan. Si es posible, modifica {source}."
+depreciationSourcePurchaseEntryLabel: "el asiento de compra original"
+depreciationSourceEntryLoadError: "No se pudo cargar el asiento de compra original. Inténtalo de nuevo."
+depreciableAssetsTotal: "Saldo total de activos con gastos mensuales"
+depreciationReportTitle: "Transferencias presupuestarias en cuotas (depreciación)"
+depreciationTotal: "Total de transferencias mensuales"
+depreciationNone: "No hay transferencias mensuales registradas para este período."
 depreciationBudgetPressure: "Presión presupuestaria (% de gastos totales)"
 depreciationBudgetPressureNoExpense: "No se registraron gastos para este año."
 budgetConsistencyTitle: "Verificación de coherencia presupuestaria"
@@ -803,120 +811,123 @@ budgetReferenceAllocationHint: La fuente de pago está fuera de los fondos presu
 budgetMarkReferenceAction: Marcar referencia
 budgetMarkReferenceSuccess: El desglose presupuestario se cambió a un registro de referencia
 budgetReferenceSpentLabel: Del cual gasto de referencia
-budgetDepreciationRecognizedLabel: Depreciación reconocida este mes
-budgetDepreciationReserveLabel: Reserva de compra restante
-budgetDepreciationOverviewTitle: Presupuesto de depreciación
-budgetDepreciationOverviewHint: Separa el importe reservado al comprar de la depreciación reconocida cada mes.
-budgetDepreciationReferenceBadge: Vista de referencia
-budgetDepreciationActiveStatus: Reserva de compra activa
-budgetDepreciationResetStatus: Reserva reiniciada · depreciación activa
-budgetDepreciationRecognizedStatus: Solo depreciación mensual
-depreciationBudgetMethodTitle: Tratamiento presupuestario de este plan de depreciación
-depreciationBudgetMethodassignedLabel: "Gastar del presupuesto asignado y reponerlo cada mes (recomendado)"
-depreciationBudgetMethodassignedHint: Al comprar, se debita el presupuesto de compra. Cada mes se transfiere el mismo importe del presupuesto de origen al presupuesto de compra para reponerlo.
-depreciationBudgetMethodspecialLabel: "Cargar a un presupuesto especial negativo y reponerlo cada mes"
-depreciationBudgetMethodspecialHint: Al comprar, un presupuesto especial vinculado a la compra queda en negativo. Cada mes se transfiere el mismo importe del presupuesto de origen al presupuesto especial para reponerlo.
-depreciationBudgetMethodunallocatedLabel: "Gastar de fondos sin asignar, sin reposición"
-depreciationBudgetMethodunallocatedHint: La parte presupuestada de la compra se carga a fondos sin asignar al comprar. La depreciación contable continúa, pero no hay reposición presupuestaria mensual.
-depreciationBudgetPurchaseCategoryLabel: Presupuesto que cubre la compra
-depreciationBudgetMonthlySourceLabel: Presupuesto de origen de la transferencia mensual
-depreciationBudgetSelectCategory: Selecciona una categoría presupuestaria
-depreciationBudgetCategoryRequired: Selecciona una categoría para continuar.
-depreciationBudgetCategoriesMustDiffer: Elige categorías distintas para la compra y el origen mensual.
-depreciationBudgetConfirmationRequired: Confirma este tratamiento antes de guardar.
-depreciationBudgetUnallocatedWarning: "La parte presupuestada de la compra se carga de una vez a fondos sin asignar. La depreciación contable continúa después, pero no habrá transferencias presupuestarias mensuales desde gastos de vida u otras categorías. Elige el método de presupuesto asignado o especial si también quieres financiación presupuestaria mensual."
+budgetDepreciationRecognizedLabel: "Gasto registrado este mes"
+budgetDepreciationReserveLabel: "Reserva de compra restante"
+budgetDepreciationOverviewTitle: "Presupuesto de transferencias mensuales"
+budgetDepreciationOverviewHint: "Muestra por separado el importe reservado al comprar y el gasto distribuido cada mes."
+budgetDepreciationReferenceBadge: "Vista de referencia"
+budgetDepreciationActiveStatus: "Reserva de compra activa"
+budgetDepreciationResetStatus: "Reserva de compra reiniciada · continúan las transferencias mensuales"
+budgetDepreciationRecognizedStatus: "Solo transferencias mensuales"
+depreciationBudgetMethodTitle: "Tratamiento presupuestario de este plan de transferencias mensuales"
+depreciationBudgetMethodassignedLabel: "Usar el presupuesto asignado y reponerlo cada mes (recomendado)"
+depreciationBudgetMethodassignedShort: "Presupuesto asignado, reposición mensual"
+depreciationBudgetMethodassignedHint: "Al comprar, se carga el presupuesto de compra. Cada mes se transfiere el mismo importe del presupuesto de origen al presupuesto de compra para reponerlo."
+depreciationBudgetMethodspecialLabel: "Cargar al presupuesto especial negativo y reponerlo cada mes"
+depreciationBudgetMethodspecialShort: "Presupuesto especial, reposición mensual"
+depreciationBudgetMethodspecialHint: "Al comprar, el presupuesto especial vinculado queda en negativo. Cada mes se transfiere el mismo importe del presupuesto de origen al presupuesto especial para reponerlo."
+depreciationBudgetMethodunallocatedLabel: "Usar fondos sin asignar, sin reposición"
+depreciationBudgetMethodunallocatedShort: "Gastar fondos sin asignar"
+depreciationBudgetMethodunallocatedHint: "La parte presupuestada de la compra se carga a fondos sin asignar al comprar. Los asientos mensuales continúan, pero no hay reposición presupuestaria mensual."
+depreciationBudgetPurchaseCategoryLabel: "Presupuesto que cubre la compra"
+depreciationBudgetMonthlySourceLabel: "Distribución del presupuesto"
+depreciationBudgetSelectCategory: "Selecciona una categoría presupuestaria"
+depreciationBudgetCategoryRequired: "Selecciona una categoría para continuar."
+depreciationBudgetCategoriesMustDiffer: "Elige categorías distintas para la compra y el origen mensual."
+depreciationBudgetConfirmationRequired: "Confirma este tratamiento antes de guardar."
+depreciationBudgetUnallocatedWarning: "La parte presupuestada de la compra se carga de una vez a fondos sin asignar. Los asientos mensuales continúan, pero no habrá transferencias desde gastos cotidianos u otras categorías. Elige el presupuesto asignado o especial si también quieres financiación presupuestaria mensual."
 depreciationBudgetUnallocatedConfirm: "Confirmo cargar la parte presupuestada de la compra a fondos sin asignar y no realizar transferencias presupuestarias mensuales."
-depreciationBudgetAssignedNegativeWarning: Se prevé que el presupuesto de compra sea insuficiente y quede en negativo. Considera el método de presupuesto especial, que repone un presupuesto especial cada mes.
-depreciationBudgetMethodRequired: Elige cómo debe afectar este plan a los presupuestos.
-depreciationBudgetUnset: Tratamiento presupuestario sin definir
-depreciationBudgetStatusActive: Activo
-depreciationBudgetStatusCompleted: Completado
-depreciationBudgetStatusEnded: Finalizado
-depreciationBudgetRepairTitle: Corregir el tratamiento presupuestario de la depreciación
-depreciationBudgetRepairButton: Definir o corregir la carga presupuestaria
-depreciationBudgetRepairHint: Revisa el impacto antes de aplicar. Los cambios actualizan eventos presupuestarios y no vuelven a crear el asiento de compra.
-depreciationBudgetSchedulesTitle: Tratamiento presupuestario de la depreciación
-depreciationBudgetSchedulesHint: Tratamiento presupuestario y progreso actuales de cada plan. Esta lista muestra los planes actuales aunque el balance se consulte en una fecha anterior.
-depreciationBudgetSchedulesEmpty: No hay planes de depreciación.
-depreciationBudgetSchedulesLoadError: No se pudieron cargar los planes de depreciación.
-depreciationBudgetSchedulesRetry: Reintentar
-depreciationBudgetTaskTitle: Revisar el presupuesto de depreciación
-depreciationBudgetRouteTitle: Rutas mensuales futuras
-depreciationBudgetRouteAdd: Añadir una ruta con fecha
-depreciationBudgetRouteDate: Fecha de inicio de la ruta
-depreciationBudgetDestinationCategory: Categoría de destino
-depreciationBudgetSettlementTitle: Liquidaciones
-depreciationBudgetSettlementAdd: Añadir una liquidación
-depreciationBudgetSettlementAmount: Importe de liquidación
-depreciationBudgetSettlementDate: Fecha de liquidación
-depreciationBudgetSettlementSource: Origen de la liquidación
-depreciationBudgetUnallocatedSource: Fondos sin asignar (U)
-depreciationBudgetEndDate: Detener la financiación presupuestaria después de
-depreciationBudgetPreviewButton: Vista previa de los cambios
-depreciationBudgetPreviewTitle: Vista previa antes y después
-depreciationBudgetPreviewStale: La configuración cambió. Vuelve a generar la vista previa antes de aplicar.
-depreciationBudgetPreviewFailed: No se pudo crear la vista previa. Revisa la configuración e inténtalo de nuevo.
-depreciationBudgetPreviewNotApplicable: Resuelve las decisiones de reinicio indicadas y vuelve a generar la vista previa.
-depreciationBudgetApplyButton: Aplicar los cambios de la vista previa
-depreciationBudgetApplyConfirmTitle: ¿Aplicar los cambios del presupuesto de depreciación?
-depreciationBudgetApplyConfirmMessage: ¿Aplicar los cambios presupuestarios mostrados? No se volverá a crear el asiento de compra.
-depreciationBudgetApplied: Se actualizó el tratamiento presupuestario de la depreciación.
-depreciationBudgetProgressTitle: Progreso presupuestario
-depreciationBudgetTargetLabel: Importe por reponer
-depreciationBudgetReimbursedLabel: Repuesto
-depreciationBudgetRemainingLabel: Restante
-depreciationBudgetFutureLabel: Importe futuro
-depreciationBudgetBoundaryTitle: Decisiones de reinicio presupuestario
-depreciationBudgetBoundaryOldReset: Importe antes del reinicio
-depreciationBudgetBoundaryNewReset: Importe después del reinicio
-depreciationBudgetBoundaryDecision: Decisión para este reinicio
-depreciationBudgetBoundaryOrder: Orden de procesamiento
-depreciationBudgetDecisionContinue: Continuar el plan
-depreciationBudgetDecisionEnd: Finalizar el plan
-depreciationBudgetDecisionCarry: Arrastrar el saldo de la categoría especial
-depreciationBudgetDecisionSettle: Liquidar el importe restante
-depreciationBudgetDecisionOrderBefore: Registrar la depreciación antes del reinicio
-depreciationBudgetDecisionOrderAfter: Registrar la depreciación después del reinicio
-depreciationBudgetScopeConfirmationHint: Las partidas existentes no permiten determinar de forma única el alcance del reinicio. Elige el alcance que se reinició realmente.
-depreciationBudgetScopeConfirmationLabel: Alcance del reinicio
-depreciationBudgetScopeUnconfirmed: Alcance sin confirmar
-depreciationBudgetScopeCategory: Solo esta categoría
-depreciationBudgetScopeAll: Todas las categorías
-depreciationBudgetPreviewEventsTitle: Cambios en eventos presupuestarios
-depreciationBudgetPreviewNoEvents: No cambiarán eventos presupuestarios.
-depreciationBudgetEventPurchase: Compra
-depreciationBudgetEventMonthly: Transferencia presupuestaria mensual
-depreciationBudgetEventSettlement: Liquidación
-depreciationBudgetEventRouting: Traspaso de la asignación presupuestaria
-depreciationBudgetEventCarry: Arrastre del saldo negativo del presupuesto especial
-depreciationBudgetTimelineBefore: Antes
-depreciationBudgetTimelineAfter: Después
-depreciationBudgetTimelinePurchase: En la compra
-depreciationBudgetTimelineReset: En el reinicio
-depreciationBudgetTimelineCurrent: Actual
-depreciationBudgetTimelineTimestamp: Hora
-depreciationBudgetTimelineResetId: Registro de reinicio
-depreciationBudgetRelatedBalances: Saldos de categorías relacionadas (Bᵢ)
-depreciationBudgetAmbiguousLegacyWarning: Algunas partidas de depreciación existentes no se pueden asociar a una asignación presupuestaria única. Revisa sus asignaciones y resuelve la ambigüedad antes de aplicar los cambios.
-depreciationBudgetTotalLabel: Total (T)
-depreciationBudgetUnallocatedLabel: Sin asignar (U)
-depreciationBudgetCategoriesLabel: Saldo de categorías (B)
-depreciationBudgetAllocatableLabel: Asignable
-depreciationBudgetArchiveBlockedTitle: Categoría usada por presupuestos de depreciación
-depreciationBudgetArchiveBlockedMessage: Corrige los planes afectados y cambia sus rutas futuras a otra categoría antes de archivarla.
-depreciationBudgetOpenSchedules: Abrir planes de depreciación
-depreciationBudgetResetPlansTitle: Presupuestos de depreciación afectados por este reinicio
-depreciationBudgetResetPlansHint: Elige qué ocurre con cada plan. Los saldos de categorías especiales se arrastran de forma predeterminada y permanecen intactos.
-depreciationBudgetResetPlansError: No se pudieron cargar las decisiones de reinicio. Vuelve a cargar la vista previa antes de guardar.
-depreciationBudgetResetPlanStale: Cambió la categoría o la fecha. Recalcula el importe del reinicio para volver a cargar los planes afectados antes de guardar.
-depreciationBudgetResetDecisionRequired: Elige una decisión para cada plan afectado.
-depreciationBudgetResetCarryHint: Arrastrar el saldo conserva el de la categoría especial y omite su reinicio.
-depreciationBudgetResetSettlementSource: Categoría o fondos sin asignar para liquidar
-depreciationBudgetArchiveResetUnavailable: Un plan activo todavía usa esta categoría para rutas futuras. Corrige primero esas rutas.
-depreciationBudgetOperationAdd: Añadido
-depreciationBudgetOperationChange: Modificado
-depreciationBudgetOperationCancel: Cancelado
-depreciationBudgetRemoveChange: Quitar
+depreciationBudgetAssignedNegativeWarning: "Se prevé que el presupuesto de compra sea insuficiente y quede en negativo. Considera el método de presupuesto especial, que repone un presupuesto especial cada mes."
+depreciationBudgetMethodRequired: "Elige cómo debe afectar este plan a los presupuestos."
+depreciationBudgetUnset: "Tratamiento presupuestario sin definir"
+depreciationBudgetStatusActive: "Activo"
+depreciationBudgetStatusCompleted: "Completado"
+depreciationBudgetStatusEnded: "Finalizado"
+depreciationBudgetRepairTitle: "Definir o corregir las Transferencias presupuestarias en cuotas (depreciación)"
+depreciationBudgetRepairButton: "Definir o corregir las Transferencias presupuestarias en cuotas (depreciación)"
+depreciationBudgetRepairHint: "Revisa el impacto antes de aplicar. Los cambios actualizan eventos presupuestarios y no vuelven a crear el asiento de compra."
+depreciationBudgetSchedulesTitle: "Planes de las Transferencias presupuestarias en cuotas (depreciación)"
+depreciationBudgetSchedulesHint: "Tratamiento presupuestario y progreso actual de cada plan. La lista muestra los planes actuales aunque el balance se consulte en una fecha anterior."
+depreciationBudgetSchedulesEmpty: "No hay planes de transferencias mensuales."
+depreciationBudgetSchedulesLoadError: "No se pudieron cargar los planes de transferencias mensuales."
+depreciationBudgetSchedulesRetry: "Reintentar"
+depreciationBudgetTaskTitle: "Revisar las Transferencias presupuestarias en cuotas (depreciación)"
+depreciationBudgetRouteTitle: "Rutas mensuales futuras"
+depreciationBudgetRouteAdd: "Añadir una ruta con fecha"
+depreciationBudgetRouteDate: "Fecha de inicio de la ruta"
+depreciationBudgetDestinationCategory: "Categoría de destino"
+depreciationBudgetSettlementTitle: "Liquidaciones"
+depreciationBudgetSettlementAdd: "Añadir una liquidación"
+depreciationBudgetSettlementAmount: "Importe de liquidación"
+depreciationBudgetSettlementDate: "Fecha de liquidación"
+depreciationBudgetSettlementSource: "Origen de la liquidación"
+depreciationBudgetUnallocatedSource: "Fondos sin asignar"
+depreciationBudgetEndDate: "Detener la financiación presupuestaria después de"
+depreciationBudgetPreviewButton: "Vista previa de los cambios"
+depreciationBudgetPreviewTitle: "Vista previa antes y después"
+depreciationBudgetPreviewStale: "La configuración cambió. Vuelve a generar la vista previa antes de aplicar."
+depreciationBudgetPreviewFailed: "No se pudo crear la vista previa. Revisa la configuración e inténtalo de nuevo."
+depreciationBudgetPreviewNotApplicable: "Resuelve las decisiones de reinicio indicadas y vuelve a generar la vista previa."
+depreciationBudgetApplyButton: "Aplicar los cambios de la vista previa"
+depreciationBudgetApplyConfirmTitle: "¿Aplicar los cambios de las Transferencias presupuestarias en cuotas (depreciación)?"
+depreciationBudgetApplyConfirmMessage: "¿Aplicar los cambios presupuestarios mostrados? No se volverá a crear el asiento de compra."
+depreciationBudgetApplied: "Se actualizó el tratamiento presupuestario de las transferencias mensuales."
+depreciationBudgetProgressTitle: "Progreso de las Transferencias presupuestarias en cuotas (depreciación)"
+depreciationBudgetTargetLabel: "Importe por reponer"
+depreciationBudgetReimbursedLabel: "Repuesto"
+depreciationBudgetRemainingLabel: "Restante"
+depreciationBudgetFutureLabel: "Importe futuro"
+depreciationBudgetBoundaryTitle: "Decisiones de reinicio presupuestario"
+depreciationBudgetBoundaryOldReset: "Importe antes del reinicio"
+depreciationBudgetBoundaryNewReset: "Importe después del reinicio"
+depreciationBudgetBoundaryDecision: "Decisión para este reinicio"
+depreciationBudgetBoundaryOrder: "Orden de procesamiento"
+depreciationBudgetDecisionContinue: "Continuar el plan"
+depreciationBudgetDecisionEnd: "Finalizar el plan"
+depreciationBudgetDecisionCarry: "Arrastrar el saldo de la categoría especial"
+depreciationBudgetDecisionSettle: "Liquidar el importe restante"
+depreciationBudgetDecisionOrderBefore: "Registrar el asiento mensual antes del reinicio"
+depreciationBudgetDecisionOrderAfter: "Registrar el asiento mensual después del reinicio"
+depreciationBudgetScopeConfirmationHint: "Las partidas existentes no permiten determinar de forma única el alcance del reinicio. Elige el alcance que se reinició realmente."
+depreciationBudgetScopeConfirmationLabel: "Alcance del reinicio"
+depreciationBudgetScopeUnconfirmed: "Alcance sin confirmar"
+depreciationBudgetScopeCategory: "Solo esta categoría"
+depreciationBudgetScopeAll: "Todas las categorías"
+depreciationBudgetPreviewEventsTitle: "Cambios en eventos presupuestarios"
+depreciationBudgetPreviewNoEvents: "No cambiarán eventos presupuestarios."
+depreciationBudgetEventPurchase: "Compra"
+depreciationBudgetEventMonthly: "Transferencia presupuestaria mensual"
+depreciationBudgetEventSettlement: "Liquidación"
+depreciationBudgetEventRouting: "Traspaso de la asignación presupuestaria"
+depreciationBudgetEventCarry: "Arrastre del saldo negativo del presupuesto especial"
+depreciationBudgetTimelineBefore: "Antes"
+depreciationBudgetTimelineAfter: "Después"
+depreciationBudgetTimelinePurchase: "En la compra"
+depreciationBudgetTimelineReset: "En el reinicio"
+depreciationBudgetTimelineCurrent: "Actual"
+depreciationBudgetTimelineTimestamp: "Hora"
+depreciationBudgetTimelineResetId: "Registro de reinicio"
+depreciationBudgetRelatedBalances: "Saldos de categorías relacionadas (Bᵢ)"
+depreciationBudgetAmbiguousLegacyWarning: "Algunos asientos mensuales existentes no se pueden asociar a una asignación presupuestaria única. Revisa sus asignaciones y resuelve la ambigüedad antes de aplicar los cambios."
+depreciationBudgetTotalLabel: "Total (T)"
+depreciationBudgetUnallocatedLabel: "Fondos sin asignar"
+depreciationBudgetCategoriesLabel: "Saldo de categorías (B)"
+depreciationBudgetAllocatableLabel: "Asignable"
+depreciationBudgetArchiveBlockedTitle: "Categoría usada por planes de transferencias mensuales"
+depreciationBudgetArchiveBlockedMessage: "Corrige los planes afectados y cambia sus rutas futuras a otra categoría antes de archivarla."
+depreciationBudgetOpenSchedules: "Abrir los planes de transferencias mensuales"
+depreciationBudgetResetPlansTitle: "Planes de transferencias mensuales afectados por este reinicio"
+depreciationBudgetResetPlansHint: "Elige qué ocurre con cada plan. Los saldos de categorías especiales se arrastran de forma predeterminada y permanecen intactos."
+depreciationBudgetResetPlansError: "No se pudieron cargar las decisiones del reinicio. Vuelve a cargar la vista previa antes de guardar."
+depreciationBudgetResetPlanStale: "Cambió la categoría o la fecha. Recalcula el importe del reinicio para volver a cargar los planes afectados antes de guardar."
+depreciationBudgetResetDecisionRequired: "Elige una decisión para cada plan afectado."
+depreciationBudgetResetCarryHint: "Arrastrar el saldo conserva el de la categoría especial y omite su reinicio."
+depreciationBudgetResetSettlementSource: "Categoría o fondos sin asignar para liquidar"
+depreciationBudgetArchiveResetUnavailable: "No se puede archivar mientras un plan activo siga usando esta categoría para futuras transferencias. Corrige primero las rutas futuras."
+depreciationBudgetOperationAdd: "Añadido"
+depreciationBudgetOperationChange: "Modificado"
+depreciationBudgetOperationCancel: "Cancelado"
+depreciationBudgetRemoveChange: "Quitar"
 budgetReferenceAllocationBadge: Desglose presupuestario (referencia)
 budgetReferenceEntriesTitle: Gasto de referencia con efectivo no rastreado
 budgetReferenceEntriesHint: "{count} registros por {amount}. Su efecto sigue los límites de reinicio y fecha de referencia."
@@ -1256,24 +1267,24 @@ jsoncPlNote1: "monto del ingreso = SUMA(crédito) - SUMA(débito) en el período
 jsoncPlNote2: "monto del gasto = SUMA(débito) - SUMA(crédito) en el período."
 jsoncPlNote3: "Se incluyen cuentas con monto = 0."
 jsoncNetIncomeComment: "ingreso_neto = ingreso_total - gastos_total"
-jsoncDeprSectionTitle: "Progreso de la depreciación"
-jsoncDeprNote1: "Depreciación simplificada del hogar: entrada mensual DR gasto / CR activo."
-jsoncDeprNote2: "valor_contable = importe_total - acumulado <- coincide con el saldo de activos en el balance."
-jsoncDeprNote3: "Progress_pct = acumulado / monto_total x 100 (truncado)"
+jsoncDeprSectionTitle: "Progreso de las transferencias mensuales"
+jsoncDeprNote1: "Distribución de gastos de compra: asiento mensual debe gasto / haber activo."
+jsoncDeprNote2: "valor_contable = importe_total - importe transferido <- coincide con el saldo del activo en el balance."
+jsoncDeprNote3: "progress_pct = importe transferido / importe_total x 100 (truncado)"
 exportPrint: "Imprimir"
 exportSavePDF: "Guardar como PDF"
 exportSQLite: "Descargar SQLite"
 exportSchemeLight: "Cambiar a luz"
 exportSchemeDark: "Cambiar a oscuro"
-exportDepreciationTitle: "Progreso de la depreciación"
-exportDepreciationNote: "Depreciación doméstica simplificada: el gasto de depreciación mensual reduce el saldo de la cuenta de activos directamente a través de asientos de diario."
+exportDepreciationTitle: "Progreso de las Transferencias presupuestarias en cuotas (depreciación)"
+exportDepreciationNote: "Los asientos mensuales reducen directamente el saldo de la cuenta del activo comprado."
 exportDepreciationAcquisitionCost: "Costo de adquisición"
-exportDepreciationPeriod: "Período"
+exportDepreciationPeriod: "Plazo de transferencia"
 exportDepreciationStartDate: "Fecha de inicio"
-exportDepreciationAccumulated: "Acumulado"
+exportDepreciationAccumulated: "Total transferido"
 exportDepreciationBookValue: "Valor contable"
 exportDepreciationProgress: "Progreso"
-exportDepreciationNone: "No se registran activos depreciables."
+exportDepreciationNone: "No hay activos con gastos distribuidos en varios meses."
 negativeBalanceWarning: "Esta cuenta tiene un saldo negativo."
 settingsNavCurrencyTitle: "Moneda extranjera"
 settingsNavCurrencyDesc: "Activar monedas y criptomonedas para usarlas junto con JPY."
@@ -1580,3 +1591,22 @@ deductFromBudgetHint: "Resta el saldo de esta deuda de los activos presupuestari
 incomeOutsideBudgetHint: "Los ingresos recibidos aquí no aumentan el presupuesto. Al transferirlos a una cuenta presupuestaria aumentan los fondos sin asignar."
 budgetHistorySourceFunding: "Financiación presupuestaria de préstamos"
 loanFundingNoBudgetImpactHint: "Este movimiento de capital no cambia los recursos presupuestarios. Registra los intereses y otros gastos por separado."
+depreciationBudgetMonthlySourceTitle: "Distribución del presupuesto"
+depreciationBudgetMonthlySourceHelp: "Detalles del reparto y redondeo"
+depreciationBudgetMonthlySourceHint: "Los porcentajes de la cuenta de gastos sirven como valores iniciales. Ajústalos si hace falta; los cambios se guardan en este plan."
+depreciationBudgetMonthlySourceRatioLabel: "Porcentaje"
+depreciationBudgetMonthlySourceAmountLabel: "Importe mensual"
+depreciationBudgetMonthlySourceCategoryColumn: "Categoría presupuestaria"
+depreciationBudgetMonthlySourceRatioColumn: "Porcentaje (%)"
+depreciationBudgetMonthlySourceAmountColumn: "Transferencia mensual"
+depreciationBudgetMonthlySourceRepresentativeAmount: "Importe representativo de la transferencia mensual"
+depreciationBudgetMonthlySourceManualAmountHint: "Al introducir un importe se establece su porcentaje. Las transferencias reales pueden variar cada mes. Los decimales se distribuyen en la unidad mínima de la moneda, por ID de categoría ascendente y dejando los fondos sin asignar para el final."
+depreciationBudgetMonthlySourceRestoreDefaults: "Restaurar reparto por cuenta"
+depreciationBudgetMonthlySourceOtherCategories: "Mostrar partidas presupuestarias al 0 %"
+depreciationBudgetMonthlySourceInvalid: "Los porcentajes de origen mensual deben sumar el 100 %."
+depreciationBudgetMonthlySourceUnallocatedHint: "Este porcentaje se transfiere cada mes desde los fondos sin asignar."
+depreciationBudgetMonthlySourceUnallocatedConfirm: "Confirmo que las transferencias mensuales pueden usar fondos sin asignar."
+depreciationBudgetSourceDestinationMustDiffer: "La categoría de origen no puede ser también el destino de la transferencia."
+depreciationBudgetPlanTooLarge: "Este plan de transferencias mensuales es demasiado grande para guardarlo de forma segura. Reduce las categorías de origen o acorta el plazo del plan."
+depreciationPreviewSummary: "Primer mes: {first} · total: {total}"
+depreciationBudgetExpenseAccountContext: "Cuenta de gastos: {account}"

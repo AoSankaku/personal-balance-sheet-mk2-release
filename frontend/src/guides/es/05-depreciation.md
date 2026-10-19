@@ -1,59 +1,40 @@
 ---
 id: depreciation
-titleJa: 擬似的な減価償却と予算分散
-titleEn: Pseudo-Depreciation & Budget Spreading
-titleEs: Depreciación Simulada y Distribución Presupuestaria
+titleJa: 予算分割振替（減価償却）
+titleEn: Budget installment transfers (depreciation)
+titleEs: Transferencias presupuestarias en cuotas (depreciación)
 ---
 
-# Depreciación Simulada y Distribución Presupuestaria
+# Transferencias presupuestarias en cuotas (depreciación)
 
-La depreciación en esta aplicación no está destinada a la declaración de impuestos ni a la contabilidad corporativa formal. Es una función de finanzas domésticas para distribuir la carga de una compra grande a lo largo de varios meses.
+Esta función distribuye el coste de una compra en gastos mensuales y gestiona su impacto presupuestario a lo largo del tiempo. Al comprar, el importe se registra primero en la «Cuenta de activo de compra» seleccionada y luego se transfiere a la «Cuenta de gasto» durante el período configurado. El saldo restante de la cuenta de activo de compra representa el importe del plan aún no contabilizado como gasto; no representa el valor de mercado de la compra ni su valor fiscal.
 
-Por ejemplo, si compras un electrodoméstico de 120,000 yenes en enero, un libro mayor doméstico normal mostraría un gran gasto en enero. En la práctica, es posible que quieras pensar en ello como un consumo de 10,000 yenes por mes durante un año. La depreciación simulada es para esa situación.
+Por ejemplo, el coste de un ordenador de 120.000 yenes repartido en 12 meses se transfiere de la cuenta de activo de compra a la cuenta de gasto a razón de unos 10.000 yenes al mes. Si se activa la reposición presupuestaria mensual, también se transfieren fondos cada mes desde las categorías presupuestarias habituales al presupuesto de compra.
 
-## Lo Que Sucede
+## Métodos presupuestarios
 
-Cuando habilitas la depreciación al registrar un gasto, la aplicación crea dos tipos de registros:
-
-| Registro | Contenido |
+| Método | Tratamiento del presupuesto en la compra y cada mes |
 | --- | --- |
-| Registro de compra | Disminuye el activo de pago y aumenta el activo depreciable |
-| Registros mensuales | Disminuye gradualmente el activo y registra un gasto cada mes |
+| Presupuesto asignado | El presupuesto de compra seleccionado disminuye al comprar. Cada mes se repone con transferencias desde las fuentes presupuestarias configuradas por porcentaje. |
+| Presupuesto especial | Un presupuesto especial dedicado empieza con saldo negativo. Cada mes se repone con transferencias desde las fuentes presupuestarias configuradas. |
+| Sin asignar | La parte de la compra que cuenta para el presupuesto se cubre con fondos sin asignar al comprar. Los asientos de gasto mensuales continúan, pero no hay reposiciones presupuestarias mensuales. |
 
-El efectivo disminuye en el momento de la compra, pero el efecto en gastos y presupuestos se distribuye por mes. En el balance general, la porción aún no gastada permanece como un activo.
+## Registro y porcentajes presupuestarios
 
-## Configuración Antes de Usar
+Primero, ve a Configuración > Cuentas, añade una cuenta de activo y marca «Excluir del presupuesto y usar como cuenta de activo de origen para las Transferencias presupuestarias en cuotas (depreciación)». Esta cuenta queda fuera del presupuesto y registra el importe de la compra como origen de las transferencias mensuales.
 
-1. En Configuración, crea la cuenta de activo que deseas depreciar.
-2. Habilita la depreciación para esa cuenta de activo.
-3. Prepara una cuenta de gasto para usar como gasto de depreciación.
-4. Al registrar un gasto en la página de Entrada, habilita la depreciación.
+En la página de Entrada, activa «Transferencias presupuestarias en cuotas (depreciación)», selecciona la «Cuenta de activo de compra» creada y una «Cuenta de gasto», y define el período con «Meses de transferencia» o «Importe de transferencia mensual». Para los métodos con reposición presupuestaria mensual, el editor de «Porcentajes presupuestarios» toma inicialmente los porcentajes de la cuenta de gasto. Cada plan guardado conserva una instantánea de sus porcentajes, por lo que los cambios posteriores en la cuenta de gasto no alteran los planes existentes.
 
-En la entrada por período, especifica en cuántos meses se debe dividir el monto total. En la entrada de monto mensual, especifica cuánto se debe gastar cada mes. Si se requiere redondeo, los montos mensuales se ajustan para que el total aún coincida.
+Edita directamente el porcentaje de cada categoría presupuestaria o ajústalo introduciendo un importe para el mes representativo que muestra el editor. Al introducir un importe se establece su porcentaje según esa transferencia representativa; las transferencias reales pueden variar cada mes, por ejemplo, si el primer mes se prorratea. «Restaurar los valores predeterminados de la cuenta de gasto» vuelve a cargar los porcentajes presupuestarios actuales de esa cuenta.
 
-## Efecto en los Presupuestos
+Si el total de las categorías con nombre es inferior al 100 %, el resto se considera una transferencia desde los fondos sin asignar, y para guardar se requiere una confirmación explícita. No se pueden guardar porcentajes superiores al 100 %. Las transferencias desde fondos sin asignar reducen esos fondos mientras reponen el presupuesto de compra.
 
-Con un gasto normal, el presupuesto se consume en el mes del pago. Con la depreciación, el impacto presupuestario aparece como gasto de depreciación mensual.
+Los restos se distribuyen en la unidad mínima de la moneda mediante el método de mayores restos. Los empates se resuelven por ID de categoría presupuestaria ascendente y los fondos sin asignar se procesan al final. Cada mes, el total de las fuentes presupuestarias coincide con el importe repuesto al presupuesto de compra.
 
-Esto hace posible suavizar grandes compras anuales o suministros utilizados durante varios meses como parte de los costos de vida mensuales. El objetivo es separar el mes de pago del período de uso de una manera que coincida con cómo el hogar realmente siente el costo.
+## Edición y eliminación
 
-## Gastos Adecuados
+Editar la compra o la configuración del plan puede afectar a los asientos de gasto mensuales y a las reposiciones presupuestarias. Haz los cambios desde la entrada de compra original o la configuración del plan; no edites directamente los asientos mensuales ni los registros presupuestarios generados. Elimina el plan relacionado cuando ya no sea necesario.
 
-| Artículos adecuados | Razón |
-| --- | --- |
-| Electrodomésticos, muebles, PC, teléfonos inteligentes | Se usan durante varios meses o años |
-| Suscripciones anuales | Se usan efectivamente cada mes |
-| Equipo costoso para pasatiempos o trabajo | Evita distorsionar el presupuesto solo en el mes de compra |
-| Gastos únicos para mejoras de estilo de vida | Los beneficios abarcan múltiples meses |
+## Uso en esta contabilidad doméstica
 
-Para alimentos, artículos diarios y otros consumibles del mismo mes, usa la entrada de gasto normal.
-
-## Notas sobre Edición y Eliminación
-
-Cuando editas el asiento de compra que creó la depreciación, los asientos de depreciación mensual se recalculan. Editar solo un asiento mensual puede hacer que sea inconsistente con el cronograma general.
-
-Si necesitas cambiar los detalles, edita desde el asiento de compra original cuando sea posible. Si ya no es necesario, elimina el cronograma de depreciación relacionado y vuelve a ingresarlo como un gasto normal si es necesario.
-
-## Diferencia con la Depreciación Fiscal
-
-Esta función es una distribución simulada de gastos para la gestión doméstica. No determina automáticamente la vida útil, el método de depreciación, el porcentaje de uso empresarial o el tratamiento fiscal. Los activos que requieren manejo fiscal deben administrarse por separado según los libros formales y las reglas fiscales.
+Esta función distribuye el coste de una compra en gastos mensuales para la gestión doméstica y administra el impacto mensual en el presupuesto mediante transferencias entre categorías presupuestarias. El saldo restante en la cuenta de activo de compra representa el importe del plan aún no contabilizado como gasto. La función no determina el valor de mercado del activo, su vida útil, el método de depreciación, el porcentaje de uso empresarial ni el tratamiento fiscal. Gestiona por separado cualquier tratamiento contable o fiscal formal según las normas aplicables.

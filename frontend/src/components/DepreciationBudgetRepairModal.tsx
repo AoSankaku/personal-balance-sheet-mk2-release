@@ -19,6 +19,7 @@ import { IconPlus, IconTrash } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import type {
+  DepreciationBudgetSourceAllocation,
   DepreciationBudgetBoundary,
   DepreciationBudgetProgress,
   DepreciationBudgetResetDecision,
@@ -26,12 +27,24 @@ import type {
   DepreciationBudgetSettings,
   DepreciationSchedule,
 } from "@balance-sheet/shared";
+import {
+  resolveDepreciationMonthlySourceAllocations,
+  validateDepreciationMonthlySourceAllocations,
+} from "@balance-sheet/shared";
 import { api, ApiError } from "../api/client";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
 import { formatCurrency } from "../lib/numberFormat";
 import { showFeedback } from "../lib/feedback";
+import { accountDisplayName } from "../lib/accountUtils";
+import {
+  calculateBudgetedDepreciationMonthlyAmounts,
+  getDepreciationMonthlySourceAllocations,
+  snapshotDepreciationMonthlySourceSettings,
+} from "../lib/depreciationMonthlySources";
+import { getDepreciationBudgetFormErrors } from "../lib/depreciationBudgetForm";
 import { DepreciationBudgetFields } from "./DepreciationBudgetFields";
+import { DepreciationMonthlySourceEditor } from "./DepreciationMonthlySourceEditor";
 
 interface Props {
   opened: boolean;
@@ -61,9 +74,13 @@ function sumCategoryBalances(snapshot: {
 
 const PREVIEW_WARNING_TRANSLATIONS: Record<string, string> = {
   invalid_budget_method: "depreciationBudgetMethodRequired",
+  invalid_monthly_source_allocations: "depreciationBudgetMonthlySourceInvalid",
+  monthly_source_ratios_must_total_100: "depreciationBudgetMonthlySourceInvalid",
+  monthly_unallocated_confirmation_required: "depreciationBudgetMonthlySourceUnallocatedConfirm",
+  depreciation_budget_plan_too_large: "depreciationBudgetPlanTooLarge",
+  source_and_destination_must_differ: "depreciationBudgetSourceDestinationMustDiffer",
   purchase_category_required: "depreciationBudgetCategoryRequired",
   monthly_source_category_required: "depreciationBudgetCategoryRequired",
-  source_and_destination_must_differ: "depreciationBudgetCategoriesMustDiffer",
   unallocated_confirmation_required: "depreciationBudgetConfirmationRequired",
   unallocated_confirm_required: "depreciationBudgetConfirmationRequired",
   invalid_routing_change: "depreciationBudgetPreviewFailed",
@@ -88,7 +105,7 @@ export function DepreciationBudgetRepairModal({
   onApplied,
 }: Props) {
   const { t, locale } = useLang();
-  const { budgetCategories, displayCurrency } = useAppData();
+  const { budgetCategories, accounts, displayCurrency, enabledCurrencies } = useAppData();
   const [settings, setSettings] = useState<DepreciationBudgetSettings | null>(
     null,
   );
@@ -104,6 +121,27 @@ export function DepreciationBudgetRepairModal({
   const [error, setError] = useState<string | null>(null);
   const [previewStale, setPreviewStale] = useState(false);
   const currency = schedule.budget.currency || displayCurrency || "JPY";
+  const decimalPlaces = enabledCurrencies.find((item) => item.code === currency)?.decimal_places ??
+    (currency === "JPY" || currency === "KRW" ? 0 : 2);
+  const expenseAccountBudgetRatios = accounts.find(
+    (account) => account.id === schedule.expense_account_id,
+  )?.budget_ratios ?? [];
+  const expenseAccount = accounts.find((account) => account.id === schedule.expense_account_id);
+  const expenseAccountName = expenseAccount
+    ? accountDisplayName(expenseAccount, t)
+    : schedule.expense_account_name;
+  const budgetedMonthlyAmounts = calculateBudgetedDepreciationMonthlyAmounts({
+    monthlyAmounts: schedule.monthly_amounts,
+    budgetedPurchaseAmount: schedule.budget.target_amount,
+    depreciationTotal: schedule.total_amount,
+    decimalPlaces,
+  });
+  const representativeMonthlyAmount = budgetedMonthlyAmounts[0] ?? 0;
+
+  function representativeAmountForRoute(routeDate: string) {
+    const index = schedule.entry_dates.findIndex((date) => date >= routeDate);
+    return index < 0 ? 0 : budgetedMonthlyAmounts[index] ?? 0;
+  }
   const categoryOptions = useMemo(
     () =>
       budgetCategories
@@ -141,6 +179,26 @@ export function DepreciationBudgetRepairModal({
   function updateSettings(patch: Partial<DepreciationBudgetSettings>) {
     if (!settings) return;
     changeSettings({ ...settings, ...patch });
+  }
+
+  function updateRouteMonthlySources(
+    index: number,
+    allocations: DepreciationBudgetSourceAllocation[],
+  ) {
+    if (!settings) return;
+    const routes = [...(settings.routing_changes ?? [])];
+    const firstCategoryId = allocations.find(
+      (allocation) => allocation.budget_category_id != null && allocation.ratio > 0,
+    )?.budget_category_id ?? null;
+    routes[index] = {
+      ...routes[index]!,
+      monthly_source_allocations: allocations,
+      monthly_source_category_id: firstCategoryId,
+    };
+    updateSettings({
+      routing_changes: routes,
+      confirm_monthly_unallocated: false,
+    });
   }
 
   function updateDecision(
@@ -195,24 +253,30 @@ export function DepreciationBudgetRepairModal({
   }
 
   function validateSettings(current: DepreciationBudgetSettings) {
-    if (current.method === "assigned") {
-      if (current.purchase_category_id == null) {
-        return t("depreciationBudgetCategoryRequired");
-      }
-      if (current.monthly_source_category_id == null) {
-        return t("depreciationBudgetCategoryRequired");
-      }
-      if (
-        current.purchase_category_id === current.monthly_source_category_id
-      ) {
-        return t("depreciationBudgetCategoriesMustDiffer");
-      }
-    }
-    if (
-      (current.method === "assigned" || current.method === "special") &&
-      current.monthly_source_category_id == null
-    ) {
+    const sourceAllocations = getDepreciationMonthlySourceAllocations(
+      current,
+      budgetCategories,
+      expenseAccountBudgetRatios,
+    );
+    const formErrors = getDepreciationBudgetFormErrors({
+      method: current.method,
+      purchaseCategoryId: current.purchase_category_id,
+      monthlySourceCategoryId: current.monthly_source_category_id,
+      monthlySourceAllocations: sourceAllocations,
+      confirmUnallocated: current.confirm_unallocated,
+      confirmMonthlyUnallocated: current.confirm_monthly_unallocated,
+    });
+    if (formErrors.purchaseCategory || formErrors.monthlySourceCategory === "required") {
       return t("depreciationBudgetCategoryRequired");
+    }
+    if (formErrors.monthlySourceCategory === "must_differ") {
+      return t("depreciationBudgetSourceDestinationMustDiffer");
+    }
+    if (formErrors.monthlySourceAllocations) {
+      return t("depreciationBudgetMonthlySourceInvalid");
+    }
+    if (formErrors.confirmMonthlyUnallocated) {
+      return t("depreciationBudgetMonthlySourceUnallocatedConfirm");
     }
     if (current.method === "unallocated" && !current.confirm_unallocated) {
       return t("depreciationBudgetConfirmationRequired");
@@ -223,12 +287,22 @@ export function DepreciationBudgetRepairModal({
       }
     }
     for (const route of current.routing_changes ?? []) {
-      if (
-        !route.date ||
-        route.monthly_source_category_id == null ||
-        route.destination_category_id == null
-      ) {
+      if (!route.date || route.destination_category_id == null) {
         return t("depreciationBudgetCategoryRequired");
+      }
+      const routeAllocations = route.monthly_source_allocations !== undefined ||
+          route.monthly_source_category_id != null
+        ? resolveDepreciationMonthlySourceAllocations(route)
+        : sourceAllocations;
+      if (validateDepreciationMonthlySourceAllocations(routeAllocations)) {
+        return t("depreciationBudgetMonthlySourceInvalid");
+      }
+      if (routeAllocations.some((allocation) => allocation.budget_category_id === route.destination_category_id && allocation.ratio > 0)) {
+        return t("depreciationBudgetSourceDestinationMustDiffer");
+      }
+      if (routeAllocations.some((allocation) => allocation.budget_category_id == null && allocation.ratio > 0) &&
+        current.confirm_monthly_unallocated !== true) {
+        return t("depreciationBudgetMonthlySourceUnallocatedConfirm");
       }
     }
     return null;
@@ -239,24 +313,30 @@ export function DepreciationBudgetRepairModal({
       setError(t("depreciationBudgetMethodRequired"));
       return;
     }
-    const validationMessage = validateSettings(settings);
+    const previewSettings = snapshotDepreciationMonthlySourceSettings(
+      settings,
+      budgetCategories,
+      expenseAccountBudgetRatios,
+    );
+    const validationMessage = validateSettings(previewSettings);
     if (validationMessage) {
       setError(validationMessage);
       return;
     }
 
+    setSettings(previewSettings);
     setPreviewLoading(true);
     setPreview(null);
     setError(null);
     setApplyConfirmOpened(false);
     try {
-      const first = await api.depreciation.previewBudget(schedule.id, settings);
+      const first = await api.depreciation.previewBudget(schedule.id, previewSettings);
       setBoundaryEditor(first.boundaries);
       const existingResetIds = new Set(
-        (settings.reset_decisions ?? []).map((decision) => decision.reset_log_id),
+        (previewSettings.reset_decisions ?? []).map((decision) => decision.reset_log_id),
       );
       const defaultCarryDecisions =
-        settings.method === "special"
+        previewSettings.method === "special"
           ? first.boundaries
               .filter(
                 (boundary) =>
@@ -271,9 +351,9 @@ export function DepreciationBudgetRepairModal({
           : [];
       if (defaultCarryDecisions.length > 0) {
         const withDefaults = {
-          ...settings,
+          ...previewSettings,
           reset_decisions: [
-            ...(settings.reset_decisions ?? []),
+            ...(previewSettings.reset_decisions ?? []),
             ...defaultCarryDecisions,
           ],
         };
@@ -291,7 +371,10 @@ export function DepreciationBudgetRepairModal({
       }
     } catch (cause) {
       setError(
-        cause instanceof Error
+        cause instanceof ApiError &&
+          cause.body.error === "depreciation_budget_plan_too_large"
+          ? t("depreciationBudgetPlanTooLarge")
+          : cause instanceof Error
           ? cause.message
           : t("depreciationBudgetPreviewFailed"),
       );
@@ -318,7 +401,10 @@ export function DepreciationBudgetRepairModal({
       setError(
         stale
           ? t("depreciationBudgetPreviewStale")
-          : cause instanceof Error
+          : cause instanceof ApiError &&
+              cause.body.error === "depreciation_budget_plan_too_large"
+            ? t("depreciationBudgetPlanTooLarge")
+            : cause instanceof Error
             ? cause.message
             : t("depreciationBudgetPreviewFailed"),
       );
@@ -340,14 +426,30 @@ export function DepreciationBudgetRepairModal({
       schedule.budget.destination_category_id ?? -schedule.id,
       settings?.purchase_category_id ?? -schedule.id,
       settings?.monthly_source_category_id ?? -schedule.id,
-      ...(settings?.routing_changes ?? []).flatMap((route) => [
-        route.monthly_source_category_id,
-        route.destination_category_id,
-      ]),
+      ...(settings?.routing_changes ?? []).map((route) => route.destination_category_id),
       ...(settings?.settlements ?? [])
         .map((settlement) => settlement.source_category_id)
         .filter((id): id is number => id != null),
     ]);
+    for (const candidate of [schedule.budget.settings, settings]) {
+      if (!candidate) continue;
+      for (const allocation of resolveDepreciationMonthlySourceAllocations(candidate)) {
+        if (allocation.budget_category_id != null && allocation.ratio > 0) {
+          relatedCategoryIds.add(allocation.budget_category_id);
+        }
+      }
+      for (const route of candidate.routing_changes ?? []) {
+        const routeAllocations = route.monthly_source_allocations !== undefined ||
+            route.monthly_source_category_id != null
+          ? resolveDepreciationMonthlySourceAllocations(route)
+          : resolveDepreciationMonthlySourceAllocations(candidate);
+        for (const allocation of routeAllocations) {
+          if (allocation.budget_category_id != null && allocation.ratio > 0) {
+            relatedCategoryIds.add(allocation.budget_category_id);
+          }
+        }
+      }
+    }
     const relatedCategories = snapshot.categories.filter((category) =>
       relatedCategoryIds.has(category.id),
     );
@@ -418,6 +520,10 @@ export function DepreciationBudgetRepairModal({
             purchaseBalanceAfter={preview?.timeline.find(point=>point.label==='purchase')?.after.categories
               .find(category=>category.id===settings?.purchase_category_id)?.balance ?? null}
             currency={previewCurrency}
+            decimalPlaces={decimalPlaces}
+            representativeMonthlyAmount={representativeMonthlyAmount}
+            accountBudgetRatios={expenseAccountBudgetRatios}
+            expenseAccountName={expenseAccountName}
           />
 
           {settings && (
@@ -430,27 +536,34 @@ export function DepreciationBudgetRepairModal({
                     size="xs"
                     variant="light"
                     leftSection={<IconPlus size={14} />}
-                    onClick={() =>
+                    onClick={() => {
+                      const baseAllocations = getDepreciationMonthlySourceAllocations(
+                        settings,
+                        budgetCategories,
+                        expenseAccountBudgetRatios,
+                      );
+                      const firstCategoryId = baseAllocations.find(
+                        (allocation) => allocation.budget_category_id != null && allocation.ratio > 0,
+                      )?.budget_category_id ?? null;
                       updateSettings({
                         routing_changes: [
                           ...(settings.routing_changes ?? []),
                           {
                             date: dayjs().format("YYYY-MM-DD"),
-                            monthly_source_category_id:
-                              settings.monthly_source_category_id ?? 0,
-                            destination_category_id:
-                              settings.purchase_category_id ?? 0,
+                            monthly_source_category_id: firstCategoryId,
+                            monthly_source_allocations: baseAllocations,
+                            destination_category_id: settings.purchase_category_id ?? 0,
                           },
                         ],
-                      })
-                    }
+                      });
+                    }}
                   >
                     {t("depreciationBudgetRouteAdd")}
                   </Button>
                 </Group>
                 {(settings.routing_changes ?? []).map((route, index) => (
                   <Paper key={`${route.date}-${index}`} withBorder p="xs">
-                    <SimpleGrid cols={{ base: 1, sm: 3 }}>
+                    <SimpleGrid cols={{ base: 1, sm: 2 }}>
                       <DateInput
                         label={t("depreciationBudgetRouteDate")}
                         value={parseDate(route.date)}
@@ -463,27 +576,6 @@ export function DepreciationBudgetRepairModal({
                           };
                           updateSettings({ routing_changes: routes });
                         }}
-                      />
-                      <Select
-                        label={t("depreciationBudgetMonthlySourceLabel")}
-                        data={categoryOptions}
-                        value={
-                          route.monthly_source_category_id
-                            ? String(route.monthly_source_category_id)
-                            : null
-                        }
-                        onChange={(selected) => {
-                          const routes = [...(settings.routing_changes ?? [])];
-                          routes[index] = {
-                            ...route,
-                            monthly_source_category_id: selected
-                              ? Number(selected)
-                              : 0,
-                          };
-                          updateSettings({ routing_changes: routes });
-                        }}
-                        searchable
-                        clearable
                       />
                       <Group align="end" gap="xs" wrap="nowrap">
                         <Select
@@ -524,6 +616,21 @@ export function DepreciationBudgetRepairModal({
                         </ActionIcon>
                       </Group>
                     </SimpleGrid>
+                    <DepreciationMonthlySourceEditor
+                      allocations={route.monthly_source_allocations !== undefined || route.monthly_source_category_id != null
+                        ? resolveDepreciationMonthlySourceAllocations(route)
+                        : getDepreciationMonthlySourceAllocations(settings, budgetCategories, expenseAccountBudgetRatios)}
+                      accountBudgetRatios={expenseAccountBudgetRatios}
+                      representativeAmount={representativeAmountForRoute(route.date)}
+                      currency={currency}
+                      decimalPlaces={decimalPlaces}
+                      confirmUnallocated={settings.confirm_monthly_unallocated === true}
+                      destinationCategoryId={route.destination_category_id}
+                      onChange={(allocations) => updateRouteMonthlySources(index, allocations)}
+                      onConfirmUnallocatedChange={(confirmed) =>
+                        updateSettings({ confirm_monthly_unallocated: confirmed })
+                      }
+                    />
                   </Paper>
                 ))}
               </Stack>

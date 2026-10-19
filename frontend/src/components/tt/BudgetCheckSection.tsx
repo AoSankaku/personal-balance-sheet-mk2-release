@@ -815,6 +815,7 @@ export function BudgetCheckSection() {
           closeJournalEdit();
           setEditingEntry(null);
         }}
+        onEditEntryChange={handleEditJournal}
         onSubmit={handleSaveJournalEdit}
       />
     </Stack>
