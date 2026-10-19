@@ -5,6 +5,7 @@ import {
   resolveMonthlyPayday,
   type IncomeTransferRequirementGroup,
 } from "@balance-sheet/shared";
+import type { DepreciationSchedule } from "@balance-sheet/shared";
 import { api } from "../api/client";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
@@ -24,6 +25,8 @@ import {
   type TrialBalanceTask,
 } from "../lib/trialBalanceTasks";
 import { findOverdueShortTermLoanAccounts } from "../pages/dbPageUtils";
+import { useDepreciationBudget } from "../context/DepreciationBudgetContext";
+import { getDepreciationBudgetTaskSchedules } from "../lib/depreciationBudgetTasks";
 
 interface AppTask {
   id: string;
@@ -42,6 +45,7 @@ interface BudgetNegativeTask {
 
 export interface TaskCollection {
   budgetTask: BudgetNegativeTask;
+  depreciationBudgetTasks: DepreciationSchedule[];
   creditCardImportTasks: CreditCardImportTask[];
   creditCardWithdrawalRiskTasks: CreditCardWithdrawalRiskTask[];
   incomeTransferTasks: IncomeTransferRequirementGroup[];
@@ -243,11 +247,16 @@ export function useTaskCollection(): TaskCollection {
   const creditCardWithdrawalRiskTasks = useCreditCardWithdrawalRiskTasks();
   const trialBalanceTask = useTrialBalanceTask();
   const incomeTransferTasks = useIncomeTransferTasks();
+  const { schedules: depreciationSchedules } = useDepreciationBudget();
+  const depreciationBudgetTasks = getDepreciationBudgetTaskSchedules(
+    depreciationSchedules,
+  );
   const isOnline = useOnlineStatus();
   const offlineDrafts = useOfflineDrafts();
   const pendingOfflineDrafts = isOnline ? offlineDrafts : [];
   const totalCount =
     pendingOfflineDrafts.length +
+    depreciationBudgetTasks.length +
     paydayTasks.length +
     creditCardImportTasks.length +
     incomeTransferTasks.length +
@@ -259,6 +268,7 @@ export function useTaskCollection(): TaskCollection {
 
   return {
     budgetTask,
+    depreciationBudgetTasks,
     creditCardImportTasks,
     creditCardWithdrawalRiskTasks,
     incomeTransferTasks,

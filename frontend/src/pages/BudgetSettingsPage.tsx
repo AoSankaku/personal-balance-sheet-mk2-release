@@ -250,7 +250,7 @@ export default function BudgetSettingsPage() {
             <Button variant="default" onClick={() => setArchiveGuidanceOpened(false)}>
               {t("cancel")}
             </Button>
-            <Button component={Link} to="/fs/report" onClick={() => setArchiveGuidanceOpened(false)}>
+            <Button component={Link} to="/fs/budget" onClick={() => setArchiveGuidanceOpened(false)}>
               {t("depreciationBudgetOpenSchedules")}
             </Button>
           </Group>

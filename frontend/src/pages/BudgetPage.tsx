@@ -5,6 +5,7 @@ import { BudgetCheckSection } from "../components/tt/BudgetCheckSection";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
+import { DepreciationBudgetSchedulesSection } from "../components/DepreciationBudgetSchedulesSection";
 
 interface BudgetPageStateProps {
   loading: boolean;
@@ -51,6 +52,8 @@ export default function BudgetPage() {
         </Anchor>
 
         <Title order={3}>{t("budgetTitle")}</Title>
+
+        <DepreciationBudgetSchedulesSection />
 
         <BudgetCheckSection />
       </Stack>

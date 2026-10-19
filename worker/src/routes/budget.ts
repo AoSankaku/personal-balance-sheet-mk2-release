@@ -1461,7 +1461,12 @@ export async function computeBudgetSummaries(
           .from(budgetAdjustmentLogs)
           .where(
             and(
-              inArray(budgetAdjustmentLogs.year_month, allMonths),
+              sql`${budgetAdjustmentLogs.year_month} >= ${allMonths[0]} AND ${budgetAdjustmentLogs.year_month} <= ${allMonths.at(-1)}
+                AND length(${budgetAdjustmentLogs.year_month}) = 7
+                AND substr(${budgetAdjustmentLogs.year_month}, 1, 4) GLOB '[0-9][0-9][0-9][0-9]'
+                AND substr(${budgetAdjustmentLogs.year_month}, 5, 1) = '-'
+                AND substr(${budgetAdjustmentLogs.year_month}, 6, 2) GLOB '[0-9][0-9]'
+                AND substr(${budgetAdjustmentLogs.year_month}, 6, 2) BETWEEN '01' AND '12'`,
               eq(budgetAdjustmentLogs.currency, currency),
             ),
           )

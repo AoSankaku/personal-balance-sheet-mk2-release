@@ -13,6 +13,7 @@ import { budgetAccountDelta, isBudgetAccount } from "../../../shared/budgetScope
 import { computeBudgetSummaryForDate } from "./budget";
 import { toLocalDateString } from "../lib/appDate";
 import { chunkForD1InClause } from "../lib/d1Query";
+import { createRequestScopedD1ReadMemo } from "../lib/d1ReadMemo";
 import { journalBalanceError } from "../lib/journalValidation";
 import {
   accounts,
@@ -243,11 +244,12 @@ async function findRelevantResetBoundaries(
   c: RouteContext,
   schedule: DepreciationScheduleRow,
   settings: DepreciationBudgetSettings,
+  readDB: D1Database = c.env.DB,
 ): Promise<DepreciationBudgetBoundary[]> {
   if(settings.method==="unallocated")return [];
   const currency = schedule.budget_currency || "JPY";
   const today = toLocalDateString();
-  const resetRows = await c.env.DB.prepare(`SELECT l.id,l.budget_category_id,l.amount,l.date,l.created_at,c.name,l.reset_scope,l.reset_group_key
+  const resetRows = await readDB.prepare(`SELECT l.id,l.budget_category_id,l.amount,l.date,l.created_at,c.name,l.reset_scope,l.reset_group_key
     FROM budget_adjustment_logs l JOIN budget_categories c ON c.id=l.budget_category_id
     WHERE l.adjustment_type='reset' AND l.currency=? AND l.date>=? AND l.date<=?
     ORDER BY l.date,l.created_at,l.id`).bind(currency, schedule.start_date, today).all<{
@@ -259,6 +261,27 @@ async function findRelevantResetBoundaries(
   const groups=new Map<string,typeof rows>();
   for(const row of rows)groups.set(groupKey(row),[...groups.get(groupKey(row))??[],row]);
   const decisionById = new Map((settings.reset_decisions ?? []).map((decision) => [decision.reset_log_id, decision]));
+  const [journalEventRows, ownedEventRows] = await Promise.all([
+    readDB.prepare(`SELECT date,created_at FROM journal_entries WHERE id=?
+      UNION ALL
+      SELECT je.date,je.created_at FROM depreciation_entries de
+      JOIN journal_entries je ON je.id=de.journal_entry_id WHERE de.schedule_id=?`)
+      .bind(schedule.source_journal_entry_id, schedule.id).all<{ date: string; created_at: string }>(),
+    readDB.prepare(`SELECT date,created_at FROM budget_adjustment_logs
+      WHERE depreciation_schedule_id=? AND depreciation_event_key IS NOT NULL`)
+      .bind(schedule.id).all<{ date: string; created_at: string }>(),
+  ]);
+  const timestampsByDate = (events: readonly { date: string; created_at: string }[]) => {
+    const byDate = new Map<string, Set<string>>();
+    for (const event of events) {
+      const timestamps = byDate.get(event.date) ?? new Set<string>();
+      timestamps.add(event.created_at);
+      byDate.set(event.date, timestamps);
+    }
+    return byDate;
+  };
+  const journalTimestamps = timestampsByDate(journalEventRows.results ?? []);
+  const ownedTimestamps = timestampsByDate(ownedEventRows.results ?? []);
   const boundaries: DepreciationBudgetBoundary[] = [];
   for (const row of rows) {
     const group=groups.get(groupKey(row))!;
@@ -278,18 +301,8 @@ async function findRelevantResetBoundaries(
     if(!relevant)continue;
     const decision=decisionById.get(row.id)??(isGlobal?groupDecision:undefined);
     const requiredAction=settings.method==="special"?"carry_or_settle":"continue_or_end";
-    const sameDayJournalEvents = await c.env.DB.prepare(`SELECT created_at FROM journal_entries
-      WHERE id=? AND date=? UNION ALL
-      SELECT je.created_at FROM depreciation_entries de JOIN journal_entries je ON je.id=de.journal_entry_id
-      WHERE de.schedule_id=? AND je.date=?`).bind(
-        schedule.source_journal_entry_id, row.date, schedule.id, row.date,
-      ).all<{ created_at: string }>();
-    const sameDayOwnedEvents = await c.env.DB.prepare(`SELECT created_at FROM budget_adjustment_logs
-      WHERE depreciation_schedule_id=? AND date=? AND depreciation_event_key IS NOT NULL`)
-      .bind(schedule.id, row.date).all<{ created_at: string }>();
-    const ambiguousOrder = [
-      ...(sameDayJournalEvents.results ?? []), ...(sameDayOwnedEvents.results ?? []),
-    ].some((event) => event.created_at === row.created_at);
+    const ambiguousOrder = journalTimestamps.get(row.date)?.has(row.created_at) === true ||
+      ownedTimestamps.get(row.date)?.has(row.created_at) === true;
     const needsOrder = ambiguousOrder && !decision?.same_day_order;
     boundaries.push({
       reset_log_id: row.id,
@@ -313,7 +326,8 @@ async function buildDepreciationBudgetPreview(
   rawSettings: DepreciationBudgetSettings,
 ): Promise<DepreciationBudgetPreview & { _revision: number; _expectedRows: Awaited<ReturnType<typeof buildOwnedDepreciationBudgetRows>>; _allocationIds: number[] }> {
   const globalRevision = await getDepreciationBudgetRevision(c.env.DB);
-  const db = createDb(c.env);
+  const readDB = createRequestScopedD1ReadMemo(c.env.DB);
+  const db = createDb({ ...c.env, DB: readDB });
   const [currentSchedule] = await db.select().from(depreciationSchedules).where(eq(depreciationSchedules.id,schedule.id));
   if (!currentSchedule || stableSerialize(currentSchedule) !== stableSerialize(schedule)) throw new Error("stale_depreciation_budget_preview");
   const settings = normalizeDepreciationBudgetSettings(rawSettings);
@@ -321,7 +335,7 @@ async function buildDepreciationBudgetPreview(
   if ((settings.routing_changes ?? []).some((route) => route.date < schedule.start_date)) {
     validationError ??= "routing_change_before_purchase";
   }
-  const boundaries = await findRelevantResetBoundaries(c, schedule, settings);
+  const boundaries = await findRelevantResetBoundaries(c, schedule, settings, readDB);
   const missingDecisions = boundaries.some((boundary) => {
     const decision = settings.reset_decisions?.find((row) => row.reset_log_id === boundary.reset_log_id);
     if (!decision) return true;

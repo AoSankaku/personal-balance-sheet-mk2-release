@@ -11,6 +11,7 @@ import App from "./App";
 import { LangProvider } from "./i18n";
 import { AppDataProvider } from "./context/AppDataContext";
 import { PrivacyProvider } from "./context/PrivacyContext";
+import { DepreciationBudgetProvider } from "./context/DepreciationBudgetContext";
 import { clearPwaReloadMarkersFromAddressBar } from "./lib/pwaUpdate";
 
 clearPwaReloadMarkersFromAddressBar();
@@ -29,7 +30,9 @@ createRoot(root).render(
         <BrowserRouter>
           <PrivacyProvider>
             <AppDataProvider>
-              <App />
+              <DepreciationBudgetProvider>
+                <App />
+              </DepreciationBudgetProvider>
             </AppDataProvider>
           </PrivacyProvider>
         </BrowserRouter>

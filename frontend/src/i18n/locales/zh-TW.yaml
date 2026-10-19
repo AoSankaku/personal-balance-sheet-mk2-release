@@ -812,11 +812,11 @@ budgetDepreciationActiveStatus: 購買預留有效
 budgetDepreciationResetStatus: 預留已重設 · 折舊繼續
 budgetDepreciationRecognizedStatus: 僅每月折舊
 depreciationBudgetMethodTitle: 此折舊計畫的預算處理方式
-depreciationBudgetMethodassignedLabel: "② 使用已分配預算支出並每月補回（推薦）"
+depreciationBudgetMethodassignedLabel: "使用已分配預算支出並每月補回（推薦）"
 depreciationBudgetMethodassignedHint: 購買時扣減購買預算。每月再從來源預算向購買預算轉入相同金額，以補回購買預算。
-depreciationBudgetMethodspecialLabel: "① 由負數專用預算承擔並每月補回"
+depreciationBudgetMethodspecialLabel: "由負數專用預算承擔並每月補回"
 depreciationBudgetMethodspecialHint: 購買時，與該筆購買關聯的專用預算會變為負數。每月再從來源預算向專用預算轉入相同金額，以逐步補回。
-depreciationBudgetMethodunallocatedLabel: "③ 從未分配資金支出，不補回"
+depreciationBudgetMethodunallocatedLabel: "從未分配資金支出，不補回"
 depreciationBudgetMethodunallocatedHint: 購買時從未分配資金承擔購買金額中屬於預算的部分。會計折舊仍會繼續，但沒有每月預算補回。
 depreciationBudgetPurchaseCategoryLabel: 購買時承擔費用的預算
 depreciationBudgetMonthlySourceLabel: 每月轉入的來源預算
@@ -824,9 +824,9 @@ depreciationBudgetSelectCategory: 選擇預算類別
 depreciationBudgetCategoryRequired: 請選擇類別以繼續。
 depreciationBudgetCategoriesMustDiffer: 購買與每月來源必須選擇不同類別。
 depreciationBudgetConfirmationRequired: 儲存前請確認此處理方式。
-depreciationBudgetUnallocatedWarning: 未分配資金會一次承擔購買金額中屬於預算的部分。之後會計折舊仍會繼續，但不會從生活費等類別進行每月預算轉入。如需每月預算也承擔費用，請選擇①或②。
-depreciationBudgetUnallocatedConfirm: "我確認選擇③：購買時從未分配資金承擔預算金額，且不進行每月預算轉入。"
-depreciationBudgetAssignedNegativeWarning: ②的購買預算預計不足，購買後可能變為負數。可考慮選擇①，由專用預算每月補回。
+depreciationBudgetUnallocatedWarning: 未分配資金會一次承擔購買金額中屬於預算的部分。之後會計折舊仍會繼續，但不會從生活費等類別進行每月預算轉入。如需每月預算也承擔費用，請選擇已分配預算或專用預算方式。
+depreciationBudgetUnallocatedConfirm: "我確認購買時從未分配資金承擔預算金額，且不進行每月預算轉入。"
+depreciationBudgetAssignedNegativeWarning: 購買預算預計不足，購買後可能變為負數。可考慮使用專用預算方式，每月補回專用預算。
 depreciationBudgetMethodRequired: 請選擇此計畫對預算的處理方式。
 depreciationBudgetUnset: 尚未設定預算處理方式
 depreciationBudgetStatusActive: 進行中
@@ -835,6 +835,12 @@ depreciationBudgetStatusEnded: 已結束
 depreciationBudgetRepairTitle: 修正折舊預算處理方式
 depreciationBudgetRepairButton: 設定或修正預算負擔方式
 depreciationBudgetRepairHint: 套用前請檢視影響。變更會更新預算事件，不會重新建立購買分錄。
+depreciationBudgetSchedulesTitle: 折舊預算處理
+depreciationBudgetSchedulesHint: 每項折舊計畫目前的預算處理與進度。即使資產負債表顯示較早日期，這裡仍顯示目前計畫。
+depreciationBudgetSchedulesEmpty: 沒有折舊計畫。
+depreciationBudgetSchedulesLoadError: 無法載入折舊計畫。
+depreciationBudgetSchedulesRetry: 重試
+depreciationBudgetTaskTitle: 檢查折舊預算處理
 depreciationBudgetRouteTitle: 未來每月轉入路線
 depreciationBudgetRouteAdd: 新增指定日期的路線
 depreciationBudgetRouteDate: 路線生效日期

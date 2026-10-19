@@ -37,7 +37,7 @@ interface Props {
   opened: boolean;
   schedule: DepreciationSchedule & { budget: DepreciationBudgetProgress };
   onClose: () => void;
-  onApplied?: () => void;
+  onApplied?: () => void | Promise<void>;
 }
 
 function makeKey() {
@@ -311,7 +311,7 @@ export function DepreciationBudgetRepairModal({
       });
       showFeedback({ message: t("depreciationBudgetApplied"), color: "teal" });
       setApplyConfirmOpened(false);
-      onApplied?.();
+      await onApplied?.();
       onClose();
     } catch (cause) {
       const stale = cause instanceof ApiError && cause.status === 409;

@@ -42,7 +42,12 @@ function schedule(
 
 describe("depreciation budget task selection", () => {
   test("always includes schedules whose budget treatment is unset", () => {
-    expect(getDepreciationBudgetTaskSchedules([schedule(1, {})]).map(({ id }) => id)).toEqual([1]);
+    expect(
+      getDepreciationBudgetTaskSchedules([
+        schedule(1, {}),
+        schedule(8, { status: "active", method: null }),
+      ]).map(({ id }) => id),
+    ).toEqual([1, 8]);
   });
 
   test("reminds for assigned and special balances only when nothing remains in the future", () => {
@@ -54,8 +59,9 @@ describe("depreciation budget task selection", () => {
       schedule(5, { method: "assigned", status: "completed", remaining_amount: 500, future_amount: 0 }),
       schedule(6, { method: "special", status: "ended", remaining_amount: 500, future_amount: 0 }),
       schedule(7, { method: "assigned", status: "active", remaining_amount: 0, future_amount: 0 }),
+      schedule(8, { method: "special", status: "active", remaining_amount: 100, future_amount: -10 }),
     ];
 
-    expect(getDepreciationBudgetTaskSchedules(schedules).map(({ id }) => id)).toEqual([1, 2]);
+    expect(getDepreciationBudgetTaskSchedules(schedules).map(({ id }) => id)).toEqual([1, 2, 8]);
   });
 });

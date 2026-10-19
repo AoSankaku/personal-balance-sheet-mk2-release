@@ -18,9 +18,10 @@ import {
 } from "react-router-dom";
 import type { TaskCollection } from "../hooks/useTaskCollection";
 import { formatTaskMonth } from "../hooks/useTaskCollection";
+import { useDepreciationBudget } from "../context/DepreciationBudgetContext";
 import { useLang } from "../i18n";
 import { accountDisplayNameFromName } from "../lib/accountUtils";
-import { formatJPY } from "../lib/numberFormat";
+import { formatCurrency, formatJPY } from "../lib/numberFormat";
 import "./TopNav.css";
 
 interface TaskListProps {
@@ -31,8 +32,10 @@ interface TaskListProps {
 export function TaskList({ onNavigate, tasks }: TaskListProps) {
   const { t, locale } = useLang();
   const navigate = useNavigate();
+  const { openRepair } = useDepreciationBudget();
   const {
     budgetTask,
+    depreciationBudgetTasks,
     creditCardImportTasks,
     creditCardWithdrawalRiskTasks,
     incomeTransferTasks,
@@ -129,6 +132,67 @@ export function TaskList({ onNavigate, tasks }: TaskListProps) {
               </Stack>
             </Group>
           </UnstyledButton>
+        </Stack>
+      )}
+
+      {depreciationBudgetTasks.length > 0 && (
+        <Stack gap={4}>
+          <Text className="task-menu__section-label">
+            {t("depreciationBudgetTaskTitle")}
+          </Text>
+          {depreciationBudgetTasks.map((schedule) => {
+            const { budget } = schedule;
+            const status =
+              budget.status === "unset" || budget.method == null
+                ? t("depreciationBudgetUnset")
+                : t("depreciationBudgetStatusActive");
+            const isConfigured =
+              budget.status !== "unset" && budget.method != null;
+            return (
+              <UnstyledButton
+                key={schedule.id}
+                className="task-menu__item"
+                aria-label={`${schedule.description}: ${t("depreciationBudgetRepairButton")}`}
+                onClick={() => {
+                  openRepair(schedule.id);
+                  onNavigate?.();
+                }}
+              >
+                <Stack gap={2}>
+                  <Text size="sm" fw={600}>
+                    {schedule.description}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {status}
+                    {isConfigured && (
+                      <>
+                        {" · "}
+                        {t("depreciationBudgetReimbursedLabel")} {" "}
+                        {formatCurrency(
+                          budget.reimbursed_amount,
+                          locale,
+                          budget.currency,
+                        )}{" "}
+                        · {t("depreciationBudgetRemainingLabel")} {" "}
+                        {formatCurrency(
+                          budget.remaining_amount,
+                          locale,
+                          budget.currency,
+                        )}{" "}
+                        ({budget.currency})
+                      </>
+                    )}
+                  </Text>
+                  <Group gap={4} c="blue" wrap="nowrap">
+                    <Text size="xs" fw={700}>
+                      {t("depreciationBudgetRepairButton")}
+                    </Text>
+                    <IconChevronRight size={15} aria-hidden="true" />
+                  </Group>
+                </Stack>
+              </UnstyledButton>
+            );
+          })}
         </Stack>
       )}
 

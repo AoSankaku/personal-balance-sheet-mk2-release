@@ -812,11 +812,11 @@ budgetDepreciationActiveStatus: 购买预留有效
 budgetDepreciationResetStatus: 预留已重置 · 折旧继续
 budgetDepreciationRecognizedStatus: 仅每月折旧
 depreciationBudgetMethodTitle: 此折旧计划的预算处理方式
-depreciationBudgetMethodassignedLabel: "② 使用已分配预算支出并每月补回（推荐）"
+depreciationBudgetMethodassignedLabel: "使用已分配预算支出并每月补回（推荐）"
 depreciationBudgetMethodassignedHint: 购买时扣减购买预算。每月再从来源预算向购买预算转入相同金额，以补回购买预算。
-depreciationBudgetMethodspecialLabel: "① 由负数专用预算承担并每月补回"
+depreciationBudgetMethodspecialLabel: "由负数专用预算承担并每月补回"
 depreciationBudgetMethodspecialHint: 购买时，与该笔购买关联的专用预算会变为负数。每月再从来源预算向专用预算转入相同金额，以逐步补回。
-depreciationBudgetMethodunallocatedLabel: "③ 从未分配资金支出，不补回"
+depreciationBudgetMethodunallocatedLabel: "从未分配资金支出，不补回"
 depreciationBudgetMethodunallocatedHint: 购买时从未分配资金承担购买金额中属于预算的部分。会计折旧仍会继续，但没有每月预算补回。
 depreciationBudgetPurchaseCategoryLabel: 购买时承担费用的预算
 depreciationBudgetMonthlySourceLabel: 每月转入的来源预算
@@ -824,9 +824,9 @@ depreciationBudgetSelectCategory: 选择预算类别
 depreciationBudgetCategoryRequired: 请选择类别以继续。
 depreciationBudgetCategoriesMustDiffer: 购买和每月来源必须选择不同类别。
 depreciationBudgetConfirmationRequired: 保存前请确认此处理方式。
-depreciationBudgetUnallocatedWarning: 未分配资金将一次性承担购买金额中属于预算的部分。之后会计折旧仍会继续，但不会从生活费用等类别进行每月预算转入。如需每月预算也承担费用，请选择①或②。
-depreciationBudgetUnallocatedConfirm: "我确认选择③：购买时从未分配资金承担预算金额，且不进行每月预算转入。"
-depreciationBudgetAssignedNegativeWarning: ②的购买预算预计不足，购买后可能变为负数。可考虑选择①，由专用预算每月补回。
+depreciationBudgetUnallocatedWarning: 未分配资金将一次性承担购买金额中属于预算的部分。之后会计折旧仍会继续，但不会从生活费用等类别进行每月预算转入。如需每月预算也承担费用，请选择已分配预算或专用预算方式。
+depreciationBudgetUnallocatedConfirm: "我确认购买时从未分配资金承担预算金额，且不进行每月预算转入。"
+depreciationBudgetAssignedNegativeWarning: 购买预算预计不足，购买后可能变为负数。可考虑使用专用预算方式，每月补回专用预算。
 depreciationBudgetMethodRequired: 请选择此计划对预算的处理方式。
 depreciationBudgetUnset: 尚未设置预算处理方式
 depreciationBudgetStatusActive: 进行中
@@ -835,6 +835,12 @@ depreciationBudgetStatusEnded: 已结束
 depreciationBudgetRepairTitle: 修正折旧预算处理方式
 depreciationBudgetRepairButton: 设置或修正预算承担方式
 depreciationBudgetRepairHint: 应用前请查看影响。修改会更新预算事件，不会重新创建购买分录。
+depreciationBudgetSchedulesTitle: 折旧预算处理
+depreciationBudgetSchedulesHint: 每项折旧计划的当前预算处理和进度。即使资产负债表显示的是较早日期，此处仍显示当前计划。
+depreciationBudgetSchedulesEmpty: 没有折旧计划。
+depreciationBudgetSchedulesLoadError: 无法加载折旧计划。
+depreciationBudgetSchedulesRetry: 重试
+depreciationBudgetTaskTitle: 检查折旧预算处理
 depreciationBudgetRouteTitle: 未来每月转入路线
 depreciationBudgetRouteAdd: 添加带生效日期的路线
 depreciationBudgetRouteDate: 路线生效日期

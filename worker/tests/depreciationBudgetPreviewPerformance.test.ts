@@ -1,5 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { depreciationRouter } from "../src/routes/depreciation";
+import { createDb } from "../src/db";
+import { computeBudgetSummaryForDate } from "../src/routes/budget";
 import type { DepreciationBudgetSettings } from "../../shared/depreciationBudget";
 import { createTestD1 } from "./helpers/d1";
 
@@ -120,7 +122,7 @@ test("memoized preview keeps its complete response while reducing repeated D1 re
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual(expected);
   const selectCalls = measured.calls.filter(({ sql }) => /^\s*(?:SELECT|WITH)\b/i.test(sql));
-  expect(selectCalls.length).toBeLessThan(155);
+  expect(selectCalls.length).toBeLessThan(130);
 });
 
 test("each preview request sees fresh data after an earlier request", async () => {
@@ -152,4 +154,19 @@ test("a long preview history stays below D1's 100 bound-parameter ceiling", asyn
   expect(response.status).toBe(200);
   const body = await response.json() as { timeline: unknown[] };
   expect(body.timeline.length).toBeGreaterThan(1);
+});
+
+test("the month range keeps malformed month keys excluded as the prior exact month list did", async () => {
+  const f = fixture();
+  const db = createDb({ DB: f.handle.DB });
+  const before = await computeBudgetSummaryForDate(db, "2025-05-31", "JPY");
+  f.handle.sqlite.query(`INSERT INTO budget_adjustment_logs
+    (budget_category_id,year_month,amount,currency,date,created_at,adjustment_type)
+    VALUES(1001,'2025-1',900000,'JPY','2025-05-15','2025-05-15 11:00:00','allocation'),
+          (1001,'2025-13',800000,'JPY','2025-05-15','2025-05-15 11:01:00','allocation'),
+          (1001,'2025-0a',700000,'JPY','2025-05-15','2025-05-15 11:02:00','allocation'),
+          (1001,'2025-0x',600000,'JPY','2025-05-15','2025-05-15 11:03:00','allocation')`).run();
+  const after = await computeBudgetSummaryForDate(db, "2025-05-31", "JPY");
+  expect(after.categories.map((row) => [row.category.id, row.available]))
+    .toEqual(before.categories.map((row) => [row.category.id, row.available]));
 });
