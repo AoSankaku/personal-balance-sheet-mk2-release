@@ -78,4 +78,63 @@ describe("depreciation budget form rules", () => {
     expect(wouldOverdrawDepreciationPurchaseCategory(3_000, 3_000)).toBe(false);
     expect(wouldOverdrawDepreciationPurchaseCategory(-500, 100)).toBe(true);
   });
+
+  test("accepts multiple monthly sources without requiring a legacy single category", () => {
+    const input = {
+      method: "assigned",
+      purchaseCategoryId: 4,
+      monthlySourceCategoryId: null,
+      monthlySourceAllocations: [
+        { budget_category_id: 8, ratio: 37.5 },
+        { budget_category_id: 9, ratio: 62.5 },
+      ],
+    } as Parameters<typeof getDepreciationBudgetFormErrors>[0];
+    expect(getDepreciationBudgetFormErrors(input)).toEqual({});
+  });
+
+  test("checks every monthly source against the purchase destination", () => {
+    const input = {
+      method: "assigned",
+      purchaseCategoryId: 4,
+      monthlySourceCategoryId: 8,
+      monthlySourceAllocations: [
+        { budget_category_id: 8, ratio: 50 },
+        { budget_category_id: 4, ratio: 50 },
+      ],
+    } as Parameters<typeof getDepreciationBudgetFormErrors>[0];
+    expect(getDepreciationBudgetFormErrors(input)).toEqual({
+      monthlySourceCategory: "must_differ",
+    });
+  });
+
+  test("requires explicit consent when any monthly share uses unallocated funds", () => {
+    const input = {
+      method: "special",
+      purchaseCategoryId: null,
+      monthlySourceCategoryId: 8,
+      monthlySourceAllocations: [
+        { budget_category_id: 8, ratio: 75 },
+        { budget_category_id: null, ratio: 25 },
+      ],
+      confirmMonthlyUnallocated: false,
+    } as Parameters<typeof getDepreciationBudgetFormErrors>[0];
+    expect(getDepreciationBudgetFormErrors(input)).toEqual({
+      confirmMonthlyUnallocated: "required",
+    });
+  });
+
+  test("does not silently normalize an excessive monthly source allocation", () => {
+    const input = {
+      method: "special",
+      purchaseCategoryId: null,
+      monthlySourceCategoryId: 8,
+      monthlySourceAllocations: [
+        { budget_category_id: 8, ratio: 80 },
+        { budget_category_id: 9, ratio: 30 },
+      ],
+    } as Parameters<typeof getDepreciationBudgetFormErrors>[0];
+    expect(getDepreciationBudgetFormErrors(input)).toEqual({
+      monthlySourceAllocations: "invalid",
+    });
+  });
 });
