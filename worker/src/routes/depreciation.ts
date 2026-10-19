@@ -469,8 +469,8 @@ async function buildDepreciationBudgetPreview(
   ] as unknown as typeof allLogs;
   const extraCategories = settings.method === "special" && !schedule.budget_special_category_id
     ? [{
-        id: -schedule.id, name: `予算分割振替 ${schedule.id}`, sort_order: 0, rollover_months: -1,
-        budget_group: "予算分割振替", goal_balance: null, balance_cap: null,
+        id: -schedule.id, name: `予算分割振替（減価償却） ${schedule.id}`, sort_order: 0, rollover_months: -1,
+        budget_group: "予算分割振替（減価償却）", goal_balance: null, balance_cap: null,
         overflow_budget_category_id: null, is_archived: 0, created_at: schedule.created_at,
       } as typeof budgetCategories.$inferSelect]
     : [];
@@ -780,8 +780,8 @@ async function createConfiguredDepreciation(c: RouteContext, body: DepreciationC
     ));
   if (settings.method === "special") {
     statements.push(c.env.DB.prepare(`INSERT INTO budget_categories
-      (name,sort_order,rollover_months,budget_group,is_archived) VALUES(?,0,-1,'予算分割振替',0)`)
-      .bind(`予算分割振替 ${body.idempotency_key.slice(0, 72)}`));
+      (name,sort_order,rollover_months,budget_group,is_archived) VALUES(?,0,-1,'予算分割振替（減価償却）',0)`)
+      .bind(`予算分割振替（減価償却） ${body.idempotency_key.slice(0, 72)}`));
     statements.push(c.env.DB.prepare("UPDATE depreciation_schedules SET budget_special_category_id=last_insert_rowid() WHERE budget_idempotency_key=?")
       .bind(body.idempotency_key));
   }
@@ -797,7 +797,7 @@ async function createConfiguredDepreciation(c: RouteContext, body: DepreciationC
   const monthlyJournalRows = monthlyAmounts.map((_, index) => ({
     id: monthJournalEntryIds[index],
     date: entryDates[index],
-    description: `${body.description} 予算分割振替 (${index + 1}/${body.months}ヶ月)`,
+    description: `${body.description} 予算分割振替（減価償却） (${index + 1}/${body.months}ヶ月)`,
     created_at: createdAt,
   }));
   statements.push(c.env.DB.prepare(`INSERT INTO journal_entries(id,date,description,created_at)
@@ -1119,7 +1119,7 @@ async function updateConfiguredDepreciation(
   const monthlyJournalRows = amounts.map((_, index) => ({
     id: monthJournalEntryIds[index]!,
     date: dates[index]!,
-    description: `${newDescription} 予算分割振替 (${index + 1}/${newMonths}ヶ月)`,
+    description: `${newDescription} 予算分割振替（減価償却） (${index + 1}/${newMonths}ヶ月)`,
     created_at: monthCreatedAts[index]!,
   }));
   statements.push(c.env.DB.prepare(`INSERT INTO journal_entries(id,date,description,created_at)
@@ -1286,8 +1286,8 @@ router.post("/:id/budget/apply", async (c) => {
   ];
   if (specialCategoryNeedsCreate) {
     statements.push(c.env.DB.prepare(`INSERT INTO budget_categories
-      (name,sort_order,rollover_months,budget_group,is_archived) VALUES(?,0,-1,'予算分割振替',0)`)
-      .bind(`予算分割振替 ${schedule.id}`));
+      (name,sort_order,rollover_months,budget_group,is_archived) VALUES(?,0,-1,'予算分割振替（減価償却）',0)`)
+      .bind(`予算分割振替（減価償却） ${schedule.id}`));
     statements.push(c.env.DB.prepare("UPDATE depreciation_schedules SET budget_special_category_id=last_insert_rowid() WHERE id=?").bind(id));
   }
   statements.push(c.env.DB.prepare("DELETE FROM budget_adjustment_logs WHERE depreciation_schedule_id=?").bind(id));
@@ -1629,7 +1629,7 @@ router.patch("/:id", async (c) => {
   const newMonthlyJournalIds: number[] = [];
   for (let i = 0; i < newMonths; i++) {
     const amt = newAmounts[i] ?? 0;
-    const entryDesc = `${newDescription} 予算分割振替 (${i + 1}/${newMonths}ヶ月)`;
+    const entryDesc = `${newDescription} 予算分割振替（減価償却） (${i + 1}/${newMonths}ヶ月)`;
     const [entry] = await db
       .insert(journalEntries)
       .values({ date: entryDates[i]!, description: entryDesc })

@@ -33,7 +33,7 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(() => { localStorage.setItem('locale', 'ja'); localStorage.setItem('display_currency', 'JPY'); });
     await page.goto('http://127.0.0.1:5173/input');
-    await page.getByText('予算分割振替', { exact: true }).click();
+    await page.getByText('予算分割振替（減価償却）', { exact: true }).click();
     const purchase = page.getByRole('group', { name: '購入・支払い', exact: true });
     const monthly = page.getByRole('group', { name: '毎月の費用', exact: true });
     const budgets = page.getByRole('group', { name: '予算の扱い', exact: true });
@@ -52,6 +52,7 @@ try {
     await select('費用科目', '減価償却費');
     await page.getByRole('radio', { name: /割当済み予算/ }).check();
     await select('購入時の負担予算', '貯蓄');
+    assert.equal(await page.getByRole('button', { name: '追加', exact: true }).isDisabled(), false, 'Existing source accounts allow installment input');
     const purchaseBox = await purchase.boundingBox();
     const monthlyBox = await monthly.boundingBox();
     const budgetBox = await budgets.boundingBox();
@@ -147,7 +148,7 @@ try {
     await page.getByText('事業立替', { exact: true }).click();
 
     // The regular expense form still has exactly one amount and payment input.
-    await page.getByText('予算分割振替', { exact: true }).click();
+    await page.getByText('予算分割振替（減価償却）', { exact: true }).click();
     assert.equal(await page.getByRole('textbox', { name: '金額', exact: true }).count(), 1);
     assert.equal(await page.getByRole('textbox', { name: '支払元', exact: true }).count(), 1);
     assert.equal(await purchase.count(), 0);

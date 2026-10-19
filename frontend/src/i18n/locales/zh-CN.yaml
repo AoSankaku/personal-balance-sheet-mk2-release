@@ -53,7 +53,7 @@ privacyModeBlockedTitle: 隐私模式已开启
 privacyModeBlockedMessage: 隐私模式开启时不能使用此页面。如需编辑，请在设置 > 常规中关闭。
 settingsSectionAccounts: 账户
 sectionAssets: 资产
-sectionDepreciableAssets: "可分期转账固定资产"
+sectionDepreciableAssets: "预算分期转账（折旧）资产"
 sectionLiabilities: 负债
 sectionEquity: 权益
 sectionIncome: 收入
@@ -747,10 +747,13 @@ deleteJournalConfirmMsg: 确定要删除此分录吗？此操作不可撤销。
 suppressDeleteWarning5min: 5 分钟内不再显示此警告
 includeInAllocatableLabel: 作为预算分配来源
 includeInAllocatableHint: 只有选中的现金/银行账户才计入可分配金额。
-isDepreciableLabel: "分期记录购买支出"
-isDepreciableHint: "将此资产账户用于分多月记录费用的购买项目。"
-depreciationSettingsTitle: "分期转账设置"
-depreciationSettingsHint: "选择用于记录每月分期转账费用的支出账户"
+isDepreciableLabel: "不纳入预算，并作为预算分期转账（折旧）的来源资产账户"
+isDepreciableHint: "将购买费用记录在此资产账户中，再分多个月转入费用账户。"
+depreciationAssetRequiredTitle: "请先创建来源资产账户"
+depreciationAssetRequiredHint: "在设置 > 账户中添加资产账户，并勾选“不纳入预算，并作为预算分期转账（折旧）的来源资产账户”。完成后，返回此页面输入计划。"
+depreciationAssetAccountSettingsButton: "前往勘定科目设置"
+depreciationSettingsTitle: "预算分期转账（折旧）设置"
+depreciationSettingsHint: "选择用于记录每月费用分录的支出账户。"
 depreciationAccountNone: "未选择账户"
 businessOwnerSettingsTitle: 业主垫付款设置
 businessOwnerSettingsHint: 以个体经营者身份记录业务费用垫付款时，配置相关账户。
@@ -778,7 +781,7 @@ businessAdvanceBalanceHistory: 余额历史
 changeColHeader: 变动
 goToSettings: 前往设置
 currentBalance: 当前余额
-depreciationLabel: "预算分期转账"
+depreciationLabel: "预算分期转账（折旧）"
 installmentPurchasePaymentGroup: "购买与付款"
 installmentMonthlyExpenseGroup: "每月费用"
 installmentBudgetHandlingGroup: "预算处理"
@@ -793,7 +796,7 @@ depreciationMonthUnit: " 个月"
 depreciationCreated: "分期转账计划已创建"
 depreciationEntryEditWarning: "编辑单条分期转账分录可能会破坏计划计算。请尽可能更新源资产分录。"
 depreciableAssetsTotal: "分期转账资产合计（账面净值）"
-depreciationReportTitle: "分期转账"
+depreciationReportTitle: "预算分期转账（折旧）"
 depreciationTotal: "分期转账费用合计"
 depreciationNone: "此期间没有分期转账记录。"
 depreciationBudgetPressure: "预算压力（占总支出比例）"
@@ -838,15 +841,15 @@ depreciationBudgetUnset: "尚未设置预算处理方式"
 depreciationBudgetStatusActive: "进行中"
 depreciationBudgetStatusCompleted: "已完成"
 depreciationBudgetStatusEnded: "已结束"
-depreciationBudgetRepairTitle: "修正分期转账预算处理方式"
-depreciationBudgetRepairButton: "设置或修正预算承担方式"
+depreciationBudgetRepairTitle: "设置或修正预算分期转账（折旧）"
+depreciationBudgetRepairButton: "设置或修正预算分期转账（折旧）"
 depreciationBudgetRepairHint: "应用前请查看影响。修改会更新预算事件，不会重新创建购买分录。"
-depreciationBudgetSchedulesTitle: "分期转账预算处理"
+depreciationBudgetSchedulesTitle: "预算分期转账（折旧）计划"
 depreciationBudgetSchedulesHint: "每项分期转账计划的当前预算处理和进度。即使资产负债表显示的是较早日期，此处仍显示当前计划。"
 depreciationBudgetSchedulesEmpty: "没有分期转账计划。"
 depreciationBudgetSchedulesLoadError: "无法加载分期转账计划。"
 depreciationBudgetSchedulesRetry: "重试"
-depreciationBudgetTaskTitle: "检查分期转账预算处理"
+depreciationBudgetTaskTitle: "检查预算分期转账（折旧）"
 depreciationBudgetRouteTitle: "未来每月转入路线"
 depreciationBudgetRouteAdd: "添加带生效日期的路线"
 depreciationBudgetRouteDate: "路线生效日期"
@@ -864,10 +867,10 @@ depreciationBudgetPreviewStale: "设置已更改。应用前请重新预览。"
 depreciationBudgetPreviewFailed: "无法创建预览。请检查设置后重试。"
 depreciationBudgetPreviewNotApplicable: "请先处理列出的重置决定，然后重新预览。"
 depreciationBudgetApplyButton: "应用预览的更改"
-depreciationBudgetApplyConfirmTitle: "应用分期转账预算更改？"
+depreciationBudgetApplyConfirmTitle: "应用预算分期转账（折旧）的更改？"
 depreciationBudgetApplyConfirmMessage: "要应用预览中的预算更改吗？不会重新创建购买分录。"
 depreciationBudgetApplied: "已更新分期转账预算处理方式。"
-depreciationBudgetProgressTitle: "预算分期转账进度"
+depreciationBudgetProgressTitle: "预算分期转账（折旧）进度"
 depreciationBudgetTargetLabel: "待补充金额"
 depreciationBudgetReimbursedLabel: "已补充"
 depreciationBudgetRemainingLabel: "剩余金额"
@@ -1271,7 +1274,7 @@ exportSavePDF: 另存为 PDF
 exportSQLite: 下载 SQLite
 exportSchemeLight: 切换为浅色
 exportSchemeDark: 切换为深色
-exportDepreciationTitle: "预算分期转账进度"
+exportDepreciationTitle: "预算分期转账（折旧）进度"
 exportDepreciationNote: "简化家庭分期转账：每月分期转账费用通过分录直接减少资产账户余额。"
 exportDepreciationAcquisitionCost: "取得原价"
 exportDepreciationPeriod: "分期转账期间"

@@ -2575,7 +2575,16 @@ export function SimpleEntryForm({
                 {t("cancel")}
               </Button>
             )}
-            <Button type="submit">{submitLabel ?? t("add")}</Button>
+            <Button
+              type="submit"
+              disabled={
+                depreciationEnabled &&
+                (entryType === "expense" || entryType === "business_advance") &&
+                depreciableAssetOptions.length === 0
+              }
+            >
+              {submitLabel ?? t("add")}
+            </Button>
           </Group>
         </Group>
       </Stack>

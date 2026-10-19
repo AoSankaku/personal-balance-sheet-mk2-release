@@ -53,7 +53,7 @@ privacyModeBlockedTitle: 隱私模式已開啟
 privacyModeBlockedMessage: 隱私模式開啟時不能使用此頁面。如需編輯，請在設定 > 一般中關閉。
 settingsSectionAccounts: 帳戶
 sectionAssets: 資產
-sectionDepreciableAssets: "可分期轉帳固定資產"
+sectionDepreciableAssets: "預算分期轉帳（折舊）資產"
 sectionLiabilities: 負債
 sectionEquity: 權益
 sectionIncome: 收入
@@ -747,10 +747,13 @@ deleteJournalConfirmMsg: 確定要刪除此分錄嗎？此操作無法復原。
 suppressDeleteWarning5min: 5 分鐘內不再顯示此警告
 includeInAllocatableLabel: 作為預算分配來源
 includeInAllocatableHint: 只有選中的現金/銀行帳戶才計入可分配金額。
-isDepreciableLabel: "分期記錄購買支出"
-isDepreciableHint: "將此資產帳戶用於分多月記錄費用的購買項目。"
-depreciationSettingsTitle: "分期轉帳設定"
-depreciationSettingsHint: "選擇用於記錄每月分期轉帳費用的支出帳戶"
+isDepreciableLabel: "不納入預算，並作為預算分期轉帳（折舊）的來源資產帳戶"
+isDepreciableHint: "將購買費用記錄在此資產帳戶中，再分多個月轉入費用帳戶。"
+depreciationAssetRequiredTitle: "請先建立來源資產帳戶"
+depreciationAssetRequiredHint: "在設定 > 帳戶中新增資產帳戶，並勾選「不納入預算，並作為預算分期轉帳（折舊）的來源資產帳戶」。完成後，返回此頁面輸入計畫。"
+depreciationAssetAccountSettingsButton: "前往勘定科目設定"
+depreciationSettingsTitle: "預算分期轉帳（折舊）設定"
+depreciationSettingsHint: "選擇用於記錄每月費用分錄的支出帳戶。"
 depreciationAccountNone: "未選擇帳戶"
 businessOwnerSettingsTitle: 業主墊付款設定
 businessOwnerSettingsHint: 以個體經營者身分記錄業務費用墊付款時，設定相關帳戶。
@@ -778,7 +781,7 @@ businessAdvanceBalanceHistory: 餘額歷史
 changeColHeader: 變動
 goToSettings: 前往設定
 currentBalance: 當前餘額
-depreciationLabel: "預算分期轉帳"
+depreciationLabel: "預算分期轉帳（折舊）"
 installmentPurchasePaymentGroup: "購買與付款"
 installmentMonthlyExpenseGroup: "每月費用"
 installmentBudgetHandlingGroup: "預算處理"
@@ -793,7 +796,7 @@ depreciationMonthUnit: " 個月"
 depreciationCreated: "分期轉帳計畫已建立"
 depreciationEntryEditWarning: "編輯單筆分期轉帳分錄可能會破壞計畫計算。請盡可能更新來源資產分錄。"
 depreciableAssetsTotal: "分期轉帳資產合計（帳面淨值）"
-depreciationReportTitle: "分期轉帳"
+depreciationReportTitle: "預算分期轉帳（折舊）"
 depreciationTotal: "分期轉帳費用合計"
 depreciationNone: "此期間沒有分期轉帳記錄。"
 depreciationBudgetPressure: "預算壓力（佔總支出比例）"
@@ -838,15 +841,15 @@ depreciationBudgetUnset: "尚未設定預算處理方式"
 depreciationBudgetStatusActive: "進行中"
 depreciationBudgetStatusCompleted: "已完成"
 depreciationBudgetStatusEnded: "已結束"
-depreciationBudgetRepairTitle: "修正分期轉帳預算處理方式"
-depreciationBudgetRepairButton: "設定或修正預算負擔方式"
+depreciationBudgetRepairTitle: "設定或修正預算分期轉帳（折舊）"
+depreciationBudgetRepairButton: "設定或修正預算分期轉帳（折舊）"
 depreciationBudgetRepairHint: "套用前請檢視影響。變更會更新預算事件，不會重新建立購買分錄。"
-depreciationBudgetSchedulesTitle: "分期轉帳預算處理"
+depreciationBudgetSchedulesTitle: "預算分期轉帳（折舊）計畫"
 depreciationBudgetSchedulesHint: "每項分期轉帳計畫目前的預算處理與進度。即使資產負債表顯示較早日期，這裡仍顯示目前計畫。"
 depreciationBudgetSchedulesEmpty: "沒有分期轉帳計畫。"
 depreciationBudgetSchedulesLoadError: "無法載入分期轉帳計畫。"
 depreciationBudgetSchedulesRetry: "重試"
-depreciationBudgetTaskTitle: "檢查分期轉帳預算處理"
+depreciationBudgetTaskTitle: "檢查預算分期轉帳（折舊）"
 depreciationBudgetRouteTitle: "未來每月轉入路線"
 depreciationBudgetRouteAdd: "新增指定日期的路線"
 depreciationBudgetRouteDate: "路線生效日期"
@@ -864,10 +867,10 @@ depreciationBudgetPreviewStale: "設定已變更。套用前請重新預覽。"
 depreciationBudgetPreviewFailed: "無法建立預覽。請檢查設定後再試一次。"
 depreciationBudgetPreviewNotApplicable: "請先處理列出的重設決定，再重新預覽。"
 depreciationBudgetApplyButton: "套用預覽的變更"
-depreciationBudgetApplyConfirmTitle: "套用分期轉帳預算變更？"
+depreciationBudgetApplyConfirmTitle: "套用預算分期轉帳（折舊）的變更？"
 depreciationBudgetApplyConfirmMessage: "要套用預覽中的預算變更嗎？不會重新建立購買分錄。"
 depreciationBudgetApplied: "已更新分期轉帳預算處理方式。"
-depreciationBudgetProgressTitle: "預算分期轉帳進度"
+depreciationBudgetProgressTitle: "預算分期轉帳（折舊）進度"
 depreciationBudgetTargetLabel: "待補充金額"
 depreciationBudgetReimbursedLabel: "已補充"
 depreciationBudgetRemainingLabel: "剩餘金額"
@@ -1271,7 +1274,7 @@ exportSavePDF: 另存為 PDF
 exportSQLite: 下載 SQLite
 exportSchemeLight: 切換為淺色
 exportSchemeDark: 切換為深色
-exportDepreciationTitle: "預算分期轉帳進度"
+exportDepreciationTitle: "預算分期轉帳（折舊）進度"
 exportDepreciationNote: "簡化家庭分期轉帳：每月分期轉帳費用透過分錄直接減少資產帳戶餘額。"
 exportDepreciationAcquisitionCost: "取得原價"
 exportDepreciationPeriod: "分期轉帳期間"

@@ -53,7 +53,7 @@ privacyModeBlockedTitle: プライバシーモードがONです
 privacyModeBlockedMessage: この画面はプライバシーモード中は使用できません。編集するには、設定 > 一般でオフにしてください。
 settingsSectionAccounts: 勘定科目
 sectionAssets: 資産
-sectionDepreciableAssets: "月次費用振替の対象資産"
+sectionDepreciableAssets: "予算分割振替（減価償却）の対象資産"
 sectionLiabilities: 負債
 sectionEquity: 資本
 sectionIncome: 収益
@@ -747,10 +747,13 @@ deleteJournalConfirmMsg: この仕訳を削除しますか？この操作は元�
 suppressDeleteWarning5min: 5分間この警告を表示しない
 includeInAllocatableLabel: 予算割り当て元に含める
 includeInAllocatableHint: ONの現金・預金科目だけを予算可能額に含めます。
-isDepreciableLabel: "購入費用を月ごとに分けて記録"
-isDepreciableHint: "この資産科目の購入費用を複数月に分けて費用計上します。"
-depreciationSettingsTitle: "毎月の費用振替設定"
-depreciationSettingsHint: "毎月の仕訳に使う費用科目を選択してください。"
+isDepreciableLabel: "予算の対象外とし、予算分割振替（減価償却）元として扱う"
+isDepreciableHint: "この資産科目に購入費用を記録し、複数月に分けて費用科目へ振り替えます。"
+depreciationAssetRequiredTitle: "先に振替元の資産科目を作成してください"
+depreciationAssetRequiredHint: "設定の「勘定科目」で資産科目を追加し、「予算の対象外とし、予算分割振替（減価償却）元として扱う」にチェックを入れてください。作成後、この画面から入力できます。"
+depreciationAssetAccountSettingsButton: "勘定科目の設定へ"
+depreciationSettingsTitle: "予算分割振替（減価償却）の設定"
+depreciationSettingsHint: "毎月の費用仕訳に使う費用科目を選択してください。"
 depreciationAccountNone: "科目を選択"
 businessOwnerSettingsTitle: 事業主用立替設定
 businessOwnerSettingsHint: 個人事業主として事業用経費を立て替えた場合の科目を設定します。
@@ -778,7 +781,7 @@ businessAdvanceBalanceHistory: 残高履歴
 changeColHeader: 増減
 goToSettings: 設定ページへ
 currentBalance: 現在残高
-depreciationLabel: "予算分割振替"
+depreciationLabel: "予算分割振替（減価償却）"
 installmentPurchasePaymentGroup: "購入・支払い"
 installmentMonthlyExpenseGroup: "毎月の費用"
 installmentBudgetHandlingGroup: "予算の扱い"
@@ -793,7 +796,7 @@ depreciationMonthUnit: "ヶ月"
 depreciationCreated: "毎月の費用振替計画を作成しました"
 depreciationEntryEditWarning: "個別の月次仕訳を編集すると計画の計算が変わる場合があります。可能であれば元の購入仕訳を編集してください。"
 depreciableAssetsTotal: "月次費用振替の対象資産残高合計"
-depreciationReportTitle: "予算分割振替"
+depreciationReportTitle: "予算分割振替（減価償却）"
 depreciationTotal: "月次費用振替の合計"
 depreciationNone: "この期間に月次費用振替はありません。"
 depreciationBudgetPressure: "予算圧迫率（支出合計に占める割合）"
@@ -838,15 +841,15 @@ depreciationBudgetUnset: "予算処理未設定"
 depreciationBudgetStatusActive: "進行中"
 depreciationBudgetStatusCompleted: "完了"
 depreciationBudgetStatusEnded: "終了"
-depreciationBudgetRepairTitle: "予算分割振替の設定・修正"
-depreciationBudgetRepairButton: "予算分割振替の設定・修正"
+depreciationBudgetRepairTitle: "予算分割振替（減価償却）の設定・修正"
+depreciationBudgetRepairButton: "予算分割振替（減価償却）の設定・修正"
 depreciationBudgetRepairHint: "適用前に影響を確認してください。変更は予算イベントを更新し、購入仕訳を再作成しません。"
-depreciationBudgetSchedulesTitle: "予算分割振替の計画"
+depreciationBudgetSchedulesTitle: "予算分割振替（減価償却）の計画"
 depreciationBudgetSchedulesHint: "各計画の現在の予算処理と進捗です。貸借対照表を過去の日付で表示している場合も、現在の計画を表示します。"
 depreciationBudgetSchedulesEmpty: "月次振替計画はありません。"
 depreciationBudgetSchedulesLoadError: "月次振替計画を読み込めませんでした。"
 depreciationBudgetSchedulesRetry: "再試行"
-depreciationBudgetTaskTitle: "予算分割振替の確認"
+depreciationBudgetTaskTitle: "予算分割振替（減価償却）の確認"
 depreciationBudgetRouteTitle: "今後の月次振替"
 depreciationBudgetRouteAdd: "日付指定の振替先を追加"
 depreciationBudgetRouteDate: "振替の開始日"
@@ -864,10 +867,10 @@ depreciationBudgetPreviewStale: "設定が変更されました。適用前に�
 depreciationBudgetPreviewFailed: "プレビューを作成できませんでした。設定を確認して再試行してください。"
 depreciationBudgetPreviewNotApplicable: "表示されたリセット判断を選び、もう一度プレビューしてください。"
 depreciationBudgetApplyButton: "プレビューした変更を適用"
-depreciationBudgetApplyConfirmTitle: "予算分割振替の変更を適用しますか？"
+depreciationBudgetApplyConfirmTitle: "予算分割振替（減価償却）の変更を適用しますか？"
 depreciationBudgetApplyConfirmMessage: "プレビューした予算変更を適用します。購入仕訳は再作成されません。"
 depreciationBudgetApplied: "月次振替の予算処理を更新しました。"
-depreciationBudgetProgressTitle: "予算分割振替の進捗"
+depreciationBudgetProgressTitle: "予算分割振替（減価償却）の進捗"
 depreciationBudgetTargetLabel: "補填対象額"
 depreciationBudgetReimbursedLabel: "補填済み"
 depreciationBudgetRemainingLabel: "残額"
@@ -1271,7 +1274,7 @@ exportSavePDF: PDFとして保存
 exportSQLite: SQLiteをダウンロード
 exportSchemeLight: ライトに切替
 exportSchemeDark: ダークに切替
-exportDepreciationTitle: "予算分割振替の進捗"
+exportDepreciationTitle: "予算分割振替（減価償却）の進捗"
 exportDepreciationNote: "月次の費用仕訳により、購入資産の帳簿残高を直接減少させます。"
 exportDepreciationAcquisitionCost: "取得価額"
 exportDepreciationPeriod: "振替期間"

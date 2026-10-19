@@ -1,10 +1,10 @@
 ---
 id: depreciation
-titleJa: 予算分割振替
-titleEn: Budget installment transfers
+titleJa: 予算分割振替（減価償却）
+titleEn: Budget installment transfers (depreciation)
 ---
 
-# Budget installment transfers
+# Budget installment transfers (depreciation)
 
 This feature records a purchase cost as monthly expenses and manages its budget impact over time. At purchase, the amount is first recorded in the selected “Purchase asset account”; it is then transferred to the “Expense account” over the configured period. The remaining balance in the purchase asset account is the plan's unexpensed amount, not the purchase's market value or tax value.
 
@@ -20,7 +20,9 @@ For example, a 120,000 yen computer spread over 12 months is expensed from the p
 
 ## Entry and budget ratios
 
-On the Input page, enable “Budget installment transfers,” select the “Purchase asset account” and “Expense account,” and set the period by “Transfer months” or “Monthly transfer amount.” For methods with monthly budget replenishment, the “Budget shares” editor starts with the expense account's budget ratios. Each saved plan keeps a snapshot of its shares, so later changes to the expense account do not change existing plans.
+First, go to Settings > Accounts, add an asset account, and check “Exclude from the budget and use as the source for Budget installment transfers (depreciation).” This account is excluded from the budget and records the purchase amount as the source for monthly transfers.
+
+On the Input page, enable “Budget installment transfers (depreciation),” select the created “Purchase asset account” and an “Expense account,” and set the period by “Transfer months” or “Monthly transfer amount.” For methods with monthly budget replenishment, the “Budget shares” editor starts with the expense account's budget ratios. Each saved plan keeps a snapshot of its shares, so later changes to the expense account do not change existing plans.
 
 Edit each budget category's share directly or adjust it by entering an amount for the representative month shown in the editor. Entering an amount sets its share based on that representative transfer; actual transfers may vary by month, such as when the first month is prorated. “Restore expense account defaults” reloads the expense account's current budget ratios.
 
@@ -32,6 +34,6 @@ Remainders are distributed in the currency's smallest unit using the largest-rem
 
 Changing the purchase entry or plan settings can affect monthly expense entries and budget replenishments. Make changes from the original purchase input or plan settings; do not edit generated monthly entries or budget records directly. Delete the related plan when it is no longer needed.
 
-## Difference from depreciation
+## How this works in this household ledger
 
 This feature spreads a purchase cost into monthly expenses for household management and manages the monthly budget impact through transfers between budget categories. The remaining amount in the purchase asset account is the plan's unexpensed balance. The feature does not determine an asset's market value, useful life, depreciation method, business-use ratio, or tax treatment. Handle any formal accounting or tax treatment separately under the applicable rules.

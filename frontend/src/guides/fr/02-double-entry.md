@@ -74,6 +74,6 @@ Les capitaux propres sont calculés comme les actifs moins les passifs, ils sont
 
 ## Notes lors de l'édition
 
-Vous pouvez modifier les écritures de journal depuis la page Journal. Les écritures créées via la saisie simplifiée peuvent être reconverties au format de saisie d'origine lorsque c'est possible. Les écritures de dépenses mensuelles générées par les transferts budgétaires échelonnés, leurs enregistrements budgétaires associés et les écritures qui incluent des comptes système spéciaux peuvent affecter les calculs associés si elles sont modifiées directement. Effectuez plutôt les changements depuis la saisie d'origine ou les paramètres.
+Vous pouvez modifier les écritures de journal depuis la page Journal. Les écritures créées via la saisie simplifiée peuvent être reconverties au format de saisie d'origine lorsque c'est possible. Les écritures de dépenses mensuelles générées par les Transferts budgétaires échelonnés (amortissement), leurs enregistrements budgétaires associés et les écritures qui incluent des comptes système spéciaux peuvent affecter les calculs associés si elles sont modifiées directement. Effectuez plutôt les changements depuis la saisie d'origine ou les paramètres.
 
 Lorsque les soldes ne correspondent pas, vérifiez la différence par rapport aux soldes réels sur la page Balance de vérification avant de supprimer des écritures basées sur des suppositions. Corriger les écritures après avoir identifié la cause facilite la compréhension de l'impact sur les budgets et les rapports.

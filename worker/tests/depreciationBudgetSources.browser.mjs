@@ -37,8 +37,8 @@ try {
     await page.getByRole('option', { name: option, exact: true }).click();
   }
   await page.goto(origin + '/fs/budget');
-  await page.getByRole('button', { name: /予算分割振替の設定・修正$/ }).first().click();
-  const modal = page.getByRole('dialog', { name: '予算分割振替の設定・修正', exact: true });
+  await page.getByRole('button', { name: /予算分割振替（減価償却）の設定・修正$/ }).first().click();
+  const modal = page.getByRole('dialog', { name: '予算分割振替（減価償却）の設定・修正', exact: true });
   await modal.getByRole('radio', { name: /割当済み予算から支出/ }).check();
   await select(/購入時の負担予算|購入時に負担するカテゴリ/, '貯蓄', modal);
   const sources = modal.getByTestId('depreciation-monthly-source-editor').first();
@@ -92,8 +92,8 @@ try {
   // Exercise the actual new-purchase form on a mobile viewport with a tiny amount.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(origin + '/input');
-  await page.getByText('予算分割振替', { exact: true }).click();
-  assert.equal(await page.getByLabel('予算分割振替', { exact: true }).isChecked(), true);
+  await page.getByText('予算分割振替（減価償却）', { exact: true }).click();
+  assert.equal(await page.getByLabel('予算分割振替（減価償却）', { exact: true }).isChecked(), true);
   await select('購入資産科目', 'テスト機器');
   await select(/^費用科目/, '減価償却費');
   await page.getByLabel('振替月数', { exact: true }).fill('1');
@@ -130,7 +130,7 @@ try {
   assert.equal(saved.budget.reimbursed_amount + saved.budget.future_amount, 5);
   await page.goto(origin + '/fs/bs');
   const savedCard = page.getByText('予算割合ブラウザ確認', { exact: true }).locator('..').locator('..');
-  await savedCard.getByRole('button', { name: /予算分割振替の設定・修正$/ }).click();
+  await savedCard.getByRole('button', { name: /予算分割振替（減価償却）の設定・修正$/ }).click();
   const savedSources = modal.getByTestId('depreciation-monthly-source-editor').first();
   assert.equal(await number('monthly-source-ratio-1002', savedSources), 40);
   assert.equal(await number('monthly-source-ratio-1003', savedSources), 60);

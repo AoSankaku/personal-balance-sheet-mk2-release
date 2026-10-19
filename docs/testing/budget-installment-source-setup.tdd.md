@@ -30,3 +30,13 @@ Account-scope RED: `1 !== 0` for `Budget-excluded source accounts must not simul
 ## Intended verification
 
 Frontend type/build checks, targeted naming/copy tests, and headless desktop/mobile flows for both missing and existing source accounts. Confirm the settings link, exact checkbox copy, disabled incomplete submission, and absence of horizontal overflow. No migration is expected.
+
+## GREEN
+
+- Final frontend TypeScript/Vite/PWA build succeeded.
+- Frontend copy and allocation-form checks: 27 passed, 0 failed, 1,092 assertions across three files. All six agreed feature names and the exact Japanese checkbox copy pass.
+- Worker generation/repair checks: 27 passed, 0 failed, 206 assertions across two files. New monthly entries and special-budget names use the new display name; special-budget reuse remains intact.
+- `budgetInstallmentSetup.browser.mjs` passed at 1440px and 390px: an empty eligible-asset list leaves the feature discoverable, shows creation guidance, disables incomplete installment submission, and links to account settings. The modal presents the exact checkbox wording; its budget-inclusion control hides while source mode is selected and restores the previous choice when deselected. Ordinary expense mode remains available. Horizontal overflow and page exceptions: 0.
+- `budgetInstallmentLayout.browser.mjs` passed at both widths with existing source accounts: input remains enabled, manual ratios/amounts and rounding work, account-default restoration and explicit unallocated confirmation work, and card offsets/business-advance controls remain available. Page exceptions: 0.
+- Mobile guidance and account-modal screenshots were inspected. Guide IDs and filenames remain unchanged; all six localized setup guides and double-entry references use the updated feature name.
+- Accounting algorithms, account payloads, schema, and migration files were not changed. Existing user-authored/stored entry and category names are not bulk rewritten. No remote push or production deployment was performed.

@@ -53,7 +53,7 @@ privacyModeBlockedTitle: Privacy mode is on
 privacyModeBlockedMessage: This page cannot be used while privacy mode is on. Turn it off from Settings > General to edit data.
 settingsSectionAccounts: Accounts
 sectionAssets: Assets
-sectionDepreciableAssets: "Assets with monthly expense transfers"
+sectionDepreciableAssets: "Budget installment transfers (depreciation) assets"
 sectionLiabilities: Liabilities
 sectionEquity: Equity
 sectionIncome: Income
@@ -747,10 +747,13 @@ deleteJournalConfirmMsg: Are you sure you want to delete this entry? This cannot
 suppressDeleteWarning5min: Don't show this warning for 5 minutes
 includeInAllocatableLabel: Include as budget allocation source
 includeInAllocatableHint: Only checked cash/bank accounts are counted as allocatable money.
-isDepreciableLabel: "Spread purchase cost over time"
-isDepreciableHint: "Use this asset account for purchases recorded as expenses over multiple months."
-depreciationSettingsTitle: "Monthly expense transfer settings"
-depreciationSettingsHint: "Choose the expense account used for the monthly entries."
+isDepreciableLabel: "Exclude from the budget and use as the source for Budget installment transfers (depreciation)"
+isDepreciableHint: "Record the purchase in this asset account, then transfer it to an expense account over multiple months."
+depreciationAssetRequiredTitle: "Create a source asset account first"
+depreciationAssetRequiredHint: "In Settings > Accounts, add an asset account and check “Exclude from the budget and use as the source for Budget installment transfers (depreciation).” Then return here to enter the plan."
+depreciationAssetAccountSettingsButton: "Go to account settings"
+depreciationSettingsTitle: "Budget installment transfers (depreciation) settings"
+depreciationSettingsHint: "Choose the expense account used for monthly expense entries."
 depreciationAccountNone: "No account selected"
 businessOwnerSettingsTitle: Business Owner Advance Settings
 businessOwnerSettingsHint: Configure accounts for recording business expense advances as a sole proprietor.
@@ -778,7 +781,7 @@ businessAdvanceBalanceHistory: Balance History
 changeColHeader: Change
 goToSettings: Go to Settings
 currentBalance: current balance
-depreciationLabel: "Budget installment transfers"
+depreciationLabel: "Budget installment transfers (depreciation)"
 installmentPurchasePaymentGroup: "Purchase and payment"
 installmentMonthlyExpenseGroup: "Monthly expense"
 installmentBudgetHandlingGroup: "Budget handling"
@@ -793,7 +796,7 @@ depreciationMonthUnit: " months"
 depreciationCreated: "Monthly expense transfer plan created"
 depreciationEntryEditWarning: "Editing an individual monthly entry can change the plan calculation. Update the original purchase entry when possible."
 depreciableAssetsTotal: "Total balance of assets with monthly expense transfers"
-depreciationReportTitle: "Budget installment transfers"
+depreciationReportTitle: "Budget installment transfers (depreciation)"
 depreciationTotal: "Total monthly expense transfers"
 depreciationNone: "No monthly expense transfers were recorded for this period."
 depreciationBudgetPressure: "Budget pressure (% of total expenses)"
@@ -838,15 +841,15 @@ depreciationBudgetUnset: "Budget treatment not set"
 depreciationBudgetStatusActive: "Active"
 depreciationBudgetStatusCompleted: "Completed"
 depreciationBudgetStatusEnded: "Ended"
-depreciationBudgetRepairTitle: "Set or repair budget installment transfers"
-depreciationBudgetRepairButton: "Set or repair budget installment transfers"
+depreciationBudgetRepairTitle: "Set or repair Budget installment transfers (depreciation)"
+depreciationBudgetRepairButton: "Set or repair Budget installment transfers (depreciation)"
 depreciationBudgetRepairHint: "Review the impact before applying. Changes update budget events and do not recreate the purchase entry."
-depreciationBudgetSchedulesTitle: "Budget installment transfer plans"
+depreciationBudgetSchedulesTitle: "Budget installment transfers (depreciation) plans"
 depreciationBudgetSchedulesHint: "Current budget treatment and progress for each plan. This list shows current plans even when the balance sheet is viewed as of an earlier date."
 depreciationBudgetSchedulesEmpty: "No monthly transfer plans."
 depreciationBudgetSchedulesLoadError: "Could not load monthly transfer plans."
 depreciationBudgetSchedulesRetry: "Retry"
-depreciationBudgetTaskTitle: "Review budget installment transfers"
+depreciationBudgetTaskTitle: "Review Budget installment transfers (depreciation)"
 depreciationBudgetRouteTitle: "Future monthly routing"
 depreciationBudgetRouteAdd: "Add a dated route"
 depreciationBudgetRouteDate: "Route effective date"
@@ -864,10 +867,10 @@ depreciationBudgetPreviewStale: "Settings changed. Preview again before applying
 depreciationBudgetPreviewFailed: "Could not create the preview. Check the settings and try again."
 depreciationBudgetPreviewNotApplicable: "Resolve the listed reset decisions, then preview again."
 depreciationBudgetApplyButton: "Apply previewed changes"
-depreciationBudgetApplyConfirmTitle: "Apply budget installment transfer changes?"
+depreciationBudgetApplyConfirmTitle: "Apply changes to Budget installment transfers (depreciation)?"
 depreciationBudgetApplyConfirmMessage: "Apply the previewed budget changes? The purchase entry will not be recreated."
 depreciationBudgetApplied: "Monthly transfer budget treatment updated."
-depreciationBudgetProgressTitle: "Budget installment transfer progress"
+depreciationBudgetProgressTitle: "Budget installment transfers (depreciation) progress"
 depreciationBudgetTargetLabel: "Amount to replenish"
 depreciationBudgetReimbursedLabel: "Replenished"
 depreciationBudgetRemainingLabel: "Remaining"
@@ -1271,7 +1274,7 @@ exportSavePDF: Save as PDF
 exportSQLite: Download SQLite
 exportSchemeLight: Switch to light
 exportSchemeDark: Switch to dark
-exportDepreciationTitle: "Budget installment transfer progress"
+exportDepreciationTitle: "Budget installment transfers (depreciation) progress"
 exportDepreciationNote: "Monthly expense entries reduce the purchase asset account balance directly through journal entries."
 exportDepreciationAcquisitionCost: "Acquisition Cost"
 exportDepreciationPeriod: "Transfer period"

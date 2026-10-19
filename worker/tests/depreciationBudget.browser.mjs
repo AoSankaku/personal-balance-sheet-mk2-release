@@ -14,12 +14,12 @@ try {
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   const origin='http://127.0.0.1:5173';
-  const modal=page.getByRole('dialog',{name:'予算分割振替の設定・修正',exact:true});
+  const modal=page.getByRole('dialog',{name:'予算分割振替（減価償却）の設定・修正',exact:true});
   for(const viewport of [{width:1440,height:1000},{width:390,height:844}]) {
     await page.setViewportSize(viewport);
     for(const path of ['/fs/budget','/fs/bs']) {
       await page.goto(origin+path);
-      await page.getByRole('button',{name:/予算分割振替の設定・修正$/}).first().click();
+      await page.getByRole('button',{name:/予算分割振替（減価償却）の設定・修正$/}).first().click();
       await modal.waitFor();
       assert.equal(/[①②③]/.test(await modal.innerText()),false);
       await modal.getByRole('button',{name:'キャンセル',exact:true}).click();
@@ -28,13 +28,13 @@ try {
   }
   await page.setViewportSize({width:1440,height:1000});
   await page.goto(origin+'/fs/report');
-  await page.getByRole('heading',{name:'予算分割振替の進捗',exact:false}).waitFor();
-  assert.equal(await page.getByRole('button',{name:/予算分割振替の設定・修正/}).count(),0);
+  await page.getByRole('heading',{name:'予算分割振替（減価償却）の進捗',exact:false}).waitFor();
+  assert.equal(await page.getByRole('button',{name:/予算分割振替（減価償却）の設定・修正/}).count(),0);
   await page.goto(origin+'/fs/budget');
-  await page.getByRole('button',{name:/予算分割振替の設定・修正$/}).first().waitFor();
+  await page.getByRole('button',{name:/予算分割振替（減価償却）の設定・修正$/}).first().waitFor();
   await page.getByRole('button',{name:/^要確認:/}).click();
   const taskMenu=page.getByRole('dialog',{name:/要確認/});
-  await taskMenu.getByRole('button',{name:/予算分割振替の設定・修正/}).click();
+  await taskMenu.getByRole('button',{name:/予算分割振替（減価償却）の設定・修正/}).click();
   await modal.waitFor();
   await taskMenu.waitFor({state:'hidden'});
   assert.deepEqual(await modal.locator('input[type=radio]').evaluateAll(inputs=>inputs.map(input=>input.value)),['assigned','special','unallocated']);
@@ -79,27 +79,27 @@ try {
   assert.equal(await modal.getByTestId('depreciation-purchase-negative-warning').count(),0);
   if(process.env.DEPRECIATION_QA_SCREENSHOT) await page.screenshot({path:process.env.DEPRECIATION_QA_SCREENSHOT,fullPage:true});
   await modal.getByRole('button',{name:'プレビューした変更を適用',exact:true}).click();
-  const confirm=page.getByRole('dialog',{name:'予算分割振替の変更を適用しますか？',exact:true});
+  const confirm=page.getByRole('dialog',{name:'予算分割振替（減価償却）の変更を適用しますか？',exact:true});
   const applyResponse=page.waitForResponse(response=>response.url().endsWith('/100/budget/apply'));
   const scheduleRefresh=page.waitForResponse(response=>response.url().endsWith('/api/depreciation')&&response.request().method()==='GET');
   await confirm.getByRole('button',{name:'確認',exact:true}).click();
   assert.equal((await applyResponse).status(),200);
   await scheduleRefresh;
-  await page.getByRole('dialog',{name:'予算分割振替の設定・修正',exact:true}).waitFor({state:'hidden'});
+  await page.getByRole('dialog',{name:'予算分割振替（減価償却）の設定・修正',exact:true}).waitFor({state:'hidden'});
   const schedules=await (await page.request.get('http://127.0.0.1:5173/api/depreciation')).json();
   assert.equal(schedules[0].budget.method,'assigned');
   assert.equal(schedules[0].budget.reimbursed_amount,40000);
   assert.equal(schedules[0].budget.remaining_amount,260000);
   await page.getByRole('button',{name:/^要確認:/}).click();
   await taskMenu.waitFor();
-  await taskMenu.getByRole('button',{name:/予算分割振替の設定・修正/}).waitFor({state:'hidden'});
-  assert.equal(await taskMenu.getByRole('button',{name:/予算分割振替の設定・修正/}).count(),0);
+  await taskMenu.getByRole('button',{name:/予算分割振替（減価償却）の設定・修正/}).waitFor({state:'hidden'});
+  assert.equal(await taskMenu.getByRole('button',{name:/予算分割振替（減価償却）の設定・修正/}).count(),0);
   await page.evaluate(()=>localStorage.setItem('privacy:mode','true'));
   let privateScheduleRequests=0;
   page.on('request',request=>{if(new URL(request.url()).pathname==='/api/depreciation')privateScheduleRequests++;});
   await page.goto(origin+'/fs/bs');
   await page.getByText('テスト機器',{exact:true}).first().waitFor();
-  assert.equal(await page.getByRole('button',{name:/予算分割振替の設定・修正/}).count(),0);
+  assert.equal(await page.getByRole('button',{name:/予算分割振替（減価償却）の設定・修正/}).count(),0);
   assert.equal(privateScheduleRequests,0);
   assert.equal(errors.length,0,errors.join('\n'));
   console.log(JSON.stringify({result:'PASS',checks:['desktop/mobile budget page entrypoint','desktop/mobile balance sheet entrypoint','header task direct entrypoint','read-only report','no instruction numbers','method order','unallocated warning/consent','unset repair','reset decisions','T unchanged','confirmed apply','task cleared','privacy blocks reads/actions','lifetime progress'],progress:schedules[0].budget,errors}));

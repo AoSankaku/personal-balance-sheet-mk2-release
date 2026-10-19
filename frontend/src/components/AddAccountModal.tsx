@@ -394,7 +394,7 @@ export function AddAccountModal({
 
           {selectedType === "asset" && (
             <Stack gap="xs">
-              {form.values.category === "cash" && (
+              {form.values.category === "cash" && !form.values.is_depreciable && (
                 <Checkbox
                   label={t("includeInAllocatableLabel")}
                   description={t("includeInAllocatableHint")}

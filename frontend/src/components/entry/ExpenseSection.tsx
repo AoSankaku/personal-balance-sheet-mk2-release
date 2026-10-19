@@ -1,5 +1,7 @@
 import {
+  Alert,
   Badge,
+  Button,
   Collapse,
   Fieldset,
   Group,
@@ -14,7 +16,8 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
-import { IconAlertTriangle } from "@tabler/icons-react";
+import { IconAlertTriangle, IconInfoCircle } from "@tabler/icons-react";
+import { Link } from "react-router-dom";
 import type {
   Account,
   AccountBudgetRatio,
@@ -318,7 +321,20 @@ export function ExpenseSection({
     </>
   ) : null;
 
-  const installmentFields = (
+  const installmentFields = depreciableAssetOptions.length === 0 ? (
+    <Alert
+      title={t("depreciationAssetRequiredTitle")}
+      icon={<IconInfoCircle size={18} />}
+      data-testid="depreciation-asset-required"
+    >
+      <Stack gap="sm">
+        <Text size="sm">{t("depreciationAssetRequiredHint")}</Text>
+        <Button component={Link} to="/settings" h={40} style={{ alignSelf: "flex-start" }}>
+          {t("depreciationAssetAccountSettingsButton")}
+        </Button>
+      </Stack>
+    </Alert>
+  ) : (
     <>
       <SimpleGrid
         cols={{ base: 1, sm: 2 }}
@@ -473,7 +489,7 @@ export function ExpenseSection({
         />
       )}
 
-      {depreciableAssetOptions.length > 0 && onDepreciationSubmit && (
+      {onDepreciationSubmit && (
         <Switch
           label={t("depreciationLabel")}
           checked={depreciationEnabled}

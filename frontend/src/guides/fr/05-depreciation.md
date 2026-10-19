@@ -1,11 +1,11 @@
 ---
 id: depreciation
-titleJa: 予算分割振替
-titleEn: Budget installment transfers
-titleFr: Transferts budgétaires échelonnés
+titleJa: 予算分割振替（減価償却）
+titleEn: Budget installment transfers (depreciation)
+titleFr: Transferts budgétaires échelonnés (amortissement)
 ---
 
-# Transferts budgétaires échelonnés
+# Transferts budgétaires échelonnés (amortissement)
 
 Cette fonctionnalité répartit le coût d'un achat en dépenses mensuelles et gère son impact sur le budget dans le temps. Lors de l'achat, le montant est d'abord enregistré dans le « Compte d'actif d'achat » choisi, puis transféré vers le « Compte de dépenses » sur la période définie. Le solde restant du compte d'actif d'achat représente le montant du plan qui n'a pas encore été passé en charges ; il ne représente pas la valeur marchande de l'achat ni sa valeur fiscale.
 
@@ -21,7 +21,9 @@ Par exemple, le coût d'un ordinateur de 120 000 yens réparti sur 12 mois est p
 
 ## Saisie et proportions budgétaires
 
-Sur la page Saisie, activez « Transferts budgétaires échelonnés », sélectionnez le « Compte d'actif d'achat » et le « Compte de dépenses », puis définissez la période avec « Mois de transfert » ou « Montant mensuel du transfert ». Pour les méthodes avec complément budgétaire mensuel, l'éditeur « Parts budgétaires » reprend initialement les proportions budgétaires du compte de dépenses. Chaque plan enregistré conserve un instantané de ses parts ; les changements ultérieurs du compte de dépenses ne modifient pas les plans existants.
+Commencez par ouvrir Paramètres > Comptes, ajouter un compte d’actif et cocher « Exclure du budget et utiliser comme compte d’actif source pour les Transferts budgétaires échelonnés (amortissement) ». Ce compte est exclu du budget et enregistre le montant de l’achat comme source des transferts mensuels.
+
+Sur la page Saisie, activez « Transferts budgétaires échelonnés (amortissement) », sélectionnez le « Compte d'actif d'achat » créé et un « Compte de dépenses », puis définissez la période avec « Mois de transfert » ou « Montant mensuel du transfert ». Pour les méthodes avec complément budgétaire mensuel, l'éditeur « Parts budgétaires » reprend initialement les proportions budgétaires du compte de dépenses. Chaque plan enregistré conserve un instantané de ses parts ; les changements ultérieurs du compte de dépenses ne modifient pas les plans existants.
 
 Modifiez directement la part de chaque catégorie budgétaire ou ajustez-la en saisissant un montant pour le mois représentatif affiché dans l'éditeur. La saisie d'un montant définit sa part en fonction de ce transfert représentatif ; les transferts réels peuvent varier selon le mois, par exemple lorsque le premier mois est proratisé. « Rétablir les valeurs par défaut du compte de dépenses » recharge les proportions budgétaires actuelles de ce compte.
 
@@ -33,6 +35,6 @@ Les restes sont répartis à l'unité monétaire minimale selon la méthode des 
 
 La modification de l'achat ou des paramètres du plan peut affecter les écritures de dépenses mensuelles et les compléments budgétaires. Effectuez les changements depuis la saisie d'achat d'origine ou les paramètres du plan ; ne modifiez pas directement les écritures mensuelles ni les enregistrements budgétaires générés. Supprimez le plan associé lorsqu'il n'est plus nécessaire.
 
-## Différence avec l'amortissement
+## Utilisation dans ce registre familial
 
 Cette fonctionnalité répartit le coût d'un achat en dépenses mensuelles pour la gestion du foyer et gère son impact budgétaire mensuel par des transferts entre catégories budgétaires. Le solde restant dans le compte d'actif d'achat représente le montant du plan qui n'a pas encore été passé en charges. La fonctionnalité ne détermine pas la valeur marchande de l'actif, sa durée d'utilité, la méthode d'amortissement, le taux d'utilisation professionnelle ou le traitement fiscal. Gérez séparément tout traitement comptable ou fiscal formel selon les règles applicables.

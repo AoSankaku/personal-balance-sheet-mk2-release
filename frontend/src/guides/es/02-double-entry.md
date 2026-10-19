@@ -74,6 +74,6 @@ El patrimonio se calcula como activos menos pasivos, por lo que rara vez se ingr
 
 ## Notas al Editar
 
-Puedes editar asientos contables desde la página del Libro Mayor. Los asientos creados mediante entrada simple se pueden convertir de vuelta al formato de entrada original cuando sea posible. Los asientos de gasto mensual generados por las transferencias presupuestarias en cuotas, sus registros presupuestarios asociados y los asientos que incluyen cuentas especiales del sistema pueden afectar a los cálculos relacionados si se editan directamente. Haz los cambios desde la entrada original o la configuración.
+Puedes editar asientos contables desde la página del Libro Mayor. Los asientos creados mediante entrada simple se pueden convertir de vuelta al formato de entrada original cuando sea posible. Los asientos de gasto mensual generados por las Transferencias presupuestarias en cuotas (depreciación), sus registros presupuestarios asociados y los asientos que incluyen cuentas especiales del sistema pueden afectar a los cálculos relacionados si se editan directamente. Haz los cambios desde la entrada original o la configuración.
 
 Cuando los saldos no coincidan, verifica la diferencia contra los saldos reales en la página de Balance de Comprobación antes de eliminar asientos basándote en suposiciones. Corregir asientos después de identificar la causa facilita entender el impacto en los presupuestos y reportes.

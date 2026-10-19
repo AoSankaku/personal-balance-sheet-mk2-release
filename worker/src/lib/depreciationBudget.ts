@@ -71,7 +71,7 @@ export interface BuildOwnedDepreciationBudgetRowsOptions {
 }
 
 export const UNALLOCATED_WARNING =
-  "未割当方式では、購入額の予算対象分を購入時にまとめて負担します。費用の月次計上は続きますが、毎月の予算分割振替は行いません。費用を毎月の予算にも反映するには、割当済み予算方式または特別予算方式を選択してください。";
+  "未割当方式では、購入額の予算対象分を購入時にまとめて負担します。費用の月次計上は続きますが、毎月の予算補填は行いません。費用を毎月の予算にも反映するには、割当済み予算方式または特別予算方式を選択してください。";
 
 function daysInMonth(date: string): number {
   const [year, month] = date.split("-").map(Number) as [number, number];
