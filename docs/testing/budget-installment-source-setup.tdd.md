@@ -17,9 +17,15 @@ All checks below executed against unchanged production code before implementatio
 | --- | --- | --- |
 | Feature and checkbox copy | `frontend/src/i18n/depreciationBudgetFeatureCopy.test.ts` | 6 passed / 7 failed: six feature names and the Japanese checkbox still use the earlier wording. |
 | Future generated names | `worker/tests/budgetInstallmentTransferNaming.test.ts` | 3 failed: generated descriptions lack the requested parenthetical name. |
-| Missing source-account guidance | `worker/tests/budgetInstallmentSetup.browser.mjs` | `0 !== 1`: feature switch is absent when the API's eligible-account list is empty. |
+| Missing source-account guidance | `worker/tests/budgetInstallmentSetup.browser.mjs` | After waiting for the actual form to load, `0 !== 1`: feature switch is absent when the API's eligible-account list is empty. |
 
 Logs are ignored under `.tmp/installment-setup/`. Browser verification reuses Vite on port 5173 and redirects actual `/api/` requests to the disposable in-memory QA API on port 18787. It never uses real local or remote D1 data.
+
+The initial browser assertion ran before input loading completed. The test now waits for the ordinary amount field before checking the missing switch. The corrected RED was validated against the original `ExpenseSection.tsx` from checkpoint `3909e37`, and the current source was restored in a `finally` block. The loaded-form failure is recorded in `setup-red-loaded.log`.
+
+Visual inspection also found that the asset dialog offered both budget-source inclusion and source-asset exclusion simultaneously. A browser assertion requires hiding the inclusion control while source mode is selected and restoring its previous preference when source mode is deselected. This changes only the displayed controls; the existing budget scope already excludes source assets by `is_depreciable`.
+
+Account-scope RED: `1 !== 0` for `Budget-excluded source accounts must not simultaneously offer inclusion in budget resources`, recorded in `account-scope-red.log` before changing `AddAccountModal.tsx`.
 
 ## Intended verification
 
