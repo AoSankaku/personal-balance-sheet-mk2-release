@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { createTestD1 } from "./helpers/d1";
 import { depreciationRouter } from "../src/routes/depreciation";
 import { budgetRouter } from "../src/routes/budget";
+import { journalRouter } from "../src/routes/journal";
 
 const databases: ReturnType<typeof createTestD1>[] = [];
 afterEach(() => { for (const database of databases.splice(0)) database.close(); });
@@ -65,4 +66,13 @@ test("owned purchase and transfer rows cannot be edited or deleted one side at a
   expect(row).not.toBeNull();
   expect((await request(database, `/adjustment-logs/${row!.id}`, { amount: 1 })).status).toBe(409);
   expect((await budgetRouter.request(`/adjustment-logs/${row!.id}`, { method: "DELETE" }, { DB: database.DB })).status).toBe(409);
+});
+
+test("generic journal and bulk deletion protect configured depreciation accounting", async () => {
+  const database = await fixture();
+  const monthly = database.sqlite.query("SELECT journal_entry_id AS id FROM depreciation_entries LIMIT 1").get() as {id:number};
+  expect((await journalRouter.request(`/${monthly.id}`,{method:"DELETE"},{DB:database.DB})).status).toBe(409);
+  const response = await journalRouter.request("/bulk-delete",{method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({entry_ids:[monthly.id]})},{DB:database.DB});
+  expect(response.status).toBe(409);
 });
