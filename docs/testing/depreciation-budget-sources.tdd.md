@@ -27,3 +27,12 @@
 ### GREEN
 
 実行結果を作業完了時に追記する。
+
+## 名称変更の追加要求
+
+ユーザーの追加指定により、本機能の表示名を「予算分割振替」に変更する。費用を月々に割り振る意味に合わせ、費用科目とその予算割合を一連の設定として表示する。内部のAPI名・保存形式は互換性を維持する。
+
+名称変更前のRED:
+
+- `frontend/src/i18n/depreciationBudgetFeatureCopy.test.ts`: 6言語の機能名とラベルの12件が失敗。
+- `worker/tests/budgetInstallmentTransferNaming.test.ts`: 新規の月次記録が `Laptop 減価償却費 (1/2ヶ月)` となり、要求した `予算分割振替` の名前を含まないため失敗。
