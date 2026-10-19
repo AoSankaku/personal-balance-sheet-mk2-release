@@ -16,7 +16,7 @@ For example, a 120,000 yen computer spread over 12 months is expensed from the p
 | --- | --- |
 | Assigned budget | The selected purchase budget is reduced at purchase. Each month, it is replenished by transfers from the budget sources configured by percentage. |
 | Special budget | A dedicated special budget starts with a negative balance. Each month, it is replenished by transfers from the configured budget sources. |
-| Unallocated | The budget-eligible purchase amount is funded from unallocated funds (U) at purchase. Monthly expense entries continue, but there are no monthly budget replenishments. |
+| Unallocated | The budget-eligible purchase amount is funded from unallocated funds at purchase. Monthly expense entries continue, but there are no monthly budget replenishments. |
 
 ## Entry and budget ratios
 
@@ -24,9 +24,9 @@ On the Input page, enable “Budget installment transfers,” select the “Purc
 
 Edit each budget category's share directly or adjust it by entering an amount for the representative month shown in the editor. Entering an amount sets its share based on that representative transfer; actual transfers may vary by month, such as when the first month is prorated. “Restore expense account defaults” reloads the expense account's current budget ratios.
 
-If named category shares total less than 100%, the remainder is treated as a transfer from unallocated funds (U), and saving requires explicit confirmation. Shares above 100% cannot be saved. The U portion reduces unallocated funds while replenishing the purchase budget.
+If named category shares total less than 100%, the remainder is treated as a transfer from unallocated funds, and saving requires explicit confirmation. Shares above 100% cannot be saved. Transfers from unallocated funds reduce those funds while replenishing the purchase budget.
 
-Remainders are distributed in the currency's smallest unit using the largest-remainder method. Ties go by ascending budget category ID, with U last. For each month, the budget source total matches the amount replenished to the purchase budget.
+Remainders are distributed in the currency's smallest unit using the largest-remainder method. Ties go by ascending budget category ID, with unallocated funds last. For each month, the budget source total matches the amount replenished to the purchase budget.
 
 ## Editing and deleting
 

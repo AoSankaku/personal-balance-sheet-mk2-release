@@ -17,7 +17,7 @@ Por ejemplo, el coste de un ordenador de 120.000 yenes repartido en 12 meses se 
 | --- | --- |
 | Presupuesto asignado | El presupuesto de compra seleccionado disminuye al comprar. Cada mes se repone con transferencias desde las fuentes presupuestarias configuradas por porcentaje. |
 | Presupuesto especial | Un presupuesto especial dedicado empieza con saldo negativo. Cada mes se repone con transferencias desde las fuentes presupuestarias configuradas. |
-| Sin asignar | La parte de la compra que cuenta para el presupuesto se cubre con fondos sin asignar (U) al comprar. Los asientos de gasto mensuales continúan, pero no hay reposiciones presupuestarias mensuales. |
+| Sin asignar | La parte de la compra que cuenta para el presupuesto se cubre con fondos sin asignar al comprar. Los asientos de gasto mensuales continúan, pero no hay reposiciones presupuestarias mensuales. |
 
 ## Registro y porcentajes presupuestarios
 
@@ -25,9 +25,9 @@ En la página de Entrada, activa «Transferencias presupuestarias en cuotas», s
 
 Edita directamente el porcentaje de cada categoría presupuestaria o ajústalo introduciendo un importe para el mes representativo que muestra el editor. Al introducir un importe se establece su porcentaje según esa transferencia representativa; las transferencias reales pueden variar cada mes, por ejemplo, si el primer mes se prorratea. «Restaurar los valores predeterminados de la cuenta de gasto» vuelve a cargar los porcentajes presupuestarios actuales de esa cuenta.
 
-Si el total de las categorías con nombre es inferior al 100 %, el resto se considera una transferencia desde los fondos sin asignar (U), y para guardar se requiere una confirmación explícita. No se pueden guardar porcentajes superiores al 100 %. La parte U reduce los fondos sin asignar mientras repone el presupuesto de compra.
+Si el total de las categorías con nombre es inferior al 100 %, el resto se considera una transferencia desde los fondos sin asignar, y para guardar se requiere una confirmación explícita. No se pueden guardar porcentajes superiores al 100 %. Las transferencias desde fondos sin asignar reducen esos fondos mientras reponen el presupuesto de compra.
 
-Los restos se distribuyen en la unidad mínima de la moneda mediante el método de mayores restos. Los empates se resuelven por ID de categoría presupuestaria ascendente y U se procesa al final. Cada mes, el total de las fuentes presupuestarias coincide con el importe repuesto al presupuesto de compra.
+Los restos se distribuyen en la unidad mínima de la moneda mediante el método de mayores restos. Los empates se resuelven por ID de categoría presupuestaria ascendente y los fondos sin asignar se procesan al final. Cada mes, el total de las fuentes presupuestarias coincide con el importe repuesto al presupuesto de compra.
 
 ## Edición y eliminación
 

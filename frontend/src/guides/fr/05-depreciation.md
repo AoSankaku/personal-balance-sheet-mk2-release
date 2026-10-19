@@ -17,7 +17,7 @@ Par exemple, le coût d'un ordinateur de 120 000 yens réparti sur 12 mois est p
 | --- | --- |
 | Budget affecté | Le budget d'achat choisi est diminué au moment de l'achat. Chaque mois, il est alimenté par des transferts depuis les sources budgétaires configurées en pourcentage. |
 | Budget spécial | Un budget spécial dédié commence avec un solde négatif. Chaque mois, il est alimenté par des transferts depuis les sources budgétaires configurées. |
-| Non réparti | La part de l'achat prise en compte dans le budget est couverte par les fonds non affectés (U) au moment de l'achat. Les écritures de dépenses mensuelles continuent, mais aucun complément budgétaire mensuel n'est effectué. |
+| Non réparti | La part de l'achat prise en compte dans le budget est couverte par les fonds non affectés au moment de l'achat. Les écritures de dépenses mensuelles continuent, mais aucun complément budgétaire mensuel n'est effectué. |
 
 ## Saisie et proportions budgétaires
 
@@ -25,9 +25,9 @@ Sur la page Saisie, activez « Transferts budgétaires échelonnés », sélecti
 
 Modifiez directement la part de chaque catégorie budgétaire ou ajustez-la en saisissant un montant pour le mois représentatif affiché dans l'éditeur. La saisie d'un montant définit sa part en fonction de ce transfert représentatif ; les transferts réels peuvent varier selon le mois, par exemple lorsque le premier mois est proratisé. « Rétablir les valeurs par défaut du compte de dépenses » recharge les proportions budgétaires actuelles de ce compte.
 
-Si la somme des parts des catégories nommées est inférieure à 100 %, le reste est considéré comme un transfert depuis les fonds non affectés (U) et l'enregistrement exige une confirmation explicite. Une somme supérieure à 100 % ne peut pas être enregistrée. La part U réduit les fonds non affectés tout en alimentant le budget d'achat.
+Si la somme des parts des catégories nommées est inférieure à 100 %, le reste est considéré comme un transfert depuis les fonds non affectés et l'enregistrement exige une confirmation explicite. Une somme supérieure à 100 % ne peut pas être enregistrée. Les transferts depuis les fonds non affectés réduisent ces fonds tout en alimentant le budget d'achat.
 
-Les restes sont répartis à l'unité monétaire minimale selon la méthode des plus forts restes. Les égalités sont départagées par identifiant de catégorie budgétaire croissant et U est traité en dernier. Pour chaque mois, le total des sources budgétaires correspond au montant versé au budget d'achat.
+Les restes sont répartis à l'unité monétaire minimale selon la méthode des plus forts restes. Les égalités sont départagées par identifiant de catégorie budgétaire croissant et les fonds non affectés sont traités en dernier. Pour chaque mois, le total des sources budgétaires correspond au montant versé au budget d'achat.
 
 ## Modification et suppression
 
