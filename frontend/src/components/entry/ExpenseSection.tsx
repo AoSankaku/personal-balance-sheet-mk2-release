@@ -15,12 +15,15 @@ import type { UseFormReturnType } from "@mantine/form";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import type {
   Account,
+  AccountBudgetRatio,
   BudgetSettings,
   DepreciationBudgetSettings,
 } from "@balance-sheet/shared";
 import { useLang } from "../../i18n";
 import { useAppData } from "../../context/AppDataContext";
 import { renderAccountOption, type AccountOption } from "../../lib/accountSelect";
+import { getEffectiveSymbol } from "../../lib/currencyUtils";
+import { formatCurrency } from "../../lib/numberFormat";
 import {
   computeBudgetDistributionAmounts,
   formatBudgetDistributionRatio,
@@ -59,9 +62,14 @@ interface Props {
     React.SetStateAction<number | null>
   >;
   depreciationExpenseAccountId: number | null;
-  setDepreciationExpenseAccountId: React.Dispatch<
-    React.SetStateAction<number | null>
-  >;
+  setDepreciationExpenseAccountId: (value: string | null) => void;
+  depreciationExpenseAccountBudgetRatios: AccountBudgetRatio[];
+  depreciationExpenseAccountName?: string;
+  depreciationFirstMonthAmount: number;
+  depreciationTotalAmount: number;
+  depreciationRepresentativeMonthlyAmount: number;
+  depreciationCurrency: string;
+  depreciationCurrencyDecimalPlaces: number;
   depreciationInputMode: "months" | "monthly_amount";
   setDepreciationInputMode: React.Dispatch<
     React.SetStateAction<"months" | "monthly_amount">
@@ -116,6 +124,13 @@ export function ExpenseSection({
   setDepreciationAssetAccountId,
   depreciationExpenseAccountId,
   setDepreciationExpenseAccountId,
+  depreciationExpenseAccountBudgetRatios,
+  depreciationExpenseAccountName,
+  depreciationFirstMonthAmount,
+  depreciationTotalAmount,
+  depreciationRepresentativeMonthlyAmount,
+  depreciationCurrency,
+  depreciationCurrencyDecimalPlaces,
   depreciationInputMode,
   setDepreciationInputMode,
   depreciationMonths,
@@ -131,8 +146,13 @@ export function ExpenseSection({
   handleRatioChange,
   handleBudgetAmountChange,
 }: Props) {
-  const { t } = useLang();
-  const { displayCurrencySymbol: currencySymbol } = useAppData();
+  const { t, locale } = useLang();
+  const { displayCurrencySymbol: currencySymbol, enabledCurrencies } =
+    useAppData();
+  const depreciationCurrencySymbol = getEffectiveSymbol(
+    depreciationCurrency,
+    enabledCurrencies,
+  );
   const entryType = form.values.entryType;
 
   return (
@@ -201,9 +221,7 @@ export function ExpenseSection({
                 ? String(depreciationExpenseAccountId)
                 : null
             }
-            onChange={(v) =>
-              setDepreciationExpenseAccountId(v ? Number(v) : null)
-            }
+            onChange={setDepreciationExpenseAccountId}
             renderOption={renderAccountOption as any}
           />
           <SegmentedControl
@@ -233,7 +251,7 @@ export function ExpenseSection({
             <NumberInput
               label={t("depreciationMonthlyAmountLabel")}
               min={1}
-              prefix={currencySymbol}
+              prefix={depreciationCurrencySymbol}
               thousandSeparator=","
               value={depreciationMonthlyAmount}
               onChange={(v) => setDepreciationMonthlyAmount(v)}
@@ -241,23 +259,27 @@ export function ExpenseSection({
           )}
           {form.values.amount > 0 && (
             <Text size="xs" c="dimmed">
-              {(() => {
-                const total =
-                  entryType === "business_advance"
-                    ? personalAmount
-                    : form.values.amount;
-                const months =
-                  depreciationInputMode === "months"
-                    ? Number(depreciationMonths) || 1
-                    : Math.max(
-                        1,
-                        Math.ceil(
-                          total / (Number(depreciationMonthlyAmount) || 1),
-                        ),
-                      );
-                const base = Math.floor(total / months);
-                return `${t("depreciationPreview")}: ¥${base.toLocaleString()} × ${months}${t("depreciationMonthUnit")} = ¥${total.toLocaleString()}`;
-              })()}
+              {t("depreciationPreview")}: {t("depreciationPreviewSummary")
+                .replace(
+                  "{first}",
+                  formatCurrency(
+                    depreciationFirstMonthAmount,
+                    locale,
+                    depreciationCurrency,
+                    depreciationCurrencySymbol,
+                    depreciationCurrencyDecimalPlaces,
+                  ),
+                )
+                .replace(
+                  "{total}",
+                  formatCurrency(
+                    depreciationTotalAmount,
+                    locale,
+                    depreciationCurrency,
+                    depreciationCurrencySymbol,
+                    depreciationCurrencyDecimalPlaces,
+                  ),
+                )}
             </Text>
           )}
           {!isEditing && (
@@ -265,6 +287,11 @@ export function ExpenseSection({
               value={depreciationBudgetSettings}
               onChange={setDepreciationBudgetSettings}
               purchaseAmount={depreciationPurchaseAmount}
+              representativeMonthlyAmount={depreciationRepresentativeMonthlyAmount}
+              currency={depreciationCurrency}
+              decimalPlaces={depreciationCurrencyDecimalPlaces}
+              accountBudgetRatios={depreciationExpenseAccountBudgetRatios}
+              expenseAccountName={depreciationExpenseAccountName}
             />
           )}
         </>

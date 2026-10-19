@@ -1504,7 +1504,13 @@ export type {
   DepreciationBudgetSnapshot,
   DepreciationBudgetStatus,
   DepreciationBudgetSettlement,
+  DepreciationBudgetSourceAllocation,
   DepreciationBudgetPreview,
   DepreciationResetInputDecision,
   DepreciationResetPlan,
 } from "./depreciationBudget";
+export {
+  resolveDepreciationMonthlySourceAllocations,
+  splitDepreciationMonthlySourceAllocations,
+  validateDepreciationMonthlySourceAllocations,
+} from "./depreciationBudgetAllocation";

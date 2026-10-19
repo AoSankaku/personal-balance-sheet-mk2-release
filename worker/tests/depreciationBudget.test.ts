@@ -790,7 +790,7 @@ describe("depreciation budget configuration and repair API", () => {
       .get<{ amount: number }>(specialId)?.amount).toBe(50000);
 
     expect((await apply(special)).status).toBe(200);
-    expect(harness.sqlite.query("SELECT COUNT(*) AS n FROM budget_categories WHERE budget_group='減価償却'")
+    expect(harness.sqlite.query("SELECT COUNT(*) AS n FROM budget_categories WHERE budget_group='予算分割振替'")
       .get<{ n: number }>()?.n).toBe(1);
     expect(harness.sqlite.query("SELECT budget_special_category_id FROM depreciation_schedules WHERE id=?")
       .get<{ budget_special_category_id: number }>(harness.scheduleId)?.budget_special_category_id).toBe(specialId);

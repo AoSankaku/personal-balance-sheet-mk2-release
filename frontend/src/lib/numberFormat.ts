@@ -44,15 +44,25 @@ export function formatCurrency(
   locale: string,
   currency: string,
   displaySymbol?: string,
+  decimalPlaces?: number,
 ): string {
   const intlLocale = toIntlLocale(locale);
   const cryptoDecimals = CRYPTO_DECIMALS[currency];
+  const maximumFractionDigits = Math.max(
+    0,
+    Math.min(
+      20,
+      decimalPlaces ??
+        cryptoDecimals ??
+        (currency === "JPY" || currency === "KRW" ? 0 : 2),
+    ),
+  );
   let formatted: string;
   if (cryptoDecimals !== undefined) {
     formatted =
       amount.toLocaleString(intlLocale, {
         minimumFractionDigits: 0,
-        maximumFractionDigits: cryptoDecimals,
+        maximumFractionDigits,
       }) +
       "\u00a0" +
       currency;
@@ -66,7 +76,7 @@ export function formatCurrency(
       "\u00a0" +
       amount.toLocaleString(intlLocale, {
         minimumFractionDigits: 0,
-        maximumFractionDigits: currency === "JPY" || currency === "KRW" ? 0 : 2,
+        maximumFractionDigits,
       });
     return isPrivacyModeEnabled()
       ? maskFormattedAmountDigits(formatted)
@@ -76,14 +86,30 @@ export function formatCurrency(
     formatted = new Intl.NumberFormat(intlLocale, {
       style: "currency",
       currency,
-      maximumFractionDigits: currency === "JPY" || currency === "KRW" ? 0 : 2,
+      maximumFractionDigits,
     }).format(amount);
   } catch {
-    formatted = amount.toFixed(2) + "\u00a0" + currency;
+    formatted = amount.toFixed(maximumFractionDigits) + "\u00a0" + currency;
   }
   return isPrivacyModeEnabled()
     ? maskFormattedAmountDigits(formatted)
     : formatted;
+}
+
+/** Parse a NumberInput display value, including its optional currency prefix. */
+export function parseCurrencyInputValue(
+  value: string,
+  prefix: string,
+): number | null {
+  let normalized = value.trim();
+  const normalizedPrefix = prefix.trim();
+  if (normalizedPrefix && normalized.startsWith(normalizedPrefix)) {
+    normalized = normalized.slice(normalizedPrefix.length).trim();
+  }
+  normalized = normalized.replace(/[\s,\u00a0\u202f]/gu, "");
+  if (normalized === "") return 0;
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? amount : null;
 }
 
 function normalizeCompactCurrencyPart(value: string): string {

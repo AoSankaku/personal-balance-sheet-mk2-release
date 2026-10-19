@@ -1,59 +1,38 @@
 ---
 id: depreciation
-titleJa: 擬似的な減価償却と予算分散
-titleEn: Pseudo-Depreciation & Budget Spreading
-titleFr: Pseudo-amortissement et lissage budgétaire
+titleJa: 予算分割振替
+titleEn: Budget installment transfers
+titleFr: Transferts budgétaires échelonnés
 ---
 
-# Pseudo-amortissement et lissage budgétaire
+# Transferts budgétaires échelonnés
 
-L'amortissement dans cette application n'est pas destiné à la déclaration fiscale ou à la comptabilité d'entreprise formelle. C'est une fonctionnalité de finances personnelles pour répartir le poids d'un achat important sur plusieurs mois.
+Cette fonctionnalité répartit le coût d'un achat en dépenses mensuelles et gère son impact sur le budget dans le temps. Lors de l'achat, le montant est d'abord enregistré dans le « Compte d'actif d'achat » choisi, puis transféré vers le « Compte de dépenses » sur la période définie. Le solde restant du compte d'actif d'achat représente le montant du plan qui n'a pas encore été passé en charges ; il ne représente pas la valeur marchande de l'achat ni sa valeur fiscale.
 
-Par exemple, si vous achetez un appareil à 120 000 yens en janvier, un journal domestique normal montrerait une grosse dépense en janvier. En pratique, vous pouvez préférer le considérer comme une consommation de 10 000 yens par mois sur un an. Le pseudo-amortissement est fait pour cette situation.
+Par exemple, le coût d'un ordinateur de 120 000 yens réparti sur 12 mois est passé du compte d'actif d'achat au compte de dépenses à raison d'environ 10 000 yens par mois. Si le complément budgétaire mensuel est activé, des fonds sont également transférés chaque mois des catégories budgétaires habituelles vers le budget d'achat.
 
-## Ce qui se produit
+## Méthodes budgétaires
 
-Lorsque vous activez l'amortissement lors de la saisie d'une dépense, l'application crée deux types d'enregistrements :
-
-| Enregistrement | Contenu |
+| Méthode | Traitement du budget à l'achat et chaque mois |
 | --- | --- |
-| Enregistrement d'achat | Diminue l'actif de paiement et augmente l'actif amortissable |
-| Enregistrements mensuels | Diminue progressivement l'actif et enregistre une dépense chaque mois |
+| Budget affecté | Le budget d'achat choisi est diminué au moment de l'achat. Chaque mois, il est alimenté par des transferts depuis les sources budgétaires configurées en pourcentage. |
+| Budget spécial | Un budget spécial dédié commence avec un solde négatif. Chaque mois, il est alimenté par des transferts depuis les sources budgétaires configurées. |
+| Non réparti | La part de l'achat prise en compte dans le budget est couverte par les fonds non affectés (U) au moment de l'achat. Les écritures de dépenses mensuelles continuent, mais aucun complément budgétaire mensuel n'est effectué. |
 
-Les liquidités diminuent au moment de l'achat, mais l'effet sur les dépenses et les budgets est réparti par mois. Dans le bilan, la partie non encore passée en charges reste en tant qu'actif.
+## Saisie et proportions budgétaires
 
-## Configuration avant utilisation
+Sur la page Saisie, activez « Transferts budgétaires échelonnés », sélectionnez le « Compte d'actif d'achat » et le « Compte de dépenses », puis définissez la période avec « Mois de transfert » ou « Montant mensuel du transfert ». Pour les méthodes avec complément budgétaire mensuel, l'éditeur « Parts budgétaires » reprend initialement les proportions budgétaires du compte de dépenses. Chaque plan enregistré conserve un instantané de ses parts ; les changements ultérieurs du compte de dépenses ne modifient pas les plans existants.
 
-1. Dans Paramètres, créez le compte d'actif que vous souhaitez amortir.
-2. Activez l'amortissement pour ce compte d'actif.
-3. Préparez un compte de dépenses à utiliser pour la charge d'amortissement.
-4. Lors de la saisie d'une dépense sur la page Saisie, activez l'amortissement.
+Modifiez directement la part de chaque catégorie budgétaire ou ajustez-la en saisissant un montant pour le mois représentatif affiché dans l'éditeur. La saisie d'un montant définit sa part en fonction de ce transfert représentatif ; les transferts réels peuvent varier selon le mois, par exemple lorsque le premier mois est proratisé. « Rétablir les valeurs par défaut du compte de dépenses » recharge les proportions budgétaires actuelles de ce compte.
 
-En saisie par période, spécifiez sur combien de mois le montant total doit être réparti. En saisie par montant mensuel, spécifiez quel montant doit être passé en charges chaque mois. Si un arrondi est nécessaire, les montants mensuels sont ajustés pour que le total corresponde toujours.
+Si la somme des parts des catégories nommées est inférieure à 100 %, le reste est considéré comme un transfert depuis les fonds non affectés (U) et l'enregistrement exige une confirmation explicite. Une somme supérieure à 100 % ne peut pas être enregistrée. La part U réduit les fonds non affectés tout en alimentant le budget d'achat.
 
-## Effet sur les budgets
+Les restes sont répartis à l'unité monétaire minimale selon la méthode des plus forts restes. Les égalités sont départagées par identifiant de catégorie budgétaire croissant et U est traité en dernier. Pour chaque mois, le total des sources budgétaires correspond au montant versé au budget d'achat.
 
-Avec une dépense normale, le budget est consommé dans le mois du paiement. Avec l'amortissement, l'impact budgétaire apparaît comme une charge d'amortissement mensuelle.
+## Modification et suppression
 
-Cela permet de lisser les gros achats annuels ou les fournitures utilisées pendant plusieurs mois dans le cadre des coûts de subsistance mensuels. L'objectif est de séparer le mois de paiement de la période d'utilisation d'une manière qui corresponde à la façon dont le ménage ressent réellement le coût.
+La modification de l'achat ou des paramètres du plan peut affecter les écritures de dépenses mensuelles et les compléments budgétaires. Effectuez les changements depuis la saisie d'achat d'origine ou les paramètres du plan ; ne modifiez pas directement les écritures mensuelles ni les enregistrements budgétaires générés. Supprimez le plan associé lorsqu'il n'est plus nécessaire.
 
-## Dépenses appropriées
+## Différence avec l'amortissement
 
-| Éléments appropriés | Raison |
-| --- | --- |
-| Appareils électroménagers, meubles, PC, smartphones | Utilisés sur plusieurs mois ou années |
-| Abonnements annuels | Effectivement utilisés chaque mois |
-| Équipement de loisir ou de travail coûteux | Évite de fausser le budget uniquement dans le mois d'achat |
-| Dépenses ponctuelles pour améliorer le mode de vie | Les bénéfices s'étendent sur plusieurs mois |
-
-Pour l'alimentation, les biens courants et autres articles consommés dans le même mois, utilisez la saisie de dépense normale.
-
-## Notes sur l'édition et la suppression
-
-Lorsque vous modifiez l'écriture d'achat qui a créé l'amortissement, les écritures d'amortissement mensuelles sont recalculées. Modifier uniquement une écriture mensuelle peut la rendre incohérente avec le calendrier global.
-
-Si vous devez modifier les détails, éditez à partir de l'écriture d'achat d'origine lorsque c'est possible. Si elle n'est plus nécessaire, supprimez le plan d'amortissement associé et ressaisissez-la comme une dépense normale si nécessaire.
-
-## Différence avec l'amortissement fiscal
-
-Cette fonctionnalité est un pseudo-lissage de dépenses pour la gestion domestique. Elle ne détermine pas automatiquement la durée d'utilité, la méthode d'amortissement, le taux d'utilisation professionnelle ou le traitement fiscal. Les actifs qui nécessitent un traitement fiscal doivent être gérés séparément selon les règles comptables et fiscales formelles.
+Cette fonctionnalité répartit le coût d'un achat en dépenses mensuelles pour la gestion du foyer et gère son impact budgétaire mensuel par des transferts entre catégories budgétaires. Le solde restant dans le compte d'actif d'achat représente le montant du plan qui n'a pas encore été passé en charges. La fonctionnalité ne détermine pas la valeur marchande de l'actif, sa durée d'utilité, la méthode d'amortissement, le taux d'utilisation professionnelle ou le traitement fiscal. Gérez séparément tout traitement comptable ou fiscal formel selon les règles applicables.

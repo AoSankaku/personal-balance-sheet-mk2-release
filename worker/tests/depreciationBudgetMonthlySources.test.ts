@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import type { DepreciationBudgetPreview, DepreciationBudgetSettings } from "../../shared/depreciationBudget";
 import { depreciationRouter } from "../src/routes/depreciation";
 import { budgetRouter } from "../src/routes/budget";
+import { getDepreciationResetPlans } from "../src/lib/depreciationBudgetReset";
 import { createTestD1 } from "./helpers/d1";
 
 type Sources = { budget_category_id: number | null; ratio: number }[];
@@ -103,6 +104,19 @@ test("an explicit unallocated remainder requires consent and creates only its in
   expect(schedules.find(row => row.id === id)!.budget.reimbursed_amount).toBe(5);
 });
 
+test("orphan monthly receipts do not reduce reset remaining amounts", async () => {
+  const h = fixture();
+  const settings = {
+    ...config([{ budget_category_id: 1002, ratio: 60 }, { budget_category_id: null, ratio: 40 }]),
+    confirm_monthly_unallocated: true,
+  };
+  const id = await scheduleId(await create(h, settings, { amount: 900, months: 3 }));
+  h.sqlite.query(`INSERT INTO budget_adjustment_logs(budget_category_id,year_month,amount,date,currency,adjustment_type,
+    depreciation_schedule_id,depreciation_event_key,depreciation_event_side) VALUES(1001,'2026-01',1000000,'2026-01-15','JPY','transfer',?,'monthly:2:unallocated:orphan','destination')`).run(id);
+  const plans = await getDepreciationResetPlans(h.DB, 1002, "2026-01-31", "JPY");
+  expect(plans.find(plan => plan.schedule_id === id)?.remaining_amount).toBe(600);
+});
+
 test("all positive sources participate in reset and archive protections, including dated routing", async () => {
   const h = fixture(), settings = { ...config(), routing_changes: [{ date: "2027-02-01", monthly_source_category_id: 1002,
     monthly_source_allocations: [{ budget_category_id: 1004, ratio: 100 }], destination_category_id: 1001 }] };
@@ -116,6 +130,22 @@ test("all positive sources participate in reset and archive protections, includi
   expect((await budgetRequest("/categories/1004", { is_archived: true })).status).toBe(409);
 });
 
+test("a destination-only dated route keeps using the snapshotted source allocation", async () => {
+  const h = fixture();
+  const settings = {
+    ...config(),
+    routing_changes: [{ date: "2026-02-01", destination_category_id: 1001 }],
+  };
+  const id = await scheduleId(await create(h, settings, { amount: 900, months: 3 }));
+  expect(monthlyRows(h, id).filter(row => row.key.startsWith("monthly:2:")).map(row => [row.key, row.budget_category_id, row.amount, row.side]))
+    .toEqual([
+      ["monthly:2:category:1002", 1001, 150, "destination"],
+      ["monthly:2:category:1002", 1002, -150, "source"],
+      ["monthly:2:category:1003", 1001, 150, "destination"],
+      ["monthly:2:category:1003", 1003, -150, "source"],
+    ]);
+});
+
 test("legacy single-source repair remains a byte-stable no-op with its original monthly event key", async () => {
   const h = fixture(), settings: Settings = { method: "assigned", purchase_category_id: 1001, monthly_source_category_id: 1002 };
   const id = await scheduleId(await create(h, settings));
@@ -125,6 +155,30 @@ test("legacy single-source repair remains a byte-stable no-op with its original 
   expect((await request(h, `/${id}/budget/apply`, { token: plan.token, settings: plan.settings, confirmed: true })).status).toBe(200);
   expect(h.sqlite.query("SELECT budget_settings FROM depreciation_schedules WHERE id=?").get(id)).toEqual(before);
   expect(monthlyRows(h, id).map(row => row.key)).toEqual(["monthly:1", "monthly:1"]);
+});
+
+test("a real depreciation entry date edit keeps its monthly receipt in progress", async () => {
+  const h = fixture(), settings = config();
+  const id = await scheduleId(await create(h, settings, { amount: 5 }));
+  const monthEntry = h.sqlite.query("SELECT journal_entry_id FROM depreciation_entries WHERE schedule_id=?").get(id) as { journal_entry_id: number };
+  h.sqlite.query("UPDATE journal_entries SET date='2026-02-15' WHERE id=?").run(monthEntry.journal_entry_id);
+  const plan = await preview(h, id, settings);
+  expect(plan.changes.some(change => change.event.kind === "monthly" && change.operation === "change")).toBe(true);
+  expect((await request(h, `/${id}/budget/apply`, { token: plan.token, settings: plan.settings, confirmed: true })).status).toBe(200);
+  const listed = await depreciationRouter.request("/", {}, { DB: h.DB });
+  const schedules = await listed.json() as { id: number; budget: { reimbursed_amount: number } }[];
+  expect(schedules.find(row => row.id === id)!.budget.reimbursed_amount).toBe(5);
+});
+
+test("zero-ratio categories are not required for later preview validation", async () => {
+  const h = fixture();
+  const settings = config([{ budget_category_id: 1004, ratio: 0 }, { budget_category_id: 1002, ratio: 100 }]);
+  const id = await scheduleId(await create(h, settings));
+  const deleted = await budgetRouter.request("/categories/1004", { method: "DELETE" }, { DB: h.DB });
+  expect(deleted.status).toBe(200);
+  const plan = await preview(h, id, settings);
+  expect(plan.can_apply).toBe(true);
+  expect(plan.changes).toEqual([]);
 });
 
 const malformed: [string, Sources][] = [
@@ -144,3 +198,80 @@ for (const [name, sources] of malformed) {
     expect(h.sqlite.query("SELECT count(*) AS n FROM journal_entries").get()).toEqual(before);
   });
 }
+
+for (const [name, allocations] of [
+  ["null", null],
+  ["object", { budget_category_id: 1002, ratio: 100 }],
+  ["string", "100%"],
+  ["primitive item", [1002]],
+  ["zero category ID", [{ budget_category_id: 0, ratio: 100 }]],
+] as const) {
+  test(`rejects malformed explicit allocation array (${name}) as a client error`, async () => {
+    const h = fixture();
+    const settings = {
+      method: "assigned",
+      purchase_category_id: 1001,
+      monthly_source_category_id: 1002,
+      monthly_source_allocations: allocations,
+    } as unknown as Settings;
+    const response = await create(h, settings);
+    expect(response.status).toBe(400);
+    expect(h.sqlite.query("SELECT count(*) AS n FROM depreciation_schedules").get()).toEqual({ n: 0 });
+  });
+}
+
+for (const [name, allocations] of [
+  ["null", null],
+  ["object", { budget_category_id: 1002, ratio: 100 }],
+  ["string", "invalid"],
+  ["null item", [null]],
+  ["number item", [7]],
+  ["array item", [[]]],
+] as const) {
+  test(`rejects malformed dated allocation array (${name}) without throwing`, async () => {
+    const h = fixture();
+    const settings = {
+      ...config(),
+      routing_changes: [{ date: "2027-01-01", destination_category_id: 1001, monthly_source_allocations: allocations }],
+    } as unknown as Settings;
+    expect((await create(h, settings)).status).toBe(400);
+    expect(h.sqlite.query("SELECT count(*) AS n FROM depreciation_schedules").get()).toEqual({ n: 0 });
+  });
+}
+
+test("switching to the existing unallocated method needs only its original confirmation", async () => {
+  const h = fixture();
+  const settings = {
+    method: "unallocated",
+    confirm_unallocated: true,
+    monthly_source_allocations: [{ budget_category_id: null, ratio: 100 }],
+  } as Settings;
+  expect((await create(h, settings)).status).toBe(201);
+});
+
+test("rejects a depreciation plan whose complete audit row would exceed the D1 size budget", async () => {
+  const h = fixture();
+  h.sqlite.exec("INSERT INTO budget_categories(id,name) VALUES" +
+    Array.from({ length: 10 }, (_, index) => `(${1010 + index},'Source ${index + 1}')`).join(","));
+  const settings = config(Array.from({ length: 10 }, (_, index) => ({
+    budget_category_id: 1010 + index,
+    ratio: 10,
+  })));
+  const response = await create(h, settings, { amount: 6000, months: 600 });
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({ error: "depreciation_budget_plan_too_large" });
+  expect(h.sqlite.query("SELECT count(*) AS n FROM depreciation_schedules").get()).toEqual({ n: 0 });
+  expect(h.sqlite.query("SELECT count(*) AS n FROM journal_entries").get()).toEqual({ n: 0 });
+
+  const existing = { method: "unallocated", confirm_unallocated: true } as Settings;
+  const id = await scheduleId(await create(h, existing, { amount: 6000, months: 600 }));
+  const previewResponse = await request(h, `/${id}/budget/preview`, { settings });
+  expect(previewResponse.status).toBe(200);
+  const plan = await previewResponse.json() as DepreciationBudgetPreview;
+  expect(plan.can_apply).toBe(false);
+  expect(plan.warnings).toContain("depreciation_budget_plan_too_large");
+  const applyResponse = await request(h, `/${id}/budget/apply`, { token: plan.token, settings: plan.settings, confirmed: true });
+  expect(applyResponse.status).toBe(400);
+  expect(await applyResponse.json()).toEqual({ error: "depreciation_budget_plan_too_large" });
+  expect(h.sqlite.query("SELECT budget_method FROM depreciation_schedules WHERE id=?").get(id)).toEqual({ budget_method: "unallocated" });
+});

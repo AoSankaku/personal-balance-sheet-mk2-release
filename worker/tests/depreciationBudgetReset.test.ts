@@ -212,3 +212,55 @@ test('explicit erase-all clears retained depreciation audit data',async()=>{
   expect(response.status).toBe(200);
   expect(database.sqlite.query('SELECT count(*) AS n FROM depreciation_budget_revisions').get()).toEqual({n:0});
 });
+
+test("a continue reset rejects a full before-and-after audit row before writing", async () => {
+  const database = createTestD1();
+  databases.push(database);
+  database.sqlite.exec(`
+    INSERT INTO accounts(id,name,type,category,is_depreciable) VALUES
+      (1001,'Bank','asset','cash',0),(1002,'Equipment','asset','property',1),
+      (1003,'Expense','expense','other',0);
+    INSERT INTO budget_categories(id,name) VALUES
+      (1001,'Purchase'),(1002,'Source A'),(1004,'Source B'),(1005,'Source C'),(1006,'Source D');
+  `);
+  const settings = {
+    method: "assigned",
+    purchase_category_id: 1001,
+    monthly_source_allocations: [
+      { budget_category_id: 1002, ratio: 25 },
+      { budget_category_id: 1004, ratio: 25 },
+      { budget_category_id: 1005, ratio: 25 },
+      { budget_category_id: 1006, ratio: 25 },
+    ],
+  };
+  const created = await depreciationRouter.request("/", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ purchase_date: "2027-01-01", description: "Large plan",
+      asset_account_id: 1002, payment_account_id: 1001, expense_account_id: 1003,
+      total_amount: 260_000_000_000_000, months: 530, currency: "JPY",
+      idempotency_key: crypto.randomUUID(), budget_settings: settings }),
+  }, { DB: database.DB });
+  expect(created.status).toBe(201);
+  const { schedule_id: scheduleId } = await created.json() as { schedule_id: number };
+  const before = {
+    schedule: database.sqlite.query(`SELECT budget_revision,budget_settings FROM depreciation_schedules WHERE id=?`).get(scheduleId),
+    logs: database.sqlite.query(`SELECT count(*) AS count FROM budget_adjustment_logs WHERE depreciation_schedule_id=?`).get(scheduleId),
+    audits: database.sqlite.query(`SELECT count(*) AS count FROM depreciation_budget_revisions WHERE schedule_id=?`).get(scheduleId),
+    resets: database.sqlite.query(`SELECT count(*) AS count FROM budget_adjustment_logs WHERE adjustment_type='reset'`).get(),
+  };
+  const reset = await request(database, "/allocations", {
+    budget_category_id: 1002, year_month: "2026-12", date: "2026-12-01", currency: "JPY",
+    adhoc_delta: 0, adjustment_type: "reset",
+    depreciation_decisions: [{ schedule_id: scheduleId, action: "continue" }],
+  });
+  expect(reset.status).toBe(400);
+  expect(await reset.json()).toMatchObject({ error: "depreciation_budget_plan_too_large" });
+  expect(database.sqlite.query(`SELECT budget_revision,budget_settings FROM depreciation_schedules WHERE id=?`).get(scheduleId))
+    .toEqual(before.schedule);
+  expect(database.sqlite.query(`SELECT count(*) AS count FROM budget_adjustment_logs WHERE depreciation_schedule_id=?`).get(scheduleId))
+    .toEqual(before.logs);
+  expect(database.sqlite.query(`SELECT count(*) AS count FROM depreciation_budget_revisions WHERE schedule_id=?`).get(scheduleId))
+    .toEqual(before.audits);
+  expect(database.sqlite.query(`SELECT count(*) AS count FROM budget_adjustment_logs WHERE adjustment_type='reset'`).get())
+    .toEqual(before.resets);
+});

@@ -53,7 +53,7 @@ privacyModeBlockedTitle: Privacy mode is on
 privacyModeBlockedMessage: This page cannot be used while privacy mode is on. Turn it off from Settings > General to edit data.
 settingsSectionAccounts: Accounts
 sectionAssets: Assets
-sectionDepreciableAssets: Fixed Assets (Depreciable)
+sectionDepreciableAssets: "Assets with monthly expense transfers"
 sectionLiabilities: Liabilities
 sectionEquity: Equity
 sectionIncome: Income
@@ -408,11 +408,11 @@ budgetReconciliationNetBudget: Net budget balance
 budgetReconciliationNetGap: Net reconciliation gap
 budgetReconciliationReferenceReserve: Untracked spending reserve
 budgetReconciliationDepreciationReserve: Remaining purchase reservation
-budgetReconciliationDepreciationOffset: Post-reset non-cash depreciation
+budgetReconciliationDepreciationOffset: "Post-reset monthly non-cash expense"
 budgetReconciliationAdjustedGap: Gap after reserve
 budgetReconciliationPositiveClaims: Positive budget claims
 budgetReconciliationFundingGap: Positive-claims funding gap
-budgetReconciliationHint: "The net gap is {gap}; {reference} is reserved for untracked spending and {depreciation} is post-reset non-cash depreciation, leaving {adjustedGap} after both adjustments. Unfunded overspending is {overspending}."
+budgetReconciliationHint: "The net gap is {gap}; {reference} is reserved for untracked spending and {depreciation} is the post-reset monthly non-cash expense, leaving {adjustedGap} after both adjustments. Unfunded overspending is {overspending}."
 budgetFundingOverviewTitle: Amount available to allocate
 budgetFundingOverviewHint: Allocatable cash minus the amount already secured for budgets.
 budgetFundingReservedLabel: Already secured
@@ -747,11 +747,11 @@ deleteJournalConfirmMsg: Are you sure you want to delete this entry? This cannot
 suppressDeleteWarning5min: Don't show this warning for 5 minutes
 includeInAllocatableLabel: Include as budget allocation source
 includeInAllocatableHint: Only checked cash/bank accounts are counted as allocatable money.
-isDepreciableLabel: Depreciable asset (備品等)
-isDepreciableHint: Mark this asset account as a depreciable item
-depreciationSettingsTitle: Depreciation Settings
-depreciationSettingsHint: Select the expense account used to record monthly depreciation (減価償却費)
-depreciationAccountNone: No account selected
+isDepreciableLabel: "Spread purchase cost over time"
+isDepreciableHint: "Use this asset account for purchases recorded as expenses over multiple months."
+depreciationSettingsTitle: "Monthly expense transfer settings"
+depreciationSettingsHint: "Choose the expense account used for the monthly entries."
+depreciationAccountNone: "No account selected"
 businessOwnerSettingsTitle: Business Owner Advance Settings
 businessOwnerSettingsHint: Configure accounts for recording business expense advances as a sole proprietor.
 isBusinessOwner: I am a sole proprietor (個人事業主)
@@ -778,23 +778,23 @@ businessAdvanceBalanceHistory: Balance History
 changeColHeader: Change
 goToSettings: Go to Settings
 currentBalance: current balance
-depreciationLabel: Depreciation
-depreciationAssetAccountLabel: Asset account (備品等)
-depreciationExpenseAccountLabel: Depreciation expense account
-depreciationByMonths: By period
-depreciationByMonthlyAmount: By monthly amount
-depreciationMonthsLabel: Depreciation period (months)
-depreciationMonthlyAmountLabel: Monthly depreciation amount
-depreciationPreview: Approx
+depreciationLabel: "Budget installment transfers"
+depreciationAssetAccountLabel: "Purchase asset account"
+depreciationExpenseAccountLabel: "Expense account"
+depreciationByMonths: "By number of months"
+depreciationByMonthlyAmount: "By monthly amount"
+depreciationMonthsLabel: "Transfer period (months)"
+depreciationMonthlyAmountLabel: "Monthly transfer amount"
+depreciationPreview: "Approx"
 depreciationMonthUnit: " months"
-depreciationCreated: Depreciation schedule created
-depreciationEntryEditWarning: Editing an individual depreciation entry can break the schedule calculation. Update the source asset entry when possible.
-depreciableAssetsTotal: Depreciable assets total (net book value)
-depreciationReportTitle: Depreciation
-depreciationTotal: Total depreciation
-depreciationNone: No depreciation recorded for this period.
-depreciationBudgetPressure: Budget pressure (% of total expenses)
-depreciationBudgetPressureNoExpense: No expenses recorded for this year.
+depreciationCreated: "Monthly expense transfer plan created"
+depreciationEntryEditWarning: "Editing an individual monthly entry can change the plan calculation. Update the original purchase entry when possible."
+depreciableAssetsTotal: "Total balance of assets with monthly expense transfers"
+depreciationReportTitle: "Budget installment transfers"
+depreciationTotal: "Total monthly expense transfers"
+depreciationNone: "No monthly expense transfers were recorded for this period."
+depreciationBudgetPressure: "Budget pressure (% of total expenses)"
+depreciationBudgetPressureNoExpense: "No expenses recorded for this year."
 budgetConsistencyTitle: Budget Consistency Check
 budgetUnallocatedIncomeIssue: "Income received into budget funds is unallocated: {amount}"
 budgetExcludedCashConsumptionIssue: "Normal budget consumption is recorded for spending from untracked cash: {amount}"
@@ -803,120 +803,120 @@ budgetReferenceAllocationHint: The payment source is outside budget funds, but t
 budgetMarkReferenceAction: Make reference
 budgetMarkReferenceSuccess: Changed the budget breakdown to a reference record
 budgetReferenceSpentLabel: Of which reference spending
-budgetDepreciationRecognizedLabel: Depreciation recognized this month
-budgetDepreciationReserveLabel: Remaining purchase reservation
-budgetDepreciationOverviewTitle: Depreciation budget
-budgetDepreciationOverviewHint: Separates the amount secured at purchase from depreciation recognized each month.
-budgetDepreciationReferenceBadge: Reference view
-budgetDepreciationActiveStatus: Purchase reserve active
-budgetDepreciationResetStatus: Reserve reset · depreciation continues
-budgetDepreciationRecognizedStatus: Monthly depreciation only
-depreciationBudgetMethodTitle: Budget treatment for this depreciation schedule
+budgetDepreciationRecognizedLabel: "Monthly expense recorded this month"
+budgetDepreciationReserveLabel: "Remaining purchase reservation"
+budgetDepreciationOverviewTitle: "Monthly expense transfer budget"
+budgetDepreciationOverviewHint: "Shows the amount reserved at purchase separately from the expense transferred each month."
+budgetDepreciationReferenceBadge: "Reference view"
+budgetDepreciationActiveStatus: "Purchase reserve active"
+budgetDepreciationResetStatus: "Purchase reserve reset · monthly transfers continue"
+budgetDepreciationRecognizedStatus: "Monthly transfers only"
+depreciationBudgetMethodTitle: "Budget treatment for this monthly transfer plan"
 depreciationBudgetMethodassignedLabel: "Spend from an assigned budget and replenish monthly (recommended)"
-depreciationBudgetMethodassignedHint: At purchase, the purchase budget is debited. Each month, the same amount transfers from the source budget to the purchase budget to replenish it.
+depreciationBudgetMethodassignedHint: "At purchase, the purchase budget is debited. Each month, the same amount transfers from the source budget to the purchase budget to replenish it."
 depreciationBudgetMethodspecialLabel: "Charge a negative special budget and replenish monthly"
-depreciationBudgetMethodspecialHint: At purchase, a special budget linked to the purchase becomes negative. Each month, the same amount transfers from the source budget to the special budget to replenish it.
+depreciationBudgetMethodspecialHint: "At purchase, a special budget linked to the purchase becomes negative. Each month, the same amount transfers from the source budget to the special budget to replenish it."
 depreciationBudgetMethodunallocatedLabel: "Spend from unallocated funds, with no replenishment"
-depreciationBudgetMethodunallocatedHint: The budgeted portion of the purchase is charged to unallocated funds at purchase. Accounting depreciation continues, but there is no monthly budget replenishment.
-depreciationBudgetPurchaseCategoryLabel: Purchase charge budget
-depreciationBudgetMonthlySourceLabel: Monthly transfer source budget
-depreciationBudgetSelectCategory: Select a budget category
-depreciationBudgetCategoryRequired: Select a category to continue.
-depreciationBudgetCategoriesMustDiffer: Choose a different category for the purchase and monthly source.
-depreciationBudgetConfirmationRequired: Confirm this treatment before saving.
-depreciationBudgetUnallocatedWarning: "The budgeted portion of the purchase is charged to unallocated funds at once. Accounting depreciation continues afterward, but there are no monthly budget transfers from living expenses or other categories. Choose the assigned or special budget method if you also want monthly budget funding."
+depreciationBudgetMethodunallocatedHint: "The budgeted portion of the purchase is charged to unallocated funds at purchase. Accounting monthly expense transfer continues, but there is no monthly budget replenishment."
+depreciationBudgetPurchaseCategoryLabel: "Purchase charge budget"
+depreciationBudgetMonthlySourceLabel: "Budget shares"
+depreciationBudgetSelectCategory: "Select a budget category"
+depreciationBudgetCategoryRequired: "Select a category to continue."
+depreciationBudgetCategoriesMustDiffer: "Choose a different category for the purchase and monthly source."
+depreciationBudgetConfirmationRequired: "Confirm this treatment before saving."
+depreciationBudgetUnallocatedWarning: "The budgeted portion of the purchase is charged to unallocated funds at once. Monthly accounting entries continue, but there are no budget transfers from living expenses or other categories. Choose the assigned or special budget method if you also want monthly budget funding."
 depreciationBudgetUnallocatedConfirm: "I confirm using unallocated funds to cover the budgeted purchase amount without monthly budget transfers."
-depreciationBudgetAssignedNegativeWarning: The purchase budget is projected to be insufficient and turn negative. Consider the special budget method, which replenishes a special budget monthly.
-depreciationBudgetMethodRequired: Choose how this schedule should affect budgets.
-depreciationBudgetUnset: Budget treatment not set
-depreciationBudgetStatusActive: Active
-depreciationBudgetStatusCompleted: Completed
-depreciationBudgetStatusEnded: Ended
-depreciationBudgetRepairTitle: Repair depreciation budget treatment
-depreciationBudgetRepairButton: Set or repair budget treatment
-depreciationBudgetRepairHint: Review the impact before applying. Changes update budget events and do not recreate the purchase entry.
-depreciationBudgetSchedulesTitle: Depreciation budget treatment
-depreciationBudgetSchedulesHint: Current budget treatment and progress for each depreciation plan. This list shows current plans even when the balance sheet is viewed as of an earlier date.
-depreciationBudgetSchedulesEmpty: No depreciation schedules.
-depreciationBudgetSchedulesLoadError: Could not load depreciation schedules.
-depreciationBudgetSchedulesRetry: Retry
-depreciationBudgetTaskTitle: Depreciation budget review
-depreciationBudgetRouteTitle: Future monthly routing
-depreciationBudgetRouteAdd: Add a dated route
-depreciationBudgetRouteDate: Route effective date
-depreciationBudgetDestinationCategory: Destination category
-depreciationBudgetSettlementTitle: Settlements
-depreciationBudgetSettlementAdd: Add a settlement
-depreciationBudgetSettlementAmount: Settlement amount
-depreciationBudgetSettlementDate: Settlement date
-depreciationBudgetSettlementSource: Settlement source
-depreciationBudgetUnallocatedSource: Unallocated funds (U)
-depreciationBudgetEndDate: Stop budget funding after
-depreciationBudgetPreviewButton: Preview changes
-depreciationBudgetPreviewTitle: Before and after preview
-depreciationBudgetPreviewStale: Settings changed. Preview again before applying.
-depreciationBudgetPreviewFailed: Could not create the preview. Check the settings and try again.
-depreciationBudgetPreviewNotApplicable: Resolve the listed reset decisions, then preview again.
-depreciationBudgetApplyButton: Apply previewed changes
-depreciationBudgetApplyConfirmTitle: Apply depreciation budget changes?
-depreciationBudgetApplyConfirmMessage: Apply the previewed budget changes? The purchase entry will not be recreated.
-depreciationBudgetApplied: Depreciation budget treatment updated.
-depreciationBudgetProgressTitle: Budget progress
-depreciationBudgetTargetLabel: Amount to replenish
-depreciationBudgetReimbursedLabel: Replenished
-depreciationBudgetRemainingLabel: Remaining
-depreciationBudgetFutureLabel: Future amount
-depreciationBudgetBoundaryTitle: Budget reset decisions
-depreciationBudgetBoundaryOldReset: Amount before reset
-depreciationBudgetBoundaryNewReset: Amount after reset
-depreciationBudgetBoundaryDecision: Decision for this reset
-depreciationBudgetBoundaryOrder: Processing order
-depreciationBudgetDecisionContinue: Continue the schedule
-depreciationBudgetDecisionEnd: End the schedule
-depreciationBudgetDecisionCarry: Carry the special category balance
-depreciationBudgetDecisionSettle: Settle the remaining amount
-depreciationBudgetDecisionOrderBefore: Process depreciation before the reset
-depreciationBudgetDecisionOrderAfter: Process depreciation after the reset
-depreciationBudgetScopeConfirmationHint: Existing entries do not identify the reset scope uniquely. Choose the scope that was actually reset.
-depreciationBudgetScopeConfirmationLabel: Reset scope
-depreciationBudgetScopeUnconfirmed: Scope not confirmed
-depreciationBudgetScopeCategory: This category only
-depreciationBudgetScopeAll: All categories
-depreciationBudgetPreviewEventsTitle: Budget event changes
-depreciationBudgetPreviewNoEvents: No budget events will change.
-depreciationBudgetEventPurchase: Purchase
-depreciationBudgetEventMonthly: Monthly budget transfer
-depreciationBudgetEventSettlement: Settlement
-depreciationBudgetEventRouting: Transfer routing handoff
-depreciationBudgetEventCarry: Carry forward special budget deficit
-depreciationBudgetTimelineBefore: Before
-depreciationBudgetTimelineAfter: After
-depreciationBudgetTimelinePurchase: At purchase
-depreciationBudgetTimelineReset: At reset
-depreciationBudgetTimelineCurrent: Current
-depreciationBudgetTimelineTimestamp: Time
-depreciationBudgetTimelineResetId: Reset record
-depreciationBudgetRelatedBalances: Related category balances (Bᵢ)
-depreciationBudgetAmbiguousLegacyWarning: Some existing depreciation entries cannot be matched to a unique budget allocation. Review their allocations and resolve the ambiguity before applying changes.
-depreciationBudgetTotalLabel: Total (T)
-depreciationBudgetUnallocatedLabel: Unallocated (U)
-depreciationBudgetCategoriesLabel: Category balance (B)
-depreciationBudgetAllocatableLabel: Allocatable
-depreciationBudgetArchiveBlockedTitle: Category is used by depreciation budgets
-depreciationBudgetArchiveBlockedMessage: Repair the affected depreciation schedules and move future routing away from this category before archiving it.
-depreciationBudgetOpenSchedules: Open depreciation schedules
-depreciationBudgetResetPlansTitle: Depreciation budgets affected by this reset
-depreciationBudgetResetPlansHint: Choose what happens to each schedule. Special category balances are carried by default; carrying keeps that category intact.
-depreciationBudgetResetPlansError: Could not load depreciation reset decisions. Retry the reset preview before saving.
-depreciationBudgetResetPlanStale: The category or date changed. Recalculate the reset amount to reload affected schedules before saving.
-depreciationBudgetResetDecisionRequired: Choose a decision for every affected schedule.
-depreciationBudgetResetCarryHint: Carry keeps the special category balance and skips resetting that category.
-depreciationBudgetResetSettlementSource: Category or unallocated funds to settle from
-depreciationBudgetArchiveResetUnavailable: Archiving is unavailable while an active depreciation schedule still routes through this category. Repair its future routing first.
-depreciationBudgetOperationAdd: Added
-depreciationBudgetOperationChange: Changed
-depreciationBudgetOperationCancel: Removed
-depreciationBudgetRemoveChange: Remove
+depreciationBudgetAssignedNegativeWarning: "The purchase budget is projected to be insufficient and turn negative. Consider the special budget method, which replenishes a special budget monthly."
+depreciationBudgetMethodRequired: "Choose how this schedule should affect budgets."
+depreciationBudgetUnset: "Budget treatment not set"
+depreciationBudgetStatusActive: "Active"
+depreciationBudgetStatusCompleted: "Completed"
+depreciationBudgetStatusEnded: "Ended"
+depreciationBudgetRepairTitle: "Set or repair budget installment transfers"
+depreciationBudgetRepairButton: "Set or repair budget installment transfers"
+depreciationBudgetRepairHint: "Review the impact before applying. Changes update budget events and do not recreate the purchase entry."
+depreciationBudgetSchedulesTitle: "Budget installment transfer plans"
+depreciationBudgetSchedulesHint: "Current budget treatment and progress for each plan. This list shows current plans even when the balance sheet is viewed as of an earlier date."
+depreciationBudgetSchedulesEmpty: "No monthly transfer plans."
+depreciationBudgetSchedulesLoadError: "Could not load monthly transfer plans."
+depreciationBudgetSchedulesRetry: "Retry"
+depreciationBudgetTaskTitle: "Review budget installment transfers"
+depreciationBudgetRouteTitle: "Future monthly routing"
+depreciationBudgetRouteAdd: "Add a dated route"
+depreciationBudgetRouteDate: "Route effective date"
+depreciationBudgetDestinationCategory: "Destination category"
+depreciationBudgetSettlementTitle: "Settlements"
+depreciationBudgetSettlementAdd: "Add a settlement"
+depreciationBudgetSettlementAmount: "Settlement amount"
+depreciationBudgetSettlementDate: "Settlement date"
+depreciationBudgetSettlementSource: "Settlement source"
+depreciationBudgetUnallocatedSource: "Unallocated funds (U)"
+depreciationBudgetEndDate: "Stop budget funding after"
+depreciationBudgetPreviewButton: "Preview changes"
+depreciationBudgetPreviewTitle: "Before and after preview"
+depreciationBudgetPreviewStale: "Settings changed. Preview again before applying."
+depreciationBudgetPreviewFailed: "Could not create the preview. Check the settings and try again."
+depreciationBudgetPreviewNotApplicable: "Resolve the listed reset decisions, then preview again."
+depreciationBudgetApplyButton: "Apply previewed changes"
+depreciationBudgetApplyConfirmTitle: "Apply budget installment transfer changes?"
+depreciationBudgetApplyConfirmMessage: "Apply the previewed budget changes? The purchase entry will not be recreated."
+depreciationBudgetApplied: "Monthly transfer budget treatment updated."
+depreciationBudgetProgressTitle: "Budget installment transfer progress"
+depreciationBudgetTargetLabel: "Amount to replenish"
+depreciationBudgetReimbursedLabel: "Replenished"
+depreciationBudgetRemainingLabel: "Remaining"
+depreciationBudgetFutureLabel: "Future amount"
+depreciationBudgetBoundaryTitle: "Budget reset decisions"
+depreciationBudgetBoundaryOldReset: "Amount before reset"
+depreciationBudgetBoundaryNewReset: "Amount after reset"
+depreciationBudgetBoundaryDecision: "Decision for this reset"
+depreciationBudgetBoundaryOrder: "Processing order"
+depreciationBudgetDecisionContinue: "Continue the schedule"
+depreciationBudgetDecisionEnd: "End the schedule"
+depreciationBudgetDecisionCarry: "Carry the special category balance"
+depreciationBudgetDecisionSettle: "Settle the remaining amount"
+depreciationBudgetDecisionOrderBefore: "Process the monthly entry before the reset"
+depreciationBudgetDecisionOrderAfter: "Process the monthly entry after the reset"
+depreciationBudgetScopeConfirmationHint: "Existing entries do not identify the reset scope uniquely. Choose the scope that was actually reset."
+depreciationBudgetScopeConfirmationLabel: "Reset scope"
+depreciationBudgetScopeUnconfirmed: "Scope not confirmed"
+depreciationBudgetScopeCategory: "This category only"
+depreciationBudgetScopeAll: "All categories"
+depreciationBudgetPreviewEventsTitle: "Budget event changes"
+depreciationBudgetPreviewNoEvents: "No budget events will change."
+depreciationBudgetEventPurchase: "Purchase"
+depreciationBudgetEventMonthly: "Monthly budget transfer"
+depreciationBudgetEventSettlement: "Settlement"
+depreciationBudgetEventRouting: "Transfer routing handoff"
+depreciationBudgetEventCarry: "Carry forward special budget deficit"
+depreciationBudgetTimelineBefore: "Before"
+depreciationBudgetTimelineAfter: "After"
+depreciationBudgetTimelinePurchase: "At purchase"
+depreciationBudgetTimelineReset: "At reset"
+depreciationBudgetTimelineCurrent: "Current"
+depreciationBudgetTimelineTimestamp: "Time"
+depreciationBudgetTimelineResetId: "Reset record"
+depreciationBudgetRelatedBalances: "Related category balances (Bᵢ)"
+depreciationBudgetAmbiguousLegacyWarning: "Some existing monthly entries cannot be matched to a unique budget allocation. Review their allocations and resolve the ambiguity before applying changes."
+depreciationBudgetTotalLabel: "Total (T)"
+depreciationBudgetUnallocatedLabel: "Unallocated (U)"
+depreciationBudgetCategoriesLabel: "Category balance (B)"
+depreciationBudgetAllocatableLabel: "Allocatable"
+depreciationBudgetArchiveBlockedTitle: "Category is used by monthly transfer plans"
+depreciationBudgetArchiveBlockedMessage: "Repair the affected plans and move future routing away from this category before archiving it."
+depreciationBudgetOpenSchedules: "Open monthly transfer plans"
+depreciationBudgetResetPlansTitle: "Monthly transfer plans affected by this reset"
+depreciationBudgetResetPlansHint: "Choose what happens to each schedule. Special category balances are carried by default; carrying keeps that category intact."
+depreciationBudgetResetPlansError: "Could not load reset decisions. Retry the reset preview before saving."
+depreciationBudgetResetPlanStale: "The category or date changed. Recalculate the reset amount to reload affected schedules before saving."
+depreciationBudgetResetDecisionRequired: "Choose a decision for every affected schedule."
+depreciationBudgetResetCarryHint: "Carry keeps the special category balance and skips resetting that category."
+depreciationBudgetResetSettlementSource: "Category or unallocated funds to settle from"
+depreciationBudgetArchiveResetUnavailable: "Archiving is unavailable while an active monthly transfer plan still routes through this category. Repair its future routing first."
+depreciationBudgetOperationAdd: "Added"
+depreciationBudgetOperationChange: "Changed"
+depreciationBudgetOperationCancel: "Removed"
+depreciationBudgetRemoveChange: "Remove"
 budgetReferenceAllocationBadge: Budget breakdown (reference)
 budgetReferenceEntriesTitle: Reference spending from untracked cash
 budgetReferenceEntriesHint: "{count} entries totaling {amount}. Their effect on balances and allocatable money follows reset and as-of boundaries."
@@ -1256,24 +1256,24 @@ jsoncPlNote1: income amount = SUM(credit) - SUM(debit) in period.
 jsoncPlNote2: expense amount = SUM(debit) - SUM(credit) in period.
 jsoncPlNote3: Accounts with amount = 0 are included.
 jsoncNetIncomeComment: net_income = total_income - total_expenses
-jsoncDeprSectionTitle: Depreciation Progress
-jsoncDeprNote1: "Simplified household depreciation: monthly entry DR expense / CR asset."
-jsoncDeprNote2: book_value = total_amount - accumulated  <- matches asset balance on balance sheet.
-jsoncDeprNote3: progress_pct = accumulated / total_amount x 100 (truncated)
+jsoncDeprSectionTitle: "Monthly expense transfer progress"
+jsoncDeprNote1: "Household expense spreading: monthly entry DR expense / CR asset."
+jsoncDeprNote2: "book_value = total_amount - transferred  <- matches the asset balance on the balance sheet."
+jsoncDeprNote3: "progress_pct = transferred / total_amount x 100 (truncated)"
 exportPrint: Print
 exportSavePDF: Save as PDF
 exportSQLite: Download SQLite
 exportSchemeLight: Switch to light
 exportSchemeDark: Switch to dark
-exportDepreciationTitle: Depreciation Progress
-exportDepreciationNote: "Simplified household depreciation: monthly depreciation expense reduces the asset account balance directly via journal entries."
-exportDepreciationAcquisitionCost: Acquisition Cost
-exportDepreciationPeriod: Period
-exportDepreciationStartDate: Start Date
-exportDepreciationAccumulated: Accumulated
-exportDepreciationBookValue: Book Value
-exportDepreciationProgress: Progress
-exportDepreciationNone: No depreciable assets registered.
+exportDepreciationTitle: "Budget installment transfer progress"
+exportDepreciationNote: "Monthly expense entries reduce the purchase asset account balance directly through journal entries."
+exportDepreciationAcquisitionCost: "Acquisition Cost"
+exportDepreciationPeriod: "Transfer period"
+exportDepreciationStartDate: "Start Date"
+exportDepreciationAccumulated: "Transferred to date"
+exportDepreciationBookValue: "Book Value"
+exportDepreciationProgress: "Progress"
+exportDepreciationNone: "No assets with monthly expense transfers registered."
 negativeBalanceWarning: This account has a negative balance
 settingsNavCurrencyTitle: Foreign Currency
 settingsNavCurrencyDesc: Enable currencies and cryptocurrencies to use alongside JPY.
@@ -1580,3 +1580,18 @@ deductFromBudgetHint: "Subtract this liability balance from budget assets. Enabl
 incomeOutsideBudgetHint: "Income received here does not increase the budget. Transferring it to a budget account increases unallocated funds."
 budgetHistorySourceFunding: "Loan budget funding"
 loanFundingNoBudgetImpactHint: "This principal movement does not change budget resources. Record interest and other expenses separately."
+depreciationBudgetMonthlySourceTitle: "Budget shares"
+depreciationBudgetMonthlySourceHint: "Start with the expense account budget shares. Adjust them as needed; changes are saved with this plan."
+depreciationBudgetMonthlySourceRatioLabel: "Share"
+depreciationBudgetMonthlySourceAmountLabel: "Monthly amount"
+depreciationBudgetMonthlySourceRepresentativeAmount: "Representative monthly transfer"
+depreciationBudgetMonthlySourceManualAmountHint: "Entering an amount sets its share. Actual transfers can vary by month. Fractions use the currency's smallest unit; remainders go to categories by ascending ID, with unallocated funds last."
+depreciationBudgetMonthlySourceRestoreDefaults: "Restore expense account defaults"
+depreciationBudgetMonthlySourceOtherCategories: "Other budget categories"
+depreciationBudgetMonthlySourceInvalid: "Monthly source shares must total 100%."
+depreciationBudgetMonthlySourceUnallocatedHint: "This share is taken from unallocated funds (U) each month."
+depreciationBudgetMonthlySourceUnallocatedConfirm: "I confirm that monthly transfers may use unallocated funds."
+depreciationBudgetSourceDestinationMustDiffer: "A source category cannot also be the transfer destination."
+depreciationBudgetPlanTooLarge: "This monthly transfer plan is too large to save safely. Reduce the number of monthly source categories or shorten the transfer period."
+depreciationPreviewSummary: "First month: {first} · total: {total}"
+depreciationBudgetExpenseAccountContext: "Expense account: {account}"

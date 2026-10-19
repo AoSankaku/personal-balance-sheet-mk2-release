@@ -1,58 +1,37 @@
 ---
 id: depreciation
-titleJa: 擬似的な減価償却と予算分散
-titleEn: Pseudo-Depreciation & Budget Spreading
+titleJa: 予算分割振替
+titleEn: Budget installment transfers
 ---
 
-# Pseudo-Depreciation & Budget Spreading
+# Budget installment transfers
 
-Depreciation in this app is not intended for tax filing or formal corporate accounting. It is a household finance feature for spreading the burden of a large purchase across multiple months.
+This feature records a purchase cost as monthly expenses and manages its budget impact over time. At purchase, the amount is first recorded in the selected “Purchase asset account”; it is then transferred to the “Expense account” over the configured period. The remaining balance in the purchase asset account is the plan's unexpensed amount, not the purchase's market value or tax value.
 
-For example, if you buy a 120,000 yen appliance in January, a normal household ledger would show a large January expense. In practice, you may want to think of it as consuming 10,000 yen per month over one year. Pseudo-depreciation is for that situation.
+For example, a 120,000 yen computer spread over 12 months is expensed from the purchase asset account to the expense account at about 10,000 yen per month. If monthly budget replenishment is enabled, funds are also transferred from regular budget categories to the purchase budget each month.
 
-## What Happens
+## Budget methods
 
-When you enable depreciation while entering an expense, the app creates two types of records:
-
-| Record | Content |
+| Method | Purchase-time and monthly budget handling |
 | --- | --- |
-| Purchase record | Decreases the payment asset and increases the depreciable asset |
-| Monthly records | Gradually decreases the asset and records an expense each month |
+| Assigned budget | The selected purchase budget is reduced at purchase. Each month, it is replenished by transfers from the budget sources configured by percentage. |
+| Special budget | A dedicated special budget starts with a negative balance. Each month, it is replenished by transfers from the configured budget sources. |
+| Unallocated | The budget-eligible purchase amount is funded from unallocated funds (U) at purchase. Monthly expense entries continue, but there are no monthly budget replenishments. |
 
-Cash decreases at the time of purchase, but the effect on expenses and budgets is spread by month. On the balance sheet, the portion not yet expensed remains as an asset.
+## Entry and budget ratios
 
-## Setup Before Use
+On the Input page, enable “Budget installment transfers,” select the “Purchase asset account” and “Expense account,” and set the period by “Transfer months” or “Monthly transfer amount.” For methods with monthly budget replenishment, the “Budget shares” editor starts with the expense account's budget ratios. Each saved plan keeps a snapshot of its shares, so later changes to the expense account do not change existing plans.
 
-1. In Settings, create the asset account you want to depreciate.
-2. Enable depreciation for that asset account.
-3. Prepare an expense account to use for depreciation expense.
-4. When entering an expense on the Input page, enable depreciation.
+Edit each budget category's share directly or adjust it by entering an amount for the representative month shown in the editor. Entering an amount sets its share based on that representative transfer; actual transfers may vary by month, such as when the first month is prorated. “Restore expense account defaults” reloads the expense account's current budget ratios.
 
-In period-based entry, specify how many months the total amount should be split across. In monthly amount entry, specify how much should be expensed each month. If rounding is required, monthly amounts are adjusted so the total still matches.
+If named category shares total less than 100%, the remainder is treated as a transfer from unallocated funds (U), and saving requires explicit confirmation. Shares above 100% cannot be saved. The U portion reduces unallocated funds while replenishing the purchase budget.
 
-## Effect On Budgets
+Remainders are distributed in the currency's smallest unit using the largest-remainder method. Ties go by ascending budget category ID, with U last. For each month, the budget source total matches the amount replenished to the purchase budget.
 
-With a normal expense, the budget is consumed in the month of payment. With depreciation, the budget impact appears as monthly depreciation expense.
+## Editing and deleting
 
-This makes it possible to smooth out large annual purchases or supplies used for several months as part of monthly living costs. The goal is to separate the payment month from the usage period in a way that matches how the household actually feels the cost.
+Changing the purchase entry or plan settings can affect monthly expense entries and budget replenishments. Make changes from the original purchase input or plan settings; do not edit generated monthly entries or budget records directly. Delete the related plan when it is no longer needed.
 
-## Suitable Expenses
+## Difference from depreciation
 
-| Suitable items | Reason |
-| --- | --- |
-| Appliances, furniture, PCs, smartphones | Used over several months or years |
-| Annual subscriptions | Effectively used every month |
-| Expensive hobby or work equipment | Avoids distorting the budget only in the purchase month |
-| One-time spending for lifestyle improvements | Benefits span multiple months |
-
-For food, daily goods, and other items consumed within the same month, use normal expense entry.
-
-## Editing And Deleting Notes
-
-When you edit the purchase entry that created depreciation, the monthly depreciation entries are recalculated. Editing only a monthly entry can make it inconsistent with the overall schedule.
-
-If you need to change the details, edit from the original purchase entry when possible. If it is no longer needed, delete the related depreciation schedule and re-enter it as a normal expense if necessary.
-
-## Difference From Tax Depreciation
-
-This feature is pseudo expense spreading for household management. It does not automatically determine useful life, depreciation method, business-use ratio, or tax treatment. Assets that require tax handling should be managed separately according to formal books and tax rules.
+This feature spreads a purchase cost into monthly expenses for household management and manages the monthly budget impact through transfers between budget categories. The remaining amount in the purchase asset account is the plan's unexpensed balance. The feature does not determine an asset's market value, useful life, depreciation method, business-use ratio, or tax treatment. Handle any formal accounting or tax treatment separately under the applicable rules.

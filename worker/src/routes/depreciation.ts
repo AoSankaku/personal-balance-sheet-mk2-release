@@ -9,6 +9,7 @@ import type {
   DepreciationBudgetSettings,
   DepreciationBudgetSnapshot,
 } from "../../../shared/depreciationBudget";
+import { resolveDepreciationMonthlySourceAllocations } from "../../../shared/depreciationBudgetAllocation";
 import { budgetAccountDelta, isBudgetAccount } from "../../../shared/budgetScope";
 import { computeBudgetSummaryForDate } from "./budget";
 import { toLocalDateString } from "../lib/appDate";
@@ -37,6 +38,7 @@ import {
   diffOwnedDepreciationBudgetRows,
   getBudgetScaleOptions,
   getDepreciationBudgetProgress,
+  getDepreciationBudgetReceiptGroups,
   getDepreciationBudgetRevision,
   getDepreciationPurchaseTarget,
   getOwnedBudgetRows,
@@ -56,6 +58,12 @@ import {
 type RouteContext = Context<{ Bindings: Env }>;
 
 const router = new Hono<{ Bindings: Env }>();
+const DEPRECIATION_BUDGET_LOG_CHUNK_SIZE = 200;
+const DEPRECIATION_BUDGET_AUDIT_ROW_MAX_BYTES = 1_800_000;
+
+function depreciationBudgetAuditRowFits(row: Record<string, unknown>): boolean {
+  return new TextEncoder().encode(JSON.stringify(row)).byteLength <= DEPRECIATION_BUDGET_AUDIT_ROW_MAX_BYTES;
+}
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -291,13 +299,18 @@ async function findRelevantResetBoundaries(
     const isGlobal=groupDecision?.scope==="all" || (!groupDecision?.scope&&group.some(item=>item.reset_scope==="all"));
     const scopeUnknown=settings.method==="special"&&new Set(group.map(item=>item.budget_category_id)).size>1&&group.every(item=>item.reset_scope==null)&&!groupDecision?.scope;
     if((isGlobal||scopeUnknown)&&row.id!==group[0]!.id)continue;
-    let source=settings.monthly_source_category_id??null;
+    let sourceAllocations=resolveDepreciationMonthlySourceAllocations(settings);
     let destination=settings.method==="special"?schedule.budget_special_category_id??-schedule.id:settings.purchase_category_id??null;
     for(const route of [...settings.routing_changes??[]].sort((a,b)=>a.date.localeCompare(b.date))) {
       if(route.date>row.date)break;
-      source=route.monthly_source_category_id;destination=route.destination_category_id;
+      sourceAllocations=resolveDepreciationMonthlySourceAllocations(
+        route.monthly_source_allocations!==undefined||route.monthly_source_category_id!=null?route:settings,
+      );
+      destination=route.destination_category_id;
     }
-    const relevant=isGlobal||scopeUnknown||row.budget_category_id===source||row.budget_category_id===destination;
+    const relevant=isGlobal||scopeUnknown||
+      sourceAllocations.some(allocation=>allocation.budget_category_id===row.budget_category_id&&allocation.ratio>0)||
+      row.budget_category_id===destination;
     if(!relevant)continue;
     const decision=decisionById.get(row.id)??(isGlobal?groupDecision:undefined);
     const requiredAction=settings.method==="special"?"carry_or_settle":"continue_or_end";
@@ -324,7 +337,13 @@ async function buildDepreciationBudgetPreview(
   c: RouteContext,
   schedule: DepreciationScheduleRow,
   rawSettings: DepreciationBudgetSettings,
-): Promise<DepreciationBudgetPreview & { _revision: number; _expectedRows: Awaited<ReturnType<typeof buildOwnedDepreciationBudgetRows>>; _allocationIds: number[] }> {
+): Promise<DepreciationBudgetPreview & {
+  _revision: number;
+  _expectedRows: Awaited<ReturnType<typeof buildOwnedDepreciationBudgetRows>>;
+  _allocationIds: number[];
+  _legacyReservations: typeof depreciationBudgetReservations.$inferSelect[];
+  _legacyAllocations: typeof journalEntryBudgetAllocations.$inferSelect[];
+}> {
   const globalRevision = await getDepreciationBudgetRevision(c.env.DB);
   const readDB = createRequestScopedD1ReadMemo(c.env.DB);
   const db = createDb({ ...c.env, DB: readDB });
@@ -348,8 +367,18 @@ async function buildDepreciationBudgetPreview(
   const scales = await getBudgetScaleOptions(db);
   const targetAmount = await getDepreciationPurchaseTarget(db, schedule);
   const specialCategoryId = schedule.budget_special_category_id ?? (settings.method === "special" ? -schedule.id : null);
-  if(settings.method==="special"&&specialCategoryId!=null&&settings.monthly_source_category_id===specialCategoryId)
-    validationError??="budget_categories_must_differ";
+  if(settings.method==="special"&&specialCategoryId!=null) {
+    const baseSources=resolveDepreciationMonthlySourceAllocations(settings);
+    if(baseSources.some(allocation=>allocation.ratio>0&&allocation.budget_category_id===specialCategoryId))
+      validationError??="source_and_destination_must_differ";
+    for(const route of settings.routing_changes??[]) {
+      const routeSources=resolveDepreciationMonthlySourceAllocations(
+        route.monthly_source_allocations!==undefined||route.monthly_source_category_id!=null?route:settings,
+      );
+      if(routeSources.some(allocation=>allocation.ratio>0&&allocation.budget_category_id===route.destination_category_id))
+        validationError??="source_and_destination_must_differ";
+    }
+  }
   const expectedRows = await buildOwnedDepreciationBudgetRows(
     db, schedule, settings, targetAmount, specialCategoryId, scales,
   );
@@ -361,7 +390,31 @@ async function buildDepreciationBudgetPreview(
       .from(budgetCategories).where(inArray(budgetCategories.id, futureIds));
     if (futureCategories.some((row) => row.is_archived === 1)) validationError ??= "budget_category_archived";
   }
+  const allocations = await linkedAllocationIds(db, schedule);
   const currentOwned = await getOwnedBudgetRows(db, schedule.id);
+  const [legacyReservations, legacyAllocations] = await Promise.all([
+    db.select().from(depreciationBudgetReservations)
+      .where(eq(depreciationBudgetReservations.schedule_id, schedule.id)),
+    (await Promise.all(chunkForD1InClause(allocations.safeIds).map((chunk) =>
+      db.select().from(journalEntryBudgetAllocations).where(inArray(journalEntryBudgetAllocations.id, chunk)),
+    ))).flat(),
+  ]);
+  const previewAuditBytes = new TextEncoder().encode(JSON.stringify({
+    schedule_id: schedule.id,
+    revision: schedule.budget_revision + 1,
+    action: "apply",
+    request_key: "x".repeat(64),
+    before_settings: schedule.budget_settings,
+    after_settings: JSON.stringify(settings),
+    before_events: JSON.stringify({
+      owned: currentOwned,
+      legacy_reservations: legacyReservations,
+      legacy_allocations: legacyAllocations,
+    }),
+    after_events: JSON.stringify(expectedRows),
+    created_at: "2026-10-19 00:00:00",
+  })).byteLength;
+  const auditTooLarge = previewAuditBytes > DEPRECIATION_BUDGET_AUDIT_ROW_MAX_BYTES;
   const changes = diffOwnedDepreciationBudgetRows(currentOwned, expectedRows, settings.method);
   const storedProgress = await getDepreciationBudgetProgress(db, schedule, scales);
   const projectedReceipts = expectedRows.filter((row) =>
@@ -401,7 +454,6 @@ async function buildDepreciationBudgetPreview(
       : budgetEnded ? "ended" as const : "active" as const,
     settings,
   };
-  const allocations = await linkedAllocationIds(db, schedule);
   const allLogs = await db.select().from(budgetAdjustmentLogs);
   const replacementLogs = [
     ...allLogs.filter((row) => row.depreciation_schedule_id !== schedule.id),
@@ -417,8 +469,8 @@ async function buildDepreciationBudgetPreview(
   ] as unknown as typeof allLogs;
   const extraCategories = settings.method === "special" && !schedule.budget_special_category_id
     ? [{
-        id: -schedule.id, name: `減価償却 ${schedule.id}`, sort_order: 0, rollover_months: -1,
-        budget_group: "減価償却", goal_balance: null, balance_cap: null,
+        id: -schedule.id, name: `予算分割振替 ${schedule.id}`, sort_order: 0, rollover_months: -1,
+        budget_group: "予算分割振替", goal_balance: null, balance_cap: null,
         overflow_budget_category_id: null, is_archived: 0, created_at: schedule.created_at,
       } as typeof budgetCategories.$inferSelect]
     : [];
@@ -437,20 +489,9 @@ async function buildDepreciationBudgetPreview(
   const visibleAt = (row:{date:string;created_at?:string|null},point:{date:string;created_at:string}) =>
     row.date<point.date || (row.date===point.date && (row.created_at??schedule.created_at)<=point.created_at);
   function receiptsAt(rows:typeof currentOwned, point:{date:string;created_at:string},receiptSettings:DepreciationBudgetSettings) {
-    const grouped=new Map<string,typeof currentOwned>();
-    for(const row of rows) {
-      if(!visibleAt(row,point) || !(row.depreciation_event_key?.startsWith("monthly:")||row.depreciation_event_key?.startsWith("settlement:"))) continue;
-      grouped.set(row.depreciation_event_key,[...grouped.get(row.depreciation_event_key)??[],row]);
-    }
-    return [...grouped.values()].reduce((sum,group)=>{
-      const credits=group.filter(row=>row.amount>0&&row.depreciation_event_side==="destination");
-      const net=group.reduce((n,row)=>n+row.amount,0);
-      const key=group[0]!.depreciation_event_key!;
-      const sourceIsUnallocated=key.startsWith("settlement:") && (
-        receiptSettings.settlements?.some(row=>`settlement:${row.key}`===key&&row.source_category_id==null) ||
-        receiptSettings.reset_decisions?.some(row=>key===`settlement:reset:${row.reset_log_id}`&&row.action==="settle"&&row.settlement_source_category_id==null));
-      return sum+(credits.length===1&&(net===0||sourceIsUnallocated)?credits[0]!.amount:0);
-    },0);
+    return [...getDepreciationBudgetReceiptGroups(rows, receiptSettings, schedule).values()]
+      .filter((receipt) => visibleAt(receipt, point))
+      .reduce((sum, receipt) => sum + receipt.amount, 0);
   }
   const timeline: DepreciationBudgetPreview["timeline"] = [];
   for (const point of points) {
@@ -493,8 +534,9 @@ async function buildDepreciationBudgetPreview(
     ...(missingDecisions ? ["reset_decision_required"] : []),
     ...(allocations.ambiguousCount ? ["ambiguous_legacy_allocations"] : []),
     ...(settings.method === "unallocated" && !settings.confirm_unallocated ? ["unallocated_confirm_required"] : []),
+    ...(auditTooLarge ? ["depreciation_budget_plan_too_large"] : []),
   ];
-  const canApply = !validationError && !missingDecisions && allocations.ambiguousCount === 0;
+  const canApply = !validationError && !missingDecisions && allocations.ambiguousCount === 0 && !auditTooLarge;
   const token = await hashPreviewToken({
     scheduleId: schedule.id,
     scheduleRevision: schedule.budget_revision,
@@ -520,6 +562,8 @@ async function buildDepreciationBudgetPreview(
     _revision: globalRevision,
     _expectedRows: expectedRows,
     _allocationIds: allocations.safeIds,
+    _legacyReservations: legacyReservations,
+    _legacyAllocations: legacyAllocations,
   };
 }
 
@@ -700,7 +744,7 @@ async function createConfiguredDepreciation(c: RouteContext, body: DepreciationC
   const sourceJournalEntryId = await nextJournalEntryId(c.env.DB);
   const monthJournalEntryIds = monthlyAmounts.map((_, index) => sourceJournalEntryId + index + 1);
   const persistedExpectedRows = expectedRows.map((row) => {
-    const month = /^monthly:(\d+)$/.exec(row.depreciation_event_key);
+    const month = /^monthly:(\d+)(?::(?:category:\d+|unallocated))?$/.exec(row.depreciation_event_key);
     return {
       ...row,
       journal_entry_id: row.depreciation_event_key.startsWith("purchase:")
@@ -708,6 +752,20 @@ async function createConfiguredDepreciation(c: RouteContext, body: DepreciationC
         : month ? monthJournalEntryIds[Number(month[1]) - 1] ?? null : row.journal_entry_id,
     };
   });
+  const createAfterEvents = JSON.stringify({
+    request: stableSerialize(body), targetAmount, events: persistedExpectedRows,
+  });
+  if (!depreciationBudgetAuditRowFits({
+    schedule_id: sourceJournalEntryId,
+    revision: 1,
+    action: "create",
+    request_key: body.idempotency_key,
+    before_settings: null,
+    after_settings: JSON.stringify(settings),
+    before_events: "[]",
+    after_events: createAfterEvents,
+    created_at: createdAt,
+  })) return c.json({ error: "depreciation_budget_plan_too_large" }, 400);
   const statements: D1PreparedStatement[] = [
     ...buildDepreciationBudgetRevisionGuard(c.env.DB, sourceRevision),
   ];
@@ -722,8 +780,8 @@ async function createConfiguredDepreciation(c: RouteContext, body: DepreciationC
     ));
   if (settings.method === "special") {
     statements.push(c.env.DB.prepare(`INSERT INTO budget_categories
-      (name,sort_order,rollover_months,budget_group,is_archived) VALUES(?,0,-1,'減価償却',0)`)
-      .bind(`減価償却 ${body.idempotency_key.slice(0, 72)}`));
+      (name,sort_order,rollover_months,budget_group,is_archived) VALUES(?,0,-1,'予算分割振替',0)`)
+      .bind(`予算分割振替 ${body.idempotency_key.slice(0, 72)}`));
     statements.push(c.env.DB.prepare("UPDATE depreciation_schedules SET budget_special_category_id=last_insert_rowid() WHERE budget_idempotency_key=?")
       .bind(body.idempotency_key));
   }
@@ -739,7 +797,7 @@ async function createConfiguredDepreciation(c: RouteContext, body: DepreciationC
   const monthlyJournalRows = monthlyAmounts.map((_, index) => ({
     id: monthJournalEntryIds[index],
     date: entryDates[index],
-    description: `${body.description} 減価償却費 (${index + 1}/${body.months}ヶ月)`,
+    description: `${body.description} 予算分割振替 (${index + 1}/${body.months}ヶ月)`,
     created_at: createdAt,
   }));
   statements.push(c.env.DB.prepare(`INSERT INTO journal_entries(id,date,description,created_at)
@@ -760,25 +818,25 @@ async function createConfiguredDepreciation(c: RouteContext, body: DepreciationC
     SELECT CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),CAST(json_extract(value,'$.account_id') AS INTEGER),
       CAST(json_extract(value,'$.debit') AS INTEGER),CAST(json_extract(value,'$.credit') AS INTEGER),json_extract(value,'$.currency')
     FROM json_each(?)`).bind(JSON.stringify(monthlyJournalLines)));
-  statements.push(c.env.DB.prepare(`INSERT INTO budget_adjustment_logs
-    (budget_category_id,year_month,amount,currency,date,adjustment_type,journal_entry_id,
-     depreciation_schedule_id,depreciation_event_key,depreciation_event_side,created_at)
-    SELECT CASE WHEN json_extract(value,'$.special_category')=1
-        THEN (SELECT budget_special_category_id FROM depreciation_schedules WHERE budget_idempotency_key=?)
-        ELSE CAST(json_extract(value,'$.budget_category_id') AS INTEGER) END,
-      json_extract(value,'$.year_month'),CAST(json_extract(value,'$.amount') AS INTEGER),
-      json_extract(value,'$.currency'),json_extract(value,'$.date'),json_extract(value,'$.adjustment_type'),
-      CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),
-      (SELECT id FROM depreciation_schedules WHERE budget_idempotency_key=?),
-      json_extract(value,'$.depreciation_event_key'),json_extract(value,'$.depreciation_event_side'),
-      json_extract(value,'$.created_at') FROM json_each(?)`)
-    .bind(body.idempotency_key, body.idempotency_key, JSON.stringify(persistedExpectedRows)));
+  for (const rowChunk of chunkForD1InClause(persistedExpectedRows, DEPRECIATION_BUDGET_LOG_CHUNK_SIZE)) {
+    statements.push(c.env.DB.prepare(`INSERT INTO budget_adjustment_logs
+      (budget_category_id,year_month,amount,currency,date,adjustment_type,journal_entry_id,
+       depreciation_schedule_id,depreciation_event_key,depreciation_event_side,created_at)
+      SELECT CASE WHEN json_extract(value,'$.special_category')=1
+          THEN (SELECT budget_special_category_id FROM depreciation_schedules WHERE budget_idempotency_key=?)
+          ELSE CAST(json_extract(value,'$.budget_category_id') AS INTEGER) END,
+        json_extract(value,'$.year_month'),CAST(json_extract(value,'$.amount') AS INTEGER),
+        json_extract(value,'$.currency'),json_extract(value,'$.date'),json_extract(value,'$.adjustment_type'),
+        CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),
+        (SELECT id FROM depreciation_schedules WHERE budget_idempotency_key=?),
+        json_extract(value,'$.depreciation_event_key'),json_extract(value,'$.depreciation_event_side'),
+        json_extract(value,'$.created_at') FROM json_each(?)`)
+      .bind(body.idempotency_key, body.idempotency_key, JSON.stringify(rowChunk)));
+  }
   statements.push(c.env.DB.prepare(`INSERT INTO depreciation_budget_revisions
     (schedule_id,revision,action,request_key,before_settings,after_settings,before_events,after_events,created_at)
     VALUES((SELECT id FROM depreciation_schedules WHERE budget_idempotency_key=?),1,'create',?,NULL,?,?,?,?)`)
-    .bind(body.idempotency_key, body.idempotency_key, JSON.stringify(settings), "[]", JSON.stringify({
-      request: stableSerialize(body), targetAmount, events: persistedExpectedRows,
-    }), createdAt));
+    .bind(body.idempotency_key, body.idempotency_key, JSON.stringify(settings), "[]", createAfterEvents, createdAt));
 
   try {
     await c.env.DB.batch(statements);
@@ -1018,7 +1076,7 @@ async function updateConfiguredDepreciation(
   const firstMonthJournalId = await nextJournalEntryId(c.env.DB);
   const monthJournalEntryIds = amounts.map((_, index) => firstMonthJournalId + index);
   const persistedExpectedRows = expectedRows.map((row) => {
-    const month = /^monthly:(\d+)$/.exec(row.depreciation_event_key);
+    const month = /^monthly:(\d+)(?::(?:category:\d+|unallocated))?$/.exec(row.depreciation_event_key);
     return {
       ...row,
       journal_entry_id: row.depreciation_event_key.startsWith("purchase:")
@@ -1061,7 +1119,7 @@ async function updateConfiguredDepreciation(
   const monthlyJournalRows = amounts.map((_, index) => ({
     id: monthJournalEntryIds[index]!,
     date: dates[index]!,
-    description: `${newDescription} 減価償却費 (${index + 1}/${newMonths}ヶ月)`,
+    description: `${newDescription} 予算分割振替 (${index + 1}/${newMonths}ヶ月)`,
     created_at: monthCreatedAts[index]!,
   }));
   statements.push(c.env.DB.prepare(`INSERT INTO journal_entries(id,date,description,created_at)
@@ -1082,25 +1140,41 @@ async function updateConfiguredDepreciation(
     SELECT CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),CAST(json_extract(value,'$.account_id') AS INTEGER),
       CAST(json_extract(value,'$.debit') AS INTEGER),CAST(json_extract(value,'$.credit') AS INTEGER),json_extract(value,'$.currency')
     FROM json_each(?)`).bind(JSON.stringify(monthlyJournalLines)));
-  statements.push(c.env.DB.prepare(`INSERT INTO budget_adjustment_logs
-    (budget_category_id,year_month,amount,currency,date,adjustment_type,journal_entry_id,
-     depreciation_schedule_id,depreciation_event_key,depreciation_event_side,created_at)
-    SELECT CASE WHEN json_extract(value,'$.special_category')=1
-        THEN (SELECT budget_special_category_id FROM depreciation_schedules WHERE id=?)
-        ELSE CAST(json_extract(value,'$.budget_category_id') AS INTEGER) END,
-      json_extract(value,'$.year_month'),CAST(json_extract(value,'$.amount') AS INTEGER),
-      json_extract(value,'$.currency'),json_extract(value,'$.date'),json_extract(value,'$.adjustment_type'),
-      CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),?,
-      json_extract(value,'$.depreciation_event_key'),json_extract(value,'$.depreciation_event_side'),
-      json_extract(value,'$.created_at') FROM json_each(?)`)
-    .bind(schedule.id, schedule.id, JSON.stringify(persistedExpectedRows)));
+  for (const rowChunk of chunkForD1InClause(persistedExpectedRows, DEPRECIATION_BUDGET_LOG_CHUNK_SIZE)) {
+    statements.push(c.env.DB.prepare(`INSERT INTO budget_adjustment_logs
+      (budget_category_id,year_month,amount,currency,date,adjustment_type,journal_entry_id,
+       depreciation_schedule_id,depreciation_event_key,depreciation_event_side,created_at)
+      SELECT CASE WHEN json_extract(value,'$.special_category')=1
+          THEN (SELECT budget_special_category_id FROM depreciation_schedules WHERE id=?)
+          ELSE CAST(json_extract(value,'$.budget_category_id') AS INTEGER) END,
+        json_extract(value,'$.year_month'),CAST(json_extract(value,'$.amount') AS INTEGER),
+        json_extract(value,'$.currency'),json_extract(value,'$.date'),json_extract(value,'$.adjustment_type'),
+        CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),?,
+        json_extract(value,'$.depreciation_event_key'),json_extract(value,'$.depreciation_event_side'),
+        json_extract(value,'$.created_at') FROM json_each(?)`)
+      .bind(schedule.id, schedule.id, JSON.stringify(rowChunk)));
+  }
   const beforeEvents = await getOwnedBudgetRows(db, schedule.id);
+  const accountingAfterEvents = JSON.stringify({
+    request: stableSerialize(body), targetAmount, amounts, dates, events: persistedExpectedRows,
+  });
+  if (!depreciationBudgetAuditRowFits({
+    schedule_id: schedule.id,
+    revision: schedule.budget_revision + 1,
+    action: "accounting_edit",
+    request_key: body.idempotency_key ?? null,
+    before_settings: schedule.budget_settings,
+    after_settings: schedule.budget_settings,
+    before_events: JSON.stringify(beforeEvents),
+    after_events: accountingAfterEvents,
+    created_at: createdAt,
+  })) return c.json({ error: "depreciation_budget_plan_too_large" }, 400);
   statements.push(c.env.DB.prepare(`INSERT INTO depreciation_budget_revisions
     (schedule_id,revision,action,request_key,before_settings,after_settings,before_events,after_events,created_at)
     VALUES(?,?,'accounting_edit',?,?,?,?,?,?)`).bind(
       schedule.id, schedule.budget_revision + 1, body.idempotency_key ?? null,
       schedule.budget_settings, schedule.budget_settings,
-      JSON.stringify(beforeEvents), JSON.stringify({ request: stableSerialize(body), targetAmount, amounts, dates, events: persistedExpectedRows }), createdAt,
+      JSON.stringify(beforeEvents), accountingAfterEvents, createdAt,
     ));
   try {
     await c.env.DB.batch(statements);
@@ -1129,7 +1203,14 @@ router.post("/:id/budget/preview", async (c) => {
     if (error instanceof DepreciationBudgetPlanError) return c.json({ error: error.code }, 400);
     throw error;
   }
-  const { _revision: _revision, _expectedRows: _expectedRows, _allocationIds: _allocationIds, ...payload } = preview;
+  const {
+    _revision: _revision,
+    _expectedRows: _expectedRows,
+    _allocationIds: _allocationIds,
+    _legacyReservations: _legacyReservations,
+    _legacyAllocations: _legacyAllocations,
+    ...payload
+  } = preview;
   return c.json(payload);
 });
 
@@ -1161,6 +1242,9 @@ router.post("/:id/budget/apply", async (c) => {
     throw error;
   }
   if (preview.token !== body.token) return c.json({ error: "stale_preview" }, 409);
+  if (preview.warnings.includes("depreciation_budget_plan_too_large")) {
+    return c.json({ error: "depreciation_budget_plan_too_large" }, 400);
+  }
   if (!preview.can_apply) return c.json({ error: "budget_plan_not_applicable", warnings: preview.warnings }, 409);
 
   const oldSettings = schedule.budget_settings;
@@ -1168,10 +1252,8 @@ router.post("/:id/budget/apply", async (c) => {
   const sameSettings = schedule.budget_method === normalizedSettings.method &&
     oldSettings === JSON.stringify(normalizedSettings);
   const oldEvents = await getOwnedBudgetRows(db, id);
-  const reservationCount = await db.select()
-    .from(depreciationBudgetReservations).where(eq(depreciationBudgetReservations.schedule_id, id));
-  const legacyAllocationRows=(await Promise.all(chunkForD1InClause(preview._allocationIds).map(chunk=>
-    db.select().from(journalEntryBudgetAllocations).where(inArray(journalEntryBudgetAllocations.id,chunk))))).flat();
+  const reservationCount = preview._legacyReservations;
+  const legacyAllocationRows = preview._legacyAllocations;
   if (sameSettings && preview.changes.length === 0 && reservationCount.length === 0 && preview._allocationIds.length === 0) {
     return c.json({ schedule_id: id, budget: await getDepreciationBudgetProgress(db, schedule), replayed: false, unchanged: true });
   }
@@ -1179,13 +1261,33 @@ router.post("/:id/budget/apply", async (c) => {
   const createdAt = new Date().toISOString().replace("T", " ").slice(0, 19);
   const specialCategoryNeedsCreate = normalizedSettings.method === "special" && schedule.budget_special_category_id == null;
   const targetAmount = await getDepreciationPurchaseTarget(db, schedule);
+  const applyRows = preview._expectedRows.map((row) => ({
+    ...row,
+    created_at: row.created_at ?? createdAt,
+  }));
+  const applyAuditFits = depreciationBudgetAuditRowFits({
+    schedule_id: id,
+    revision: schedule.budget_revision + 1,
+    action: "apply",
+    request_key: body.token,
+    before_settings: oldSettings,
+    after_settings: JSON.stringify(normalizedSettings),
+    before_events: JSON.stringify({
+      owned: oldEvents,
+      legacy_reservations: reservationCount,
+      legacy_allocations: legacyAllocationRows,
+    }),
+    after_events: JSON.stringify(preview._expectedRows),
+    created_at: createdAt,
+  });
+  if (!applyAuditFits) return c.json({ error: "depreciation_budget_plan_too_large" }, 400);
   const statements: D1PreparedStatement[] = [
     ...buildDepreciationBudgetRevisionGuard(c.env.DB, preview._revision),
   ];
   if (specialCategoryNeedsCreate) {
     statements.push(c.env.DB.prepare(`INSERT INTO budget_categories
-      (name,sort_order,rollover_months,budget_group,is_archived) VALUES(?,0,-1,'減価償却',0)`)
-      .bind(`減価償却 ${schedule.id}`));
+      (name,sort_order,rollover_months,budget_group,is_archived) VALUES(?,0,-1,'予算分割振替',0)`)
+      .bind(`予算分割振替 ${schedule.id}`));
     statements.push(c.env.DB.prepare("UPDATE depreciation_schedules SET budget_special_category_id=last_insert_rowid() WHERE id=?").bind(id));
   }
   statements.push(c.env.DB.prepare("DELETE FROM budget_adjustment_logs WHERE depreciation_schedule_id=?").bind(id));
@@ -1204,29 +1306,19 @@ router.post("/:id/budget/apply", async (c) => {
       schedule.budget_currency || "JPY",
       id,
     ));
-  for (const row of preview._expectedRows) {
-    const special = row.special_category || row.budget_category_id === 0;
-    const categoryExpression = special
-      ? "(SELECT budget_special_category_id FROM depreciation_schedules WHERE id=?)"
-      : "?";
-    const values = [
-      row.year_month,
-      row.amount,
-      row.currency,
-      row.date,
-      row.adjustment_type,
-      row.journal_entry_id,
-      row.depreciation_schedule_id,
-      row.depreciation_event_key,
-      row.depreciation_event_side,
-      row.created_at ?? createdAt,
-    ];
+  for (const rowChunk of chunkForD1InClause(applyRows, DEPRECIATION_BUDGET_LOG_CHUNK_SIZE)) {
     statements.push(c.env.DB.prepare(`INSERT INTO budget_adjustment_logs
       (budget_category_id,year_month,amount,currency,date,adjustment_type,journal_entry_id,
        depreciation_schedule_id,depreciation_event_key,depreciation_event_side,created_at)
-      VALUES(${categoryExpression},?,?,?,?,?,?,?,?,?,?)`).bind(
-        ...(special ? [id, ...values] : [row.budget_category_id, ...values]),
-      ));
+      SELECT CASE WHEN json_extract(value,'$.special_category')=1 OR CAST(json_extract(value,'$.budget_category_id') AS INTEGER)=0
+          THEN (SELECT budget_special_category_id FROM depreciation_schedules WHERE id=?)
+          ELSE CAST(json_extract(value,'$.budget_category_id') AS INTEGER) END,
+        json_extract(value,'$.year_month'),CAST(json_extract(value,'$.amount') AS INTEGER),
+        json_extract(value,'$.currency'),json_extract(value,'$.date'),json_extract(value,'$.adjustment_type'),
+        CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),?,
+        json_extract(value,'$.depreciation_event_key'),json_extract(value,'$.depreciation_event_side'),
+        json_extract(value,'$.created_at') FROM json_each(?)`)
+      .bind(id, id, JSON.stringify(rowChunk)));
   }
   statements.push(c.env.DB.prepare(`INSERT INTO depreciation_budget_revisions
     (schedule_id,revision,action,request_key,before_settings,after_settings,before_events,after_events,created_at)
@@ -1537,7 +1629,7 @@ router.patch("/:id", async (c) => {
   const newMonthlyJournalIds: number[] = [];
   for (let i = 0; i < newMonths; i++) {
     const amt = newAmounts[i] ?? 0;
-    const entryDesc = `${newDescription} 減価償却費 (${i + 1}/${newMonths}ヶ月)`;
+    const entryDesc = `${newDescription} 予算分割振替 (${i + 1}/${newMonths}ヶ月)`;
     const [entry] = await db
       .insert(journalEntries)
       .values({ date: entryDates[i]!, description: entryDesc })

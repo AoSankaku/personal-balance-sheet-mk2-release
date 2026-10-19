@@ -8,6 +8,11 @@ import type {
   DepreciationBudgetProgress,
   DepreciationBudgetSettings,
 } from "../../../shared/depreciationBudget";
+import {
+  resolveDepreciationMonthlySourceAllocations,
+  splitDepreciationMonthlySourceAllocations,
+  validateDepreciationMonthlySourceAllocations,
+} from "../../../shared/depreciationBudgetAllocation";
 import { createDb } from "../db";
 import {
   accounts,
@@ -26,6 +31,7 @@ import { loadCurrencyDecimalPlaces } from "./currencyPrecision";
 import { toLocalDateString } from "./appDate";
 import { chunkForD1InClause } from "./d1Query";
 import { computeBudgetSummaryForDate } from "../routes/budget";
+import { getDepreciationBudgetReceiptGroups } from "./depreciationBudgetReceipts";
 import {
   fromStorageMoneyAmount,
   toStorageMoneyAmount,
@@ -65,13 +71,7 @@ export interface BuildOwnedDepreciationBudgetRowsOptions {
 }
 
 export const UNALLOCATED_WARNING =
-  "未割当で購入額の予算対象分を一括負担します。その後も会計上の減価償却は続きますが、生活費等からの月々の予算振替は行いません。月々の予算にも負担を反映したい場合は①または②を選択してください。";
-
-function firstOfMonth(baseDate: string, offset: number): string {
-  const [year, month] = baseDate.split("-").map(Number) as [number, number];
-  const result = new Date(year, month - 1 + offset, 1);
-  return `${result.getFullYear()}-${String(result.getMonth() + 1).padStart(2, "0")}-01`;
-}
+  "未割当方式では、購入額の予算対象分を購入時にまとめて負担します。費用の月次計上は続きますが、毎月の予算分割振替は行いません。費用を毎月の予算にも反映するには、割当済み予算方式または特別予算方式を選択してください。";
 
 function daysInMonth(date: string): number {
   const [year, month] = date.split("-").map(Number) as [number, number];
@@ -88,10 +88,19 @@ function shiftStableTimestamp(value: string, milliseconds: number): string {
 export function normalizeDepreciationBudgetSettings(
   settings: DepreciationBudgetSettings,
 ): DepreciationBudgetSettings {
+  const monthlyAllocations = settings.monthly_source_allocations;
+  const normalizedMonthlyAllocations = Array.isArray(monthlyAllocations) &&
+      monthlyAllocations.every((allocation) => allocation && typeof allocation === "object" && !Array.isArray(allocation))
+    ? resolveDepreciationMonthlySourceAllocations(settings)
+    : monthlyAllocations;
   return {
     method: settings.method,
     purchase_category_id: settings.purchase_category_id ?? null,
     monthly_source_category_id: settings.monthly_source_category_id ?? null,
+    ...(monthlyAllocations === undefined ? {} : { monthly_source_allocations: normalizedMonthlyAllocations }),
+    ...(settings.confirm_monthly_unallocated === undefined
+      ? {}
+      : { confirm_monthly_unallocated: settings.confirm_monthly_unallocated }),
     ...(settings.confirm_unallocated === undefined
       ? {}
       : { confirm_unallocated: settings.confirm_unallocated }),
@@ -103,7 +112,14 @@ export function normalizeDepreciationBudgetSettings(
     })),
     routing_changes: [...(settings.routing_changes ?? [])].sort((left, right) =>
       left.date.localeCompare(right.date),
-    ),
+    ).map((route) => {
+      if (route.monthly_source_allocations === undefined) return route;
+      const allocations = Array.isArray(route.monthly_source_allocations) &&
+          route.monthly_source_allocations.every((allocation) => allocation && typeof allocation === "object" && !Array.isArray(allocation))
+        ? resolveDepreciationMonthlySourceAllocations(route)
+        : route.monthly_source_allocations;
+      return { ...route, monthly_source_allocations: allocations };
+    }),
     settlements: [...(settings.settlements ?? [])].sort((left, right) =>
       left.date.localeCompare(right.date) || left.key.localeCompare(right.key),
     ),
@@ -119,28 +135,78 @@ export function validateDepreciationBudgetSettings(
   }
   const purchase = settings.purchase_category_id ?? null;
   const source = settings.monthly_source_category_id ?? null;
+  const validCategoryId = (id: unknown) => id == null || (Number.isSafeInteger(id) && (id as number) > 0);
+  const hasExplicitAllocations = settings.monthly_source_allocations !== undefined;
+  if (!validCategoryId(purchase) || (!hasExplicitAllocations && !validCategoryId(source))) return "invalid_budget_category_id";
+  if (settings.confirm_monthly_unallocated !== undefined && typeof settings.confirm_monthly_unallocated !== "boolean") {
+    return "invalid_monthly_unallocated_confirmation";
+  }
+  if (hasExplicitAllocations) {
+    const allocationError = validateDepreciationMonthlySourceAllocations(settings.monthly_source_allocations);
+    if (allocationError) return allocationError;
+  }
+  const sourceAllocations = resolveDepreciationMonthlySourceAllocations(settings);
+  const hasPositiveUnallocated = (allocations: readonly unknown[]) => allocations.some((allocation) =>
+    !!allocation && typeof allocation === "object" && !Array.isArray(allocation) &&
+    (allocation as Partial<{ budget_category_id: number | null; ratio: number }>).budget_category_id == null &&
+    typeof (allocation as Partial<{ ratio: number }>).ratio === "number" &&
+    (allocation as Partial<{ ratio: number }>).ratio! > 0,
+  );
+  const usesUnallocated = hasPositiveUnallocated(sourceAllocations) ||
+    (settings.routing_changes ?? []).some((route) =>
+      hasPositiveUnallocated(resolveDepreciationMonthlySourceAllocations(
+        route.monthly_source_allocations !== undefined || route.monthly_source_category_id != null
+          ? route
+          : settings,
+      )),
+    );
+  if (settings.method !== "unallocated" && usesUnallocated && settings.confirm_monthly_unallocated !== true) {
+    return "monthly_unallocated_confirmation_required";
+  }
   if (settings.method === "assigned" && purchase == null) {
     return "purchase_category_required";
   }
-  if ((settings.method === "assigned" || settings.method === "special") && source == null) {
+  if ((settings.method === "assigned" || settings.method === "special") && !hasExplicitAllocations && source == null) {
     return "monthly_source_category_required";
   }
-  if (settings.method === "assigned" && source === purchase) {
+  if (settings.method === "assigned" && sourceAllocations.some((allocation) =>
+    allocation.ratio > 0 && allocation.budget_category_id === purchase,
+  )) {
     return "source_and_destination_must_differ";
   }
   if (settings.method === "unallocated" && settings.confirm_unallocated !== true) {
     return "unallocated_confirmation_required";
   }
   for (const route of settings.routing_changes ?? []) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(route.date) || route.monthly_source_category_id === route.destination_category_id) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(route.date)) {
       return "invalid_routing_change";
+    }
+    if ((route.monthly_source_allocations === undefined && !validCategoryId(route.monthly_source_category_id)) ||
+      !validCategoryId(route.destination_category_id) ||
+      route.destination_category_id == null) return "invalid_routing_change";
+    if (route.monthly_source_allocations !== undefined) {
+      const allocationError = validateDepreciationMonthlySourceAllocations(route.monthly_source_allocations);
+      if (allocationError) return allocationError;
+    }
+    const routeAllocations = resolveDepreciationMonthlySourceAllocations(
+      route.monthly_source_allocations !== undefined || route.monthly_source_category_id != null
+        ? route
+        : settings,
+    );
+    if (routeAllocations.some((allocation) =>
+      allocation.ratio > 0 && allocation.budget_category_id === route.destination_category_id,
+    )) {
+      return "source_and_destination_must_differ";
     }
   }
   for (const settlement of settings.settlements ?? []) {
     if (!settlement.key || !/^\d{4}-\d{2}-\d{2}$/.test(settlement.date) ||
-      !Number.isFinite(settlement.amount) || settlement.amount <= 0) {
+      !Number.isFinite(settlement.amount) || settlement.amount <= 0 || !validCategoryId(settlement.source_category_id)) {
       return "invalid_settlement";
     }
+  }
+  if ((settings.reset_decisions ?? []).some((decision) => !Number.isSafeInteger(decision.reset_log_id) || decision.reset_log_id <= 0)) {
+    return "invalid_reset_decision";
   }
   if (new Set((settings.settlements ?? []).map((settlement) => settlement.key)).size !== (settings.settlements ?? []).length) {
     return "duplicate_settlement_key";
@@ -261,8 +327,17 @@ function routeAt(
     .sort((left, right) => left.date.localeCompare(right.date))
     .filter((row) => row.date <= date)
     .at(-1);
+  const allocationSource: Pick<DepreciationBudgetSettings,
+    "monthly_source_allocations" | "monthly_source_category_id"> = change?.monthly_source_allocations !== undefined
+    ? change
+    : change?.monthly_source_category_id != null
+      ? { monthly_source_category_id: change.monthly_source_category_id }
+      : settings;
+  const sourceAllocations = resolveDepreciationMonthlySourceAllocations(allocationSource);
   return {
-    source: change?.monthly_source_category_id ?? settings.monthly_source_category_id ?? null,
+    source: sourceAllocations.length === 1 ? sourceAllocations[0]!.budget_category_id : null,
+    sourceAllocations,
+    explicitAllocations: allocationSource.monthly_source_allocations !== undefined,
     destination:
       change?.destination_category_id ??
       (method === "special" ? specialCategoryId : purchaseCategoryId),
@@ -281,6 +356,8 @@ export async function buildOwnedDepreciationBudgetRows(
   const method = settings.method;
   const currency = schedule.budget_currency || "JPY";
   if (method === "unallocated" || targetAmount <= 0) return [];
+  const settingsError = validateDepreciationBudgetSettings(settings);
+  if (settingsError) throw new DepreciationBudgetPlanError(settingsError);
   const purchaseCategoryId = settings.purchase_category_id ?? null;
   const purchaseDestination = method === "special" ? specialCategoryId : purchaseCategoryId;
   const purchaseEntry = options.purchaseCreatedAt
@@ -462,23 +539,62 @@ export async function buildOwnedDepreciationBudgetRows(
         const amount = Math.min(amountByMonth.get(month.month_number) ?? 0, targetAmount - reimbursed);
         if (amount <= 0) continue;
         const route = routeAt(settings, method, month.date, purchaseCategoryId, specialCategoryId);
-        if (route.source == null || route.destination == null) continue;
-        if (route.source === route.destination) throw new DepreciationBudgetPlanError("source_and_destination_must_differ");
+        if (route.destination == null) continue;
+        if (route.sourceAllocations.some((allocation) =>
+          allocation.ratio > 0 && allocation.budget_category_id === route.destination,
+        )) {
+          throw new DepreciationBudgetPlanError("source_and_destination_must_differ");
+        }
+        if (route.sourceAllocations.length === 0) continue;
         reimbursed += amount;
-        const key = `monthly:${month.month_number}`;
-        rows.push({
-          budget_category_id: route.source, year_month: month.date.slice(0, 7), amount: -amount, currency,
-          date: month.date, adjustment_type: "transfer", journal_entry_id: month.journal_entry_id,
-          depreciation_schedule_id: schedule.id, depreciation_event_key: key,
-          depreciation_event_side: "source", created_at: month.created_at,
-        });
-        rows.push({
-          budget_category_id: route.destination, year_month: month.date.slice(0, 7), amount, currency,
-          date: month.date, adjustment_type: "transfer", journal_entry_id: month.journal_entry_id,
-          depreciation_schedule_id: schedule.id, depreciation_event_key: key,
-          depreciation_event_side: "destination", created_at: month.created_at,
-          special_category: method === "special" && route.destination === specialCategoryId,
-        });
+        if (!route.explicitAllocations) {
+          const source = route.sourceAllocations[0]?.budget_category_id;
+          if (source == null) continue;
+          const key = `monthly:${month.month_number}`;
+          rows.push({
+            budget_category_id: source, year_month: month.date.slice(0, 7), amount: -amount, currency,
+            date: month.date, adjustment_type: "transfer", journal_entry_id: month.journal_entry_id,
+            depreciation_schedule_id: schedule.id, depreciation_event_key: key,
+            depreciation_event_side: "source", created_at: month.created_at,
+          });
+          rows.push({
+            budget_category_id: route.destination, year_month: month.date.slice(0, 7), amount, currency,
+            date: month.date, adjustment_type: "transfer", journal_entry_id: month.journal_entry_id,
+            depreciation_schedule_id: schedule.id, depreciation_event_key: key,
+            depreciation_event_side: "destination", created_at: month.created_at,
+            special_category: method === "special" && route.destination === specialCategoryId,
+          });
+          continue;
+        }
+        const sourceAmounts = splitDepreciationMonthlySourceAllocations(amount, route.sourceAllocations);
+        for (const allocation of sourceAmounts) {
+          if (allocation.amount <= 0) continue;
+          if (allocation.budget_category_id == null) {
+            const key = `monthly:${month.month_number}:unallocated`;
+            rows.push({
+              budget_category_id: route.destination, year_month: month.date.slice(0, 7), amount: allocation.amount, currency,
+              date: month.date, adjustment_type: "transfer", journal_entry_id: month.journal_entry_id,
+              depreciation_schedule_id: schedule.id, depreciation_event_key: key,
+              depreciation_event_side: "destination", created_at: month.created_at,
+              special_category: method === "special" && route.destination === specialCategoryId,
+            });
+            continue;
+          }
+          const key = `monthly:${month.month_number}:category:${allocation.budget_category_id}`;
+          rows.push({
+            budget_category_id: allocation.budget_category_id, year_month: month.date.slice(0, 7), amount: -allocation.amount, currency,
+            date: month.date, adjustment_type: "transfer", journal_entry_id: month.journal_entry_id,
+            depreciation_schedule_id: schedule.id, depreciation_event_key: key,
+            depreciation_event_side: "source", created_at: month.created_at,
+          });
+          rows.push({
+            budget_category_id: route.destination, year_month: month.date.slice(0, 7), amount: allocation.amount, currency,
+            date: month.date, adjustment_type: "transfer", journal_entry_id: month.journal_entry_id,
+            depreciation_schedule_id: schedule.id, depreciation_event_key: key,
+            depreciation_event_side: "destination", created_at: month.created_at,
+            special_category: method === "special" && route.destination === specialCategoryId,
+          });
+        }
         continue;
       }
 
@@ -635,56 +751,7 @@ export class DepreciationBudgetPlanError extends Error {
   constructor(public readonly code: string) { super(code); }
 }
 
-function validReimbursementGroups(
-  rows: (typeof budgetAdjustmentLogs.$inferSelect)[],
-  settings: DepreciationBudgetSettings,
-): Map<string, { key: string; amount: number; date: string; created_at: string }> {
-  const groups = new Map<string, typeof rows>();
-  for (const row of rows) {
-    const key = row.depreciation_event_key ?? "";
-    if (!key.startsWith("monthly:") && !key.startsWith("settlement:")) continue;
-    const list = groups.get(key) ?? [];
-    list.push(row);
-    groups.set(key, list);
-  }
-  const valid = new Map<string, { key: string; amount: number; date: string; created_at: string }>();
-  for (const [key, events] of groups) {
-    const sources = events.filter((row) => row.depreciation_event_side === "source");
-    const destinations = events.filter((row) => row.depreciation_event_side === "destination");
-    if (sources.length === 1 && destinations.length === 1) {
-      const source = sources[0]!;
-      const destination = destinations[0]!;
-      if (
-        source.amount < 0 &&
-        destination.amount > 0 &&
-        source.amount === -destination.amount &&
-        source.currency === destination.currency &&
-        source.date === destination.date
-      ) {
-        valid.set(key, { key, amount: destination.amount, date: destination.date, created_at: destination.created_at });
-      }
-      continue;
-    }
-    if (key.startsWith("settlement:")) {
-      const settlementKey = key.slice("settlement:".length);
-      const expected = settings.settlements?.find((row) => row.key === settlementKey);
-      const resetDecision = /^reset:\d+$/.test(settlementKey) &&
-        settings.reset_decisions?.some((decision) =>
-          decision.action === "settle" && settlementKey === `reset:${decision.reset_log_id}`,
-        );
-      if (
-        ((expected && expected.source_category_id == null) || resetDecision) &&
-        sources.length === 0 &&
-        destinations.length === 1 &&
-        destinations[0]!.amount > 0 &&
-        (!expected || destinations[0]!.date === expected.date)
-      ) {
-        valid.set(key, { key, amount: destinations[0]!.amount, date: destinations[0]!.date, created_at: destinations[0]!.created_at });
-      }
-    }
-  }
-  return valid;
-}
+export { getDepreciationBudgetReceiptGroups } from "./depreciationBudgetReceipts";
 
 export async function getDepreciationBudgetProgress(
   db: DepreciationDb,
@@ -700,7 +767,7 @@ export async function getDepreciationBudgetProgress(
     .select()
     .from(budgetAdjustmentLogs)
     .where(eq(budgetAdjustmentLogs.depreciation_schedule_id, schedule.id));
-  const valid = validReimbursementGroups(rows, settings ?? { method: "unallocated" });
+  const valid = getDepreciationBudgetReceiptGroups(rows, settings ?? { method: "unallocated" }, schedule);
   const today = toLocalDateString();
   const currency = schedule.budget_currency || "JPY";
   const validRows = [...valid.values()];
@@ -874,10 +941,19 @@ export async function validateBudgetCategoryIds(
   if (error) return error;
   const ids = new Set<number>();
   if (settings.purchase_category_id != null) ids.add(settings.purchase_category_id);
-  if (settings.monthly_source_category_id != null) ids.add(settings.monthly_source_category_id);
+  for (const allocation of resolveDepreciationMonthlySourceAllocations(settings)) {
+    if (allocation.ratio > 0 && allocation.budget_category_id != null) ids.add(allocation.budget_category_id);
+  }
   for (const route of settings.routing_changes ?? []) {
-    ids.add(route.monthly_source_category_id);
     ids.add(route.destination_category_id);
+    const allocations = resolveDepreciationMonthlySourceAllocations(
+      route.monthly_source_allocations !== undefined || route.monthly_source_category_id != null
+        ? route
+        : settings,
+    );
+    for (const allocation of allocations) {
+      if (allocation.ratio > 0 && allocation.budget_category_id != null) ids.add(allocation.budget_category_id);
+    }
   }
   for (const settlement of settings.settlements ?? []) {
     if (settlement.source_category_id != null) ids.add(settlement.source_category_id);

@@ -1,17 +1,28 @@
 import { Alert, Checkbox, Radio, Select, Stack, Text } from "@mantine/core";
 import { IconAlertTriangle, IconInfoCircle } from "@tabler/icons-react";
 import type {
+  AccountBudgetRatio,
   DepreciationBudgetMethod,
+  DepreciationBudgetSourceAllocation,
   DepreciationBudgetSettings,
 } from "@balance-sheet/shared";
+import {
+  resolveDepreciationMonthlySourceAllocations,
+} from "@balance-sheet/shared";
+import { useMemo } from "react";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
 import { formatCurrency } from "../lib/numberFormat";
+import {
+  buildDepreciationMonthlySourceDefaults,
+  getDepreciationMonthlySourceAllocations,
+} from "../lib/depreciationMonthlySources";
 import {
   DEPRECIATION_BUDGET_METHOD_ORDER,
   getDepreciationBudgetFormErrors,
   wouldOverdrawDepreciationPurchaseCategory,
 } from "../lib/depreciationBudgetForm";
+import { DepreciationMonthlySourceEditor } from "./DepreciationMonthlySourceEditor";
 
 interface Props {
   value: DepreciationBudgetSettings | null;
@@ -20,6 +31,10 @@ interface Props {
   /** Repair previews supply the historical post-purchase balance; null means not yet known. */
   purchaseBalanceAfter?: number | null;
   currency?: string;
+  decimalPlaces?: number;
+  representativeMonthlyAmount?: number;
+  expenseAccountName?: string;
+  accountBudgetRatios?: AccountBudgetRatio[];
   disabled?: boolean;
 }
 
@@ -29,10 +44,18 @@ export function DepreciationBudgetFields({
   purchaseAmount,
   purchaseBalanceAfter,
   currency,
+  decimalPlaces = currency === "JPY" || currency === "KRW" ? 0 : 2,
+  representativeMonthlyAmount = 0,
+  expenseAccountName,
+  accountBudgetRatios = [],
   disabled = false,
 }: Props) {
   const { t, locale } = useLang();
   const { budgetCategories, budgetSummary, displayCurrency } = useAppData();
+  const monthlySourceDefaults = useMemo(
+    () => buildDepreciationMonthlySourceDefaults(budgetCategories, accountBudgetRatios),
+    [accountBudgetRatios, budgetCategories],
+  );
   const categories = budgetCategories
     .filter((category) => !category.is_archived)
     .map((category) => ({
@@ -41,6 +64,11 @@ export function DepreciationBudgetFields({
     }));
   const purchaseCategory = budgetSummary?.categories.find(
     (category) => category.category.id === value?.purchase_category_id,
+  );
+  const currentMonthlySourceAllocations = getDepreciationMonthlySourceAllocations(
+    value,
+    budgetCategories,
+    accountBudgetRatios,
   );
   const predictedPurchaseBalance = purchaseBalanceAfter === undefined
     ? purchaseCategory == null ? null : purchaseCategory.available - purchaseAmount
@@ -54,7 +82,9 @@ export function DepreciationBudgetFields({
     method: value?.method,
     purchaseCategoryId: value?.purchase_category_id,
     monthlySourceCategoryId: value?.monthly_source_category_id,
+    monthlySourceAllocations: currentMonthlySourceAllocations,
     confirmUnallocated: value?.confirm_unallocated,
+    confirmMonthlyUnallocated: value?.confirm_monthly_unallocated,
   });
 
   function update(patch: Partial<DepreciationBudgetSettings>) {
@@ -64,14 +94,31 @@ export function DepreciationBudgetFields({
 
   function changeMethod(methodValue: string) {
     const method = methodValue as DepreciationBudgetMethod;
+    const sourceAllocations = value?.monthly_source_allocations !== undefined ||
+        value?.monthly_source_category_id != null
+      ? resolveDepreciationMonthlySourceAllocations(value)
+      : monthlySourceDefaults;
     onChange({
       ...(value ?? {}),
       method,
       purchase_category_id:
         method === "assigned" ? value?.purchase_category_id ?? null : null,
-      monthly_source_category_id:
-        value?.monthly_source_category_id ?? null,
+      monthly_source_allocations: sourceAllocations,
+      monthly_source_category_id: sourceAllocations.find(
+        (allocation) => allocation.budget_category_id != null && allocation.ratio > 0,
+      )?.budget_category_id ?? null,
       confirm_unallocated: false,
+      confirm_monthly_unallocated: false,
+    });
+  }
+
+  function changeMonthlySources(allocations: DepreciationBudgetSourceAllocation[]) {
+    update({
+      monthly_source_allocations: allocations,
+      monthly_source_category_id: allocations.find(
+        (allocation) => allocation.budget_category_id != null && allocation.ratio > 0,
+      )?.budget_category_id ?? null,
+      confirm_monthly_unallocated: false,
     });
   }
 
@@ -124,32 +171,33 @@ export function DepreciationBudgetFields({
       )}
 
       {(value?.method === "assigned" || value?.method === "special") && (
-        <Select
-          label={t("depreciationBudgetMonthlySourceLabel")}
-          placeholder={t("depreciationBudgetSelectCategory")}
-          data={categories}
-          value={
-            value.monthly_source_category_id == null
-              ? null
-              : String(value.monthly_source_category_id)
+        <DepreciationMonthlySourceEditor
+          allocations={currentMonthlySourceAllocations}
+          accountBudgetRatios={accountBudgetRatios}
+          representativeAmount={representativeMonthlyAmount}
+          expenseAccountName={expenseAccountName}
+          currency={currency || displayCurrency || "JPY"}
+          decimalPlaces={decimalPlaces}
+          confirmUnallocated={value.confirm_monthly_unallocated === true}
+          destinationCategoryId={value.method === "assigned" ? value.purchase_category_id : null}
+          onChange={changeMonthlySources}
+          onConfirmUnallocatedChange={(confirmed) =>
+            update({ confirm_monthly_unallocated: confirmed })
           }
-          onChange={(selected) =>
-            update({
-              monthly_source_category_id: selected ? Number(selected) : null,
-            })
-          }
-          error={
-            errors.monthlySourceCategory === "must_differ"
-              ? t("depreciationBudgetCategoriesMustDiffer")
-              : errors.monthlySourceCategory === "required"
-                ? t("depreciationBudgetCategoryRequired")
-                : undefined
-          }
-          searchable
-          clearable
-          required
           disabled={disabled}
         />
+      )}
+      {errors.monthlySourceCategory === "must_differ" && (
+        <Text size="xs" c="red">{t("depreciationBudgetCategoriesMustDiffer")}</Text>
+      )}
+      {errors.monthlySourceCategory === "required" && (
+        <Text size="xs" c="red">{t("depreciationBudgetCategoryRequired")}</Text>
+      )}
+      {errors.monthlySourceAllocations === "invalid" && (
+        <Text size="xs" c="red">{t("depreciationBudgetMonthlySourceInvalid")}</Text>
+      )}
+      {errors.confirmMonthlyUnallocated === "required" && (
+        <Text size="xs" c="red">{t("depreciationBudgetMonthlySourceUnallocatedConfirm")}</Text>
       )}
 
       {assignedPurchaseWouldBeNegative && purchaseCategory && (
