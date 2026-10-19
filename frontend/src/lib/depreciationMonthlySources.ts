@@ -10,6 +10,25 @@ export interface DepreciationMonthlySourceCategory {
   is_archived?: boolean;
 }
 
+function isIsoCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.valueOf()) && date.toISOString().slice(0, 10) === value;
+}
+
+/** Choose the earliest actual saved entry date on/after today, or the latest saved date if finished. */
+export function getDepreciationMonthlyPreviewIndex(
+  entryDates: readonly string[],
+  today: string,
+): number | null {
+  const validDates = entryDates
+    .map((date, index) => ({ date, index }))
+    .filter(({ date }) => isIsoCalendarDate(date))
+    .sort((left, right) => left.date.localeCompare(right.date) || left.index - right.index);
+  if (validDates.length === 0) return null;
+  return validDates.find(({ date }) => date >= today)?.index ?? validDates[validDates.length - 1]!.index;
+}
+
 /**
  * Freeze the expense account's current budget split for a newly created plan.
  * Categories without an account ratio remain available as zero-share editor

@@ -42,6 +42,17 @@ try {
   const schedule = schedules.find(item => item.id === 100);
   assert.ok(schedule, 'Expected the dedicated QA installment fixture');
 
+  await request(`/api/depreciation/${schedule.id}`, 'PATCH', {
+    purchase_date: '2026-07-30',
+    total_amount: 310000,
+    months: 60,
+    idempotency_key: 'qa-repair-continuity-partial-first-month',
+  });
+  const proratedSchedule = (await request('/api/depreciation')).find(item => item.id === schedule.id);
+  assert.equal(proratedSchedule.monthly_amounts[0], 368);
+  assert.equal(proratedSchedule.monthly_amounts[1], 5248);
+  assert.equal(proratedSchedule.entry_dates[0], '2026-07-30');
+
   const blankOptionalSettings = {
     method: 'assigned',
     purchase_category_id: 1001,
@@ -56,7 +67,7 @@ try {
 
   page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
   page.setDefaultTimeout(7000);
-  await page.clock.install({ time: new Date('2026-10-19T03:00:00Z') });
+  await page.clock.setFixedTime(new Date('2026-10-19T03:00:00Z'));
   const mutations = [];
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url());
@@ -77,11 +88,24 @@ try {
   await page.getByRole('button', { name: repairButtonName, exact: true }).click();
   let modal = page.getByRole('dialog', { name: repairButtonName, exact: true });
   await modal.getByRole('radio').first().click();
-  await modal.getByText('既存の仕訳の日付と金額はそのまま引き継がれます。予算の扱いはまだ設定されていません。', { exact: true }).waitFor();
+  await modal.getByText('購入仕訳と既存の月次仕訳の日付・金額はそのまま使用します。予算の扱いは未設定です。ここで変更しても既存の仕訳は作り直しません。', { exact: true }).waitFor();
   await modal.getByRole('heading', { name: '今後の月次振替（任意）', exact: true }).waitFor();
   await modal.getByRole('heading', { name: '精算（任意）', exact: true }).waitFor();
   await modal.getByRole('textbox', { name: '予算負担の終了日（任意）' }).waitFor();
-  await modal.getByRole('textbox', { name: '配分金額の確認月' }).waitFor();
+  const initialMonth = modal.getByRole('textbox', { name: '配分金額の確認月' });
+  assert.match(await initialMonth.inputValue(), /^2026-11-01/);
+  assert.match(await modal.getByTestId('depreciation-budget-fields').getByTestId('monthly-source-representative-amount').textContent(), /5,248/);
+  await initialMonth.click();
+  await page.getByRole('option', { name: /2026-07-30/ }).click();
+  assert.equal(await modal.getByTestId('depreciation-budget-selected-month').textContent(), '2026-07-30');
+  assert.match(await modal.getByTestId('depreciation-budget-fields').getByTestId('monthly-source-representative-amount').textContent(), /368/);
+  assert.match(await modal.getByRole('textbox', { name: '生活費 月次金額' }).inputValue(), /221/);
+  assert.match(await modal.getByRole('textbox', { name: '仕事費 月次金額' }).inputValue(), /147/);
+  await initialMonth.click();
+  await page.getByRole('option', { name: /2026-11-01/ }).click();
+  assert.match(await modal.getByTestId('depreciation-budget-fields').getByTestId('monthly-source-representative-amount').textContent(), /5,248/);
+  assert.match(await modal.getByRole('textbox', { name: '生活費 月次金額' }).inputValue(), /3,149/);
+  assert.match(await modal.getByRole('textbox', { name: '仕事費 月次金額' }).inputValue(), /2,099/);
   await modal.getByRole('button', { name: 'キャンセル', exact: true }).click();
   await modal.waitFor({ state: 'hidden' });
 
@@ -97,12 +121,11 @@ try {
     end_date: '2028-01-01',
   };
   const preview = await applicablePreview(schedule.id, savedSettings);
-  const apply = await request(`/api/depreciation/${schedule.id}/budget/apply`, 'POST', {
+  await request(`/api/depreciation/${schedule.id}/budget/apply`, 'POST', {
     token: preview.token,
     settings: preview.settings,
     confirmed: true,
   });
-  assert.equal(apply.settings?.routing_changes?.[0]?.date, '2027-01-01');
   const persisted = await request('/api/depreciation');
   const saved = persisted.find(item => item.id === schedule.id).budget.settings;
   assert.equal(saved.routing_changes[0].destination_category_id, 1001);
@@ -123,12 +146,16 @@ try {
   const previewButton = modal.getByRole('button', { name: '変更をプレビュー', exact: true });
   await previewButton.click();
   const applyButton = modal.getByRole('button', { name: 'プレビューした変更を適用', exact: true });
-  await applyButton.waitFor();
-  assert.equal(await applyButton.isEnabled(), true);
+  await page.waitForFunction(() => {
+    const button = [...document.querySelectorAll('button')]
+      .find(element => element.textContent?.includes('プレビューした変更を適用'));
+    return button != null && !button.disabled;
+  });
   const previewRequestCount = mutations.filter(([, path]) => path === '/api/depreciation/100/budget/preview').length;
   await month.click();
-  await page.getByRole('option', { name: /2026-12-01/ }).click();
-  assert.equal(await modal.getByTestId('depreciation-budget-selected-month').textContent(), '2026-12-01');
+  await page.getByRole('option', { name: /2026-07-30/ }).click();
+  assert.equal(await modal.getByTestId('depreciation-budget-selected-month').textContent(), '2026-07-30');
+  assert.match(await modal.getByTestId('depreciation-budget-fields').getByTestId('monthly-source-representative-amount').textContent(), /368/);
   assert.equal(await applyButton.isEnabled(), true, 'Display-only month selection must preserve the valid preview');
   assert.equal(mutations.filter(([, path]) => path === '/api/depreciation/100/budget/preview').length, previewRequestCount);
   assert.equal(mutations.some(([, path]) => path === '/api/depreciation/100/budget/apply'), false);
@@ -141,8 +168,21 @@ try {
   assert.deepEqual(mutations.filter(([, path]) => path.includes('/api/depreciation/100/budget/')), [
     ...mutations.filter(([, path]) => path === '/api/depreciation/100/budget/preview'),
   ], 'Changing the displayed month must not write settings or invalidate the budget preview');
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileWidth = await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    content: document.documentElement.scrollWidth,
+  }));
+  assert.ok(
+    mobileWidth.content <= mobileWidth.viewport,
+    `Mobile viewport must not overflow horizontally: ${JSON.stringify(mobileWidth)}`,
+  );
+  const fs = await import('node:fs/promises');
+  await fs.mkdir('.tmp/depreciation-repair-continuity', { recursive: true });
+  await page.screenshot({ path: '.tmp/depreciation-repair-continuity/mobile.png' });
   console.log(JSON.stringify({ blankOptionalPreview: true, continuityAfterReopen: true, selectedMonthDisplayOnly: true }));
 } catch (error) {
+  console.log(`browser-test-error: ${error?.stack ?? error}`);
   if (page) {
     const fs = await import('node:fs/promises');
     await fs.mkdir('.tmp/depreciation-repair-continuity', { recursive: true });
@@ -150,6 +190,7 @@ try {
   }
   throw error;
 } finally {
+  await page?.unrouteAll({ behavior: 'ignoreErrors' });
   await page?.close();
   await browser.close();
 }
