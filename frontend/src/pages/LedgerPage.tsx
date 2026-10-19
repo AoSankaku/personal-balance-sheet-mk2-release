@@ -1645,6 +1645,7 @@ export default function LedgerPage() {
           closeJournalEdit();
           setEditingEntry(null);
         }}
+        onEditEntryChange={handleEditJournal}
         onSubmit={handleSaveJournalEdit}
       />
 

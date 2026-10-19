@@ -985,6 +985,8 @@ export const translationKeys = [
   "depreciationMonthUnit",
   "depreciationCreated",
   "depreciationEntryEditWarning",
+  "depreciationSourcePurchaseEntryLabel",
+  "depreciationSourceEntryLoadError",
   "depreciableAssetsTotal",
   "depreciationReportTitle",
   "depreciationTotal",
