@@ -1604,7 +1604,7 @@ budgetFundingExcludedInfo: 借贷本金仅通过非预算账户发生变化，�
 
 deductFromBudgetLabel: "从预算总额中扣除"
 deductFromBudgetHint: "从预算资产中扣除此负债余额。信用卡默认启用。"
-incomeOutsideBudgetHint: "存入此账户的收入不会增加预算。转入预算账户时，未分配金额才会增加。"
+incomeOutsideBudgetHint: "此账户不属于预算范围，因此这笔收入无法分配到预算类别。"
 budgetHistorySourceFunding: "借贷的预算资金"
 loanFundingNoBudgetImpactHint: "此本金变动不会改变预算总额。利息等费用请单独记录。"
 depreciationBudgetMonthlySourceTitle: "每月转账来源分配"

@@ -81,6 +81,10 @@ import {
   splitByLargestRemainder,
 } from "../lib/multiLineBudgetFunding";
 import { getDepreciationBudgetFormErrors } from "../lib/depreciationBudgetForm";
+import {
+  buildIncomeBudgetSubmissionFields,
+  canAllocateIncomeBudget,
+} from "../lib/incomeBudgetScope";
 
 type EntryType =
   | "expense"
@@ -127,31 +131,7 @@ export interface SimpleEntryMeta {
   };
 }
 
-type IncomeBudgetSubmissionFields = Pick<
-  CreateJournalInput,
-  "income_budget_allocations" | "income_transfer_destinations"
->;
-
-export function buildIncomeBudgetSubmissionFields(input: {
-  canAllocateIncome: boolean;
-  incomeBudgetAllocations?: NonNullable<
-    CreateJournalInput["income_budget_allocations"]
-  >;
-  incomeTransferDestinations?: NonNullable<
-    CreateJournalInput["income_transfer_destinations"]
-  >;
-}): IncomeBudgetSubmissionFields {
-  if (!input.canAllocateIncome) {
-    return {
-      income_budget_allocations: undefined,
-      income_transfer_destinations: undefined,
-    };
-  }
-  return {
-    income_budget_allocations: input.incomeBudgetAllocations,
-    income_transfer_destinations: input.incomeTransferDestinations,
-  };
-}
+export { buildIncomeBudgetSubmissionFields } from "../lib/incomeBudgetScope";
 
 type LoanBudgetSubmissionFields = Pick<
   CreateJournalInput,
@@ -1617,10 +1597,8 @@ export function SimpleEntryForm({
     const incomeBudgetFields =
       values.entryType === "income"
         ? buildIncomeBudgetSubmissionFields({
-            canAllocateIncome: isBudgetAsset(
-              accounts.find(
-                (account) => account.id === values.incomeDepositedToId,
-              ),
+            destinationAccount: accounts.find(
+              (account) => account.id === values.incomeDepositedToId,
             ),
             incomeBudgetAllocations: income_budget_allocations,
             incomeTransferDestinations: income_transfer_destinations,
@@ -1903,8 +1881,14 @@ export function SimpleEntryForm({
 
   function handleIncomeDepositChange(next: string | null) {
     const accountId = next ? Number(next) : null;
+    const destinationAccount = accounts.find(
+      (account) => account.id === accountId,
+    );
     form.setFieldValue("incomeDepositedToId", accountId);
-    if (isBudgetAsset(accounts.find((account) => account.id === accountId))) {
+    if (canAllocateIncomeBudget(destinationAccount)) {
+      if (!isBudgetAsset(destinationAccount)) {
+        setIncomeTransferDestination({});
+      }
       return;
     }
     dirtyIncomeDistCategoryIds.current.clear();
@@ -1924,11 +1908,11 @@ export function SimpleEntryForm({
   }
 
   const entryType = form.values.entryType;
-  const canAllocateIncome = isBudgetAsset(
-    accounts.find(
-      (account) => account.id === form.values.incomeDepositedToId,
-    ),
+  const incomeDepositAccount = accounts.find(
+    (account) => account.id === form.values.incomeDepositedToId,
   );
+  const canAllocateIncome = canAllocateIncomeBudget(incomeDepositAccount);
+  const canReceiveIncomeTransfer = isBudgetAsset(incomeDepositAccount);
   useEffect(() => {
     if (accounts.length === 0 || entryType !== "income" || canAllocateIncome) {
       return;
@@ -1941,6 +1925,11 @@ export function SimpleEntryForm({
     setFilterStepPreview([]);
     setIncomeTransferDestination({});
   }, [entryType, accounts.length, canAllocateIncome]);
+  useEffect(() => {
+    if (entryType === "income" && !canReceiveIncomeTransfer) {
+      setIncomeTransferDestination({});
+    }
+  }, [entryType, canReceiveIncomeTransfer]);
   const transferBudgetOptions = useMemo(
     () =>
       getTransferBudgetCategoryOptions({
@@ -2026,7 +2015,7 @@ export function SimpleEntryForm({
     : incomeDist;
   const incomeTransferNeeds = useMemo(
     () =>
-      canAllocateIncome
+      canReceiveIncomeTransfer
         ? incomeDist
             .filter((distribution) => distribution.amount > 0)
             .map((distribution) => ({
@@ -2040,7 +2029,7 @@ export function SimpleEntryForm({
             }))
         : [],
     [
-      canAllocateIncome,
+      canReceiveIncomeTransfer,
       incomeDist,
       form.values.incomeDepositedToId,
       budgetCategories,

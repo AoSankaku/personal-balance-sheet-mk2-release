@@ -1604,7 +1604,7 @@ budgetFundingExcludedInfo: Le principal a changé uniquement via des comptes exc
 
 deductFromBudgetLabel: "Déduire des ressources budgétaires"
 deductFromBudgetHint: "Déduire le solde de cette dette des actifs budgétaires. Activé par défaut pour les cartes."
-incomeOutsideBudgetHint: "Les revenus reçus ici n’augmentent pas le budget. Un transfert vers un compte budgétaire augmente les fonds non affectés."
+incomeOutsideBudgetHint: "Ce compte est exclu du périmètre budgétaire ; ce revenu ne peut donc pas être affecté aux catégories budgétaires."
 budgetHistorySourceFunding: "Financement budgétaire des prêts"
 loanFundingNoBudgetImpactHint: "Ce mouvement de capital ne modifie pas les ressources budgétaires. Comptabilisez les intérêts et autres charges séparément."
 depreciationBudgetMonthlySourceTitle: "Répartition budgétaire"

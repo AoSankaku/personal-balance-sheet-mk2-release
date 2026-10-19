@@ -33,6 +33,10 @@ import type {
   CreateJournalInput,
 } from "@balance-sheet/shared";
 import { api } from "../api/client";
+import {
+  buildIncomeBudgetSubmissionFields,
+  canAllocateIncomeBudget,
+} from "../lib/incomeBudgetScope";
 import { buildExpenseBudgetAllocations } from "../lib/simpleEntryUtils";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
@@ -75,6 +79,10 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
   const [paymentAccountId, setPaymentAccountId] = useState<string | null>(
     bulkDraft.paymentAccountId,
   );
+  const paymentAccount = accounts.find(
+    (account) => account.id === Number(paymentAccountId),
+  );
+  const canAllocateDiscountIncome = canAllocateIncomeBudget(paymentAccount);
   const [rows, setRows] = useState<BulkRow[]>(
     bulkDraft.rows.length > 0
       ? bulkDraft.rows
@@ -130,6 +138,21 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
       statementCompletion,
     });
   }, [paymentAccountId, rows, billingRows, statementCompletion]);
+
+  useEffect(() => {
+    if (canAllocateDiscountIncome) return;
+    setRows((previous) => {
+      let changed = false;
+      const next = previous.map((row) => {
+        if (row.type !== "discount" || row.budgetCategoryId == null) {
+          return row;
+        }
+        changed = true;
+        return { ...row, budgetCategoryId: null };
+      });
+      return changed ? next : previous;
+    });
+  }, [canAllocateDiscountIncome]);
 
   const statementMonthLabel = statementCompletion
     ? new Intl.DateTimeFormat(locale, {
@@ -231,6 +254,16 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
     });
   }
 
+  function handlePaymentAccountChange(next: string | null) {
+    setPaymentAccountId(next);
+    if (canAllocateIncomeBudget(accounts.find(
+      (account) => account.id === Number(next),
+    ))) return;
+    setRows((previous) => previous.map((row) =>
+      row.type === "discount" ? { ...row, budgetCategoryId: null } : row,
+    ));
+  }
+
   const expenseTotal = rows
     .filter((r): r is BulkExpenseRow => r.type === "expense")
     .reduce((s, r) => s + r.qty * r.price, 0);
@@ -294,6 +327,11 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
               },
             ]
           : [];
+        const incomeBudgetFields = buildIncomeBudgetSubmissionFields({
+          destinationAccount: accounts.find((account) => account.id === payAccId),
+          incomeBudgetAllocations:
+            budget_allocations.length > 0 ? budget_allocations : undefined,
+        });
         entries.push({
           date: dayjs(r.date).format("YYYY-MM-DD"),
           description: r.discountType || t("bulkExpenseDefaultDiscountDesc"),
@@ -301,8 +339,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
             { account_id: payAccId, debit: r.amount, credit: 0 },
             { account_id: incAccId, debit: 0, credit: r.amount },
           ],
-          income_budget_allocations:
-            budget_allocations.length > 0 ? budget_allocations : undefined,
+          ...incomeBudgetFields,
         });
       }
     }
@@ -453,11 +490,18 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
         data={paymentOptions}
         renderOption={renderAccountOption as never}
         value={paymentAccountId}
-        onChange={setPaymentAccountId}
+        onChange={handlePaymentAccountChange}
         searchable={false}
         required
         w={300}
       />
+      {rows.some((row) => row.type === "discount") &&
+        paymentAccountId != null &&
+        !canAllocateDiscountIncome && (
+          <Alert color="gray" variant="light">
+            {t("incomeOutsideBudgetHint")}
+          </Alert>
+        )}
 
       <ScrollArea>
         <Table
@@ -618,15 +662,21 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
                     />
                   </Table.Td>
                   <Table.Td>
-                    <Select
-                      size="xs"
-                      data={catOpts}
-                      value={row.budgetCategoryId}
-                      onChange={(v) => updateRow(idx, { budgetCategoryId: v })}
-                      searchable={false}
-                      clearable
-                      placeholder={t("bulkExpenseBudgetPlaceholder")}
-                    />
+                    {canAllocateDiscountIncome ? (
+                      <Select
+                        size="xs"
+                        data={catOpts}
+                        value={row.budgetCategoryId}
+                        onChange={(v) => updateRow(idx, { budgetCategoryId: v })}
+                        searchable={false}
+                        clearable
+                        placeholder={t("bulkExpenseBudgetPlaceholder")}
+                      />
+                    ) : (
+                      <Text size="xs" c="dimmed">
+                        —
+                      </Text>
+                    )}
                   </Table.Td>
                   <Table.Td>
                     <ActionIcon

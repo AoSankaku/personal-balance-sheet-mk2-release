@@ -1604,7 +1604,7 @@ budgetFundingExcludedInfo: 対象外口座だけで貸し借り元本が変動�
 
 deductFromBudgetLabel: "予算総額から控除する"
 deductFromBudgetHint: "この負債の残高を予算対象資産から差し引きます。カードは初期設定で有効です。"
-incomeOutsideBudgetHint: "この口座への収入は予算を増やしません。予算対象口座へ振り替えた時に未割当が増えます。"
+incomeOutsideBudgetHint: "この口座は予算対象外のため、この収入を予算科目に配賦できません。"
 budgetHistorySourceFunding: "貸借の予算への反映"
 loanFundingNoBudgetImpactHint: "この元本の移動は予算総額を変えません。利息などの費用は別に記録します。"
 depreciationBudgetMonthlySourceTitle: "予算割合"

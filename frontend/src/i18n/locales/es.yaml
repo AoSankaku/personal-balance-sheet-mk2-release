@@ -1604,7 +1604,7 @@ budgetFundingExcludedInfo: El principal cambió solo mediante cuentas excluidas.
 
 deductFromBudgetLabel: "Deducir de los recursos del presupuesto"
 deductFromBudgetHint: "Resta el saldo de esta deuda de los activos presupuestarios. Activado por defecto para las tarjetas."
-incomeOutsideBudgetHint: "Los ingresos recibidos aquí no aumentan el presupuesto. Al transferirlos a una cuenta presupuestaria aumentan los fondos sin asignar."
+incomeOutsideBudgetHint: "Esta cuenta está fuera del alcance del presupuesto, por lo que estos ingresos no se pueden asignar a categorías presupuestarias."
 budgetHistorySourceFunding: "Financiación presupuestaria de préstamos"
 loanFundingNoBudgetImpactHint: "Este movimiento de capital no cambia los recursos presupuestarios. Registra los intereses y otros gastos por separado."
 depreciationBudgetMonthlySourceTitle: "Distribución del presupuesto"

@@ -1604,7 +1604,7 @@ budgetFundingExcludedInfo: 借貸本金僅透過非預算帳戶發生變化，�
 
 deductFromBudgetLabel: "從預算總額中扣除"
 deductFromBudgetHint: "從預算資產中扣除此負債餘額。信用卡預設啟用。"
-incomeOutsideBudgetHint: "存入此帳戶的收入不會增加預算。轉入預算帳戶時，未分配金額才會增加。"
+incomeOutsideBudgetHint: "此帳戶不屬於預算範圍，因此這筆收入無法分配至預算類別。"
 budgetHistorySourceFunding: "借貸的預算資金"
 loanFundingNoBudgetImpactHint: "此本金變動不會改變預算總額。利息等費用請另外記錄。"
 depreciationBudgetMonthlySourceTitle: "每月轉帳來源分配"

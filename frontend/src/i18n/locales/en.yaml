@@ -1604,7 +1604,7 @@ budgetFundingExcludedInfo: Loan principal changed only through excluded accounts
 
 deductFromBudgetLabel: "Deduct from budget resources"
 deductFromBudgetHint: "Subtract this liability balance from budget assets. Enabled by default for cards."
-incomeOutsideBudgetHint: "Income received here does not increase the budget. Transferring it to a budget account increases unallocated funds."
+incomeOutsideBudgetHint: "This account is outside the budget scope, so this income cannot be allocated to budget categories."
 budgetHistorySourceFunding: "Loan budget funding"
 loanFundingNoBudgetImpactHint: "This principal movement does not change budget resources. Record interest and other expenses separately."
 depreciationBudgetMonthlySourceTitle: "Budget shares"
