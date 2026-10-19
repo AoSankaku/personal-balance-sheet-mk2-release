@@ -1,9 +1,11 @@
 import {
   Badge,
   Collapse,
+  Fieldset,
   Group,
   NumberInput,
   Paper,
+  SimpleGrid,
   Select,
   SegmentedControl,
   Stack,
@@ -155,374 +157,20 @@ export function ExpenseSection({
   );
   const entryType = form.values.entryType;
 
-  return (
+  const purchaseAmountInput = (
+    <NumberInput
+      label={t("amountLabel")}
+      placeholder="0"
+      required
+      min={0}
+      prefix={currencySymbol}
+      thousandSeparator=","
+      {...form.getInputProps("amount")}
+    />
+  );
+
+  const paymentFields = (
     <>
-      {budgetSettings?.is_business_owner && (
-        <Switch
-          label={t("transactionTypeBusinessAdvance")}
-          checked={entryType === "business_advance"}
-          onChange={(e) =>
-            form.setFieldValue(
-              "entryType",
-              e.currentTarget.checked ? "business_advance" : "expense",
-            )
-          }
-        />
-      )}
-
-      {depreciableAssetOptions.length > 0 && onDepreciationSubmit && (
-        <Switch
-          label={t("depreciationLabel")}
-          checked={depreciationEnabled}
-          onChange={(e) => setDepreciationEnabled(e.currentTarget.checked)}
-        />
-      )}
-
-      {!depreciationEnabled ? (
-        <Select
-          label={t("categoryLabel")}
-          placeholder={t("selectAccount")}
-          data={expenseOptions}
-          searchable={!isMobile}
-          required
-          value={
-            form.values.expenseCategoryId != null
-              ? String(form.values.expenseCategoryId)
-              : null
-          }
-          onChange={handleExpenseAccountChange}
-          error={form.errors.expenseCategoryId}
-          renderOption={renderAccountOption as any}
-        />
-      ) : (
-        <>
-          <Select
-            label={t("depreciationAssetAccountLabel")}
-            placeholder={t("selectAccount")}
-            data={depreciableAssetOptions}
-            required
-            value={
-              depreciationAssetAccountId != null
-                ? String(depreciationAssetAccountId)
-                : null
-            }
-            onChange={(v) =>
-              setDepreciationAssetAccountId(v ? Number(v) : null)
-            }
-            renderOption={renderAccountOption as any}
-          />
-          <Select
-            label={t("depreciationExpenseAccountLabel")}
-            placeholder={t("selectAccount")}
-            data={expenseOnlyOptions}
-            required
-            value={
-              depreciationExpenseAccountId != null
-                ? String(depreciationExpenseAccountId)
-                : null
-            }
-            onChange={setDepreciationExpenseAccountId}
-            renderOption={renderAccountOption as any}
-          />
-          <SegmentedControl
-            size="xs"
-            data={[
-              { value: "months", label: t("depreciationByMonths") },
-              {
-                value: "monthly_amount",
-                label: t("depreciationByMonthlyAmount"),
-              },
-            ]}
-            value={depreciationInputMode}
-            onChange={(v) =>
-              setDepreciationInputMode(v as "months" | "monthly_amount")
-            }
-          />
-          {depreciationInputMode === "months" ? (
-            <NumberInput
-              label={t("depreciationMonthsLabel")}
-              min={1}
-              max={480}
-              allowDecimal={false}
-              value={depreciationMonths}
-              onChange={(v) => setDepreciationMonths(v)}
-            />
-          ) : (
-            <NumberInput
-              label={t("depreciationMonthlyAmountLabel")}
-              min={1}
-              prefix={depreciationCurrencySymbol}
-              thousandSeparator=","
-              value={depreciationMonthlyAmount}
-              onChange={(v) => setDepreciationMonthlyAmount(v)}
-            />
-          )}
-          {form.values.amount > 0 && (
-            <Text size="xs" c="dimmed">
-              {t("depreciationPreview")}: {t("depreciationPreviewSummary")
-                .replace(
-                  "{first}",
-                  formatCurrency(
-                    depreciationFirstMonthAmount,
-                    locale,
-                    depreciationCurrency,
-                    depreciationCurrencySymbol,
-                    depreciationCurrencyDecimalPlaces,
-                  ),
-                )
-                .replace(
-                  "{total}",
-                  formatCurrency(
-                    depreciationTotalAmount,
-                    locale,
-                    depreciationCurrency,
-                    depreciationCurrencySymbol,
-                    depreciationCurrencyDecimalPlaces,
-                  ),
-                )}
-            </Text>
-          )}
-          {!isEditing && (
-            <DepreciationBudgetFields
-              value={depreciationBudgetSettings}
-              onChange={setDepreciationBudgetSettings}
-              purchaseAmount={depreciationPurchaseAmount}
-              representativeMonthlyAmount={depreciationRepresentativeMonthlyAmount}
-              currency={depreciationCurrency}
-              decimalPlaces={depreciationCurrencyDecimalPlaces}
-              accountBudgetRatios={depreciationExpenseAccountBudgetRatios}
-              expenseAccountName={depreciationExpenseAccountName}
-            />
-          )}
-        </>
-      )}
-
-      <NumberInput
-        label={t("amountLabel")}
-        placeholder="0"
-        required
-        min={0}
-        prefix={currencySymbol}
-        thousandSeparator=","
-        {...form.getInputProps("amount")}
-      />
-
-      {entryType === "business_advance" && (
-        <>
-          <Paper withBorder p="xs" radius="sm">
-            <Stack gap={4}>
-              <Group justify="space-between">
-                <div>
-                  <Text size="xs" fw={600} c="dimmed">
-                    {t("businessRatioLabel")}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    {t("businessRatioDesc")}
-                  </Text>
-                </div>
-                <Badge size="xs" variant="light" color="teal">
-                  {t("budgetDistributionTotal")}: 100%
-                </Badge>
-              </Group>
-
-              <Group gap="xs" align="center">
-                <Text size="sm" flex={1}>
-                  {t("businessAdvanceSplitBusiness")}
-                </Text>
-                <NumberInput
-                  w={80}
-                  size="xs"
-                  min={0}
-                  max={100}
-                  suffix="%"
-                  hideControls={isMobile}
-                  value={businessRatio}
-                  disabled={form.values.amount <= 0}
-                  onChange={(v) =>
-                    form.setFieldValue(
-                      "businessRatio",
-                      Math.min(100, Math.max(0, Number(v) || 0)),
-                    )
-                  }
-                  styles={(theme) => ({
-                    input: { color: theme.colors.teal[6], fontWeight: 600 },
-                  })}
-                />
-                <NumberInput
-                  w={110}
-                  size="xs"
-                  min={0}
-                  max={form.values.amount}
-                  prefix={currencySymbol}
-                  thousandSeparator=","
-                  hideControls
-                  value={businessAmount}
-                  disabled={form.values.amount <= 0}
-                  onChange={(v) => {
-                    const total = form.values.amount;
-                    const pct =
-                      total > 0
-                        ? Math.min(
-                            100,
-                            Math.max(0, Math.round((Number(v) / total) * 100)),
-                          )
-                        : 0;
-                    form.setFieldValue("businessRatio", pct);
-                  }}
-                  styles={(theme) => ({
-                    input: { color: theme.colors.teal[6], fontWeight: 600 },
-                  })}
-                />
-              </Group>
-
-              <Group
-                gap="xs"
-                align="center"
-                pt={4}
-                style={{
-                  borderTop: "1px solid var(--mantine-color-default-border)",
-                }}
-              >
-                <Text size="sm" flex={1} c="dimmed">
-                  {t("businessAdvanceSplitPersonal")}
-                </Text>
-                <Text size="xs" c="dimmed" w={80} ta="right">
-                  {personalRatio}%
-                </Text>
-                <Text size="xs" fw={600} c="dimmed" w={110} ta="right">
-                  ¥{personalAmount.toLocaleString()}
-                </Text>
-              </Group>
-            </Stack>
-          </Paper>
-          <Select
-            label={t("businessAdvanceAccountLabel")}
-            placeholder={t("selectAccount")}
-            data={assetOptions}
-            searchable={!isMobile}
-            required
-            value={
-              form.values.businessAdvanceAccountId != null
-                ? String(form.values.businessAdvanceAccountId)
-                : null
-            }
-            onChange={(v) =>
-              form.setFieldValue(
-                "businessAdvanceAccountId",
-                v ? Number(v) : null,
-              )
-            }
-            error={form.errors.businessAdvanceAccountId}
-            renderOption={renderAccountOption as any}
-          />
-        </>
-      )}
-
-      {!depreciationEnabled &&
-        budgetDist.length > 0 &&
-        (() => {
-          const budgetBase =
-            entryType === "business_advance"
-              ? personalAmount
-              : form.values.amount;
-          const computedBudgetAmounts = computeBudgetDistributionAmounts(
-            budgetBase,
-            budgetDist,
-          );
-          const budgetTotalLabel = `${formatBudgetDistributionRatio(
-            budgetDistributionSummary.displayRatio,
-          )}%`;
-          const primaryDist = budgetDist.filter((d) => !d.isDefault);
-          const zeroDist = budgetDist.filter((d) => d.isDefault);
-          const renderRow = (dist: BudgetDistributionItem) => (
-            <Group key={dist.budget_category_id} gap="xs" align="center">
-              <Text size="sm" flex={1}>
-                {dist.name}
-              </Text>
-              <NumberInput
-                w={80}
-                size="xs"
-                min={0}
-                max={100}
-                suffix="%"
-                value={dist.ratio}
-                onChange={(v) =>
-                  handleRatioChange(
-                    dist.budget_category_id,
-                    Number(v) || 0,
-                    budgetBase,
-                  )
-                }
-              />
-              <NumberInput
-                w={90}
-                size="xs"
-                min={0}
-                prefix={currencySymbol}
-                hideControls
-                thousandSeparator=","
-                value={
-                  dist.amount ??
-                  computedBudgetAmounts.get(dist.budget_category_id) ??
-                  0
-                }
-                onChange={(v) => {
-                  const num = Number(v) || 0;
-                  handleBudgetAmountChange(
-                    dist.budget_category_id,
-                    num,
-                    budgetBase,
-                  );
-                }}
-              />
-            </Group>
-          );
-          return (
-            <Stack gap={4}>
-              <Group justify="space-between">
-                <Text size="xs" c="dimmed">
-                  {t("budgetAllocationDisplay")}
-                </Text>
-                <Badge
-                  size="xs"
-                  variant="light"
-                  color={
-                    budgetDistributionSummary.isOverAllocated
-                      ? "red"
-                      : budgetDistributionSummary.isUnderAllocated
-                        ? "yellow"
-                        : "teal"
-                  }
-                  leftSection={
-                    budgetDistributionSummary.isOverAllocated ||
-                    budgetDistributionSummary.isUnderAllocated ? (
-                      <IconAlertTriangle size={10} />
-                    ) : undefined
-                  }
-                >
-                  {t("budgetDistributionTotal")}: {budgetTotalLabel}
-                </Badge>
-              </Group>
-              {primaryDist.map(renderRow)}
-              {zeroDist.length > 0 && (
-                <>
-                  <UnstyledButton
-                    onClick={() => setShowZeroCategories((v) => !v)}
-                  >
-                    <Text size="xs" c="dimmed">
-                      {showZeroCategories ? "▼" : "▶"}{" "}
-                      {t("budgetDistOtherCategories")} ({zeroDist.length})
-                    </Text>
-                  </UnstyledButton>
-                  <Collapse in={showZeroCategories}>
-                    <Stack gap={4}>{zeroDist.map(renderRow)}</Stack>
-                  </Collapse>
-                </>
-              )}
-            </Stack>
-          );
-        })()}
-
       <Select
         label={t("paidFromLabel")}
         placeholder={t("selectAccount")}
@@ -556,6 +204,415 @@ export function ExpenseSection({
             )
           }
         />
+      )}
+    </>
+  );
+
+  const businessAdvanceFields = entryType === "business_advance" ? (
+    <>
+      <Paper withBorder p="xs" radius="sm">
+        <Stack gap={4}>
+          <Group justify="space-between">
+            <div>
+              <Text size="xs" fw={600} c="dimmed">
+                {t("businessRatioLabel")}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {t("businessRatioDesc")}
+              </Text>
+            </div>
+            <Badge size="xs" variant="light" color="teal">
+              {t("budgetDistributionTotal")}: 100%
+            </Badge>
+          </Group>
+
+          <Group gap="xs" align="center">
+            <Text size="sm" flex={1}>
+              {t("businessAdvanceSplitBusiness")}
+            </Text>
+            <NumberInput
+              w={80}
+              size="xs"
+              aria-label={t("businessRatioLabel")}
+              min={0}
+              max={100}
+              suffix="%"
+              hideControls={isMobile}
+              value={businessRatio}
+              disabled={form.values.amount <= 0}
+              onChange={(v) =>
+                form.setFieldValue(
+                  "businessRatio",
+                  Math.min(100, Math.max(0, Number(v) || 0)),
+                )
+              }
+              styles={(theme) => ({
+                input: { color: theme.colors.teal[6], fontWeight: 600 },
+              })}
+            />
+            <NumberInput
+              w={110}
+              size="xs"
+              aria-label={t("businessAdvanceSplitBusiness")}
+              min={0}
+              max={form.values.amount}
+              prefix={currencySymbol}
+              thousandSeparator=","
+              hideControls
+              value={businessAmount}
+              disabled={form.values.amount <= 0}
+              onChange={(v) => {
+                const total = form.values.amount;
+                const pct =
+                  total > 0
+                    ? Math.min(
+                        100,
+                        Math.max(0, Math.round((Number(v) / total) * 100)),
+                      )
+                    : 0;
+                form.setFieldValue("businessRatio", pct);
+              }}
+              styles={(theme) => ({
+                input: { color: theme.colors.teal[6], fontWeight: 600 },
+              })}
+            />
+          </Group>
+
+          <Group
+            gap="xs"
+            align="center"
+            pt={4}
+            style={{
+              borderTop: "1px solid var(--mantine-color-default-border)",
+            }}
+          >
+            <Text size="sm" flex={1} c="dimmed">
+              {t("businessAdvanceSplitPersonal")}
+            </Text>
+            <Text size="xs" c="dimmed" w={80} ta="right">
+              {personalRatio}%
+            </Text>
+            <Text size="xs" fw={600} c="dimmed" w={110} ta="right">
+              ¥{personalAmount.toLocaleString()}
+            </Text>
+          </Group>
+        </Stack>
+      </Paper>
+      <Select
+        label={t("businessAdvanceAccountLabel")}
+        placeholder={t("selectAccount")}
+        data={assetOptions}
+        searchable={!isMobile}
+        required
+        value={
+          form.values.businessAdvanceAccountId != null
+            ? String(form.values.businessAdvanceAccountId)
+            : null
+        }
+        onChange={(v) =>
+          form.setFieldValue("businessAdvanceAccountId", v ? Number(v) : null)
+        }
+        error={form.errors.businessAdvanceAccountId}
+        renderOption={renderAccountOption as any}
+      />
+    </>
+  ) : null;
+
+  const installmentFields = (
+    <>
+      <SimpleGrid
+        cols={{ base: 1, sm: 2 }}
+        spacing="sm"
+        style={{ alignItems: "start" }}
+      >
+        <Fieldset
+          legend={t("installmentPurchasePaymentGroup")}
+          radius="sm"
+          p="sm"
+          style={{ minWidth: 0 }}
+        >
+          <Stack gap="sm">
+            {purchaseAmountInput}
+            {businessAdvanceFields}
+            {paymentFields}
+            <Select
+              label={t("depreciationAssetAccountLabel")}
+              placeholder={t("selectAccount")}
+              data={depreciableAssetOptions}
+              required
+              value={
+                depreciationAssetAccountId != null
+                  ? String(depreciationAssetAccountId)
+                  : null
+              }
+              onChange={(v) =>
+                setDepreciationAssetAccountId(v ? Number(v) : null)
+              }
+              renderOption={renderAccountOption as any}
+            />
+          </Stack>
+        </Fieldset>
+
+        <Fieldset
+          legend={t("installmentMonthlyExpenseGroup")}
+          radius="sm"
+          p="sm"
+          style={{ minWidth: 0 }}
+        >
+          <Stack gap="sm">
+            <Select
+              label={t("depreciationExpenseAccountLabel")}
+              placeholder={t("selectAccount")}
+              data={expenseOnlyOptions}
+              required
+              value={
+                depreciationExpenseAccountId != null
+                  ? String(depreciationExpenseAccountId)
+                  : null
+              }
+              onChange={setDepreciationExpenseAccountId}
+              renderOption={renderAccountOption as any}
+            />
+            <SegmentedControl
+              fullWidth
+              data={[
+                { value: "months", label: t("depreciationByMonths") },
+                {
+                  value: "monthly_amount",
+                  label: t("depreciationByMonthlyAmount"),
+                },
+              ]}
+              value={depreciationInputMode}
+              onChange={(v) =>
+                setDepreciationInputMode(v as "months" | "monthly_amount")
+              }
+              styles={{ root: { minHeight: 40 } }}
+            />
+            {depreciationInputMode === "months" ? (
+              <NumberInput
+                label={t("depreciationMonthsLabel")}
+                min={1}
+                max={480}
+                allowDecimal={false}
+                value={depreciationMonths}
+                onChange={(v) => setDepreciationMonths(v)}
+              />
+            ) : (
+              <NumberInput
+                label={t("depreciationMonthlyAmountLabel")}
+                min={1}
+                prefix={depreciationCurrencySymbol}
+                thousandSeparator=","
+                value={depreciationMonthlyAmount}
+                onChange={(v) => setDepreciationMonthlyAmount(v)}
+              />
+            )}
+            {form.values.amount > 0 && (
+              <Text size="sm" c="dimmed">
+                {t("depreciationPreviewSummary")
+                  .replace(
+                    "{first}",
+                    formatCurrency(
+                      depreciationFirstMonthAmount,
+                      locale,
+                      depreciationCurrency,
+                      depreciationCurrencySymbol,
+                      depreciationCurrencyDecimalPlaces,
+                    ),
+                  )
+                  .replace(
+                    "{total}",
+                    formatCurrency(
+                      depreciationTotalAmount,
+                      locale,
+                      depreciationCurrency,
+                      depreciationCurrencySymbol,
+                      depreciationCurrencyDecimalPlaces,
+                    ),
+                  )}
+              </Text>
+            )}
+          </Stack>
+        </Fieldset>
+      </SimpleGrid>
+
+      {!isEditing && (
+        <Fieldset
+          legend={t("installmentBudgetHandlingGroup")}
+          radius="sm"
+          p="sm"
+        >
+          <DepreciationBudgetFields
+            value={depreciationBudgetSettings}
+            onChange={setDepreciationBudgetSettings}
+            purchaseAmount={depreciationPurchaseAmount}
+            representativeMonthlyAmount={depreciationRepresentativeMonthlyAmount}
+            currency={depreciationCurrency}
+            decimalPlaces={depreciationCurrencyDecimalPlaces}
+            accountBudgetRatios={depreciationExpenseAccountBudgetRatios}
+            expenseAccountName={depreciationExpenseAccountName}
+            compact
+          />
+        </Fieldset>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      {budgetSettings?.is_business_owner && (
+        <Switch
+          label={t("transactionTypeBusinessAdvance")}
+          checked={entryType === "business_advance"}
+          onChange={(e) =>
+            form.setFieldValue(
+              "entryType",
+              e.currentTarget.checked ? "business_advance" : "expense",
+            )
+          }
+        />
+      )}
+
+      {depreciableAssetOptions.length > 0 && onDepreciationSubmit && (
+        <Switch
+          label={t("depreciationLabel")}
+          checked={depreciationEnabled}
+          onChange={(e) => setDepreciationEnabled(e.currentTarget.checked)}
+        />
+      )}
+
+          {!depreciationEnabled && (
+            <Select
+              label={t("categoryLabel")}
+              placeholder={t("selectAccount")}
+              data={expenseOptions}
+              searchable={!isMobile}
+              required
+              value={
+                form.values.expenseCategoryId != null
+                  ? String(form.values.expenseCategoryId)
+                  : null
+              }
+              onChange={handleExpenseAccountChange}
+              error={form.errors.expenseCategoryId}
+              renderOption={renderAccountOption as any}
+            />
+          )}
+
+          {depreciationEnabled ? (
+            installmentFields
+          ) : (
+            <>
+              {purchaseAmountInput}
+
+              {businessAdvanceFields}
+
+          {budgetDist.length > 0 &&
+            (() => {
+              const budgetBase =
+                entryType === "business_advance"
+                  ? personalAmount
+                  : form.values.amount;
+              const computedBudgetAmounts = computeBudgetDistributionAmounts(
+                budgetBase,
+                budgetDist,
+              );
+              const budgetTotalLabel = `${formatBudgetDistributionRatio(
+                budgetDistributionSummary.displayRatio,
+              )}%`;
+              const primaryDist = budgetDist.filter((d) => !d.isDefault);
+              const zeroDist = budgetDist.filter((d) => d.isDefault);
+              const renderRow = (dist: BudgetDistributionItem) => (
+                <Group key={dist.budget_category_id} gap="xs" align="center">
+                  <Text size="sm" flex={1}>
+                    {dist.name}
+                  </Text>
+                  <NumberInput
+                    w={80}
+                    size="xs"
+                    min={0}
+                    max={100}
+                    suffix="%"
+                    value={dist.ratio}
+                    onChange={(v) =>
+                      handleRatioChange(
+                        dist.budget_category_id,
+                        Number(v) || 0,
+                        budgetBase,
+                      )
+                    }
+                  />
+                  <NumberInput
+                    w={90}
+                    size="xs"
+                    min={0}
+                    prefix={currencySymbol}
+                    hideControls
+                    thousandSeparator=","
+                    value={
+                      dist.amount ??
+                      computedBudgetAmounts.get(dist.budget_category_id) ??
+                      0
+                    }
+                    onChange={(v) => {
+                      const num = Number(v) || 0;
+                      handleBudgetAmountChange(
+                        dist.budget_category_id,
+                        num,
+                        budgetBase,
+                      );
+                    }}
+                  />
+                </Group>
+              );
+              return (
+                <Stack gap={4}>
+                  <Group justify="space-between">
+                    <Text size="xs" c="dimmed">
+                      {t("budgetAllocationDisplay")}
+                    </Text>
+                    <Badge
+                      size="xs"
+                      variant="light"
+                      color={
+                        budgetDistributionSummary.isOverAllocated
+                          ? "red"
+                          : budgetDistributionSummary.isUnderAllocated
+                            ? "yellow"
+                            : "teal"
+                      }
+                      leftSection={
+                        budgetDistributionSummary.isOverAllocated ||
+                        budgetDistributionSummary.isUnderAllocated ? (
+                          <IconAlertTriangle size={10} />
+                        ) : undefined
+                      }
+                    >
+                      {t("budgetDistributionTotal")}: {budgetTotalLabel}
+                    </Badge>
+                  </Group>
+                  {primaryDist.map(renderRow)}
+                  {zeroDist.length > 0 && (
+                    <>
+                      <UnstyledButton
+                        onClick={() => setShowZeroCategories((v) => !v)}
+                      >
+                        <Text size="xs" c="dimmed">
+                          {showZeroCategories ? "▼" : "▶"}{" "}
+                          {t("budgetDistOtherCategories")} ({zeroDist.length})
+                        </Text>
+                      </UnstyledButton>
+                      <Collapse in={showZeroCategories}>
+                        <Stack gap={4}>{zeroDist.map(renderRow)}</Stack>
+                      </Collapse>
+                    </>
+                  )}
+                </Stack>
+              );
+            })()}
+
+          {paymentFields}
+        </>
       )}
     </>
   );

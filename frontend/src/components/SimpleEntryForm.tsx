@@ -2234,7 +2234,15 @@ export function SimpleEntryForm({
             ];
 
   return (
-    <form onSubmit={form.onSubmit(handleSubmit)}>
+    <form
+      onSubmit={form.onSubmit(handleSubmit)}
+      style={
+        depreciationEnabled &&
+        (entryType === "expense" || entryType === "business_advance")
+          ? { maxWidth: 1040, marginInline: "auto" }
+          : undefined
+      }
+    >
       <Stack>
         <SegmentedControl
           data={[

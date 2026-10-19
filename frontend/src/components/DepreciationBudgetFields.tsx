@@ -1,4 +1,13 @@
-import { Alert, Checkbox, Radio, Select, Stack, Text } from "@mantine/core";
+import {
+  Alert,
+  Checkbox,
+  Group,
+  Radio,
+  Select,
+  SimpleGrid,
+  Stack,
+  Text,
+} from "@mantine/core";
 import { IconAlertTriangle, IconInfoCircle } from "@tabler/icons-react";
 import type {
   AccountBudgetRatio,
@@ -36,6 +45,7 @@ interface Props {
   expenseAccountName?: string;
   accountBudgetRatios?: AccountBudgetRatio[];
   disabled?: boolean;
+  compact?: boolean;
 }
 
 export function DepreciationBudgetFields({
@@ -49,6 +59,7 @@ export function DepreciationBudgetFields({
   expenseAccountName,
   accountBudgetRatios = [],
   disabled = false,
+  compact = false,
 }: Props) {
   const { t, locale } = useLang();
   const { budgetCategories, budgetSummary, displayCurrency } = useAppData();
@@ -94,6 +105,7 @@ export function DepreciationBudgetFields({
 
   function changeMethod(methodValue: string) {
     const method = methodValue as DepreciationBudgetMethod;
+    if (value?.method === method) return;
     const sourceAllocations = value?.monthly_source_allocations !== undefined ||
         value?.monthly_source_category_id != null
       ? resolveDepreciationMonthlySourceAllocations(value)
@@ -125,22 +137,62 @@ export function DepreciationBudgetFields({
   return (
     <Stack gap="xs" data-testid="depreciation-budget-fields">
       <Radio.Group
-        label={t("depreciationBudgetMethodTitle")}
+        label={compact ? undefined : t("depreciationBudgetMethodTitle")}
+        aria-label={compact ? t("depreciationBudgetMethodTitle") : undefined}
         value={value?.method ?? ""}
         onChange={changeMethod}
         name="depreciation-budget-method"
       >
-        <Stack gap={6} mt={4}>
-          {DEPRECIATION_BUDGET_METHOD_ORDER.map((method) => (
-            <Radio
-              key={method}
-              value={method}
-              label={t(`depreciationBudgetMethod${method}Label` as never)}
-              description={t(`depreciationBudgetMethod${method}Hint` as never)}
-              disabled={disabled}
-            />
-          ))}
-        </Stack>
+        {compact ? (
+          <>
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs" mt={4}>
+              {DEPRECIATION_BUDGET_METHOD_ORDER.map((method) => {
+                const selected = value?.method === method;
+                return (
+                  <Radio.Card
+                    key={method}
+                    value={method}
+                    radius="sm"
+                    p="xs"
+                    disabled={disabled}
+                    aria-label={t(
+                      `depreciationBudgetMethod${method}Label` as never,
+                    )}
+                    style={{
+                      minHeight: 44,
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Group gap="xs" align="center" wrap="nowrap">
+                      <Radio.Indicator checked={selected} />
+                      <Text size="sm" fw={selected ? 600 : 500}>
+                        {t(`depreciationBudgetMethod${method}Short` as never)}
+                      </Text>
+                    </Group>
+                  </Radio.Card>
+                );
+              })}
+            </SimpleGrid>
+            {value?.method && (
+              <Text size="sm" c="dimmed" mt="xs">
+                {t(`depreciationBudgetMethod${value.method}Hint` as never)}
+              </Text>
+            )}
+          </>
+        ) : (
+          <Stack gap={6} mt={4}>
+            {DEPRECIATION_BUDGET_METHOD_ORDER.map((method) => (
+              <Radio
+                key={method}
+                value={method}
+                label={t(`depreciationBudgetMethod${method}Label` as never)}
+                description={t(`depreciationBudgetMethod${method}Hint` as never)}
+                disabled={disabled}
+              />
+            ))}
+          </Stack>
+        )}
       </Radio.Group>
 
       {value?.method === "assigned" && (
@@ -170,6 +222,24 @@ export function DepreciationBudgetFields({
         />
       )}
 
+      {compact && assignedPurchaseWouldBeNegative && purchaseCategory && (
+        <Alert
+          color="yellow"
+          icon={<IconAlertTriangle size={16} />}
+          data-testid="depreciation-purchase-negative-warning"
+        >
+          {t("depreciationBudgetAssignedNegativeWarning")}
+          <Text size="xs" mt={4}>
+            {t("budgetCategoryLabel")}: {purchaseCategory.category.name} ·{" "}
+            {formatCurrency(
+              predictedPurchaseBalance!,
+              locale,
+              currency || displayCurrency || "JPY",
+            )}
+          </Text>
+        </Alert>
+      )}
+
       {(value?.method === "assigned" || value?.method === "special") && (
         <DepreciationMonthlySourceEditor
           allocations={currentMonthlySourceAllocations}
@@ -187,20 +257,20 @@ export function DepreciationBudgetFields({
           disabled={disabled}
         />
       )}
-      {errors.monthlySourceCategory === "must_differ" && (
+      {!compact && errors.monthlySourceCategory === "must_differ" && (
         <Text size="xs" c="red">{t("depreciationBudgetCategoriesMustDiffer")}</Text>
       )}
-      {errors.monthlySourceCategory === "required" && (
+      {!compact && errors.monthlySourceCategory === "required" && (
         <Text size="xs" c="red">{t("depreciationBudgetCategoryRequired")}</Text>
       )}
-      {errors.monthlySourceAllocations === "invalid" && (
+      {!compact && errors.monthlySourceAllocations === "invalid" && (
         <Text size="xs" c="red">{t("depreciationBudgetMonthlySourceInvalid")}</Text>
       )}
-      {errors.confirmMonthlyUnallocated === "required" && (
+      {!compact && errors.confirmMonthlyUnallocated === "required" && (
         <Text size="xs" c="red">{t("depreciationBudgetMonthlySourceUnallocatedConfirm")}</Text>
       )}
 
-      {assignedPurchaseWouldBeNegative && purchaseCategory && (
+      {!compact && assignedPurchaseWouldBeNegative && purchaseCategory && (
         <Alert color="yellow" icon={<IconAlertTriangle size={16} />} data-testid="depreciation-purchase-negative-warning">
           {t("depreciationBudgetAssignedNegativeWarning")}
           <Text size="xs" mt={4}>
