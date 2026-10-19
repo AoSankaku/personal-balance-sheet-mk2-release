@@ -812,11 +812,11 @@ budgetDepreciationActiveStatus: Reserva de compra activa
 budgetDepreciationResetStatus: Reserva reiniciada · depreciación activa
 budgetDepreciationRecognizedStatus: Solo depreciación mensual
 depreciationBudgetMethodTitle: Tratamiento presupuestario de este plan de depreciación
-depreciationBudgetMethodassignedLabel: "② Gastar del presupuesto asignado y reponerlo cada mes (recomendado)"
+depreciationBudgetMethodassignedLabel: "Gastar del presupuesto asignado y reponerlo cada mes (recomendado)"
 depreciationBudgetMethodassignedHint: Al comprar, se debita el presupuesto de compra. Cada mes se transfiere el mismo importe del presupuesto de origen al presupuesto de compra para reponerlo.
-depreciationBudgetMethodspecialLabel: "① Cargar a un presupuesto especial negativo y reponerlo cada mes"
+depreciationBudgetMethodspecialLabel: "Cargar a un presupuesto especial negativo y reponerlo cada mes"
 depreciationBudgetMethodspecialHint: Al comprar, un presupuesto especial vinculado a la compra queda en negativo. Cada mes se transfiere el mismo importe del presupuesto de origen al presupuesto especial para reponerlo.
-depreciationBudgetMethodunallocatedLabel: "③ Gastar de fondos sin asignar, sin reposición"
+depreciationBudgetMethodunallocatedLabel: "Gastar de fondos sin asignar, sin reposición"
 depreciationBudgetMethodunallocatedHint: La parte presupuestada de la compra se carga a fondos sin asignar al comprar. La depreciación contable continúa, pero no hay reposición presupuestaria mensual.
 depreciationBudgetPurchaseCategoryLabel: Presupuesto que cubre la compra
 depreciationBudgetMonthlySourceLabel: Presupuesto de origen de la transferencia mensual
@@ -824,9 +824,9 @@ depreciationBudgetSelectCategory: Selecciona una categoría presupuestaria
 depreciationBudgetCategoryRequired: Selecciona una categoría para continuar.
 depreciationBudgetCategoriesMustDiffer: Elige categorías distintas para la compra y el origen mensual.
 depreciationBudgetConfirmationRequired: Confirma este tratamiento antes de guardar.
-depreciationBudgetUnallocatedWarning: "La parte presupuestada de la compra se carga de una vez a fondos sin asignar. La depreciación contable continúa después, pero no habrá transferencias presupuestarias mensuales desde gastos de vida u otras categorías. Elige ① o ② si también quieres financiación presupuestaria mensual."
-depreciationBudgetUnallocatedConfirm: "Confirmo la opción ③: cargar la parte presupuestada de la compra a fondos sin asignar y no realizar transferencias presupuestarias mensuales."
-depreciationBudgetAssignedNegativeWarning: Se prevé que el presupuesto de compra ② sea insuficiente y quede en negativo. Considera la opción ①, que repone un presupuesto especial cada mes.
+depreciationBudgetUnallocatedWarning: "La parte presupuestada de la compra se carga de una vez a fondos sin asignar. La depreciación contable continúa después, pero no habrá transferencias presupuestarias mensuales desde gastos de vida u otras categorías. Elige el método de presupuesto asignado o especial si también quieres financiación presupuestaria mensual."
+depreciationBudgetUnallocatedConfirm: "Confirmo cargar la parte presupuestada de la compra a fondos sin asignar y no realizar transferencias presupuestarias mensuales."
+depreciationBudgetAssignedNegativeWarning: Se prevé que el presupuesto de compra sea insuficiente y quede en negativo. Considera el método de presupuesto especial, que repone un presupuesto especial cada mes.
 depreciationBudgetMethodRequired: Elige cómo debe afectar este plan a los presupuestos.
 depreciationBudgetUnset: Tratamiento presupuestario sin definir
 depreciationBudgetStatusActive: Activo
@@ -835,6 +835,12 @@ depreciationBudgetStatusEnded: Finalizado
 depreciationBudgetRepairTitle: Corregir el tratamiento presupuestario de la depreciación
 depreciationBudgetRepairButton: Definir o corregir la carga presupuestaria
 depreciationBudgetRepairHint: Revisa el impacto antes de aplicar. Los cambios actualizan eventos presupuestarios y no vuelven a crear el asiento de compra.
+depreciationBudgetSchedulesTitle: Tratamiento presupuestario de la depreciación
+depreciationBudgetSchedulesHint: Tratamiento presupuestario y progreso actuales de cada plan. Esta lista muestra los planes actuales aunque el balance se consulte en una fecha anterior.
+depreciationBudgetSchedulesEmpty: No hay planes de depreciación.
+depreciationBudgetSchedulesLoadError: No se pudieron cargar los planes de depreciación.
+depreciationBudgetSchedulesRetry: Reintentar
+depreciationBudgetTaskTitle: Revisar el presupuesto de depreciación
 depreciationBudgetRouteTitle: Rutas mensuales futuras
 depreciationBudgetRouteAdd: Añadir una ruta con fecha
 depreciationBudgetRouteDate: Fecha de inicio de la ruta

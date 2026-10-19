@@ -29,17 +29,17 @@ import {
 } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import type { Account, DepreciationSchedule } from "@balance-sheet/shared";
+import type { Account } from "@balance-sheet/shared";
 import { api } from "../api/client";
 import { toIntlLocale, useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
-import { formatCurrency, formatJPY } from "../lib/numberFormat";
+import { formatJPY } from "../lib/numberFormat";
 import {
   categoryIndex,
   systemAccountTranslationKey,
 } from "../lib/accountUtils";
 import type { AccountCategory, AccountType } from "@balance-sheet/shared";
-import { DepreciationBudgetRepairModal } from "../components/DepreciationBudgetRepairModal";
+import { useDepreciationBudget } from "../context/DepreciationBudgetContext";
 
 const REPORT_ID = "export-report-content";
 
@@ -96,6 +96,7 @@ export default function ExportPage() {
   const { pathname } = useLocation();
   const { t, locale } = useLang();
   const { accounts: allAccounts, journal } = useAppData();
+  const { schedules: deprSchedules } = useDepreciationBudget();
   const printStyleRef = useRef<HTMLStyleElement | null>(null);
 
   const accountDisplayName = (name: string) => {
@@ -112,11 +113,6 @@ export default function ExportPage() {
   const [bsLoading, setBsLoading] = useState(false);
   const [sqliteDownloading, setSqliteDownloading] = useState(false);
   const [reportScheme, setReportScheme] = useState<"light" | "dark">("light");
-  const [deprSchedules, setDeprSchedules] = useState<
-    DepreciationSchedule[] | null
-  >(null);
-  const [repairSchedule, setRepairSchedule] = useState<DepreciationSchedule | null>(null);
-
   useEffect(() => {
     const styleId = "report-scheme-override";
     document.getElementById(styleId)?.remove();
@@ -174,15 +170,7 @@ export default function ExportPage() {
       .finally(() => setBsLoading(false));
   }, [toStr]);
 
-  useEffect(() => {
-    api.depreciation
-      .list()
-      .then(setDeprSchedules)
-      .catch(() => setDeprSchedules([]));
-  }, []);
-
   const deprRows = useMemo(() => {
-    if (!deprSchedules) return [];
     return deprSchedules.map((s) => {
       const accumulated = s.monthly_amounts.reduce((sum, amt, i) => {
         const entryDate = s.entry_dates[i];
@@ -1096,7 +1084,6 @@ ${deprSection}
                           <Table.Th style={{ minWidth: 120 }}>
                             {t("exportDepreciationProgress")}
                           </Table.Th>
-                          <Table.Th>{t("depreciationBudgetRepairTitle")}</Table.Th>
                         </Table.Tr>
                       </Table.Thead>
                       <Table.Tbody>
@@ -1154,29 +1141,6 @@ ${deprSection}
                                 </Text>
                               </Group>
                             </Table.Td>
-                            <Table.Td>
-                              <Stack gap={4} align="flex-start">
-                                <Text size="xs" fw={600}>
-                                  {row.budget.status === "unset"
-                                    ? t("depreciationBudgetUnset")
-                                    : row.budget.status === "active"
-                                      ? t("depreciationBudgetStatusActive")
-                                      : row.budget.status === "completed"
-                                        ? t("depreciationBudgetStatusCompleted")
-                                        : t("depreciationBudgetStatusEnded")}
-                                </Text>
-                                {row.budget.method && (
-                                  <Text size="xs" c="dimmed">
-                                    {formatCurrency(row.budget.reimbursed_amount, locale, row.budget.currency)}
-                                    {" / "}
-                                    {formatCurrency(row.budget.target_amount, locale, row.budget.currency)}
-                                  </Text>
-                                )}
-                                <Button size="xs" variant="light" onClick={() => setRepairSchedule(row)}>
-                                  {t("depreciationBudgetRepairButton")}
-                                </Button>
-                              </Stack>
-                            </Table.Td>
                           </Table.Tr>
                         ))}
                       </Table.Tbody>
@@ -1187,16 +1151,6 @@ ${deprSection}
             </Stack>
           </Paper>
         </Box>
-      )}
-      {repairSchedule && (
-        <DepreciationBudgetRepairModal
-          opened={repairSchedule != null}
-          schedule={repairSchedule}
-          onClose={() => setRepairSchedule(null)}
-          onApplied={() => {
-            void api.depreciation.list().then(setDeprSchedules);
-          }}
-        />
       )}
     </Stack>
   );

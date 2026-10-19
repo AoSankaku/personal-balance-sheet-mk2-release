@@ -25,6 +25,7 @@ import { formatCurrency } from "../lib/numberFormat";
 import { balanceMapAmountForDisplayMode } from "../lib/displayCurrencyAmounts";
 import { usePrivacy } from "../context/PrivacyContext";
 import { applyPrivateAccountNames } from "../lib/privacy";
+import { DepreciationBudgetSchedulesSection } from "../components/DepreciationBudgetSchedulesSection";
 
 export default function BsPage() {
   const { t, locale } = useLang();
@@ -254,6 +255,8 @@ export default function BsPage() {
           valueFormat="YYYY-MM-DD"
         />
       </Group>
+
+      <DepreciationBudgetSchedulesSection />
 
       {historicalLoading ? (
         <Stack gap="sm">

@@ -812,11 +812,11 @@ budgetDepreciationActiveStatus: Réservation d’achat active
 budgetDepreciationResetStatus: Réservation réinitialisée · amortissement actif
 budgetDepreciationRecognizedStatus: Amortissement mensuel uniquement
 depreciationBudgetMethodTitle: Traitement budgétaire de ce plan d’amortissement
-depreciationBudgetMethodassignedLabel: "② Dépenser le budget attribué et le reconstituer chaque mois (recommandé)"
+depreciationBudgetMethodassignedLabel: "Dépenser le budget attribué et le reconstituer chaque mois (recommandé)"
 depreciationBudgetMethodassignedHint: À l’achat, le budget d’achat est débité. Chaque mois, le même montant est transféré du budget source vers le budget d’achat pour le reconstituer.
-depreciationBudgetMethodspecialLabel: "① Imputer à un budget spécial négatif et le reconstituer chaque mois"
+depreciationBudgetMethodspecialLabel: "Imputer à un budget spécial négatif et le reconstituer chaque mois"
 depreciationBudgetMethodspecialHint: À l’achat, un budget spécial lié au bien devient négatif. Chaque mois, le même montant est transféré du budget source vers ce budget spécial pour le reconstituer.
-depreciationBudgetMethodunallocatedLabel: "③ Dépenser les fonds non affectés, sans reconstitution"
+depreciationBudgetMethodunallocatedLabel: "Dépenser les fonds non affectés, sans reconstitution"
 depreciationBudgetMethodunallocatedHint: La part budgétée de l’achat est imputée aux fonds non affectés à l’achat. L’amortissement comptable continue, sans reconstitution budgétaire mensuelle.
 depreciationBudgetPurchaseCategoryLabel: Budget débité à l’achat
 depreciationBudgetMonthlySourceLabel: Budget source du transfert mensuel
@@ -824,9 +824,9 @@ depreciationBudgetSelectCategory: Sélectionnez une catégorie budgétaire
 depreciationBudgetCategoryRequired: Sélectionnez une catégorie pour continuer.
 depreciationBudgetCategoriesMustDiffer: Choisissez des catégories différentes pour l’achat et la source mensuelle.
 depreciationBudgetConfirmationRequired: Confirmez ce traitement avant l’enregistrement.
-depreciationBudgetUnallocatedWarning: "La part budgétée de l’achat est imputée immédiatement aux fonds non affectés. L’amortissement comptable continue ensuite, mais aucun transfert budgétaire mensuel ne provient des dépenses courantes ou d’autres catégories. Choisissez ① ou ② si vous souhaitez aussi un financement budgétaire mensuel."
-depreciationBudgetUnallocatedConfirm: "Je confirme le choix ③ : imputer la part budgétée de l’achat aux fonds non affectés et ne faire aucun transfert budgétaire mensuel."
-depreciationBudgetAssignedNegativeWarning: Le budget d’achat ② devrait être insuffisant et devenir négatif. Envisagez le choix ①, qui reconstitue un budget spécial chaque mois.
+depreciationBudgetUnallocatedWarning: "La part budgétée de l’achat est imputée immédiatement aux fonds non affectés. L’amortissement comptable continue ensuite, mais aucun transfert budgétaire mensuel ne provient des dépenses courantes ou d’autres catégories. Choisissez la méthode du budget attribué ou du budget spécial si vous souhaitez aussi un financement budgétaire mensuel."
+depreciationBudgetUnallocatedConfirm: "Je confirme imputer la part budgétée de l’achat aux fonds non affectés et ne faire aucun transfert budgétaire mensuel."
+depreciationBudgetAssignedNegativeWarning: Le budget d’achat devrait être insuffisant et devenir négatif. Envisagez la méthode du budget spécial, qui reconstitue un budget spécial chaque mois.
 depreciationBudgetMethodRequired: Choisissez l’effet de ce plan sur les budgets.
 depreciationBudgetUnset: Traitement budgétaire non défini
 depreciationBudgetStatusActive: Actif
@@ -835,6 +835,12 @@ depreciationBudgetStatusEnded: Clôturé
 depreciationBudgetRepairTitle: Corriger le traitement budgétaire de l’amortissement
 depreciationBudgetRepairButton: Définir ou corriger la charge budgétaire
 depreciationBudgetRepairHint: Vérifiez les effets avant l’application. Les modifications mettent à jour les événements budgétaires sans recréer l’écriture d’achat.
+depreciationBudgetSchedulesTitle: Traitement budgétaire des amortissements
+depreciationBudgetSchedulesHint: Traitement budgétaire et avancement actuels de chaque plan d’amortissement. Cette liste présente les plans actuels même si le bilan affiche une date antérieure.
+depreciationBudgetSchedulesEmpty: Aucun plan d’amortissement.
+depreciationBudgetSchedulesLoadError: Impossible de charger les plans d’amortissement.
+depreciationBudgetSchedulesRetry: Réessayer
+depreciationBudgetTaskTitle: Vérifier le budget des amortissements
 depreciationBudgetRouteTitle: Affectations mensuelles futures
 depreciationBudgetRouteAdd: Ajouter une affectation datée
 depreciationBudgetRouteDate: Date d’effet de l’affectation

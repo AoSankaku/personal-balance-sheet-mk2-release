@@ -259,7 +259,7 @@ export function BudgetAdjustForm({
                 {resetPlans.some((plan) => plan.method === "special" && plan.special_category_id === Number(categoryId)) && (
                   <Text size="xs" c="dimmed">{t("depreciationBudgetResetPlansHint")}</Text>
                 )}
-                <Button component={Link} to="/fs/report" size="xs" variant="subtle" w="fit-content">
+                <Button component={Link} to="/fs/budget" size="xs" variant="subtle" w="fit-content">
                   {t("depreciationBudgetOpenSchedules")}
                 </Button>
                 {resetPlans.map((plan) => {
@@ -327,7 +327,7 @@ export function BudgetAdjustForm({
               <Alert color="yellow">
                 <Stack gap="xs">
                   <Text size="sm">{t("depreciationBudgetArchiveResetUnavailable")}</Text>
-                  <Button component={Link} to="/fs/report" size="xs" variant="light" w="fit-content">
+                  <Button component={Link} to="/fs/budget" size="xs" variant="light" w="fit-content">
                     {t("depreciationBudgetOpenSchedules")}
                   </Button>
                 </Stack>
@@ -340,7 +340,7 @@ export function BudgetAdjustForm({
             <Stack gap="xs">
               <Text size="sm">{resetSubmitError}</Text>
               {resetNeedsRepair && (
-                <Button component={Link} to="/fs/report" size="xs" variant="light" w="fit-content">
+                <Button component={Link} to="/fs/budget" size="xs" variant="light" w="fit-content">
                   {t("depreciationBudgetOpenSchedules")}
                 </Button>
               )}

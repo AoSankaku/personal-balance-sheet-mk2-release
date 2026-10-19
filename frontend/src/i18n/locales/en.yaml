@@ -812,11 +812,11 @@ budgetDepreciationActiveStatus: Purchase reserve active
 budgetDepreciationResetStatus: Reserve reset · depreciation continues
 budgetDepreciationRecognizedStatus: Monthly depreciation only
 depreciationBudgetMethodTitle: Budget treatment for this depreciation schedule
-depreciationBudgetMethodassignedLabel: "② Spend from an assigned budget and replenish monthly (recommended)"
+depreciationBudgetMethodassignedLabel: "Spend from an assigned budget and replenish monthly (recommended)"
 depreciationBudgetMethodassignedHint: At purchase, the purchase budget is debited. Each month, the same amount transfers from the source budget to the purchase budget to replenish it.
-depreciationBudgetMethodspecialLabel: "① Charge a negative special budget and replenish monthly"
+depreciationBudgetMethodspecialLabel: "Charge a negative special budget and replenish monthly"
 depreciationBudgetMethodspecialHint: At purchase, a special budget linked to the purchase becomes negative. Each month, the same amount transfers from the source budget to the special budget to replenish it.
-depreciationBudgetMethodunallocatedLabel: "③ Spend from unallocated funds, with no replenishment"
+depreciationBudgetMethodunallocatedLabel: "Spend from unallocated funds, with no replenishment"
 depreciationBudgetMethodunallocatedHint: The budgeted portion of the purchase is charged to unallocated funds at purchase. Accounting depreciation continues, but there is no monthly budget replenishment.
 depreciationBudgetPurchaseCategoryLabel: Purchase charge budget
 depreciationBudgetMonthlySourceLabel: Monthly transfer source budget
@@ -824,9 +824,9 @@ depreciationBudgetSelectCategory: Select a budget category
 depreciationBudgetCategoryRequired: Select a category to continue.
 depreciationBudgetCategoriesMustDiffer: Choose a different category for the purchase and monthly source.
 depreciationBudgetConfirmationRequired: Confirm this treatment before saving.
-depreciationBudgetUnallocatedWarning: "The budgeted portion of the purchase is charged to unallocated funds at once. Accounting depreciation continues afterward, but there are no monthly budget transfers from living expenses or other categories. Choose ① or ② if you also want monthly budget funding."
-depreciationBudgetUnallocatedConfirm: "I confirm choice ③: charge the budgeted purchase amount to unallocated funds and make no monthly budget transfers."
-depreciationBudgetAssignedNegativeWarning: The ② purchase budget is projected to be insufficient and turn negative. Consider ①, which replenishes a special budget monthly.
+depreciationBudgetUnallocatedWarning: "The budgeted portion of the purchase is charged to unallocated funds at once. Accounting depreciation continues afterward, but there are no monthly budget transfers from living expenses or other categories. Choose the assigned or special budget method if you also want monthly budget funding."
+depreciationBudgetUnallocatedConfirm: "I confirm using unallocated funds to cover the budgeted purchase amount without monthly budget transfers."
+depreciationBudgetAssignedNegativeWarning: The purchase budget is projected to be insufficient and turn negative. Consider the special budget method, which replenishes a special budget monthly.
 depreciationBudgetMethodRequired: Choose how this schedule should affect budgets.
 depreciationBudgetUnset: Budget treatment not set
 depreciationBudgetStatusActive: Active
@@ -835,6 +835,12 @@ depreciationBudgetStatusEnded: Ended
 depreciationBudgetRepairTitle: Repair depreciation budget treatment
 depreciationBudgetRepairButton: Set or repair budget treatment
 depreciationBudgetRepairHint: Review the impact before applying. Changes update budget events and do not recreate the purchase entry.
+depreciationBudgetSchedulesTitle: Depreciation budget treatment
+depreciationBudgetSchedulesHint: Current budget treatment and progress for each depreciation plan. This list shows current plans even when the balance sheet is viewed as of an earlier date.
+depreciationBudgetSchedulesEmpty: No depreciation schedules.
+depreciationBudgetSchedulesLoadError: Could not load depreciation schedules.
+depreciationBudgetSchedulesRetry: Retry
+depreciationBudgetTaskTitle: Depreciation budget review
 depreciationBudgetRouteTitle: Future monthly routing
 depreciationBudgetRouteAdd: Add a dated route
 depreciationBudgetRouteDate: Route effective date

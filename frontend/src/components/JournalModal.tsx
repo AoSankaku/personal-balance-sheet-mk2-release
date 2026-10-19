@@ -12,10 +12,9 @@ import {
   isShortTermBorrowingCategory,
   isLongTermBorrowingCategory,
 } from "@balance-sheet/shared";
-import { api } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
-import { DepreciationBudgetRepairModal } from "./DepreciationBudgetRepairModal";
+import { useDepreciationBudget } from "../context/DepreciationBudgetContext";
 import {
   SimpleEntryForm,
   type HouseholdForm,
@@ -395,11 +394,13 @@ export function JournalModal({
 }: Props) {
   const { t } = useLang();
   const { budgetCategories, budgetFilters, budgetSettings } = useAppData();
+  const { schedules: depreciationSchedules, openRepair } =
+    useDepreciationBudget();
+  const depreciationSchedule = depreciationSchedules.find(
+    (schedule) => schedule.id === editEntry?.depreciation_schedule_id,
+  ) ?? null;
   const [activeTab, setActiveTab] = useState<string>("simple");
-  const [depreciationSchedule, setDepreciationSchedule] =
-    useState<DepreciationSchedule | null>(null);
   const [convertWarnOpen, setConvertWarnOpen] = useState(false);
-  const [depreciationBudgetRepairOpened, setDepreciationBudgetRepairOpened] = useState(false);
 
   const { simpleInitDraft, nonConvertibleReason } = useMemo(() => {
     if (!opened || !editEntry) {
@@ -578,49 +579,9 @@ export function JournalModal({
   }, [opened, editEntry?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadDepreciationSchedule() {
-      if (
-        !opened ||
-        !editEntry ||
-        editEntry.depreciation_entry_kind !== "source" ||
-        editEntry.depreciation_schedule_id == null
-      ) {
-        setDepreciationSchedule(null);
-        return;
-      }
-
-      try {
-        const schedules = await api.depreciation.list();
-        if (cancelled) return;
-        setDepreciationSchedule(
-          schedules.find(
-            (schedule) => schedule.id === editEntry.depreciation_schedule_id,
-          ) ?? null,
-        );
-      } catch {
-        if (!cancelled) setDepreciationSchedule(null);
-      }
-    }
-
-    void loadDepreciationSchedule();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    opened,
-    editEntry?.id,
-    editEntry?.depreciation_entry_kind,
-    editEntry?.depreciation_schedule_id,
-  ]);
-
-  useEffect(() => {
     if (!opened) {
       setActiveTab("simple");
-      setDepreciationSchedule(null);
       setConvertWarnOpen(false);
-      setDepreciationBudgetRepairOpened(false);
       return;
     }
 
@@ -644,7 +605,6 @@ export function JournalModal({
   function handleClose() {
     setActiveTab("simple");
     setConvertWarnOpen(false);
-    setDepreciationBudgetRepairOpened(false);
     onClose();
   }
 
@@ -673,7 +633,11 @@ export function JournalModal({
                     ? t("depreciationBudgetStatusCompleted")
                     : t("depreciationBudgetStatusEnded")}
             </Text>
-            <Button size="xs" variant="light" onClick={() => setDepreciationBudgetRepairOpened(true)}>
+            <Button
+              size="xs"
+              variant="light"
+              onClick={() => openRepair(depreciationSchedule.id)}
+            >
               {t("depreciationBudgetRepairButton")}
             </Button>
           </Group>
@@ -762,20 +726,6 @@ export function JournalModal({
           </Group>
         </Stack>
       </Modal>
-      {depreciationSchedule && (
-        <DepreciationBudgetRepairModal
-          opened={depreciationBudgetRepairOpened}
-          schedule={depreciationSchedule}
-          onClose={() => setDepreciationBudgetRepairOpened(false)}
-          onApplied={() => {
-            void api.depreciation.list().then((schedules) => {
-              setDepreciationSchedule(
-                schedules.find((schedule) => schedule.id === depreciationSchedule.id) ?? null,
-              );
-            });
-          }}
-        />
-      )}
     </Modal>
   );
 }
