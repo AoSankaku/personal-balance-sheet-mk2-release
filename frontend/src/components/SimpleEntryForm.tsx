@@ -85,6 +85,7 @@ import {
   buildIncomeBudgetSubmissionFields,
   canAllocateIncomeBudget,
 } from "../lib/incomeBudgetScope";
+import { buildInterestIncomeDefault } from "../lib/interestIncome";
 
 type EntryType =
   | "expense"
@@ -178,6 +179,7 @@ export interface SimpleFormDraft {
   showZeroCategories: boolean;
   incomeDist?: { budget_category_id: number; name: string; amount: number }[];
   incomeTransferDestinations?: Record<number, number | null>;
+  interestDefaultActive?: boolean;
   isRegularIncome?: boolean;
   selectedFilterId?: string | null;
   filterStepPreview?: StepPreview[];
@@ -359,6 +361,10 @@ export function SimpleEntryForm({
   const [incomeDist, setIncomeDist] = useState<
     { budget_category_id: number; name: string; amount: number }[]
   >(initialDraft?.incomeDist ?? []);
+  const [interestDefaultActive, setInterestDefaultActive] = useState(
+    initialDraft?.interestDefaultActive ?? (!isEditing && initialDraft?.incomeDist === undefined),
+  );
+  const interestIncomeRule = budgetSettings?.interest_income_rule;
   const [
     incomeTransferDestination,
     setIncomeTransferDestination,
@@ -800,6 +806,7 @@ export function SimpleEntryForm({
       showZeroCategories,
       incomeDist,
       incomeTransferDestinations: incomeTransferDestination,
+      interestDefaultActive,
       isRegularIncome,
       selectedFilterId,
       filterStepPreview,
@@ -825,6 +832,7 @@ export function SimpleEntryForm({
     showZeroCategories,
     incomeDist,
     incomeTransferDestination,
+    interestDefaultActive,
     isRegularIncome,
     selectedFilterId,
     filterStepPreview,
@@ -1736,6 +1744,20 @@ export function SimpleEntryForm({
     const accountId = v ? Number(v) : null;
     const account = accounts.find((a) => a.id === accountId);
     form.setFieldValue("incomeTypeId", accountId);
+    const interestDefault = buildInterestIncomeDefault({
+      rule: interestIncomeRule,
+      incomeAccountId: accountId,
+      amount: form.values.amount,
+      categories: budgetCategories,
+    });
+    setInterestDefaultActive(interestDefault != null);
+    if (interestDefault) {
+      setIsRegularIncome(false);
+      setSelectedFilterId(null);
+      setFilterStepPreview([]);
+      setIncomeDist(interestDefault);
+      dirtyIncomeDistCategoryIds.current.clear();
+    }
 
     const generated = getIncomeDescriptionForSubmit("", account);
     const currentDescription = form.values.description;
@@ -1835,6 +1857,7 @@ export function SimpleEntryForm({
   }
 
   function handleIncomeDistChange(catId: number, newAmt: number) {
+    setInterestDefaultActive(false);
     const amount = Math.max(0, Math.round(Number(newAmt) || 0));
     if (!showManualIncomeDist) {
       const defaultAmount = filterStepPreview.reduce((sum, step) => {
@@ -1870,11 +1893,13 @@ export function SimpleEntryForm({
   }
 
   function handleRegularIncomeChange(next: boolean) {
+    setInterestDefaultActive(false);
     setIsRegularIncome(next);
     if (!next) dirtyIncomeDistCategoryIds.current.clear();
   }
 
   function handleSelectedFilterIdChange(next: string | null) {
+    setInterestDefaultActive(false);
     dirtyIncomeDistCategoryIds.current.clear();
     setSelectedFilterId(next);
   }
@@ -1913,6 +1938,29 @@ export function SimpleEntryForm({
   );
   const canAllocateIncome = canAllocateIncomeBudget(incomeDepositAccount);
   const canReceiveIncomeTransfer = isBudgetAsset(incomeDepositAccount);
+  const hasInterestIncomeDefault = buildInterestIncomeDefault({
+    rule: interestIncomeRule,
+    incomeAccountId: form.values.incomeTypeId,
+    amount: form.values.amount,
+    categories: budgetCategories,
+  }) != null;
+  useEffect(() => {
+    if (
+      entryType !== "income" || !canAllocateIncome ||
+      !interestDefaultActive || isRegularIncome || selectedFilterId
+    ) return;
+    const rows = buildInterestIncomeDefault({
+      rule: interestIncomeRule,
+      incomeAccountId: form.values.incomeTypeId,
+      amount: form.values.amount,
+      categories: budgetCategories,
+    });
+    if (rows) setIncomeDist(rows);
+  }, [
+    entryType, canAllocateIncome, interestDefaultActive, isRegularIncome,
+    selectedFilterId, interestIncomeRule, form.values.incomeTypeId,
+    form.values.amount, budgetCategories,
+  ]);
   useEffect(() => {
     if (accounts.length === 0 || entryType !== "income" || canAllocateIncome) {
       return;
@@ -2350,6 +2398,17 @@ export function SimpleEntryForm({
             handleIncomeTypeChange={handleIncomeTypeChange}
             canAllocateIncome={canAllocateIncome}
             onIncomeDepositChange={handleIncomeDepositChange}
+            hasInterestIncomeDefault={hasInterestIncomeDefault}
+            interestDefaultActive={interestDefaultActive && !isRegularIncome && !selectedFilterId}
+            onInterestDefaultChange={(active) => {
+              setInterestDefaultActive(active);
+              if (active) {
+                setIsRegularIncome(false);
+                setSelectedFilterId(null);
+                setFilterStepPreview([]);
+                dirtyIncomeDistCategoryIds.current.clear();
+              }
+            }}
             />
             {incomeTransferNeeds.length > 0 && (
               <Stack gap="xs">

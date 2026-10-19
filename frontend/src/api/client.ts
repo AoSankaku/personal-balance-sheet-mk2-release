@@ -25,6 +25,7 @@ import type {
   CreateBudgetFilterInput,
   BudgetAdjustmentLog,
   BudgetSettings,
+  InterestIncomeRule,
   CreditCardSettings,
   CreateCreditCardSettingsInput,
   CreditCardStatementCompletion,
@@ -577,6 +578,7 @@ export const api = {
       business_advance_account_id?: number | null;
       business_loss_account_id?: number | null;
       business_advance_budget_category_id?: number | null;
+      interest_income_rule?: InterestIncomeRule | null;
     }) =>
       mutationRequest<BudgetSettings>("/budget/settings", {
         method: "PATCH",

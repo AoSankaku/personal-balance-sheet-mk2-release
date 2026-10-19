@@ -28,6 +28,7 @@ import type {
   BudgetCategorySummary,
   BudgetSummary,
   BudgetFilter,
+  InterestIncomeRule,
 } from "@balance-sheet/shared";
 import {
   applyBudgetBalanceCaps,
@@ -85,6 +86,21 @@ function normalizeCalendarWeekStart(value: unknown): 0 | 1 | 2 | 3 | 4 | 5 | 6 {
     value <= 6
     ? (value as 0 | 1 | 2 | 3 | 4 | 5 | 6)
     : 0;
+}
+
+function parseSavedInterestIncomeRule(
+  serialized: string | null | undefined,
+): InterestIncomeRule | null {
+  if (!serialized) return null;
+  try {
+    return JSON.parse(serialized) as InterestIncomeRule;
+  } catch {
+    return null;
+  }
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 async function loadMoneyScaleOptions(
@@ -777,6 +793,9 @@ router.get("/settings", async (c) => {
     business_loss_account_id: row?.business_loss_account_id ?? null,
     business_advance_budget_category_id:
       row?.business_advance_budget_category_id ?? null,
+    interest_income_rule: parseSavedInterestIncomeRule(
+      row?.interest_income_rule,
+    ),
   });
 });
 
@@ -790,6 +809,7 @@ router.patch("/settings", async (c) => {
     business_advance_account_id?: number | null;
     business_loss_account_id?: number | null;
     business_advance_budget_category_id?: number | null;
+    interest_income_rule?: InterestIncomeRule | null;
   }>();
 
   const db = createDb(c.env);
@@ -800,6 +820,94 @@ router.patch("/settings", async (c) => {
   const currentFilterIds: number[] = current?.preferred_filter_ids
     ? (JSON.parse(current.preferred_filter_ids) as number[])
     : [];
+  let newInterestIncomeRule = parseSavedInterestIncomeRule(
+    current?.interest_income_rule,
+  );
+
+  if ("interest_income_rule" in body) {
+    const inputRule: unknown = body.interest_income_rule;
+    if (inputRule === null) {
+      newInterestIncomeRule = null;
+    } else {
+      if (
+        !isObjectRecord(inputRule) ||
+        typeof inputRule.income_account_id !== "number" ||
+        !Number.isSafeInteger(inputRule.income_account_id) ||
+        inputRule.income_account_id <= 0 ||
+        typeof inputRule.budget_category_id !== "number" ||
+        !Number.isSafeInteger(inputRule.budget_category_id) ||
+        inputRule.budget_category_id <= 0 ||
+        !isObjectRecord(inputRule.transfer_thresholds)
+      ) {
+        return c.json({ error: "interest_income_rule is invalid" }, 400);
+      }
+
+      const [incomeAccount] = await db
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(
+          and(
+            eq(accounts.id, inputRule.income_account_id),
+            eq(accounts.type, "income"),
+          ),
+        );
+      if (!incomeAccount) {
+        return c.json(
+          { error: "interest_income_rule income_account_id must reference an income account" },
+          400,
+        );
+      }
+
+      const [budgetCategory] = await db
+        .select({ id: budgetCategories.id })
+        .from(budgetCategories)
+        .where(eq(budgetCategories.id, inputRule.budget_category_id));
+      if (!budgetCategory) {
+        return c.json(
+          { error: "interest_income_rule budget_category_id must reference an existing budget category" },
+          400,
+        );
+      }
+
+      const scaleOptions = await loadMoneyScaleOptions(db);
+      const enabledDecimalPlaces = scaleOptions.decimalPlacesByCurrency ?? {};
+      const transferThresholds: Record<string, number> = {};
+      for (const [currencyInput, amount] of Object.entries(
+        inputRule.transfer_thresholds,
+      )) {
+        const currency = currencyInput.toUpperCase();
+        const decimalPlaces = enabledDecimalPlaces[currency];
+        if (
+          !currency ||
+          decimalPlaces === undefined ||
+          Object.hasOwn(transferThresholds, currency) ||
+          typeof amount !== "number" ||
+          !Number.isFinite(amount) ||
+          amount < 0
+        ) {
+          return c.json(
+            { error: "interest_income_rule transfer_thresholds must use enabled currencies and nonnegative amounts" },
+            400,
+          );
+        }
+        try {
+          toStorageMoneyAmount(amount, currency, scaleOptions);
+        } catch {
+          return c.json(
+            { error: `interest_income_rule threshold for ${currency} exceeds its supported precision` },
+            400,
+          );
+        }
+        transferThresholds[currency] = amount;
+      }
+
+      newInterestIncomeRule = {
+        income_account_id: inputRule.income_account_id,
+        budget_category_id: inputRule.budget_category_id,
+        transfer_thresholds: transferThresholds,
+      };
+    }
+  }
 
   let newIds = currentIds;
   if ("preferred_payment_account_ids" in body) {
@@ -877,6 +985,9 @@ router.patch("/settings", async (c) => {
       business_advance_account_id: newAdvanceAccountId,
       business_loss_account_id: newLossAccountId,
       business_advance_budget_category_id: newAdvanceBudgetCategoryId,
+      interest_income_rule: newInterestIncomeRule
+        ? JSON.stringify(newInterestIncomeRule)
+        : null,
     })
     .onConflictDoUpdate({
       target: budgetSettings.id,
@@ -888,6 +999,9 @@ router.patch("/settings", async (c) => {
         business_advance_account_id: newAdvanceAccountId,
         business_loss_account_id: newLossAccountId,
         business_advance_budget_category_id: newAdvanceBudgetCategoryId,
+        interest_income_rule: newInterestIncomeRule
+          ? JSON.stringify(newInterestIncomeRule)
+          : null,
       },
     });
 
@@ -899,6 +1013,7 @@ router.patch("/settings", async (c) => {
     business_advance_account_id: newAdvanceAccountId,
     business_loss_account_id: newLossAccountId,
     business_advance_budget_category_id: newAdvanceBudgetCategoryId,
+    interest_income_rule: newInterestIncomeRule,
   });
 });
 

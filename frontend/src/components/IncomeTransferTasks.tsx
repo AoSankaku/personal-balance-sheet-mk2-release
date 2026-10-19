@@ -32,6 +32,7 @@ import {
   summarizeBudgetFunding,
 } from "../lib/allocatableBudget";
 import { ConfirmModal } from "./ConfirmModal";
+import { partitionInterestIncomeTransfers } from "../lib/interestIncome";
 
 type TransferCandidate = JournalEntry & {
   has_budget_adjustment_logs: boolean;
@@ -54,6 +55,8 @@ export function IncomeTransferTasks({
   const { t, locale } = useLang();
   const {
     accounts,
+    journal,
+    budgetSettings,
     budgetSummary,
     budgetSummaryTotal,
     displayCurrency,
@@ -81,6 +84,9 @@ export function IncomeTransferTasks({
   const [squashConfirmation, setSquashConfirmation] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
+  const { actionable, deferred } = useMemo(() => partitionInterestIncomeTransfers({
+    groups, journal, accounts, rule: budgetSettings?.interest_income_rule,
+  }), [groups, journal, accounts, budgetSettings?.interest_income_rule]);
 
   const squashPlacementImpact = useMemo(() => {
     if (!squashPreview) return null;
@@ -260,6 +266,62 @@ export function IncomeTransferTasks({
     );
   }
 
+  const renderPendingGroup = (group: IncomeTransferRequirementGroup) => (
+    <Group
+      key={group.key}
+      justify="space-between"
+      align="center"
+      wrap="wrap"
+    >
+      <Stack gap={2}>
+        <Text size="sm" fw={600}>
+          {group.requirements[0]?.source_income_description ?? "-"}
+        </Text>
+        <Group gap="xs">
+          <Badge variant="light">
+            {group.requirements[0]?.from_account_name} →{" "}
+            {group.requirements[0]?.to_account_name}
+          </Badge>
+          <Text size="sm">
+            {formatCurrency(group.amount, locale, group.currency)}
+          </Text>
+          <Text size="xs" c="dimmed">
+            {group.requirements
+              .map((requirement) => requirement.budget_category_name)
+              .join(" / ")}
+          </Text>
+        </Group>
+      </Stack>
+      <Group gap="xs">
+        <Button
+          size="xs"
+          variant="default"
+          loading={loading}
+          onClick={() => void openCandidates(group)}
+        >
+          {t("incomeTransferFindExisting")}
+        </Button>
+        <Button
+          size="xs"
+          loading={loading}
+          onClick={() =>
+            void run(() =>
+              api.incomeTransferRequirements.complete(
+                group.requirement_ids[0]!,
+                t("incomeTransferJournalDescription").replace(
+                  "{description}",
+                  group.requirements[0]?.source_income_description ?? "-",
+                ),
+              ),
+            )
+          }
+        >
+          {t("incomeTransferComplete")}
+        </Button>
+      </Group>
+    </Group>
+  );
+
   if (
     !initialLoading &&
     !showEmpty &&
@@ -313,6 +375,7 @@ export function IncomeTransferTasks({
                         String(squashPreview.squashed_transfer_count),
                       )}
                   </Text>
+                  {deferred.length > 0 && <Text size="sm" c="dimmed">{t("interestIncomeSquashHint")}</Text>}
                   {squashPreview.transfers.length === 0 ? (
                     <Text size="sm" fw={600}>
                       {t("incomeTransferSquashNoTransfer")}
@@ -402,61 +465,20 @@ export function IncomeTransferTasks({
                 </Stack>
               </Paper>
             )}
-          {groups.map((group) => (
-            <Group
-              key={group.key}
-              justify="space-between"
-              align="center"
-              wrap="wrap"
-            >
-              <Stack gap={2}>
-                <Text size="sm" fw={600}>
-                  {group.requirements[0]?.source_income_description ?? "-"}
-                </Text>
-                <Group gap="xs">
-                  <Badge variant="light">
-                    {group.requirements[0]?.from_account_name} →{" "}
-                    {group.requirements[0]?.to_account_name}
-                  </Badge>
-                  <Text size="sm">
-                    {formatCurrency(group.amount, locale, group.currency)}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    {group.requirements
-                      .map((requirement) => requirement.budget_category_name)
-                      .join(" / ")}
-                  </Text>
-                </Group>
-              </Stack>
-              <Group gap="xs">
-                <Button
-                  size="xs"
-                  variant="default"
-                  loading={loading}
-                  onClick={() => void openCandidates(group)}
-                >
-                  {t("incomeTransferFindExisting")}
-                </Button>
-                <Button
-                  size="xs"
-                  loading={loading}
-                  onClick={() =>
-                    void run(() =>
-                      api.incomeTransferRequirements.complete(
-                        group.requirement_ids[0]!,
-                        t("incomeTransferJournalDescription").replace(
-                          "{description}",
-                          group.requirements[0]?.source_income_description ?? "-",
-                        ),
-                      ),
-                    )
-                  }
-                >
-                  {t("incomeTransferComplete")}
-                </Button>
-              </Group>
-            </Group>
-          ))}
+          {actionable.map(renderPendingGroup)}
+          {deferred.length > 0 && (
+            <Accordion variant="contained" radius="md">
+              <Accordion.Item value="deferred-interest">
+                <Accordion.Control>{t("interestIncomeDeferredTitle").replace("{count}", String(deferred.length))}</Accordion.Control>
+                <Accordion.Panel>
+                  <Stack gap="sm">
+                    <Text size="sm" c="dimmed">{t("interestIncomeDeferredHint")}</Text>
+                    {deferred.map(renderPendingGroup)}
+                  </Stack>
+                </Accordion.Panel>
+              </Accordion.Item>
+            </Accordion>
+          )}
           {completedGroups.length > 0 && (
             <Accordion defaultValue={null} variant="contained" radius="md">
               <Accordion.Item value="completed">

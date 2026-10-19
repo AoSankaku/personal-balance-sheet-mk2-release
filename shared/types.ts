@@ -654,6 +654,13 @@ export interface BudgetAdjustmentLog {
 
 export type CalendarWeekStart = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
+export interface InterestIncomeRule {
+  income_account_id: number;
+  budget_category_id: number;
+  /** Per-currency amount below which the related transfer task stays deferred. */
+  transfer_thresholds: Record<string, number>;
+}
+
 export interface BudgetSettings {
   /** Ordered list of preferred payment account IDs (up to 5). First = default. */
   preferred_payment_account_ids: number[];
@@ -669,6 +676,8 @@ export interface BudgetSettings {
   business_loss_account_id?: number | null;
   /** Budget category to deduct business advance amounts from (事業立替金の予算元) */
   business_advance_budget_category_id?: number | null;
+  /** Optional default allocation and deferred transfer policy for interest income. */
+  interest_income_rule?: InterestIncomeRule | null;
 }
 
 export type PlannedExpenseKind =

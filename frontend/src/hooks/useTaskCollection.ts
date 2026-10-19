@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { partitionInterestIncomeTransfers } from "../lib/interestIncome";
 import {
   isShortTermBorrowingCategory,
   isShortTermLendingCategory,
@@ -49,6 +50,7 @@ export interface TaskCollection {
   creditCardImportTasks: CreditCardImportTask[];
   creditCardWithdrawalRiskTasks: CreditCardWithdrawalRiskTask[];
   incomeTransferTasks: IncomeTransferRequirementGroup[];
+  deferredIncomeTransferTasks: IncomeTransferRequirementGroup[];
   negativeAccountTasks: AppTask[];
   overdueLoanTasks: OverdueLoanTask[];
   paydayTasks: AppTask[];
@@ -208,8 +210,8 @@ function useTrialBalanceTask(): TrialBalanceTask | null {
   });
 }
 
-function useIncomeTransferTasks(): IncomeTransferRequirementGroup[] {
-  const { journal } = useAppData();
+function useIncomeTransferTasks() {
+  const { journal, accounts, budgetSettings } = useAppData();
   const [groups, setGroups] = useState<IncomeTransferRequirementGroup[]>([]);
 
   useEffect(() => {
@@ -227,7 +229,9 @@ function useIncomeTransferTasks(): IncomeTransferRequirementGroup[] {
     };
   }, [journal]);
 
-  return groups;
+  return useMemo(() => partitionInterestIncomeTransfers({
+    groups, journal, accounts, rule: budgetSettings?.interest_income_rule,
+  }), [groups, journal, accounts, budgetSettings?.interest_income_rule]);
 }
 
 export function formatTaskMonth(yearMonth: string, locale: string): string {
@@ -246,7 +250,7 @@ export function useTaskCollection(): TaskCollection {
   const creditCardImportTasks = useCreditCardImportTasks();
   const creditCardWithdrawalRiskTasks = useCreditCardWithdrawalRiskTasks();
   const trialBalanceTask = useTrialBalanceTask();
-  const incomeTransferTasks = useIncomeTransferTasks();
+  const { actionable: incomeTransferTasks, deferred: deferredIncomeTransferTasks } = useIncomeTransferTasks();
   const { schedules: depreciationSchedules } = useDepreciationBudget();
   const depreciationBudgetTasks = getDepreciationBudgetTaskSchedules(
     depreciationSchedules,
@@ -272,6 +276,7 @@ export function useTaskCollection(): TaskCollection {
     creditCardImportTasks,
     creditCardWithdrawalRiskTasks,
     incomeTransferTasks,
+    deferredIncomeTransferTasks,
     negativeAccountTasks,
     overdueLoanTasks,
     paydayTasks,

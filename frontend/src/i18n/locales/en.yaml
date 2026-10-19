@@ -375,6 +375,19 @@ rolloverMonthsUnit: months
 rolloverMonthsDesc: Max months to carry over unused budget (1–24)
 budgetSettingsTitle: Budget Settings
 budgetSettingsSaved: Budget settings saved
+interestIncomeSettingsTitle: Interest Income Budgeting
+interestIncomeSettingsDescription: Choose the income account used for interest. Income entered with that account will preselect the chosen budget category. Transfers stay out of regular tasks until the total for the same source account, target account, and currency reaches the threshold. You can still change the allocation when entering income.
+interestIncomeAccountLabel: Income account for interest
+interestIncomeBudgetLabel: Default budget category
+interestIncomeThresholdLabel: Transfer total to show in regular tasks
+interestIncomeThresholdHint: Interest transfers with the same source account, target account, and currency are summed. A total below this amount stays pending but is hidden from regular tasks. Set it to 0 to show all such tasks.
+interestIncomeRuleStatusEnabled: Configured
+interestIncomeRuleStatusDisabled: Not configured
+interestIncomeSave: Save interest settings
+interestIncomeDisable: Clear settings
+interestIncomeSaved: Interest settings saved
+interestIncomeRuleDisabled: Interest settings cleared
+interestIncomeSaveFailed: Could not save interest settings
 budgetHistoryJournalTab: Recent Transactions
 budgetHistoryBudgetTab: Budget History
 tabBalanceSheet: B/S
@@ -1110,7 +1123,7 @@ ttCsvLastRecordedChip: "CSV last {date}"
 ttCsvLastRecordedLabel: "Last transaction date included in the previous CSV import: {date}"
 ttIncomeTransferPendingChip: "Transfer pending {count}"
 ttIncomeTransferWarningTitle: Account transfers are still pending
-ttIncomeTransferWarningHint: Complete the account transfer tasks before continuing the trial balance so that book and actual balances can be compared accurately.
+ttIncomeTransferWarningHint: "Account transfers are pending. Placement differences include deferred transfers; review them alongside the transfer tasks."
 ttDeviationSnapshotDate: Snapshot date
 ttDeviationAccount: Account
 ttDeviationBookValue: Book value
@@ -1626,3 +1639,9 @@ depreciationBudgetSourceDestinationMustDiffer: "A source category cannot also be
 depreciationBudgetPlanTooLarge: "This monthly transfer plan is too large to save safely. Reduce the number of monthly source categories or shorten the transfer period."
 depreciationPreviewSummary: "First month: {first} · total: {total}"
 depreciationBudgetExpenseAccountContext: "Expense account: {account}"
+
+interestIncomeApplyDefault: "Use the interest allocation default"
+interestIncomeDefaultHint: "Allocate the full input amount to the configured budget. Editing an allocation amount turns this default off."
+interestIncomeDeferredTitle: "Deferred interest transfers ({count})"
+interestIncomeDeferredHint: "The income is already allocated to the budget. Small account transfers can wait and be combined later. Actual balances and placement differences still include these pending transfers."
+interestIncomeSquashHint: "Deferred interest is included in this consolidation. Complete it after making the actual account transfers."

@@ -490,6 +490,8 @@ export const budgetSettings = sqliteTable("budget_settings", {
   business_advance_budget_category_id: integer(
     "business_advance_budget_category_id",
   ).references(() => budgetCategories.id),
+  // JSON-encoded interest income allocation and deferred transfer rule.
+  interest_income_rule: text("interest_income_rule"),
 });
 
 export const taskSettings = sqliteTable(

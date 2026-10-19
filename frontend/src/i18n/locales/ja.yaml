@@ -375,6 +375,19 @@ rolloverMonthsUnit: ヶ月
 rolloverMonthsDesc: 未使用予算を引き継ぐ最大月数（1〜24ヶ月）
 budgetSettingsTitle: 予算の設定
 budgetSettingsSaved: 予算設定を保存しました
+interestIncomeSettingsTitle: 利息収入の予算配賦
+interestIncomeSettingsDescription: 利息用の収入科目を指定します。その科目で入力した収入は、指定した予算科目が初期配賦先になります。入金口座・配賦先口座・通貨ごとの振替合計がしきい値に達するまで、通常タスクへの表示を保留します。入力時に配賦先は変更できます。
+interestIncomeAccountLabel: 利息収入に使う収入科目
+interestIncomeBudgetLabel: 初期配賦先の予算科目
+interestIncomeThresholdLabel: 通常タスクに表示する振替合計額
+interestIncomeThresholdHint: 同じ入金口座・配賦先口座・通貨の利息振替を合算します。合計がこの金額未満の間は通常タスクに表示されませんが、未完了タスクとして保留されます。0にすると通常タスクに表示します。
+interestIncomeRuleStatusEnabled: 設定済み
+interestIncomeRuleStatusDisabled: 未設定
+interestIncomeSave: 利息の設定を保存
+interestIncomeDisable: 設定を解除
+interestIncomeSaved: 利息の設定を保存しました
+interestIncomeRuleDisabled: 利息の設定を解除しました
+interestIncomeSaveFailed: 利息の設定を保存できませんでした
 budgetHistoryJournalTab: 最近の仕訳
 budgetHistoryBudgetTab: 予算増減履歴
 tabBalanceSheet: 貸借対照表
@@ -1110,7 +1123,7 @@ ttCsvLastRecordedChip: "CSV最終 {date}"
 ttCsvLastRecordedLabel: "前回のCSVインポートに含まれる最終取引日: {date}"
 ttIncomeTransferPendingChip: "口座移動待ち {count}件"
 ttIncomeTransferWarningTitle: 未完了の口座移動があります
-ttIncomeTransferWarningHint: 正確に比較するため、試算を続ける前に口座移動タスクを完了してください。
+ttIncomeTransferWarningHint: "未完了の口座移動があります。配置差額には保留分も含まれるため、口座移動タスクと合わせて確認してください。"
 ttDeviationSnapshotDate: 基準日
 ttDeviationAccount: 勘定科目
 ttDeviationBookValue: 簿価
@@ -1626,3 +1639,9 @@ depreciationBudgetSourceDestinationMustDiffer: "振替元と振替先には同�
 depreciationBudgetPlanTooLarge: "月次振替計画が大きすぎるため安全に保存できません。月次振替元のカテゴリ数を減らすか、振替期間を短くしてください。"
 depreciationPreviewSummary: "初月：{first} · 合計：{total}"
 depreciationBudgetExpenseAccountContext: "費用科目：{account}"
+
+interestIncomeApplyDefault: "利息の既定配賦を使う"
+interestIncomeDefaultHint: "入力額の全額を設定した予算へ配賦します。配賦額を手動で変更すると、この自動配賦は解除されます。"
+interestIncomeDeferredTitle: "利息の配置調整待ち（{count}件）"
+interestIncomeDeferredHint: "予算への配賦は済んでいます。少額の口座移動を保留し、後からまとめて調整できます。実際の口座残高と配置差額には保留分も反映されています。"
+interestIncomeSquashHint: "保留中の利息も含めて合算します。実際の口座振替を行ってから完了してください。"

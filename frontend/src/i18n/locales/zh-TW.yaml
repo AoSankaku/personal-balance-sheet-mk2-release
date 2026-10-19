@@ -375,6 +375,19 @@ rolloverMonthsUnit: 個月
 rolloverMonthsDesc: 未使用預算可結轉的最大月數（1-24）
 budgetSettingsTitle: 預算設定
 budgetSettingsSaved: 預算設定已儲存
+interestIncomeSettingsTitle: 利息收入預算分配
+interestIncomeSettingsDescription: 請選擇用於利息的收入科目。使用該科目輸入收入時，系統會預選所選預算類別。同一來源帳戶、目標帳戶與幣別的轉帳合計達到門檻後，才會顯示在一般任務中。輸入收入時仍可更改分配類別。
+interestIncomeAccountLabel: 利息收入科目
+interestIncomeBudgetLabel: 預設預算類別
+interestIncomeThresholdLabel: 一般任務中顯示的轉帳合計金額
+interestIncomeThresholdHint: 同一來源帳戶、目標帳戶與幣別的利息轉帳會合併計算。合計低於此金額時仍保留為待處理任務，但不會顯示在一般任務中。設為 0 時顯示所有此類任務。
+interestIncomeRuleStatusEnabled: 已設定
+interestIncomeRuleStatusDisabled: 未設定
+interestIncomeSave: 儲存利息設定
+interestIncomeDisable: 清除設定
+interestIncomeSaved: 利息設定已儲存
+interestIncomeRuleDisabled: 已清除利息設定
+interestIncomeSaveFailed: 無法儲存利息設定
 budgetHistoryJournalTab: 最近交易
 budgetHistoryBudgetTab: 預算歷史
 tabBalanceSheet: 資產負債表
@@ -1110,7 +1123,7 @@ ttCsvLastRecordedChip: "CSV最後 {date}"
 ttCsvLastRecordedLabel: "上次CSV匯入中包含的最後交易日期：{date}"
 ttIncomeTransferPendingChip: "帳戶轉帳待處理 {count}"
 ttIncomeTransferWarningTitle: 仍有未完成的帳戶轉帳
-ttIncomeTransferWarningHint: 為準確比較帳面餘額和實際餘額，請先完成帳戶轉帳任務再繼續試算。
+ttIncomeTransferWarningHint: "存在待處理的帳戶轉帳。配置差額包含暫緩的轉帳，請結合轉帳任務一起確認。"
 ttDeviationSnapshotDate: 快照日期
 ttDeviationAccount: 帳戶
 ttDeviationBookValue: 帳面價值
@@ -1626,3 +1639,9 @@ depreciationBudgetSourceDestinationMustDiffer: "轉帳來源類別不能同時�
 depreciationBudgetPlanTooLarge: "此分期轉帳計畫過大，無法安全儲存。請減少每月來源類別數量或縮短分期轉帳期間。"
 depreciationPreviewSummary: "首月：{first} · 合計：{total}"
 depreciationBudgetExpenseAccountContext: "費用科目：{account}"
+
+interestIncomeApplyDefault: "使用利息預設分配"
+interestIncomeDefaultHint: "將輸入金額全額分配至設定的預算。手動修改分配金額後，將關閉自動分配。"
+interestIncomeDeferredTitle: "利息待調整轉帳（{count}項）"
+interestIncomeDeferredHint: "收入已分配至預算。小額轉帳可以暫緩，之後合併處理。實際帳戶餘額和資金配置差額仍包含這些待處理轉帳。"
+interestIncomeSquashHint: "合併包含暫緩的利息轉帳。請完成實際帳戶轉帳後再確認。"
