@@ -161,13 +161,39 @@ macOS/Linux:
 export D1_DATABASE_ID="<your-d1-database-id>"
 ```
 
-Apply migrations:
+After creating and verifying the required production snapshot described below, apply migrations:
 
 ```sh
 bun run --cwd worker db:migrate:remote
 ```
 
 This repository uses Wrangler D1 migrations stored under `worker/drizzle/`. Wrangler records applied migration filenames, so an applied migration file must never be edited. Schema changes must be added as a new numbered SQL file. Do not rely on `db:generate`; required SQL is maintained manually.
+
+### Required production DB snapshots
+
+Before every production DB migration, save a full SQL snapshot containing both schema and data. Store each snapshot in a new directory under the Git-ignored `backups/`, named with the Japan-time timestamp and source revision. Keep snapshots, database IDs, and any exported financial data or credentials out of Git.
+
+With `D1_DATABASE_ID` configured, run from the repository root in PowerShell:
+
+```powershell
+$snapshotStamp = [DateTime]::UtcNow.AddHours(9).ToString("yyyyMMdd-HHmmss")
+$snapshotRevision = git rev-parse --short HEAD
+if ($LASTEXITCODE -ne 0) { throw "Cannot determine the snapshot source revision." }
+$snapshotDirectory = Join-Path (Get-Location) "backups/$snapshotStamp-$snapshotRevision"
+New-Item -ItemType Directory -Path $snapshotDirectory -ErrorAction Stop | Out-Null
+$snapshotFile = Join-Path $snapshotDirectory "before-migration.sql"
+bun run --cwd worker wrangler:remote d1 export balance-sheet-db --remote --output $snapshotFile
+if ($LASTEXITCODE -ne 0) { throw "Snapshot export failed; do not migrate." }
+if ((Get-Item -LiteralPath $snapshotFile -ErrorAction Stop).Length -eq 0) {
+    throw "Snapshot is empty; do not migrate."
+}
+(Get-FileHash -LiteralPath $snapshotFile -Algorithm SHA256).Hash |
+    Set-Content -LiteralPath (Join-Path $snapshotDirectory "before-migration.sha256") -Encoding utf8
+```
+
+Do not use schema-only, data-only, or table-filtered exports for this snapshot. Verify restoration into a new disposable local database and check the restored schema, migration history, and application table counts. Proceed only after the export and restoration check succeed.
+
+Record the snapshot path, SHA-256 checksum, target source revision, currently deployed application revision/version, verification result, and pre-migration Time Travel bookmark in a local receipt alongside the snapshot. Preserve the application version compatible with that schema for rollback. The snapshot is a retained recovery source; importing it directly over the migrated schema is not a rollback procedure.
 
 ### Backing up and restoring with D1 Time Travel
 
@@ -185,7 +211,7 @@ Immediately before applying a production migration, retrieve the current bookmar
 bun run --cwd worker wrangler:remote -- d1 time-travel info balance-sheet-db
 ```
 
-This bookmark identifies the database state before the update. It remains usable only during the Time Travel retention window. For a backup that must be retained longer, also create and securely store a D1 export.
+This bookmark identifies the database state before the update. It remains usable only during the Time Travel retention window. Save it in addition to the required SQL snapshot; it does not replace the snapshot or its restoration verification.
 
 To restore the database, first stop deployments and prevent application writes. Restoration overwrites the database in place and cancels in-flight queries and transactions. Restore using the saved bookmark:
 
@@ -211,10 +237,10 @@ A restore also returns the schema and `d1_migrations` table to that point in tim
 
 Apply the production migration before deploying Worker code that depends on the new schema. The recommended manual update sequence is:
 
-1. Record the current D1 Time Travel bookmark as described above. Also create a D1 export if a longer-lived backup is required.
-2. Retrieve the target version and install its locked dependencies.
-3. Apply its pending migrations to local D1 and build the frontend.
-4. Set `D1_DATABASE_ID` as described above, verify the Worker build, and apply the pending migrations to production D1.
+1. Retrieve the target version and install its locked dependencies.
+2. Apply its pending migrations to local D1 and build the frontend.
+3. Set `D1_DATABASE_ID` as described above and verify the Worker build.
+4. Export and verify the required full production snapshot, then record the current D1 Time Travel bookmark immediately before applying the pending migrations to production D1.
 5. Deploy the new Worker only after the remote migration succeeds.
 
 ```sh
@@ -225,6 +251,8 @@ bun run build:frontend
 
 # Set D1_DATABASE_ID in the current shell before running these commands.
 bun run build:worker
+# Create and verify the full production snapshot using the procedure above,
+# then save the current Time Travel bookmark before applying migrations.
 bun run --cwd worker db:migrate:remote
 
 # Run only after the remote migration succeeds.

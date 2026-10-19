@@ -13,7 +13,11 @@ import {
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { IconAlertTriangle } from "@tabler/icons-react";
-import type { Account, BudgetSettings } from "@balance-sheet/shared";
+import type {
+  Account,
+  BudgetSettings,
+  DepreciationBudgetSettings,
+} from "@balance-sheet/shared";
 import { useLang } from "../../i18n";
 import { useAppData } from "../../context/AppDataContext";
 import { renderAccountOption, type AccountOption } from "../../lib/accountSelect";
@@ -26,6 +30,7 @@ import {
   type BudgetDistributionItem,
   type HouseholdForm,
 } from "../SimpleEntryForm";
+import { DepreciationBudgetFields } from "../DepreciationBudgetFields";
 
 type SelectData = AccountOption | { group: string; items: AccountOption[] };
 
@@ -67,6 +72,12 @@ interface Props {
   setDepreciationMonthlyAmount: React.Dispatch<
     React.SetStateAction<number | string>
   >;
+  depreciationBudgetSettings: DepreciationBudgetSettings | null;
+  setDepreciationBudgetSettings: React.Dispatch<
+    React.SetStateAction<DepreciationBudgetSettings | null>
+  >;
+  depreciationPurchaseAmount: number;
+  isEditing: boolean;
   onDepreciationSubmit?: ((...args: never[]) => unknown) | null;
   handleExpenseAccountChange: (v: string | null) => void;
   handleRatioChange: (
@@ -111,6 +122,10 @@ export function ExpenseSection({
   setDepreciationMonths,
   depreciationMonthlyAmount,
   setDepreciationMonthlyAmount,
+  depreciationBudgetSettings,
+  setDepreciationBudgetSettings,
+  depreciationPurchaseAmount,
+  isEditing,
   onDepreciationSubmit,
   handleExpenseAccountChange,
   handleRatioChange,
@@ -244,6 +259,13 @@ export function ExpenseSection({
                 return `${t("depreciationPreview")}: ¥${base.toLocaleString()} × ${months}${t("depreciationMonthUnit")} = ¥${total.toLocaleString()}`;
               })()}
             </Text>
+          )}
+          {!isEditing && (
+            <DepreciationBudgetFields
+              value={depreciationBudgetSettings}
+              onChange={setDepreciationBudgetSettings}
+              purchaseAmount={depreciationPurchaseAmount}
+            />
           )}
         </>
       )}

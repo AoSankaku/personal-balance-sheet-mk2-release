@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 /** Runs real migration SQL and D1 queries against an isolated SQLite database. */
-export function createTestD1() {
+export function createTestD1(options: { maxParameters?: number } = {}) {
   const sqlite = new Database(":memory:");
   sqlite.exec("PRAGMA foreign_keys = ON");
   const migrationDirectory = join(import.meta.dir, "../../drizzle");
@@ -14,6 +14,9 @@ export function createTestD1() {
   class Statement {
     constructor(readonly query: string, readonly parameters: unknown[] = []) {}
     bind(...parameters: unknown[]) {
+      if (options.maxParameters !== undefined && parameters.length > options.maxParameters) {
+        throw new Error(`D1 parameter limit exceeded: ${parameters.length} > ${options.maxParameters}`);
+      }
       return new Statement(this.query, parameters);
     }
     execute() {

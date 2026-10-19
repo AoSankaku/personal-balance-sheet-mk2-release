@@ -35,6 +35,7 @@ import type {
 } from "@balance-sheet/shared";
 import type { StoreAccountMapping } from "@balance-sheet/shared";
 import { api } from "../api/client";
+import { buildExpenseBudgetAllocations } from "../lib/simpleEntryUtils";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { type SimpleFormDraft } from "./SimpleEntryForm";
@@ -588,12 +589,7 @@ export function CsvImportTab({
   ): { budget_category_id: number; amount: number }[] {
     const acc = accounts.find((a) => a.id === counterAccId);
     if (!acc || acc.type !== "expense" || !acc.budget_ratios?.length) return [];
-    return acc.budget_ratios
-      .filter((r) => r.ratio > 0)
-      .map((r) => ({
-        budget_category_id: r.budget_category_id,
-        amount: sign * Math.round(amount * (r.ratio / 100)),
-      }));
+    return buildExpenseBudgetAllocations(amount, acc.budget_ratios, sign);
   }
 
   const handleImportClick = useCallback(() => {

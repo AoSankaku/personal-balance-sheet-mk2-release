@@ -12,6 +12,7 @@ import {
   budgetFilterStepAllocations,
   budgetFilters,
   budgetSettings,
+  depreciationBudgetRevisions,
   enabledCurrencies,
   exchangeCredentials,
   journalEntries,
@@ -156,6 +157,8 @@ router.post("/erase", async (c) => {
           "business_advance_budget_category_id",
         ]);
         // Order: children before parents for tables without cascade
+        // Ordinary plan deletion retains its audit; an explicit erase-all must not.
+        await db.delete(depreciationBudgetRevisions);
         await db.delete(journalEntries); // cascades journal_lines, journal_entry_budget_allocations, budget_adjustment_logs (with journal_entry_id)
         await db.delete(budgetAdjustmentLogs); // remaining manual adjustments
         await db.delete(budgetFilterStepAllocations); // no cascade from budget_categories

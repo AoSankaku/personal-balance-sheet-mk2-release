@@ -15,6 +15,7 @@ import {
 import { api } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
+import { DepreciationBudgetRepairModal } from "./DepreciationBudgetRepairModal";
 import {
   SimpleEntryForm,
   type HouseholdForm,
@@ -398,6 +399,7 @@ export function JournalModal({
   const [depreciationSchedule, setDepreciationSchedule] =
     useState<DepreciationSchedule | null>(null);
   const [convertWarnOpen, setConvertWarnOpen] = useState(false);
+  const [depreciationBudgetRepairOpened, setDepreciationBudgetRepairOpened] = useState(false);
 
   const { simpleInitDraft, nonConvertibleReason } = useMemo(() => {
     if (!opened || !editEntry) {
@@ -618,6 +620,7 @@ export function JournalModal({
       setActiveTab("simple");
       setDepreciationSchedule(null);
       setConvertWarnOpen(false);
+      setDepreciationBudgetRepairOpened(false);
       return;
     }
 
@@ -641,6 +644,7 @@ export function JournalModal({
   function handleClose() {
     setActiveTab("simple");
     setConvertWarnOpen(false);
+    setDepreciationBudgetRepairOpened(false);
     onClose();
   }
 
@@ -655,6 +659,24 @@ export function JournalModal({
       {editEntry?.depreciation_entry_kind === "monthly" && (
         <Alert color="yellow" mb="md" icon={<IconAlertTriangle size={16} />}>
           {t("depreciationEntryEditWarning")}
+        </Alert>
+      )}
+      {editEntry?.depreciation_entry_kind === "source" && depreciationSchedule && (
+        <Alert color={depreciationSchedule.budget.status === "unset" ? "yellow" : "blue"} mb="md">
+          <Group justify="space-between" align="center">
+            <Text size="sm">
+              {depreciationSchedule.budget.status === "unset"
+                ? t("depreciationBudgetUnset")
+                : depreciationSchedule.budget.status === "active"
+                  ? t("depreciationBudgetStatusActive")
+                  : depreciationSchedule.budget.status === "completed"
+                    ? t("depreciationBudgetStatusCompleted")
+                    : t("depreciationBudgetStatusEnded")}
+            </Text>
+            <Button size="xs" variant="light" onClick={() => setDepreciationBudgetRepairOpened(true)}>
+              {t("depreciationBudgetRepairButton")}
+            </Button>
+          </Group>
         </Alert>
       )}
 
@@ -740,6 +762,20 @@ export function JournalModal({
           </Group>
         </Stack>
       </Modal>
+      {depreciationSchedule && (
+        <DepreciationBudgetRepairModal
+          opened={depreciationBudgetRepairOpened}
+          schedule={depreciationSchedule}
+          onClose={() => setDepreciationBudgetRepairOpened(false)}
+          onApplied={() => {
+            void api.depreciation.list().then((schedules) => {
+              setDepreciationSchedule(
+                schedules.find((schedule) => schedule.id === depreciationSchedule.id) ?? null,
+              );
+            });
+          }}
+        />
+      )}
     </Modal>
   );
 }

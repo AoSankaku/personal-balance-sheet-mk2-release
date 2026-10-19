@@ -23,13 +23,14 @@ import {
   type CreateDepreciationInput,
   type CreateJournalInput,
   type UpdateDepreciationInput,
+  type DepreciationBudgetSettings,
   type UnsettledLoanEntry,
   isAnyLendingCategory,
   isShortTermLoanCategory,
   isLongTermBorrowingCategory,
   isBusinessAdvanceCategory,
 } from "@balance-sheet/shared";
-import { isBudgetAsset } from "../../../shared/budgetScope";
+import { isBudgetAccount, isBudgetAsset } from "../../../shared/budgetScope";
 import {
   buildExpenseBudgetAllocations,
   computeBudgetDistributionAmounts,
@@ -72,6 +73,7 @@ import {
   calculateMultiLineBudgetFundingImpact,
   splitByLargestRemainder,
 } from "../lib/multiLineBudgetFunding";
+import { getDepreciationBudgetFormErrors } from "../lib/depreciationBudgetForm";
 
 type EntryType =
   | "expense"
@@ -204,7 +206,14 @@ export interface SimpleFormDraft {
     inputMode: "months" | "monthly_amount";
     months: number | string;
     monthlyAmount: number | string;
+    budgetSettings?: DepreciationBudgetSettings | null;
+    idempotencyKey?: string;
   };
+}
+
+function createDepreciationIdempotencyKey() {
+  return globalThis.crypto?.randomUUID?.() ??
+    `depreciation-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function resolveIncomeTransferAccounts(input: {
@@ -432,6 +441,15 @@ export function SimpleEntryForm({
   const [depreciationMonthlyAmount, setDepreciationMonthlyAmount] = useState<
     number | string
   >(initialDraft?.depreciation?.monthlyAmount ?? "");
+  const [depreciationBudgetSettings, setDepreciationBudgetSettings] =
+    useState<DepreciationBudgetSettings | null>(
+      initialDraft?.depreciation?.budgetSettings ?? null,
+    );
+  const [depreciationIdempotencyKey, setDepreciationIdempotencyKey] =
+    useState(
+      initialDraft?.depreciation?.idempotencyKey ??
+        createDepreciationIdempotencyKey(),
+    );
   const depreciationEnabledRef = useRef(false);
   depreciationEnabledRef.current = depreciationEnabled;
 
@@ -778,6 +796,14 @@ export function SimpleEntryForm({
     setDepreciationInputMode(initialDraft.depreciation.inputMode);
     setDepreciationMonths(initialDraft.depreciation.months);
     setDepreciationMonthlyAmount(initialDraft.depreciation.monthlyAmount);
+    setDepreciationBudgetSettings(
+      initialDraft.depreciation.budgetSettings ?? null,
+    );
+    if (initialDraft.depreciation.idempotencyKey) {
+      setDepreciationIdempotencyKey(
+        initialDraft.depreciation.idempotencyKey,
+      );
+    }
   }, [initialDraft]);
 
   useEffect(() => {
@@ -802,6 +828,8 @@ export function SimpleEntryForm({
         inputMode: depreciationInputMode,
         months: depreciationMonths,
         monthlyAmount: depreciationMonthlyAmount,
+        budgetSettings: depreciationBudgetSettings,
+        idempotencyKey: depreciationIdempotencyKey,
       },
     });
   }, [
@@ -821,6 +849,8 @@ export function SimpleEntryForm({
     depreciationInputMode,
     depreciationMonths,
     depreciationMonthlyAmount,
+    depreciationBudgetSettings,
+    depreciationIdempotencyKey,
     initialDraft?.depreciation?.scheduleId,
     loanCounterBudgetDist,
     loanFundingCategoryAmounts,
@@ -871,6 +901,42 @@ export function SimpleEntryForm({
   ]);
 
   async function doSubmit(values: HouseholdForm) {
+    const createsDepreciationSchedule =
+      !isEditing &&
+      depreciationEnabled &&
+      (values.entryType === "expense" ||
+        (values.entryType === "business_advance" &&
+          values.amount -
+            Math.round(
+              (values.amount * (values.businessRatio ?? 100)) / 100,
+            ) >
+            0));
+    if (createsDepreciationSchedule) {
+      if (!depreciationBudgetSettings?.method) {
+        throw new Error(t("depreciationBudgetMethodRequired"));
+      }
+      const budgetErrors = getDepreciationBudgetFormErrors({
+        method: depreciationBudgetSettings.method,
+        purchaseCategoryId:
+          depreciationBudgetSettings.purchase_category_id,
+        monthlySourceCategoryId:
+          depreciationBudgetSettings.monthly_source_category_id,
+        confirmUnallocated:
+          depreciationBudgetSettings.confirm_unallocated,
+      });
+      if (budgetErrors.purchaseCategory) {
+        throw new Error(t("depreciationBudgetCategoryRequired"));
+      }
+      if (budgetErrors.monthlySourceCategory === "must_differ") {
+        throw new Error(t("depreciationBudgetCategoriesMustDiffer"));
+      }
+      if (budgetErrors.monthlySourceCategory === "required") {
+        throw new Error(t("depreciationBudgetCategoryRequired"));
+      }
+      if (budgetErrors.confirmUnallocated) {
+        throw new Error(t("depreciationBudgetConfirmationRequired"));
+      }
+    }
     const transactionDate = dayjs(values.date).format("YYYY-MM-DD");
     const incomeAccount =
       values.entryType === "income"
@@ -952,7 +1018,12 @@ export function SimpleEntryForm({
         );
       } else {
         await onDepreciationSubmit?.(
-          depreciationInput satisfies CreateDepreciationInput,
+          {
+            ...depreciationInput,
+            currency: selectedCurrency,
+            budget_settings: depreciationBudgetSettings!,
+            idempotency_key: depreciationIdempotencyKey,
+          } satisfies CreateDepreciationInput,
         );
       }
       if (!isEditing) {
@@ -961,6 +1032,8 @@ export function SimpleEntryForm({
         setDepreciationExpenseAccountId(null);
         setDepreciationMonths(12);
         setDepreciationMonthlyAmount("");
+        setDepreciationBudgetSettings(null);
+        setDepreciationIdempotencyKey(createDepreciationIdempotencyKey());
         form.reset();
         if (defaultPaymentAccount) {
           form.setFieldValue("expensePaidFromId", defaultPaymentAccount.id);
@@ -993,27 +1066,7 @@ export function SimpleEntryForm({
                   personalAmount / (Number(depreciationMonthlyAmount) || 1),
                 ),
               );
-        // Journal: DR businessAdvance (businessAmount) + DR assetAccount (personalAmount) / CR payment (total)
-        await onSubmit({
-          date,
-          description: values.description,
-          lines: [
-            { account_id: advanceAccountId, debit: businessAmount, credit: 0 },
-            {
-              account_id: depreciationAssetAccountId,
-              debit: personalAmount,
-              credit: 0,
-            },
-            {
-              account_id: paymentAccountId,
-              debit: 0,
-              credit: totalAmount,
-              ...paymentOffset,
-            },
-          ],
-          budget_source: "simple",
-        });
-        // Depreciation schedule for the personal portion only
+        // Save the compound purchase and its personal depreciation plan atomically.
         await onDepreciationSubmit?.({
           purchase_date: date,
           description: values.description,
@@ -1022,6 +1075,14 @@ export function SimpleEntryForm({
           expense_account_id: depreciationExpenseAccountId,
           total_amount: personalAmount,
           months,
+          currency: selectedCurrency,
+          budget_settings: depreciationBudgetSettings!,
+          idempotency_key: depreciationIdempotencyKey,
+          purchase_lines: [
+            { account_id: advanceAccountId, debit: businessAmount, credit: 0, currency: selectedCurrency },
+            { account_id: depreciationAssetAccountId, debit: personalAmount, credit: 0, currency: selectedCurrency },
+            { account_id: paymentAccountId, debit: 0, credit: totalAmount, currency: selectedCurrency, ...paymentOffset },
+          ],
         } satisfies CreateDepreciationInput);
       } else if (businessAmount > 0 && personalAmount > 0) {
         // Split entry: DR advance + DR expense / CR payment
@@ -1123,6 +1184,8 @@ export function SimpleEntryForm({
         setDepreciationMonths(12);
         setDepreciationMonthlyAmount("");
         setBudgetDist([]);
+        setDepreciationBudgetSettings(null);
+        setDepreciationIdempotencyKey(createDepreciationIdempotencyKey());
         form.reset();
         if (defaultPaymentAccount) {
           form.setFieldValue("expensePaidFromId", defaultPaymentAccount.id);
@@ -2150,6 +2213,14 @@ export function SimpleEntryForm({
               setDepreciationMonths={setDepreciationMonths}
               depreciationMonthlyAmount={depreciationMonthlyAmount}
               setDepreciationMonthlyAmount={setDepreciationMonthlyAmount}
+              depreciationBudgetSettings={depreciationBudgetSettings}
+              setDepreciationBudgetSettings={setDepreciationBudgetSettings}
+              depreciationPurchaseAmount={
+                !isBudgetAccount(selectedPaymentAccount) ? 0 : entryType === "business_advance"
+                  ? personalAmount
+                  : form.values.amount
+              }
+              isEditing={isEditing}
               onDepreciationSubmit={onDepreciationSubmit}
               handleExpenseAccountChange={handleExpenseAccountChange}
               handleRatioChange={handleRatioChange}

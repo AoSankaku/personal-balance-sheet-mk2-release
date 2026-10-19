@@ -811,6 +811,106 @@ budgetDepreciationReferenceBadge: Vista de referencia
 budgetDepreciationActiveStatus: Reserva de compra activa
 budgetDepreciationResetStatus: Reserva reiniciada · depreciación activa
 budgetDepreciationRecognizedStatus: Solo depreciación mensual
+depreciationBudgetMethodTitle: Tratamiento presupuestario de este plan de depreciación
+depreciationBudgetMethodassignedLabel: "② Gastar del presupuesto asignado y reponerlo cada mes (recomendado)"
+depreciationBudgetMethodassignedHint: Al comprar, se debita el presupuesto de compra. Cada mes se transfiere el mismo importe del presupuesto de origen al presupuesto de compra para reponerlo.
+depreciationBudgetMethodspecialLabel: "① Cargar a un presupuesto especial negativo y reponerlo cada mes"
+depreciationBudgetMethodspecialHint: Al comprar, un presupuesto especial vinculado a la compra queda en negativo. Cada mes se transfiere el mismo importe del presupuesto de origen al presupuesto especial para reponerlo.
+depreciationBudgetMethodunallocatedLabel: "③ Gastar de fondos sin asignar, sin reposición"
+depreciationBudgetMethodunallocatedHint: La parte presupuestada de la compra se carga a fondos sin asignar al comprar. La depreciación contable continúa, pero no hay reposición presupuestaria mensual.
+depreciationBudgetPurchaseCategoryLabel: Presupuesto que cubre la compra
+depreciationBudgetMonthlySourceLabel: Presupuesto de origen de la transferencia mensual
+depreciationBudgetSelectCategory: Selecciona una categoría presupuestaria
+depreciationBudgetCategoryRequired: Selecciona una categoría para continuar.
+depreciationBudgetCategoriesMustDiffer: Elige categorías distintas para la compra y el origen mensual.
+depreciationBudgetConfirmationRequired: Confirma este tratamiento antes de guardar.
+depreciationBudgetUnallocatedWarning: "La parte presupuestada de la compra se carga de una vez a fondos sin asignar. La depreciación contable continúa después, pero no habrá transferencias presupuestarias mensuales desde gastos de vida u otras categorías. Elige ① o ② si también quieres financiación presupuestaria mensual."
+depreciationBudgetUnallocatedConfirm: "Confirmo la opción ③: cargar la parte presupuestada de la compra a fondos sin asignar y no realizar transferencias presupuestarias mensuales."
+depreciationBudgetAssignedNegativeWarning: Se prevé que el presupuesto de compra ② sea insuficiente y quede en negativo. Considera la opción ①, que repone un presupuesto especial cada mes.
+depreciationBudgetMethodRequired: Elige cómo debe afectar este plan a los presupuestos.
+depreciationBudgetUnset: Tratamiento presupuestario sin definir
+depreciationBudgetStatusActive: Activo
+depreciationBudgetStatusCompleted: Completado
+depreciationBudgetStatusEnded: Finalizado
+depreciationBudgetRepairTitle: Corregir el tratamiento presupuestario de la depreciación
+depreciationBudgetRepairButton: Definir o corregir la carga presupuestaria
+depreciationBudgetRepairHint: Revisa el impacto antes de aplicar. Los cambios actualizan eventos presupuestarios y no vuelven a crear el asiento de compra.
+depreciationBudgetRouteTitle: Rutas mensuales futuras
+depreciationBudgetRouteAdd: Añadir una ruta con fecha
+depreciationBudgetRouteDate: Fecha de inicio de la ruta
+depreciationBudgetDestinationCategory: Categoría de destino
+depreciationBudgetSettlementTitle: Liquidaciones
+depreciationBudgetSettlementAdd: Añadir una liquidación
+depreciationBudgetSettlementAmount: Importe de liquidación
+depreciationBudgetSettlementDate: Fecha de liquidación
+depreciationBudgetSettlementSource: Origen de la liquidación
+depreciationBudgetUnallocatedSource: Fondos sin asignar (U)
+depreciationBudgetEndDate: Detener la financiación presupuestaria después de
+depreciationBudgetPreviewButton: Vista previa de los cambios
+depreciationBudgetPreviewTitle: Vista previa antes y después
+depreciationBudgetPreviewStale: La configuración cambió. Vuelve a generar la vista previa antes de aplicar.
+depreciationBudgetPreviewFailed: No se pudo crear la vista previa. Revisa la configuración e inténtalo de nuevo.
+depreciationBudgetPreviewNotApplicable: Resuelve las decisiones de reinicio indicadas y vuelve a generar la vista previa.
+depreciationBudgetApplyButton: Aplicar los cambios de la vista previa
+depreciationBudgetApplyConfirmTitle: ¿Aplicar los cambios del presupuesto de depreciación?
+depreciationBudgetApplyConfirmMessage: ¿Aplicar los cambios presupuestarios mostrados? No se volverá a crear el asiento de compra.
+depreciationBudgetApplied: Se actualizó el tratamiento presupuestario de la depreciación.
+depreciationBudgetProgressTitle: Progreso presupuestario
+depreciationBudgetTargetLabel: Importe por reponer
+depreciationBudgetReimbursedLabel: Repuesto
+depreciationBudgetRemainingLabel: Restante
+depreciationBudgetFutureLabel: Importe futuro
+depreciationBudgetBoundaryTitle: Decisiones de reinicio presupuestario
+depreciationBudgetBoundaryOldReset: Importe antes del reinicio
+depreciationBudgetBoundaryNewReset: Importe después del reinicio
+depreciationBudgetBoundaryDecision: Decisión para este reinicio
+depreciationBudgetBoundaryOrder: Orden de procesamiento
+depreciationBudgetDecisionContinue: Continuar el plan
+depreciationBudgetDecisionEnd: Finalizar el plan
+depreciationBudgetDecisionCarry: Arrastrar el saldo de la categoría especial
+depreciationBudgetDecisionSettle: Liquidar el importe restante
+depreciationBudgetDecisionOrderBefore: Registrar la depreciación antes del reinicio
+depreciationBudgetDecisionOrderAfter: Registrar la depreciación después del reinicio
+depreciationBudgetScopeConfirmationHint: Las partidas existentes no permiten determinar de forma única el alcance del reinicio. Elige el alcance que se reinició realmente.
+depreciationBudgetScopeConfirmationLabel: Alcance del reinicio
+depreciationBudgetScopeUnconfirmed: Alcance sin confirmar
+depreciationBudgetScopeCategory: Solo esta categoría
+depreciationBudgetScopeAll: Todas las categorías
+depreciationBudgetPreviewEventsTitle: Cambios en eventos presupuestarios
+depreciationBudgetPreviewNoEvents: No cambiarán eventos presupuestarios.
+depreciationBudgetEventPurchase: Compra
+depreciationBudgetEventMonthly: Transferencia presupuestaria mensual
+depreciationBudgetEventSettlement: Liquidación
+depreciationBudgetEventRouting: Traspaso de la asignación presupuestaria
+depreciationBudgetEventCarry: Arrastre del saldo negativo del presupuesto especial
+depreciationBudgetTimelineBefore: Antes
+depreciationBudgetTimelineAfter: Después
+depreciationBudgetTimelinePurchase: En la compra
+depreciationBudgetTimelineReset: En el reinicio
+depreciationBudgetTimelineCurrent: Actual
+depreciationBudgetTimelineTimestamp: Hora
+depreciationBudgetTimelineResetId: Registro de reinicio
+depreciationBudgetRelatedBalances: Saldos de categorías relacionadas (Bᵢ)
+depreciationBudgetAmbiguousLegacyWarning: Algunas partidas de depreciación existentes no se pueden asociar a una asignación presupuestaria única. Revisa sus asignaciones y resuelve la ambigüedad antes de aplicar los cambios.
+depreciationBudgetTotalLabel: Total (T)
+depreciationBudgetUnallocatedLabel: Sin asignar (U)
+depreciationBudgetCategoriesLabel: Saldo de categorías (B)
+depreciationBudgetAllocatableLabel: Asignable
+depreciationBudgetArchiveBlockedTitle: Categoría usada por presupuestos de depreciación
+depreciationBudgetArchiveBlockedMessage: Corrige los planes afectados y cambia sus rutas futuras a otra categoría antes de archivarla.
+depreciationBudgetOpenSchedules: Abrir planes de depreciación
+depreciationBudgetResetPlansTitle: Presupuestos de depreciación afectados por este reinicio
+depreciationBudgetResetPlansHint: Elige qué ocurre con cada plan. Los saldos de categorías especiales se arrastran de forma predeterminada y permanecen intactos.
+depreciationBudgetResetPlansError: No se pudieron cargar las decisiones de reinicio. Vuelve a cargar la vista previa antes de guardar.
+depreciationBudgetResetPlanStale: Cambió la categoría o la fecha. Recalcula el importe del reinicio para volver a cargar los planes afectados antes de guardar.
+depreciationBudgetResetDecisionRequired: Elige una decisión para cada plan afectado.
+depreciationBudgetResetCarryHint: Arrastrar el saldo conserva el de la categoría especial y omite su reinicio.
+depreciationBudgetResetSettlementSource: Categoría o fondos sin asignar para liquidar
+depreciationBudgetArchiveResetUnavailable: Un plan activo todavía usa esta categoría para rutas futuras. Corrige primero esas rutas.
+depreciationBudgetOperationAdd: Añadido
+depreciationBudgetOperationChange: Modificado
+depreciationBudgetOperationCancel: Cancelado
+depreciationBudgetRemoveChange: Quitar
 budgetReferenceAllocationBadge: Desglose presupuestario (referencia)
 budgetReferenceEntriesTitle: Gasto de referencia con efectivo no rastreado
 budgetReferenceEntriesHint: "{count} registros por {amount}. Su efecto sigue los límites de reinicio y fecha de referencia."

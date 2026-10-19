@@ -33,6 +33,7 @@ import type {
   CreateJournalInput,
 } from "@balance-sheet/shared";
 import { api } from "../api/client";
+import { buildExpenseBudgetAllocations } from "../lib/simpleEntryUtils";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { showFeedback } from "../lib/feedback";
@@ -263,13 +264,10 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
         const expAccId = Number(r.expenseAccountId);
         const amount = r.qty * r.price;
         const expAcc = accounts.find((a) => a.id === expAccId);
-        const budget_allocations =
-          expAcc?.budget_ratios
-            ?.filter((br) => br.ratio > 0)
-            .map((br) => ({
-              budget_category_id: br.budget_category_id,
-              amount: -Math.round(amount * (br.ratio / 100)),
-            })) ?? [];
+        const budget_allocations = buildExpenseBudgetAllocations(
+          amount,
+          expAcc?.budget_ratios ?? [],
+        );
         entries.push({
           date: dayjs(r.date).format("YYYY-MM-DD"),
           description: r.itemName || t("bulkExpenseDefaultExpenseDesc"),

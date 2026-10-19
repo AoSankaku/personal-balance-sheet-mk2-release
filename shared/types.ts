@@ -626,6 +626,9 @@ export interface CreateBudgetFilterInput {
 }
 
 export interface BudgetAdjustmentLog {
+  /** Managed records are corrected through their depreciation plan as a pair. */
+  depreciation_schedule_id?: number | null;
+  depreciation_event_key?: string | null;
   id: number;
   budget_category_id: number;
   budget_category_name: string | null;
@@ -1076,6 +1079,7 @@ export interface DepreciationSchedule {
   monthly_amounts: number[];
   /** Dates for each monthly entry [date1, date2, ..., dateN] */
   entry_dates: string[];
+  budget: DepreciationBudgetProgress;
 }
 
 export interface CreateDepreciationInput {
@@ -1086,6 +1090,11 @@ export interface CreateDepreciationInput {
   expense_account_id: number;
   total_amount: number;
   months: number;
+  currency?: string;
+  /** Optional complete balanced purchase journal for compound/business-advance purchases. */
+  purchase_lines?: CreateJournalLineInput[];
+  budget_settings?: DepreciationBudgetSettings;
+  idempotency_key?: string;
 }
 
 export interface UpdateDepreciationInput {
@@ -1096,6 +1105,11 @@ export interface UpdateDepreciationInput {
   asset_account_id?: number;
   expense_account_id?: number;
   payment_account_id?: number;
+  currency?: string;
+  /** A complete replacement purchase journal; required when editing compound source entries. */
+  purchase_lines?: CreateJournalLineInput[];
+  budget_settings?: DepreciationBudgetSettings;
+  idempotency_key?: string;
 }
 
 export interface DepreciationReportEntry {
@@ -1473,3 +1487,24 @@ export interface LongTermLoanComparisonRow {
   /** journal entry IDs that contributed to this month's actual amounts */
   actual_journal_entry_ids: number[];
 }
+import type {
+  DepreciationBudgetProgress,
+  DepreciationBudgetSettings,
+} from "./depreciationBudget";
+
+export type {
+  ApplyDepreciationBudgetInput,
+  DepreciationBudgetBoundary,
+  DepreciationBudgetEvent,
+  DepreciationBudgetMethod,
+  DepreciationBudgetProgress,
+  DepreciationBudgetResetDecision,
+  DepreciationBudgetRoutingChange,
+  DepreciationBudgetSettings,
+  DepreciationBudgetSnapshot,
+  DepreciationBudgetStatus,
+  DepreciationBudgetSettlement,
+  DepreciationBudgetPreview,
+  DepreciationResetInputDecision,
+  DepreciationResetPlan,
+} from "./depreciationBudget";

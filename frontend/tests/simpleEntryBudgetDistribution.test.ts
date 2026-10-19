@@ -10,6 +10,32 @@ import {
 } from "../src/lib/simpleEntryUtils";
 
 describe("simple entry budget distribution", () => {
+  test.each([
+    [965, 483, 482],
+    [429, 215, 214],
+  ])("preserves the submitted total for a %i yen split", (total, first, second) => {
+    expect(buildExpenseBudgetAllocations(total, [
+      { budget_category_id: 2, ratio: 50 },
+      { budget_category_id: 3, ratio: 50 },
+    ])).toEqual([
+      { budget_category_id: 2, amount: -first },
+      { budget_category_id: 3, amount: -second },
+    ]);
+  });
+
+  test.each([
+    [965, 483, 482],
+    [429, 215, 214],
+  ])("preserves the submitted total for a %i yen refund", (total, first, second) => {
+    expect(buildExpenseBudgetAllocations(total, [
+      { budget_category_id: 2, ratio: 50 },
+      { budget_category_id: 3, ratio: 50 },
+    ], 1)).toEqual([
+      { budget_category_id: 2, amount: first },
+      { budget_category_id: 3, amount: second },
+    ]);
+  });
+
   test("splits odd yen amounts without creating or dropping yen", () => {
     const amounts = computeBudgetDistributionAmounts(319, [
       { budget_category_id: 1, ratio: 50 },

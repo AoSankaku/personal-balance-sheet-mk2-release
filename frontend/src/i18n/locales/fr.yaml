@@ -811,6 +811,106 @@ budgetDepreciationReferenceBadge: Vue de référence
 budgetDepreciationActiveStatus: Réservation d’achat active
 budgetDepreciationResetStatus: Réservation réinitialisée · amortissement actif
 budgetDepreciationRecognizedStatus: Amortissement mensuel uniquement
+depreciationBudgetMethodTitle: Traitement budgétaire de ce plan d’amortissement
+depreciationBudgetMethodassignedLabel: "② Dépenser le budget attribué et le reconstituer chaque mois (recommandé)"
+depreciationBudgetMethodassignedHint: À l’achat, le budget d’achat est débité. Chaque mois, le même montant est transféré du budget source vers le budget d’achat pour le reconstituer.
+depreciationBudgetMethodspecialLabel: "① Imputer à un budget spécial négatif et le reconstituer chaque mois"
+depreciationBudgetMethodspecialHint: À l’achat, un budget spécial lié au bien devient négatif. Chaque mois, le même montant est transféré du budget source vers ce budget spécial pour le reconstituer.
+depreciationBudgetMethodunallocatedLabel: "③ Dépenser les fonds non affectés, sans reconstitution"
+depreciationBudgetMethodunallocatedHint: La part budgétée de l’achat est imputée aux fonds non affectés à l’achat. L’amortissement comptable continue, sans reconstitution budgétaire mensuelle.
+depreciationBudgetPurchaseCategoryLabel: Budget débité à l’achat
+depreciationBudgetMonthlySourceLabel: Budget source du transfert mensuel
+depreciationBudgetSelectCategory: Sélectionnez une catégorie budgétaire
+depreciationBudgetCategoryRequired: Sélectionnez une catégorie pour continuer.
+depreciationBudgetCategoriesMustDiffer: Choisissez des catégories différentes pour l’achat et la source mensuelle.
+depreciationBudgetConfirmationRequired: Confirmez ce traitement avant l’enregistrement.
+depreciationBudgetUnallocatedWarning: "La part budgétée de l’achat est imputée immédiatement aux fonds non affectés. L’amortissement comptable continue ensuite, mais aucun transfert budgétaire mensuel ne provient des dépenses courantes ou d’autres catégories. Choisissez ① ou ② si vous souhaitez aussi un financement budgétaire mensuel."
+depreciationBudgetUnallocatedConfirm: "Je confirme le choix ③ : imputer la part budgétée de l’achat aux fonds non affectés et ne faire aucun transfert budgétaire mensuel."
+depreciationBudgetAssignedNegativeWarning: Le budget d’achat ② devrait être insuffisant et devenir négatif. Envisagez le choix ①, qui reconstitue un budget spécial chaque mois.
+depreciationBudgetMethodRequired: Choisissez l’effet de ce plan sur les budgets.
+depreciationBudgetUnset: Traitement budgétaire non défini
+depreciationBudgetStatusActive: Actif
+depreciationBudgetStatusCompleted: Terminé
+depreciationBudgetStatusEnded: Clôturé
+depreciationBudgetRepairTitle: Corriger le traitement budgétaire de l’amortissement
+depreciationBudgetRepairButton: Définir ou corriger la charge budgétaire
+depreciationBudgetRepairHint: Vérifiez les effets avant l’application. Les modifications mettent à jour les événements budgétaires sans recréer l’écriture d’achat.
+depreciationBudgetRouteTitle: Affectations mensuelles futures
+depreciationBudgetRouteAdd: Ajouter une affectation datée
+depreciationBudgetRouteDate: Date d’effet de l’affectation
+depreciationBudgetDestinationCategory: Catégorie de destination
+depreciationBudgetSettlementTitle: Règlements
+depreciationBudgetSettlementAdd: Ajouter un règlement
+depreciationBudgetSettlementAmount: Montant du règlement
+depreciationBudgetSettlementDate: Date du règlement
+depreciationBudgetSettlementSource: Source du règlement
+depreciationBudgetUnallocatedSource: Fonds non affectés (U)
+depreciationBudgetEndDate: Arrêter le financement budgétaire après
+depreciationBudgetPreviewButton: Prévisualiser les modifications
+depreciationBudgetPreviewTitle: Aperçu avant et après
+depreciationBudgetPreviewStale: Les paramètres ont changé. Prévisualisez à nouveau avant d’appliquer.
+depreciationBudgetPreviewFailed: Impossible de créer l’aperçu. Vérifiez les paramètres et réessayez.
+depreciationBudgetPreviewNotApplicable: Choisissez les décisions de réinitialisation indiquées, puis prévisualisez à nouveau.
+depreciationBudgetApplyButton: Appliquer les modifications prévisualisées
+depreciationBudgetApplyConfirmTitle: Appliquer les changements du budget d’amortissement ?
+depreciationBudgetApplyConfirmMessage: Appliquer les changements budgétaires affichés ? L’écriture d’achat ne sera pas recréée.
+depreciationBudgetApplied: Traitement budgétaire de l’amortissement mis à jour.
+depreciationBudgetProgressTitle: Progression budgétaire
+depreciationBudgetTargetLabel: Montant à reconstituer
+depreciationBudgetReimbursedLabel: Reconstitué
+depreciationBudgetRemainingLabel: Restant
+depreciationBudgetFutureLabel: Montant futur
+depreciationBudgetBoundaryTitle: Décisions de réinitialisation budgétaire
+depreciationBudgetBoundaryOldReset: Montant avant la réinitialisation
+depreciationBudgetBoundaryNewReset: Montant après la réinitialisation
+depreciationBudgetBoundaryDecision: Décision pour cette réinitialisation
+depreciationBudgetBoundaryOrder: Ordre de traitement
+depreciationBudgetDecisionContinue: Continuer le plan
+depreciationBudgetDecisionEnd: Terminer le plan
+depreciationBudgetDecisionCarry: Reporter le solde de la catégorie dédiée
+depreciationBudgetDecisionSettle: Régler le montant restant
+depreciationBudgetDecisionOrderBefore: Comptabiliser l’amortissement avant la réinitialisation
+depreciationBudgetDecisionOrderAfter: Comptabiliser l’amortissement après la réinitialisation
+depreciationBudgetScopeConfirmationHint: Les écritures existantes ne permettent pas d’identifier l’étendue de la réinitialisation. Choisissez l’étendue réellement réinitialisée.
+depreciationBudgetScopeConfirmationLabel: Étendue de la réinitialisation
+depreciationBudgetScopeUnconfirmed: Étendue non confirmée
+depreciationBudgetScopeCategory: Cette catégorie uniquement
+depreciationBudgetScopeAll: Toutes les catégories
+depreciationBudgetPreviewEventsTitle: Modifications des événements budgétaires
+depreciationBudgetPreviewNoEvents: Aucun événement budgétaire ne sera modifié.
+depreciationBudgetEventPurchase: Achat
+depreciationBudgetEventMonthly: Virement budgétaire mensuel
+depreciationBudgetEventSettlement: Règlement
+depreciationBudgetEventRouting: Transmission du routage budgétaire
+depreciationBudgetEventCarry: Report du solde négatif du budget spécial
+depreciationBudgetTimelineBefore: Avant
+depreciationBudgetTimelineAfter: Après
+depreciationBudgetTimelinePurchase: À l’achat
+depreciationBudgetTimelineReset: À la réinitialisation
+depreciationBudgetTimelineCurrent: Actuel
+depreciationBudgetTimelineTimestamp: Heure
+depreciationBudgetTimelineResetId: Référence de réinitialisation
+depreciationBudgetRelatedBalances: Soldes des catégories liées (Bᵢ)
+depreciationBudgetAmbiguousLegacyWarning: Certaines écritures d’amortissement existantes ne correspondent pas à une répartition budgétaire unique. Vérifiez leurs répartitions et résolvez l’ambiguïté avant d’appliquer les modifications.
+depreciationBudgetTotalLabel: Total (T)
+depreciationBudgetUnallocatedLabel: Non affecté (U)
+depreciationBudgetCategoriesLabel: Solde des catégories (B)
+depreciationBudgetAllocatableLabel: Disponible à l’affectation
+depreciationBudgetArchiveBlockedTitle: Catégorie utilisée par des budgets d’amortissement
+depreciationBudgetArchiveBlockedMessage: Corrigez les plans concernés et déplacez les affectations futures hors de cette catégorie avant de l’archiver.
+depreciationBudgetOpenSchedules: Ouvrir les plans d’amortissement
+depreciationBudgetResetPlansTitle: Budgets d’amortissement concernés par cette réinitialisation
+depreciationBudgetResetPlansHint: Choisissez le traitement de chaque plan. Par défaut, les soldes des catégories dédiées sont reportés et restent intacts.
+depreciationBudgetResetPlansError: Impossible de charger les décisions de réinitialisation. Rechargez l’aperçu avant l’enregistrement.
+depreciationBudgetResetPlanStale: La catégorie ou la date a changé. Recalculez le montant de réinitialisation pour recharger les plans concernés avant l’enregistrement.
+depreciationBudgetResetDecisionRequired: Choisissez une décision pour chaque plan concerné.
+depreciationBudgetResetCarryHint: Le report conserve le solde de la catégorie dédiée et ignore sa réinitialisation.
+depreciationBudgetResetSettlementSource: Catégorie ou fonds non affectés utilisés pour le règlement
+depreciationBudgetArchiveResetUnavailable: Un plan d’amortissement actif utilise encore cette catégorie pour ses affectations futures. Corrigez-les d’abord.
+depreciationBudgetOperationAdd: Ajouté
+depreciationBudgetOperationChange: Modifié
+depreciationBudgetOperationCancel: Annulé
+depreciationBudgetRemoveChange: Supprimer
 budgetReferenceAllocationBadge: Ventilation budgétaire (référence)
 budgetReferenceEntriesTitle: Dépenses de référence en espèces non suivies
 budgetReferenceEntriesHint: "{count} écritures, soit {amount}. Leur effet suit les limites de réinitialisation et de date de référence."
