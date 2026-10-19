@@ -7,6 +7,7 @@ import {
   buildDepreciationMonthlySourceDefaults,
   calculateBudgetedDepreciationMonthlyAmounts,
   calculateDepreciationMonthlyAmounts,
+  getDepreciationMonthlyPreviewIndex,
   getDepreciationMonthlySourceAllocations,
   snapshotDepreciationMonthlySourceSettings,
 } from "./depreciationMonthlySources";
@@ -18,6 +19,14 @@ const categories = [
 ];
 
 describe("depreciation monthly source allocations", () => {
+  test("selects the earliest saved month on or after today, or the latest valid month when finished", () => {
+    const dates = ["2026-12-01", "2026-10-01", "2026-11-01"];
+    expect(getDepreciationMonthlyPreviewIndex(dates, "2026-10-19")).toBe(2);
+    expect(getDepreciationMonthlyPreviewIndex(dates, "2027-01-01")).toBe(0);
+    expect(getDepreciationMonthlyPreviewIndex(["bad-date", "2026-08-01"], "2026-10-19")).toBe(1);
+    expect(getDepreciationMonthlyPreviewIndex([], "2026-10-19")).toBeNull();
+  });
+
   test("starts from expense-account ratios, omits zero rows, and fills the unallocated remainder", () => {
     expect(
       buildDepreciationMonthlySourceDefaults(categories, [

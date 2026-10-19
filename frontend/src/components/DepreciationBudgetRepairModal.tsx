@@ -1,4 +1,5 @@
 import {
+  Accordion,
   ActionIcon,
   Alert,
   Button,
@@ -35,10 +36,12 @@ import { api, ApiError } from "../api/client";
 import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
 import { formatCurrency } from "../lib/numberFormat";
+import { getEffectiveSymbol } from "../lib/currencyUtils";
 import { showFeedback } from "../lib/feedback";
 import { accountDisplayName } from "../lib/accountUtils";
 import {
   calculateBudgetedDepreciationMonthlyAmounts,
+  getDepreciationMonthlyPreviewIndex,
   getDepreciationMonthlySourceAllocations,
   snapshotDepreciationMonthlySourceSettings,
 } from "../lib/depreciationMonthlySources";
@@ -120,9 +123,25 @@ export function DepreciationBudgetRepairModal({
   const [applyConfirmOpened, setApplyConfirmOpened] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewStale, setPreviewStale] = useState(false);
+  const today = dayjs().format("YYYY-MM-DD");
+  const defaultPreviewMonthIndex = getDepreciationMonthlyPreviewIndex(
+    schedule.entry_dates,
+    today,
+  );
+  const [previewMonthIndex, setPreviewMonthIndex] = useState<number | null>(
+    defaultPreviewMonthIndex,
+  );
   const currency = schedule.budget.currency || displayCurrency || "JPY";
   const decimalPlaces = enabledCurrencies.find((item) => item.code === currency)?.decimal_places ??
     (currency === "JPY" || currency === "KRW" ? 0 : 2);
+  const formatPlanAmount = (amount: number) =>
+    formatCurrency(
+      amount,
+      locale,
+      currency,
+      getEffectiveSymbol(currency, enabledCurrencies),
+      decimalPlaces,
+    );
   const expenseAccountBudgetRatios = accounts.find(
     (account) => account.id === schedule.expense_account_id,
   )?.budget_ratios ?? [];
@@ -136,7 +155,35 @@ export function DepreciationBudgetRepairModal({
     depreciationTotal: schedule.total_amount,
     decimalPlaces,
   });
-  const representativeMonthlyAmount = budgetedMonthlyAmounts[0] ?? 0;
+  const selectedPreviewMonthIndex = previewMonthIndex != null &&
+      schedule.entry_dates[previewMonthIndex] != null
+    ? previewMonthIndex
+    : defaultPreviewMonthIndex;
+  const selectedPreviewMonthDate = selectedPreviewMonthIndex == null
+    ? null
+    : schedule.entry_dates[selectedPreviewMonthIndex] ?? null;
+  const selectedJournalMonthlyAmount = selectedPreviewMonthIndex == null
+    ? 0
+    : schedule.monthly_amounts[selectedPreviewMonthIndex] ?? 0;
+  const selectedBudgetedMonthlyAmount = selectedPreviewMonthIndex == null
+    ? 0
+    : budgetedMonthlyAmounts[selectedPreviewMonthIndex] ?? 0;
+  const savedEntryDates = schedule.entry_dates
+    .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))
+    .sort((left, right) => left.localeCompare(right));
+  const lastSavedEntryDate = savedEntryDates[savedEntryDates.length - 1] ?? schedule.start_date;
+  const formattedEndDateHint = t("depreciationBudgetEndDateHint").replace(
+    "{date}",
+    lastSavedEntryDate,
+  );
+  const monthOptions = schedule.entry_dates
+    .map((date, index) => ({ date, index }))
+    .filter(({ date }) => /^\d{4}-\d{2}-\d{2}$/.test(date))
+    .sort((left, right) => left.date.localeCompare(right.date) || left.index - right.index)
+    .map(({ date, index }) => ({
+      value: String(index),
+      label: `${date} · ${formatPlanAmount(budgetedMonthlyAmounts[index] ?? 0)}`,
+    }));
 
   function representativeAmountForRoute(routeDate: string) {
     const index = schedule.entry_dates.findIndex((date) => date >= routeDate);
@@ -165,6 +212,12 @@ export function DepreciationBudgetRepairModal({
     setError(null);
     setPreviewStale(false);
     setApplyConfirmOpened(false);
+    setPreviewMonthIndex(
+      getDepreciationMonthlyPreviewIndex(
+        schedule.entry_dates,
+        dayjs().format("YYYY-MM-DD"),
+      ),
+    );
   }, [opened, schedule.id, schedule.budget.revision]);
 
   function changeSettings(next: DepreciationBudgetSettings | null) {
@@ -513,7 +566,84 @@ export function DepreciationBudgetRepairModal({
             {t("depreciationBudgetRepairHint")}
           </Text>
 
+          <Alert color="blue">
+            {schedule.budget.settings
+              ? t("depreciationBudgetRepairSavedSettingsHint")
+              : t("depreciationBudgetRepairLegacyHint")}
+          </Alert>
+
+          <Paper withBorder p="sm">
+            <Stack gap="xs">
+              <Select
+                label={t("depreciationBudgetPreviewMonthLabel")}
+                description={t("depreciationBudgetPreviewMonthHint")}
+                data={monthOptions}
+                value={selectedPreviewMonthIndex == null ? null : String(selectedPreviewMonthIndex)}
+                onChange={(value) => {
+                  const index = value == null ? null : Number(value);
+                  setPreviewMonthIndex(
+                    index != null && Number.isInteger(index) && index >= 0 && index < schedule.entry_dates.length
+                      ? index
+                      : defaultPreviewMonthIndex,
+                  );
+                }}
+                disabled={monthOptions.length === 0}
+                searchable
+              />
+              <Group justify="space-between" gap="xs" wrap="wrap">
+                <Text size="sm" fw={600} data-testid="depreciation-budget-selected-month">
+                  {selectedPreviewMonthDate ?? t("depreciationBudgetPreviewMonthUnavailable")}
+                </Text>
+                <Group gap="md" wrap="wrap">
+                  <Text size="xs">
+                    {t("depreciationBudgetSavedJournalMonthAmountLabel")}: {formatPlanAmount(selectedJournalMonthlyAmount)}
+                  </Text>
+                  <Text size="xs" fw={600}>
+                    {t("depreciationBudgetTargetMonthAmountLabel")}: {formatPlanAmount(selectedBudgetedMonthlyAmount)}
+                  </Text>
+                </Group>
+              </Group>
+              <Accordion variant="contained">
+                <Accordion.Item value="saved-monthly-journal">
+                  <Accordion.Control>{t("depreciationBudgetSavedMonthlyTableTitle")}</Accordion.Control>
+                  <Accordion.Panel>
+                    <Stack gap="xs">
+                      <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs">
+                        <Text size="xs">{t("depreciationBudgetPurchaseTotalLabel")}: {formatPlanAmount(schedule.total_amount)}</Text>
+                        <Text size="xs">{t("depreciationBudgetTargetTotalLabel")}: {formatPlanAmount(schedule.budget.target_amount)}</Text>
+                        <Text size="xs">{t("depreciationBudgetMonthsLabel")}: {schedule.months}</Text>
+                        <Text size="xs">{t("depreciationBudgetPeriodLabel")}: {savedEntryDates[0] ?? schedule.start_date} – {lastSavedEntryDate}</Text>
+                      </SimpleGrid>
+                      <Text size="xs" c="dimmed">{t("depreciationBudgetSavedMonthlyAmountHint")}</Text>
+                      <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                        <Table withTableBorder withColumnBorders striped>
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>{t("thDate")}</Table.Th>
+                              <Table.Th className="currency-cell">{t("depreciationBudgetSavedJournalMonthAmountLabel")}</Table.Th>
+                              <Table.Th className="currency-cell">{t("depreciationBudgetTargetMonthAmountLabel")}</Table.Th>
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {schedule.entry_dates.map((date, index) => (
+                              <Table.Tr key={`${date}-${index}`}>
+                                <Table.Td>{date}</Table.Td>
+                                <Table.Td className="currency-cell">{formatPlanAmount(schedule.monthly_amounts[index] ?? 0)}</Table.Td>
+                                <Table.Td className="currency-cell">{formatPlanAmount(budgetedMonthlyAmounts[index] ?? 0)}</Table.Td>
+                              </Table.Tr>
+                            ))}
+                          </Table.Tbody>
+                        </Table>
+                      </div>
+                    </Stack>
+                  </Accordion.Panel>
+                </Accordion.Item>
+              </Accordion>
+            </Stack>
+          </Paper>
+
           <DepreciationBudgetFields
+            key={`budget-source-month-${selectedPreviewMonthIndex ?? "none"}`}
             value={settings}
             onChange={changeSettings}
             purchaseAmount={schedule.budget.target_amount}
@@ -521,7 +651,7 @@ export function DepreciationBudgetRepairModal({
               .find(category=>category.id===settings?.purchase_category_id)?.balance ?? null}
             currency={previewCurrency}
             decimalPlaces={decimalPlaces}
-            representativeMonthlyAmount={representativeMonthlyAmount}
+            representativeMonthlyAmount={selectedBudgetedMonthlyAmount}
             accountBudgetRatios={expenseAccountBudgetRatios}
             expenseAccountName={expenseAccountName}
           />
@@ -561,6 +691,7 @@ export function DepreciationBudgetRepairModal({
                     {t("depreciationBudgetRouteAdd")}
                   </Button>
                 </Group>
+                <Text size="xs" c="dimmed">{t("depreciationBudgetRouteHint")}</Text>
                 {(settings.routing_changes ?? []).map((route, index) => (
                   <Paper key={`${route.date}-${index}`} withBorder p="xs">
                     <SimpleGrid cols={{ base: 1, sm: 2 }}>
@@ -659,6 +790,7 @@ export function DepreciationBudgetRepairModal({
                     {t("depreciationBudgetSettlementAdd")}
                   </Button>
                 </Group>
+                <Text size="xs" c="dimmed">{t("depreciationBudgetSettlementHint")}</Text>
                 {(settings.settlements ?? []).map((settlement, index) => (
                   <Paper key={settlement.key} withBorder p="xs">
                     <SimpleGrid cols={{ base: 1, sm: 3 }}>
@@ -735,6 +867,7 @@ export function DepreciationBudgetRepairModal({
 
               <DateInput
                 label={t("depreciationBudgetEndDate")}
+                description={formattedEndDateHint}
                 value={parseDate(settings.end_date)}
                 valueFormat="YYYY-MM-DD"
                 clearable

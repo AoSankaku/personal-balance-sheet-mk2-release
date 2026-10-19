@@ -217,10 +217,11 @@ function stableSerialize(value: unknown): string {
 
 async function linkedAllocationIds(db: ReturnType<typeof createDb>, schedule: DepreciationScheduleRow) {
   const entryRows = await db
-    .select({ journal_entry_id: depreciationEntries.journal_entry_id })
+    .select({ journal_entry_id: depreciationEntries.journal_entry_id, month_number: depreciationEntries.month_number })
     .from(depreciationEntries)
     .where(eq(depreciationEntries.schedule_id, schedule.id));
   const entryIds = entryRows.map((row) => row.journal_entry_id);
+  const entryChunks = chunkForD1InClause(entryIds);
   const safeRows = await db
     .select({ id: journalEntryBudgetAllocations.id })
     .from(journalEntryBudgetAllocations)
@@ -228,12 +229,111 @@ async function linkedAllocationIds(db: ReturnType<typeof createDb>, schedule: De
       eq(journalEntryBudgetAllocations.journal_entry_id, schedule.source_journal_entry_id),
       eq(journalEntryBudgetAllocations.source, "depreciation"),
     ));
-  const monthlyRows = (await Promise.all(chunkForD1InClause(entryIds).map(chunk=>db.select({ id: journalEntryBudgetAllocations.id })
+  const monthlyRows = (await Promise.all(entryChunks.map(chunk=>db.select()
       .from(journalEntryBudgetAllocations)
-      .where(and(
-        inArray(journalEntryBudgetAllocations.journal_entry_id, chunk),
-        eq(journalEntryBudgetAllocations.source, "depreciation"),
-      ))))).flat();
+      .where(inArray(journalEntryBudgetAllocations.journal_entry_id, chunk))))).flat();
+
+  const recognizedLegacyMonthlyAllocationIds = new Set<number>();
+  // Old generation omitted allocation source, but NULL is also used by manual entries.
+  // Whitelist only whole monthly bundles with matching journal and allocation evidence;
+  // all other NULL-source rows remain ambiguous and the original rows are audited on apply.
+  if (schedule.budget_method === null && schedule.budget_settings === null && entryChunks.length > 0) {
+    const [ownershipRows, purchaseOwnerRows, headerRows, lineRows] = await Promise.all([
+      Promise.all(entryChunks.map((chunk) => db.select({ journal_entry_id: depreciationEntries.journal_entry_id })
+        .from(depreciationEntries)
+        .where(inArray(depreciationEntries.journal_entry_id, chunk)))).then((chunks) => chunks.flat()),
+      Promise.all(entryChunks.map((chunk) => db.select({ source_journal_entry_id: depreciationSchedules.source_journal_entry_id })
+        .from(depreciationSchedules)
+        .where(inArray(depreciationSchedules.source_journal_entry_id, chunk)))).then((chunks) => chunks.flat()),
+      Promise.all(entryChunks.map((chunk) => db.select({
+        id: journalEntries.id,
+        date: journalEntries.date,
+        source: journalEntries.source,
+        created_at: journalEntries.created_at,
+      }).from(journalEntries).where(inArray(journalEntries.id, chunk)))).then((chunks) => chunks.flat()),
+      Promise.all(entryChunks.map((chunk) => db.select({
+        journal_entry_id: journalLines.journal_entry_id,
+        account_id: journalLines.account_id,
+        debit: journalLines.debit,
+        credit: journalLines.credit,
+        currency: journalLines.currency,
+        created_at: journalLines.created_at,
+      }).from(journalLines).where(inArray(journalLines.journal_entry_id, chunk)))).then((chunks) => chunks.flat()),
+    ]);
+    const currency = schedule.budget_currency || "JPY";
+    const ownershipCountByEntry = new Map<number, number>();
+    for (const row of ownershipRows) {
+      ownershipCountByEntry.set(row.journal_entry_id, (ownershipCountByEntry.get(row.journal_entry_id) ?? 0) + 1);
+    }
+    const purchaseOwnedEntries = new Set(purchaseOwnerRows.map((row) => row.source_journal_entry_id));
+    const headersById = new Map(headerRows.map((row) => [row.id, row]));
+    const linesByEntry = new Map<number, typeof lineRows>();
+    for (const row of lineRows) {
+      const rows = linesByEntry.get(row.journal_entry_id) ?? [];
+      rows.push(row);
+      linesByEntry.set(row.journal_entry_id, rows);
+    }
+    const allocationsByEntry = new Map<number, typeof monthlyRows>();
+    for (const row of monthlyRows) {
+      const rows = allocationsByEntry.get(row.journal_entry_id) ?? [];
+      rows.push(row);
+      allocationsByEntry.set(row.journal_entry_id, rows);
+    }
+    const monthCount = new Map<number, number>();
+    for (const row of entryRows) {
+      monthCount.set(row.month_number, (monthCount.get(row.month_number) ?? 0) + 1);
+    }
+    const startDate = /^\d{4}-\d{2}-\d{2}$/.test(schedule.start_date)
+      ? new Date(`${schedule.start_date}T00:00:00.000Z`)
+      : null;
+    const validStartDate = startDate && !Number.isNaN(startDate.getTime()) &&
+      startDate.toISOString().slice(0, 10) === schedule.start_date;
+
+    for (const link of entryRows) {
+      const { journal_entry_id: entryId, month_number: monthNumber } = link;
+      if (!validStartDate || !Number.isSafeInteger(monthNumber) || monthNumber < 1 ||
+          monthNumber > schedule.months || monthCount.get(monthNumber) !== 1 ||
+          ownershipCountByEntry.get(entryId) !== 1 || purchaseOwnedEntries.has(entryId)) continue;
+
+      const expectedDate = monthNumber === 1
+        ? schedule.start_date
+        : firstOfMonth(schedule.start_date, monthNumber - 1);
+      const header = headersById.get(entryId);
+      const lines = linesByEntry.get(entryId) ?? [];
+      const allocations = allocationsByEntry.get(entryId) ?? [];
+      if (!header || header.source !== null || header.date !== expectedDate || lines.length !== 2 || allocations.length === 0) continue;
+      if (lines.some((line) => line.currency !== currency || line.created_at !== header.created_at ||
+          !Number.isSafeInteger(line.debit) || !Number.isSafeInteger(line.credit))) continue;
+
+      const expenseLines = lines.filter((line) => line.account_id === schedule.expense_account_id && line.debit > 0 && line.credit === 0);
+      const assetLines = lines.filter((line) => line.account_id === schedule.asset_account_id && line.debit === 0 && line.credit > 0);
+      if (expenseLines.length !== 1 || assetLines.length !== 1 ||
+          expenseLines[0]!.debit !== assetLines[0]!.credit) continue;
+      const expenseAmount = expenseLines[0]!.debit;
+
+      const categories = new Set<number>();
+      let allocationTotal = 0;
+      let validAllocations = true;
+      for (const allocation of allocations) {
+        if (allocation.source !== null || allocation.is_reference !== 0 ||
+            allocation.currency !== currency || allocation.created_at !== header.created_at ||
+            !Number.isSafeInteger(allocation.amount) || allocation.amount > 0 ||
+            !Number.isSafeInteger(allocation.budget_category_id) || categories.has(allocation.budget_category_id)) {
+          validAllocations = false;
+          break;
+        }
+        categories.add(allocation.budget_category_id);
+        allocationTotal += allocation.amount;
+        if (!Number.isSafeInteger(allocationTotal)) {
+          validAllocations = false;
+          break;
+        }
+      }
+      if (!validAllocations || allocationTotal !== -expenseAmount) continue;
+
+      for (const allocation of allocations) recognizedLegacyMonthlyAllocationIds.add(allocation.id);
+    }
+  }
   const ambiguousRows = (await Promise.all(chunkForD1InClause([...entryIds,schedule.source_journal_entry_id]).map(chunk=>db.select({ id: journalEntryBudgetAllocations.id })
       .from(journalEntryBudgetAllocations)
       .where(and(
@@ -243,8 +343,9 @@ async function linkedAllocationIds(db: ReturnType<typeof createDb>, schedule: De
       ))))).flat();
   return {
     entryIds,
-    safeIds: [...safeRows, ...monthlyRows].map((row) => row.id),
-    ambiguousCount: ambiguousRows.length,
+    safeIds: [...safeRows, ...monthlyRows.filter((row) => row.source === "depreciation" || recognizedLegacyMonthlyAllocationIds.has(row.id))]
+      .map((row) => row.id),
+    ambiguousCount: ambiguousRows.filter((row) => !recognizedLegacyMonthlyAllocationIds.has(row.id)).length,
   };
 }
 
@@ -1357,6 +1458,8 @@ router.get("/", async (c) => {
 
   if (schedules.length === 0) return c.json([]);
 
+  const scales = await getBudgetScaleOptions(db);
+
   const scheduleIds = schedules.map((s) => s.id);
 
   const entries = (
@@ -1445,7 +1548,7 @@ router.get("/", async (c) => {
 
   const budgets = new Map<number, Awaited<ReturnType<typeof getDepreciationBudgetProgress>>>();
   for (const schedule of schedules) {
-    budgets.set(schedule.id, await getDepreciationBudgetProgress(db, schedule));
+    budgets.set(schedule.id, await getDepreciationBudgetProgress(db, schedule, scales));
   }
 
   return c.json(
@@ -1453,6 +1556,7 @@ router.get("/", async (c) => {
       const sEntries = (entriesBySchedule.get(s.id) ?? []).sort(
         (a, b) => a.month_number - b.month_number,
       );
+      const currency = s.budget_currency || "JPY";
       return {
         id: s.id,
         source_journal_entry_id: s.source_journal_entry_id,
@@ -1460,14 +1564,14 @@ router.get("/", async (c) => {
         asset_account_name: accountMap.get(s.asset_account_id) ?? "",
         expense_account_id: s.expense_account_id,
         expense_account_name: accountMap.get(s.expense_account_id) ?? "",
-        total_amount: s.total_amount,
+        total_amount: fromStorageMoneyAmount(s.total_amount, currency, scales),
         months: s.months,
         start_date: s.start_date,
         description: s.description,
         created_at: s.created_at,
         budget: budgets.get(s.id)!,
-        monthly_amounts: sEntries.map(
-          (e) => entryAmountMap.get(e.journal_entry_id) ?? 0,
+        monthly_amounts: sEntries.map((e) =>
+          fromStorageMoneyAmount(entryAmountMap.get(e.journal_entry_id) ?? 0, currency, scales),
         ),
         entry_dates: sEntries.map(
           (e) => journalDateMap.get(e.journal_entry_id) ?? "",
