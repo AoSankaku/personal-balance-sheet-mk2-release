@@ -1357,6 +1357,8 @@ router.get("/", async (c) => {
 
   if (schedules.length === 0) return c.json([]);
 
+  const scales = await getBudgetScaleOptions(db);
+
   const scheduleIds = schedules.map((s) => s.id);
 
   const entries = (
@@ -1445,7 +1447,7 @@ router.get("/", async (c) => {
 
   const budgets = new Map<number, Awaited<ReturnType<typeof getDepreciationBudgetProgress>>>();
   for (const schedule of schedules) {
-    budgets.set(schedule.id, await getDepreciationBudgetProgress(db, schedule));
+    budgets.set(schedule.id, await getDepreciationBudgetProgress(db, schedule, scales));
   }
 
   return c.json(
@@ -1453,6 +1455,7 @@ router.get("/", async (c) => {
       const sEntries = (entriesBySchedule.get(s.id) ?? []).sort(
         (a, b) => a.month_number - b.month_number,
       );
+      const currency = s.budget_currency || "JPY";
       return {
         id: s.id,
         source_journal_entry_id: s.source_journal_entry_id,
@@ -1460,14 +1463,14 @@ router.get("/", async (c) => {
         asset_account_name: accountMap.get(s.asset_account_id) ?? "",
         expense_account_id: s.expense_account_id,
         expense_account_name: accountMap.get(s.expense_account_id) ?? "",
-        total_amount: s.total_amount,
+        total_amount: fromStorageMoneyAmount(s.total_amount, currency, scales),
         months: s.months,
         start_date: s.start_date,
         description: s.description,
         created_at: s.created_at,
         budget: budgets.get(s.id)!,
-        monthly_amounts: sEntries.map(
-          (e) => entryAmountMap.get(e.journal_entry_id) ?? 0,
+        monthly_amounts: sEntries.map((e) =>
+          fromStorageMoneyAmount(entryAmountMap.get(e.journal_entry_id) ?? 0, currency, scales),
         ),
         entry_dates: sEntries.map(
           (e) => journalDateMap.get(e.journal_entry_id) ?? "",

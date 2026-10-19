@@ -56,6 +56,7 @@ test.each([
   });
 
   if (created.status !== 201) throw new Error(`Create failed (${created.status}): ${await created.text()}`);
+  const createResult = await created.json() as { monthly_amounts: number[] };
   const response = await request(database, "GET");
   expect(response.status).toBe(200);
   const schedules = await response.json() as {
@@ -67,9 +68,10 @@ test.each([
   expect(schedules).toHaveLength(1);
   expect(schedules[0]).toMatchObject({
     total_amount: amount,
-    monthly_amounts: [monthly, monthly],
+    monthly_amounts: createResult.monthly_amounts,
     budget: { target_amount: amount },
   });
+  expect(createResult.monthly_amounts).toEqual([monthly, monthly]);
   expect(schedules[0]!.monthly_amounts.reduce((sum, value) => sum + value, 0)).toBe(amount);
 });
 
