@@ -1,20 +1,58 @@
-import { eq, sql, inArray } from "drizzle-orm";
+import { and, eq, sql, inArray } from "drizzle-orm";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { createDb, type Env } from "../db";
+import type {
+  ApplyDepreciationBudgetInput,
+  DepreciationBudgetBoundary,
+  DepreciationBudgetPreview,
+  DepreciationBudgetSettings,
+  DepreciationBudgetSnapshot,
+} from "../../../shared/depreciationBudget";
+import { budgetAccountDelta, isBudgetAccount } from "../../../shared/budgetScope";
+import { computeBudgetSummaryForDate } from "./budget";
+import { toLocalDateString } from "../lib/appDate";
+import { chunkForD1InClause } from "../lib/d1Query";
+import { journalBalanceError } from "../lib/journalValidation";
 import {
   accounts,
+  budgetAdjustmentLogs,
+  budgetCategories,
   journalEntries,
   journalLines,
   journalEntryBudgetAllocations,
   budgetCategoryAccounts,
+  budgetFundingAllocations,
+  enabledCurrencies,
   depreciationSchedules,
   depreciationEntries,
   depreciationBudgetReservations,
+  depreciationBudgetRevisions,
 } from "../db/schema";
+import {
+  buildDepreciationBudgetRevisionGuard,
+  buildOwnedDepreciationBudgetRows,
+  DepreciationBudgetPlanError,
+  diffOwnedDepreciationBudgetRows,
+  getBudgetScaleOptions,
+  getDepreciationBudgetProgress,
+  getDepreciationBudgetRevision,
+  getDepreciationPurchaseTarget,
+  getOwnedBudgetRows,
+  normalizeDepreciationBudgetSettings,
+  snapshotBudgetInputRevision,
+  validateBudgetCategoryIds,
+  type DepreciationScheduleRow,
+} from "../lib/depreciationBudget";
 import {
   findInvalidMoneyField,
   invalidMoneyResponse,
+  fromStorageMoneyAmount,
+  toStorageMoneyAmount,
+  type MoneyScaleOptions,
 } from "../lib/moneyValidation";
+
+type RouteContext = Context<{ Bindings: Env }>;
 
 const router = new Hono<{ Bindings: Env }>();
 
@@ -129,7 +167,1078 @@ async function insertDepreciationEntriesChunked(
   }
 }
 
+function toBudgetSnapshot(
+  summary: Awaited<ReturnType<typeof computeBudgetSummaryForDate>>,
+  totalResources: number,
+  reimbursedAmount: number,
+  remainingAmount: number,
+): DepreciationBudgetSnapshot {
+  const balances = summary.categories.map(row => row.available);
+  const unallocated = totalResources - balances.reduce((sum,balance) => sum+balance,0);
+  const deficit = balances.reduce((sum,balance) => sum+Math.max(-balance,0),0);
+  return {
+    T: totalResources,
+    U: unallocated,
+    D: deficit,
+    allocatable: unallocated-deficit,
+    categories: summary.categories.map((row) => ({
+      id: row.category.id,
+      name: row.category.name,
+      balance: row.available,
+    })),
+    reimbursed_amount: reimbursedAmount,
+    remaining_amount: remainingAmount,
+  };
+}
+
+async function hashPreviewToken(value: unknown) {
+  const bytes = new TextEncoder().encode(stableSerialize(value));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function stableSerialize(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, child]) => `${JSON.stringify(key)}:${stableSerialize(child)}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
+async function linkedAllocationIds(db: ReturnType<typeof createDb>, schedule: DepreciationScheduleRow) {
+  const entryRows = await db
+    .select({ journal_entry_id: depreciationEntries.journal_entry_id })
+    .from(depreciationEntries)
+    .where(eq(depreciationEntries.schedule_id, schedule.id));
+  const entryIds = entryRows.map((row) => row.journal_entry_id);
+  const safeRows = await db
+    .select({ id: journalEntryBudgetAllocations.id })
+    .from(journalEntryBudgetAllocations)
+    .where(and(
+      eq(journalEntryBudgetAllocations.journal_entry_id, schedule.source_journal_entry_id),
+      eq(journalEntryBudgetAllocations.source, "depreciation"),
+    ));
+  const monthlyRows = (await Promise.all(chunkForD1InClause(entryIds).map(chunk=>db.select({ id: journalEntryBudgetAllocations.id })
+      .from(journalEntryBudgetAllocations)
+      .where(and(
+        inArray(journalEntryBudgetAllocations.journal_entry_id, chunk),
+        eq(journalEntryBudgetAllocations.source, "depreciation"),
+      ))))).flat();
+  const ambiguousRows = (await Promise.all(chunkForD1InClause([...entryIds,schedule.source_journal_entry_id]).map(chunk=>db.select({ id: journalEntryBudgetAllocations.id })
+      .from(journalEntryBudgetAllocations)
+      .where(and(
+        inArray(journalEntryBudgetAllocations.journal_entry_id, chunk),
+        sql`${journalEntryBudgetAllocations.amount} <> 0`,
+        sql`COALESCE(${journalEntryBudgetAllocations.source}, '') <> 'depreciation'`,
+      ))))).flat();
+  return {
+    entryIds,
+    safeIds: [...safeRows, ...monthlyRows].map((row) => row.id),
+    ambiguousCount: ambiguousRows.length,
+  };
+}
+
+async function findRelevantResetBoundaries(
+  c: RouteContext,
+  schedule: DepreciationScheduleRow,
+  settings: DepreciationBudgetSettings,
+): Promise<DepreciationBudgetBoundary[]> {
+  if(settings.method==="unallocated")return [];
+  const currency = schedule.budget_currency || "JPY";
+  const today = toLocalDateString();
+  const resetRows = await c.env.DB.prepare(`SELECT l.id,l.budget_category_id,l.amount,l.date,l.created_at,c.name,l.reset_scope,l.reset_group_key
+    FROM budget_adjustment_logs l JOIN budget_categories c ON c.id=l.budget_category_id
+    WHERE l.adjustment_type='reset' AND l.currency=? AND l.date>=? AND l.date<=?
+    ORDER BY l.date,l.created_at,l.id`).bind(currency, schedule.start_date, today).all<{
+      id: number; budget_category_id: number; amount: number; date: string; created_at: string; name: string;
+      reset_scope:"category"|"all"|null;reset_group_key:string|null;
+    }>();
+  const rows = resetRows.results ?? [];
+  const groupKey=(row:typeof rows[number])=>row.reset_group_key??`${row.date}/${row.created_at}`;
+  const groups=new Map<string,typeof rows>();
+  for(const row of rows)groups.set(groupKey(row),[...groups.get(groupKey(row))??[],row]);
+  const decisionById = new Map((settings.reset_decisions ?? []).map((decision) => [decision.reset_log_id, decision]));
+  const boundaries: DepreciationBudgetBoundary[] = [];
+  for (const row of rows) {
+    const group=groups.get(groupKey(row))!;
+    const groupDecision=group.map(item=>decisionById.get(item.id)).find(decision=>decision?.scope);
+    // A shared timestamp is only a candidate. Current category counts cannot
+    // establish the intent or scope of a historical reset.
+    const isGlobal=groupDecision?.scope==="all" || (!groupDecision?.scope&&group.some(item=>item.reset_scope==="all"));
+    const scopeUnknown=settings.method==="special"&&new Set(group.map(item=>item.budget_category_id)).size>1&&group.every(item=>item.reset_scope==null)&&!groupDecision?.scope;
+    if((isGlobal||scopeUnknown)&&row.id!==group[0]!.id)continue;
+    let source=settings.monthly_source_category_id??null;
+    let destination=settings.method==="special"?schedule.budget_special_category_id??-schedule.id:settings.purchase_category_id??null;
+    for(const route of [...settings.routing_changes??[]].sort((a,b)=>a.date.localeCompare(b.date))) {
+      if(route.date>row.date)break;
+      source=route.monthly_source_category_id;destination=route.destination_category_id;
+    }
+    const relevant=isGlobal||scopeUnknown||row.budget_category_id===source||row.budget_category_id===destination;
+    if(!relevant)continue;
+    const decision=decisionById.get(row.id)??(isGlobal?groupDecision:undefined);
+    const requiredAction=settings.method==="special"?"carry_or_settle":"continue_or_end";
+    const sameDayJournalEvents = await c.env.DB.prepare(`SELECT created_at FROM journal_entries
+      WHERE id=? AND date=? UNION ALL
+      SELECT je.created_at FROM depreciation_entries de JOIN journal_entries je ON je.id=de.journal_entry_id
+      WHERE de.schedule_id=? AND je.date=?`).bind(
+        schedule.source_journal_entry_id, row.date, schedule.id, row.date,
+      ).all<{ created_at: string }>();
+    const sameDayOwnedEvents = await c.env.DB.prepare(`SELECT created_at FROM budget_adjustment_logs
+      WHERE depreciation_schedule_id=? AND date=? AND depreciation_event_key IS NOT NULL`)
+      .bind(schedule.id, row.date).all<{ created_at: string }>();
+    const ambiguousOrder = [
+      ...(sameDayJournalEvents.results ?? []), ...(sameDayOwnedEvents.results ?? []),
+    ].some((event) => event.created_at === row.created_at);
+    const needsOrder = ambiguousOrder && !decision?.same_day_order;
+    boundaries.push({
+      reset_log_id: row.id,
+      date: row.date,
+      category_id: isGlobal&&settings.method==="special"?destination??row.budget_category_id:row.budget_category_id,
+      category_name: row.name,
+      scope: isGlobal ? "all" : "category",
+      scope_confirmation_required:scopeUnknown,
+      action_kind:requiredAction,
+      required_action: needsOrder ? "order" : requiredAction,
+      old_reset_amount: row.amount,
+      new_reset_amount: row.amount,
+    });
+  }
+  return boundaries;
+}
+
+async function buildDepreciationBudgetPreview(
+  c: RouteContext,
+  schedule: DepreciationScheduleRow,
+  rawSettings: DepreciationBudgetSettings,
+): Promise<DepreciationBudgetPreview & { _revision: number; _expectedRows: Awaited<ReturnType<typeof buildOwnedDepreciationBudgetRows>>; _allocationIds: number[] }> {
+  const globalRevision = await getDepreciationBudgetRevision(c.env.DB);
+  const db = createDb(c.env);
+  const [currentSchedule] = await db.select().from(depreciationSchedules).where(eq(depreciationSchedules.id,schedule.id));
+  if (!currentSchedule || stableSerialize(currentSchedule) !== stableSerialize(schedule)) throw new Error("stale_depreciation_budget_preview");
+  const settings = normalizeDepreciationBudgetSettings(rawSettings);
+  let validationError = await validateBudgetCategoryIds(db, settings);
+  if ((settings.routing_changes ?? []).some((route) => route.date < schedule.start_date)) {
+    validationError ??= "routing_change_before_purchase";
+  }
+  const boundaries = await findRelevantResetBoundaries(c, schedule, settings);
+  const missingDecisions = boundaries.some((boundary) => {
+    const decision = settings.reset_decisions?.find((row) => row.reset_log_id === boundary.reset_log_id);
+    if (!decision) return true;
+    const validAction = boundary.action_kind === "carry_or_settle"
+      ? ["carry", "settle"].includes(decision.action)
+      : ["continue", "end"].includes(decision.action);
+    return !validAction || (boundary.scope_confirmation_required&&!decision.scope) ||
+      (boundary.required_action === "order" && !decision.same_day_order);
+  });
+  const scales = await getBudgetScaleOptions(db);
+  const targetAmount = await getDepreciationPurchaseTarget(db, schedule);
+  const specialCategoryId = schedule.budget_special_category_id ?? (settings.method === "special" ? -schedule.id : null);
+  if(settings.method==="special"&&specialCategoryId!=null&&settings.monthly_source_category_id===specialCategoryId)
+    validationError??="budget_categories_must_differ";
+  const expectedRows = await buildOwnedDepreciationBudgetRows(
+    db, schedule, settings, targetAmount, specialCategoryId, scales,
+  );
+  const today = toLocalDateString();
+  const futureIds = [...new Set(expectedRows.filter((row) => row.date >= today)
+    .map((row) => row.budget_category_id).filter((id) => id > 0))];
+  if (futureIds.length) {
+    const futureCategories = await db.select({ is_archived: budgetCategories.is_archived })
+      .from(budgetCategories).where(inArray(budgetCategories.id, futureIds));
+    if (futureCategories.some((row) => row.is_archived === 1)) validationError ??= "budget_category_archived";
+  }
+  const currentOwned = await getOwnedBudgetRows(db, schedule.id);
+  const changes = diffOwnedDepreciationBudgetRows(currentOwned, expectedRows, settings.method);
+  const storedProgress = await getDepreciationBudgetProgress(db, schedule, scales);
+  const projectedReceipts = expectedRows.filter((row) =>
+    row.depreciation_event_side === "destination" &&
+    (row.depreciation_event_key.startsWith("monthly:") || row.depreciation_event_key.startsWith("settlement:")) &&
+    row.amount > 0,
+  );
+  const reimbursedUnits = projectedReceipts
+    .filter((row) => row.date <= today)
+    .reduce((sum, row) => sum + row.amount, 0);
+  const futureUnits = projectedReceipts
+    .filter((row) => row.date > today)
+    .reduce((sum, row) => sum + row.amount, 0);
+  const reimbursedAmount = fromStorageMoneyAmount(Math.min(targetAmount, reimbursedUnits), schedule.budget_currency || "JPY", scales);
+  const remainingAmount = settings.method === "unallocated"
+    ? 0
+    : fromStorageMoneyAmount(Math.max(0, targetAmount - Math.min(targetAmount, reimbursedUnits)), schedule.budget_currency || "JPY", scales);
+  const selectedEndIds=(settings.reset_decisions??[]).filter(row=>row.action==="end"||row.action==="settle").map(row=>row.reset_log_id);
+  const stoppedByReset=selectedEndIds.length>0&&!!await c.env.DB.prepare(`SELECT id FROM budget_adjustment_logs
+    WHERE id IN (${selectedEndIds.map(()=>"?").join(",")}) AND date<=? LIMIT 1`).bind(...selectedEndIds,today).first();
+  const budgetEnded=!!(settings.end_date&&settings.end_date<=today)||stoppedByReset;
+  const progress = {
+    ...storedProgress,
+    method: settings.method,
+    purchase_category_id: settings.purchase_category_id ?? null,
+    monthly_source_category_id: settings.monthly_source_category_id ?? null,
+    destination_category_id: settings.method === "special"
+      ? (specialCategoryId != null && specialCategoryId > 0 ? specialCategoryId : null)
+      : settings.purchase_category_id ?? null,
+    target_amount: fromStorageMoneyAmount(targetAmount, schedule.budget_currency || "JPY", scales),
+    reimbursed_amount: reimbursedAmount,
+    remaining_amount: remainingAmount,
+    ended_unreimbursed_amount: budgetEnded ? remainingAmount : 0,
+    future_amount: fromStorageMoneyAmount(futureUnits, schedule.budget_currency || "JPY", scales),
+    status: settings.method === "unallocated" || remainingAmount <= 0
+      ? "completed" as const
+      : budgetEnded ? "ended" as const : "active" as const,
+    settings,
+  };
+  const allocations = await linkedAllocationIds(db, schedule);
+  const allLogs = await db.select().from(budgetAdjustmentLogs);
+  const replacementLogs = [
+    ...allLogs.filter((row) => row.depreciation_schedule_id !== schedule.id),
+    ...expectedRows.map((row, index) => ({
+      id: -1000000 - index,
+      note: null,
+      created_at: row.created_at ?? schedule.created_at,
+      ...row,
+      budget_category_id: row.special_category
+        ? schedule.budget_special_category_id ?? -schedule.id
+        : row.budget_category_id,
+    })),
+  ] as unknown as typeof allLogs;
+  const extraCategories = settings.method === "special" && !schedule.budget_special_category_id
+    ? [{
+        id: -schedule.id, name: `減価償却 ${schedule.id}`, sort_order: 0, rollover_months: -1,
+        budget_group: "減価償却", goal_balance: null, balance_cap: null,
+        overflow_budget_category_id: null, is_archived: 0, created_at: schedule.created_at,
+      } as typeof budgetCategories.$inferSelect]
+    : [];
+  const sourceEntry = await db.select().from(journalEntries).where(eq(journalEntries.id,schedule.source_journal_entry_id));
+  const resetRows = allLogs.filter(row => boundaries.some(boundary => boundary.reset_log_id === row.id));
+  const points = [
+    {date:schedule.start_date,created_at:sourceEntry[0]?.created_at ?? schedule.created_at,label:"purchase",reset_log_id:undefined as number|undefined},
+    ...resetRows.map(row=>({date:row.date,created_at:row.created_at,label:"reset",reset_log_id:row.id})),
+    ...(settings.routing_changes??[]).filter(row=>row.date<=today).map(row=>({date:row.date,created_at:"\uffff",label:"routing",reset_log_id:undefined as number|undefined})),
+    {date:today,created_at:"\uffff",label:"current",reset_log_id:undefined as number|undefined},
+  ].sort((a,b)=>a.date.localeCompare(b.date)||a.created_at.localeCompare(b.created_at));
+  const ledgerAccounts = await db.select().from(accounts);
+  const ledgerLines = await db.select({account_id:journalLines.account_id,debit:journalLines.debit,credit:journalLines.credit,
+    currency:journalLines.currency,date:journalEntries.date,created_at:journalEntries.created_at})
+    .from(journalLines).innerJoin(journalEntries,eq(journalEntries.id,journalLines.journal_entry_id));
+  const visibleAt = (row:{date:string;created_at?:string|null},point:{date:string;created_at:string}) =>
+    row.date<point.date || (row.date===point.date && (row.created_at??schedule.created_at)<=point.created_at);
+  function receiptsAt(rows:typeof currentOwned, point:{date:string;created_at:string},receiptSettings:DepreciationBudgetSettings) {
+    const grouped=new Map<string,typeof currentOwned>();
+    for(const row of rows) {
+      if(!visibleAt(row,point) || !(row.depreciation_event_key?.startsWith("monthly:")||row.depreciation_event_key?.startsWith("settlement:"))) continue;
+      grouped.set(row.depreciation_event_key,[...grouped.get(row.depreciation_event_key)??[],row]);
+    }
+    return [...grouped.values()].reduce((sum,group)=>{
+      const credits=group.filter(row=>row.amount>0&&row.depreciation_event_side==="destination");
+      const net=group.reduce((n,row)=>n+row.amount,0);
+      const key=group[0]!.depreciation_event_key!;
+      const sourceIsUnallocated=key.startsWith("settlement:") && (
+        receiptSettings.settlements?.some(row=>`settlement:${row.key}`===key&&row.source_category_id==null) ||
+        receiptSettings.reset_decisions?.some(row=>key===`settlement:reset:${row.reset_log_id}`&&row.action==="settle"&&row.settlement_source_category_id==null));
+      return sum+(credits.length===1&&(net===0||sourceIsUnallocated)?credits[0]!.amount:0);
+    },0);
+  }
+  const timeline: DepreciationBudgetPreview["timeline"] = [];
+  for (const point of points) {
+    const {date}=point;
+    const currentSummary = await computeBudgetSummaryForDate(db, date, schedule.budget_currency || "JPY", {
+      through: point,
+    });
+    const simulatedSummary = await computeBudgetSummaryForDate(db, date, schedule.budget_currency || "JPY", {
+      adjustmentLogs: replacementLogs,
+      extraCategories,
+      excludeLegacyScheduleId: schedule.id,
+      excludeAllocationIds: allocations.safeIds,
+      through: point,
+    });
+    const T=fromStorageMoneyAmount(budgetAccountDelta(ledgerLines.filter(row=>visibleAt(row,point)),ledgerAccounts,schedule.budget_currency||"JPY"),schedule.budget_currency||"JPY",scales);
+    const beforeReceipts=receiptsAt(currentOwned,point,schedule.budget_settings?JSON.parse(schedule.budget_settings) as DepreciationBudgetSettings:{method:"unallocated"});
+    const afterReceipts=receiptsAt(expectedRows as typeof currentOwned,point,settings);
+    const units=(amount:number)=>fromStorageMoneyAmount(amount,schedule.budget_currency||"JPY",scales);
+    timeline.push({
+      date,
+      label:point.label,
+      created_at:point.created_at==="\uffff"?undefined:point.created_at,
+      reset_log_id:point.reset_log_id,
+      before: toBudgetSnapshot(currentSummary,T,units(beforeReceipts),schedule.budget_method==="unallocated"?0:units(Math.max(0,targetAmount-beforeReceipts))),
+      after: toBudgetSnapshot(simulatedSummary,T,units(afterReceipts),settings.method==="unallocated"?0:units(Math.max(0,targetAmount-afterReceipts))),
+    });
+  }
+  for(const boundary of boundaries) {
+    const reset=allLogs.find(row=>row.id===boundary.reset_log_id);
+    if(!reset)continue;
+    const through={date:reset.date,created_at:reset.created_at};
+    const oldBefore=await computeBudgetSummaryForDate(db,reset.date,schedule.budget_currency||"JPY",{adjustmentLogs:allLogs.filter(row=>row.id!==reset.id),through});
+    const newBefore=await computeBudgetSummaryForDate(db,reset.date,schedule.budget_currency||"JPY",{adjustmentLogs:replacementLogs.filter(row=>row.id!==reset.id),extraCategories,
+      excludeLegacyScheduleId:schedule.id,excludeAllocationIds:allocations.safeIds,through});
+    boundary.old_reset_amount=-(oldBefore.categories.find(row=>row.category.id===reset.budget_category_id)?.available??0);
+    boundary.new_reset_amount=-(newBefore.categories.find(row=>row.category.id===reset.budget_category_id)?.available??0);
+  }
+  const warnings = [
+    ...(validationError ? [validationError] : []),
+    ...(missingDecisions ? ["reset_decision_required"] : []),
+    ...(allocations.ambiguousCount ? ["ambiguous_legacy_allocations"] : []),
+    ...(settings.method === "unallocated" && !settings.confirm_unallocated ? ["unallocated_confirm_required"] : []),
+  ];
+  const canApply = !validationError && !missingDecisions && allocations.ambiguousCount === 0;
+  const token = await hashPreviewToken({
+    scheduleId: schedule.id,
+    scheduleRevision: schedule.budget_revision,
+    globalRevision,
+    sourceJournalId: schedule.source_journal_entry_id,
+    targetAmount,
+    settings,
+    expectedRows,
+    timeline,
+    boundaries,
+  });
+  if (globalRevision !== await getDepreciationBudgetRevision(c.env.DB)) throw new Error("stale_depreciation_budget_preview");
+  return {
+    schedule_id: schedule.id,
+    token,
+    settings,
+    progress,
+    boundaries,
+    timeline,
+    changes,
+    warnings,
+    can_apply: canApply,
+    _revision: globalRevision,
+    _expectedRows: expectedRows,
+    _allocationIds: allocations.safeIds,
+  };
+}
+
+type DepreciationCreateBody = {
+  purchase_date: string;
+  description: string;
+  asset_account_id: number;
+  payment_account_id: number;
+  expense_account_id: number;
+  total_amount: number;
+  months: number;
+  currency?: string;
+  purchase_lines?: Array<{
+    account_id: number;
+    debit: number;
+    credit: number;
+    currency?: string;
+    credit_card_billing_offset_months?: number | null;
+  }>;
+  budget_settings?: DepreciationBudgetSettings;
+  idempotency_key?: string;
+};
+
+async function nextJournalEntryId(DB: D1Database): Promise<number> {
+  const row = await DB.prepare(`SELECT MAX(
+    COALESCE((SELECT MAX(id) FROM journal_entries), 0),
+    COALESCE((SELECT seq FROM sqlite_sequence WHERE name='journal_entries'), 0)
+  ) AS max_id`).first<{ max_id: number }>();
+  return (row?.max_id ?? 0) + 1;
+}
+
+async function createConfiguredDepreciation(c: RouteContext, body: DepreciationCreateBody) {
+  const currency = (body.currency || "JPY").toUpperCase();
+  if (!body.budget_settings) return c.json({ error: "budget_settings_required" }, 400);
+  if (!body.idempotency_key || body.idempotency_key.length > 200) {
+    return c.json({ error: "idempotency_key_required" }, 400);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(body.purchase_date) || !Number.isSafeInteger(body.months) || body.months < 1 || body.months > 600 ||
+    !body.description || !body.asset_account_id || !body.payment_account_id || !body.expense_account_id) {
+    return c.json({ error: "invalid_depreciation_fields" }, 400);
+  }
+  const db = createDb(c.env);
+  // Every lookup below contributes to the accounting plan. The guard at the
+  // head of the write batch makes sure none of those inputs changed meanwhile.
+  const sourceRevision = await getDepreciationBudgetRevision(c.env.DB);
+  const existing = await db.select().from(depreciationSchedules)
+    .where(eq(depreciationSchedules.budget_idempotency_key, body.idempotency_key));
+  if (existing[0]) {
+    const [prior] = await db.select().from(depreciationBudgetRevisions).where(and(
+      eq(depreciationBudgetRevisions.schedule_id, existing[0].id),
+      eq(depreciationBudgetRevisions.action, "create"),
+    ));
+    const priorRequest = prior?.after_events ? (JSON.parse(prior.after_events) as { request?: string }).request : null;
+    if (priorRequest !== stableSerialize(body)) return c.json({ error: "idempotency_conflict" }, 409);
+    return c.json({ schedule_id: existing[0].id, source_journal_entry_id: existing[0].source_journal_entry_id, replayed: true });
+  }
+  const scales = await getBudgetScaleOptions(db);
+  let totalAmount: number;
+  try {
+    totalAmount = toStorageMoneyAmount(body.total_amount, currency, scales);
+  } catch {
+    return c.json(invalidMoneyResponse("total_amount", currency), 400);
+  }
+  if (totalAmount <= 0) return c.json({ error: "invalid_depreciation_fields" }, 400);
+  const settings = normalizeDepreciationBudgetSettings(body.budget_settings);
+  const settingsError = await validateBudgetCategoryIds(db, settings);
+  if (settingsError) return c.json({ error: settingsError }, 400);
+  if ((settings.settlements?.length ?? 0) > 0 || (settings.reset_decisions?.length ?? 0) > 0 || settings.end_date) {
+    return c.json({ error: "historical_budget_decisions_not_valid_on_create" }, 400);
+  }
+  if ((settings.routing_changes ?? []).some((route) => route.date < body.purchase_date)) {
+    return c.json({ error: "routing_change_before_purchase" }, 400);
+  }
+
+  if (body.purchase_lines !== undefined && !Array.isArray(body.purchase_lines)) {
+    return c.json({ error: "invalid_purchase_lines" }, 400);
+  }
+  const purchaseLines = body.purchase_lines === undefined
+    ? [{ account_id: body.asset_account_id, debit: body.total_amount, credit: 0, currency },
+      { account_id: body.payment_account_id, debit: 0, credit: body.total_amount, currency }]
+    : body.purchase_lines;
+  if (purchaseLines.length < 2 || purchaseLines.some((line) => !Number.isSafeInteger(line.account_id) || line.account_id <= 0 ||
+    typeof line.debit !== "number" || typeof line.credit !== "number")) {
+    return c.json({ error: "invalid_purchase_lines" }, 400);
+  }
+  const normalizedPurchaseLines = purchaseLines.map((line) => ({
+    ...line,
+    currency: (line.currency ?? currency).toUpperCase(),
+  }));
+  if (normalizedPurchaseLines.some((line) => line.currency !== currency)) {
+    return c.json({ error: "purchase_lines_currency_mismatch" }, 400);
+  }
+  if (normalizedPurchaseLines.some((line) => line.credit_card_billing_offset_months != null &&
+    (!Number.isSafeInteger(line.credit_card_billing_offset_months) || line.credit_card_billing_offset_months < 0))) {
+    return c.json({ error: "invalid_credit_card_billing_offset" }, 400);
+  }
+  const lineMoneyError = findInvalidMoneyField(normalizedPurchaseLines.flatMap((line, index) => [
+    { path: `purchase_lines[${index}].debit`, value: line.debit, currency },
+    { path: `purchase_lines[${index}].credit`, value: line.credit, currency },
+  ]));
+  if (lineMoneyError) return c.json(invalidMoneyResponse(lineMoneyError, currency), 400);
+  const balanceError = journalBalanceError(normalizedPurchaseLines, false, scales);
+  if (balanceError) return c.json({ error: "invalid_purchase_journal", detail: balanceError }, 400);
+
+  const accountIds = [...new Set([
+    body.asset_account_id, body.payment_account_id, body.expense_account_id,
+    ...normalizedPurchaseLines.map((line) => line.account_id),
+  ])];
+  const selectedAccounts = await db.select().from(accounts).where(inArray(accounts.id, accountIds));
+  if (selectedAccounts.length !== accountIds.length) return c.json({ error: "account_not_found" }, 400);
+  const assetAccount = selectedAccounts.find((account) => account.id === body.asset_account_id);
+  const expenseAccount = selectedAccounts.find((account) => account.id === body.expense_account_id);
+  if (assetAccount?.type !== "asset") return c.json({ error: "asset_account_must_be_asset" }, 400);
+  if (isBudgetAccount(assetAccount)) return c.json({ error: "invalid_depreciation_asset_account" }, 400);
+  if (expenseAccount?.type !== "expense") return c.json({ error: "expense_account_must_be_expense" }, 400);
+  const storagePurchaseLines = normalizedPurchaseLines.map((line) => ({
+    account_id: line.account_id,
+    debit: toStorageMoneyAmount(line.debit, currency, scales),
+    credit: toStorageMoneyAmount(line.credit, currency, scales),
+    currency,
+  }));
+  const assetAcquisition = storagePurchaseLines.reduce((total, line) => total +
+    (line.account_id === body.asset_account_id ? line.debit - line.credit : 0), 0);
+  if (assetAcquisition < totalAmount) return c.json({ error: "purchase_asset_basis_insufficient" }, 400);
+  const targetAmount = Math.min(
+    Math.max(0, -budgetAccountDelta(storagePurchaseLines, selectedAccounts, currency)),
+    totalAmount,
+  );
+  const monthlyAmounts = computeMonthlyAmounts(totalAmount, body.months, body.purchase_date);
+  const createdAt = new Date().toISOString().replace("T", " ").slice(0, 19);
+  const entryDates = monthlyAmounts.map((_, index) => index === 0 ? body.purchase_date : firstOfMonth(body.purchase_date, index));
+  const syntheticSchedule = {
+    id: -1,
+    source_journal_entry_id: -1,
+    asset_account_id: body.asset_account_id,
+    expense_account_id: body.expense_account_id,
+    total_amount: totalAmount,
+    months: body.months,
+    start_date: body.purchase_date,
+    description: body.description,
+    created_at: createdAt,
+    budget_method: settings.method,
+    budget_settings: JSON.stringify(settings),
+    budget_revision: 1,
+    budget_special_category_id: null,
+    budget_target_amount: targetAmount,
+    budget_currency: currency,
+    budget_idempotency_key: body.idempotency_key,
+  } as DepreciationScheduleRow;
+  const expectedRows = await buildOwnedDepreciationBudgetRows(
+    db,
+    syntheticSchedule,
+    settings,
+    targetAmount,
+    settings.method === "special" ? -1 : null,
+    scales,
+    {
+      purchaseCreatedAt: createdAt,
+      months: monthlyAmounts.map((amount, index) => ({
+        journal_entry_id: null,
+        month_number: index + 1,
+        date: entryDates[index]!,
+        created_at: createdAt,
+        amount,
+      })),
+    },
+  );
+  const today = toLocalDateString();
+  const futureCategoryIds = [...new Set(expectedRows
+    .filter((row) => row.date >= today && row.budget_category_id > 0)
+    .map((row) => row.budget_category_id))];
+  if (futureCategoryIds.length) {
+    const futureCategories = await db.select({ is_archived: budgetCategories.is_archived })
+      .from(budgetCategories).where(inArray(budgetCategories.id, futureCategoryIds));
+    if (futureCategories.some((row) => row.is_archived === 1)) return c.json({ error: "budget_category_archived" }, 400);
+  }
+
+  const sourceJournalEntryId = await nextJournalEntryId(c.env.DB);
+  const monthJournalEntryIds = monthlyAmounts.map((_, index) => sourceJournalEntryId + index + 1);
+  const persistedExpectedRows = expectedRows.map((row) => {
+    const month = /^monthly:(\d+)$/.exec(row.depreciation_event_key);
+    return {
+      ...row,
+      journal_entry_id: row.depreciation_event_key.startsWith("purchase:")
+        ? sourceJournalEntryId
+        : month ? monthJournalEntryIds[Number(month[1]) - 1] ?? null : row.journal_entry_id,
+    };
+  });
+  const statements: D1PreparedStatement[] = [
+    ...buildDepreciationBudgetRevisionGuard(c.env.DB, sourceRevision),
+  ];
+  statements.push(c.env.DB.prepare("INSERT INTO journal_entries(id,date,description,created_at) VALUES(?,?,?,?)")
+    .bind(sourceJournalEntryId, body.purchase_date, body.description, createdAt));
+  statements.push(c.env.DB.prepare(`INSERT INTO depreciation_schedules
+    (source_journal_entry_id,asset_account_id,expense_account_id,total_amount,months,start_date,description,
+     budget_method,budget_settings,budget_revision,budget_target_amount,budget_currency,budget_idempotency_key)
+    VALUES(?,?,?,?,?,?,?,?, ?,1,?,?,?)`).bind(
+      sourceJournalEntryId, body.asset_account_id, body.expense_account_id, totalAmount, body.months, body.purchase_date,
+      body.description, settings.method, JSON.stringify(settings), targetAmount, currency, body.idempotency_key,
+    ));
+  if (settings.method === "special") {
+    statements.push(c.env.DB.prepare(`INSERT INTO budget_categories
+      (name,sort_order,rollover_months,budget_group,is_archived) VALUES(?,0,-1,'減価償却',0)`)
+      .bind(`減価償却 ${body.idempotency_key.slice(0, 72)}`));
+    statements.push(c.env.DB.prepare("UPDATE depreciation_schedules SET budget_special_category_id=last_insert_rowid() WHERE budget_idempotency_key=?")
+      .bind(body.idempotency_key));
+  }
+  statements.push(c.env.DB.prepare(`INSERT INTO journal_lines
+    (journal_entry_id,account_id,debit,credit,currency,credit_card_billing_offset_months)
+    SELECT ?,CAST(json_extract(value,'$.account_id') AS INTEGER),
+      CAST(json_extract(value,'$.debit') AS INTEGER),CAST(json_extract(value,'$.credit') AS INTEGER),
+      json_extract(value,'$.currency'),json_extract(value,'$.credit_card_billing_offset_months')
+    FROM json_each(?)`).bind(sourceJournalEntryId, JSON.stringify(storagePurchaseLines.map((line, index) => ({
+      ...line,
+      credit_card_billing_offset_months: normalizedPurchaseLines[index]!.credit_card_billing_offset_months ?? null,
+    })))));
+  const monthlyJournalRows = monthlyAmounts.map((_, index) => ({
+    id: monthJournalEntryIds[index],
+    date: entryDates[index],
+    description: `${body.description} 減価償却費 (${index + 1}/${body.months}ヶ月)`,
+    created_at: createdAt,
+  }));
+  statements.push(c.env.DB.prepare(`INSERT INTO journal_entries(id,date,description,created_at)
+    SELECT CAST(json_extract(value,'$.id') AS INTEGER),json_extract(value,'$.date'),
+      json_extract(value,'$.description'),json_extract(value,'$.created_at') FROM json_each(?)`)
+    .bind(JSON.stringify(monthlyJournalRows)));
+  statements.push(c.env.DB.prepare(`INSERT INTO depreciation_entries(schedule_id,journal_entry_id,month_number)
+    SELECT (SELECT id FROM depreciation_schedules WHERE budget_idempotency_key=?),
+      CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),CAST(json_extract(value,'$.month_number') AS INTEGER)
+    FROM json_each(?)`).bind(body.idempotency_key, JSON.stringify(monthJournalEntryIds.map((journal_entry_id, index) => ({
+      journal_entry_id, month_number: index + 1,
+    })))));
+  const monthlyJournalLines = monthlyAmounts.flatMap((amount, index) => [
+    { journal_entry_id: monthJournalEntryIds[index], account_id: body.expense_account_id, debit: amount, credit: 0, currency },
+    { journal_entry_id: monthJournalEntryIds[index], account_id: body.asset_account_id, debit: 0, credit: amount, currency },
+  ]);
+  statements.push(c.env.DB.prepare(`INSERT INTO journal_lines(journal_entry_id,account_id,debit,credit,currency)
+    SELECT CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),CAST(json_extract(value,'$.account_id') AS INTEGER),
+      CAST(json_extract(value,'$.debit') AS INTEGER),CAST(json_extract(value,'$.credit') AS INTEGER),json_extract(value,'$.currency')
+    FROM json_each(?)`).bind(JSON.stringify(monthlyJournalLines)));
+  statements.push(c.env.DB.prepare(`INSERT INTO budget_adjustment_logs
+    (budget_category_id,year_month,amount,currency,date,adjustment_type,journal_entry_id,
+     depreciation_schedule_id,depreciation_event_key,depreciation_event_side,created_at)
+    SELECT CASE WHEN json_extract(value,'$.special_category')=1
+        THEN (SELECT budget_special_category_id FROM depreciation_schedules WHERE budget_idempotency_key=?)
+        ELSE CAST(json_extract(value,'$.budget_category_id') AS INTEGER) END,
+      json_extract(value,'$.year_month'),CAST(json_extract(value,'$.amount') AS INTEGER),
+      json_extract(value,'$.currency'),json_extract(value,'$.date'),json_extract(value,'$.adjustment_type'),
+      CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),
+      (SELECT id FROM depreciation_schedules WHERE budget_idempotency_key=?),
+      json_extract(value,'$.depreciation_event_key'),json_extract(value,'$.depreciation_event_side'),
+      json_extract(value,'$.created_at') FROM json_each(?)`)
+    .bind(body.idempotency_key, body.idempotency_key, JSON.stringify(persistedExpectedRows)));
+  statements.push(c.env.DB.prepare(`INSERT INTO depreciation_budget_revisions
+    (schedule_id,revision,action,request_key,before_settings,after_settings,before_events,after_events,created_at)
+    VALUES((SELECT id FROM depreciation_schedules WHERE budget_idempotency_key=?),1,'create',?,NULL,?,?,?,?)`)
+    .bind(body.idempotency_key, body.idempotency_key, JSON.stringify(settings), "[]", JSON.stringify({
+      request: stableSerialize(body), targetAmount, events: persistedExpectedRows,
+    }), createdAt));
+
+  try {
+    await c.env.DB.batch(statements);
+  } catch (error) {
+    const sameRequest = await db.select().from(depreciationSchedules)
+      .where(eq(depreciationSchedules.budget_idempotency_key, body.idempotency_key));
+    if (sameRequest[0]) {
+      const [prior] = await db.select().from(depreciationBudgetRevisions).where(and(
+        eq(depreciationBudgetRevisions.schedule_id, sameRequest[0].id),
+        eq(depreciationBudgetRevisions.action, "create"),
+      ));
+      const priorRequest = prior?.after_events ? (JSON.parse(prior.after_events) as { request?: string }).request : null;
+      if (priorRequest !== stableSerialize(body)) return c.json({ error: "idempotency_conflict" }, 409);
+      return c.json({ schedule_id: sameRequest[0].id, source_journal_entry_id: sameRequest[0].source_journal_entry_id, replayed: true });
+    }
+    if (String(error).includes("stale_depreciation_budget_preview")) {
+      return c.json({ error: "stale_budget_snapshot" }, 409);
+    }
+    throw error;
+  }
+  const [schedule] = await db.select().from(depreciationSchedules)
+    .where(eq(depreciationSchedules.budget_idempotency_key, body.idempotency_key));
+  return c.json({
+    schedule_id: schedule!.id,
+    source_journal_entry_id: schedule!.source_journal_entry_id,
+    monthly_amounts: monthlyAmounts.map((amount) => fromStorageMoneyAmount(amount, currency, scales)),
+    entry_dates: entryDates,
+    replayed: false,
+  }, 201);
+}
+async function updateConfiguredDepreciation(
+  c: RouteContext,
+  schedule: DepreciationScheduleRow,
+  body: {
+    purchase_date?: string; description?: string; total_amount?: number; months?: number;
+    asset_account_id?: number; expense_account_id?: number; payment_account_id?: number;
+    currency?: string; budget_settings?: DepreciationBudgetSettings; idempotency_key?: string;
+    purchase_lines?: Array<{
+      account_id: number; debit: number; credit: number; currency?: string;
+      credit_card_billing_offset_months?: number | null;
+    }>;
+  },
+) {
+  if (body.budget_settings) return c.json({ error: "budget_repair_required" }, 409);
+  const currency = schedule.budget_currency || "JPY";
+  if (body.currency && body.currency.toUpperCase() !== currency) return c.json({ error: "currency_change_requires_budget_repair" }, 409);
+  const db = createDb(c.env);
+  if (body.idempotency_key) {
+    const [prior] = await db.select().from(depreciationBudgetRevisions).where(and(
+      eq(depreciationBudgetRevisions.schedule_id, schedule.id),
+      eq(depreciationBudgetRevisions.request_key, body.idempotency_key),
+    ));
+    if (prior) {
+      const priorRequest = prior.after_events ? (JSON.parse(prior.after_events) as { request?: string }).request : null;
+      return priorRequest === stableSerialize(body)
+        ? c.json({ schedule_id: schedule.id, replayed: true })
+        : c.json({ error: "idempotency_conflict" }, 409);
+    }
+  }
+  const scales = await getBudgetScaleOptions(db);
+  let totalAmount = schedule.total_amount;
+  if (body.total_amount !== undefined) {
+    try { totalAmount = toStorageMoneyAmount(body.total_amount, currency, scales); }
+    catch { return c.json(invalidMoneyResponse("total_amount", currency), 400); }
+  }
+  const newPurchaseDate = body.purchase_date ?? schedule.start_date;
+  const newDescription = body.description ?? schedule.description;
+  const newMonths = body.months ?? schedule.months;
+  const newAssetAccountId = body.asset_account_id ?? schedule.asset_account_id;
+  const newExpenseAccountId = body.expense_account_id ?? schedule.expense_account_id;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(newPurchaseDate) || !Number.isSafeInteger(newMonths) || newMonths < 1 || newMonths > 600 || totalAmount <= 0) {
+    return c.json({ error: "invalid_depreciation_fields" }, 400);
+  }
+
+  const sourceRevision = await getDepreciationBudgetRevision(c.env.DB);
+  const [currentSchedule] = await db.select().from(depreciationSchedules).where(eq(depreciationSchedules.id, schedule.id));
+  if (!currentSchedule || stableSerialize(currentSchedule) !== stableSerialize(schedule)) return c.json({ error: "stale_schedule" }, 409);
+  const allocationLinks = await linkedAllocationIds(db, schedule);
+  if (allocationLinks.ambiguousCount) return c.json({ error: "ambiguous_legacy_allocations" }, 409);
+  const purchaseLines = await db.select().from(journalLines)
+    .where(eq(journalLines.journal_entry_id, schedule.source_journal_entry_id));
+  if (purchaseLines.length === 0) return c.json({ error: "purchase_journal_missing" }, 409);
+  const existingDebits = purchaseLines.filter((line) => line.debit > 0);
+  const existingCredits = purchaseLines.filter((line) => line.credit > 0);
+  const simplePurchaseLines = purchaseLines.length === 2 && existingDebits.length === 1 && existingCredits.length === 1 &&
+    existingDebits[0]!.account_id === schedule.asset_account_id;
+  const explicitPurchaseLines = body.purchase_lines !== undefined;
+  if (!explicitPurchaseLines && !simplePurchaseLines &&
+      (body.asset_account_id !== undefined || body.payment_account_id !== undefined)) {
+    return c.json({ error: "compound_purchase_lines_required" }, 409);
+  }
+  if (explicitPurchaseLines && !Array.isArray(body.purchase_lines)) return c.json({ error: "invalid_purchase_lines" }, 400);
+  const paymentAccountId = body.payment_account_id ?? (existingCredits.length === 1 ? existingCredits[0]!.account_id : undefined);
+  const simpleLineEdit = !explicitPurchaseLines && simplePurchaseLines &&
+    (body.asset_account_id !== undefined || body.payment_account_id !== undefined || body.total_amount !== undefined);
+  if (simpleLineEdit && !paymentAccountId) return c.json({ error: "payment_account_selection_required" }, 409);
+  const replacementLines = explicitPurchaseLines
+    ? body.purchase_lines!
+    : simpleLineEdit
+      ? [{ account_id: newAssetAccountId, debit: fromStorageMoneyAmount(totalAmount, currency, scales), credit: 0, currency },
+        { account_id: paymentAccountId!, debit: 0, credit: fromStorageMoneyAmount(totalAmount, currency, scales), currency,
+          credit_card_billing_offset_months: existingCredits.find((line) => line.account_id === paymentAccountId)?.credit_card_billing_offset_months ?? null }]
+      : null;
+  if (replacementLines && (replacementLines.length < 2 || replacementLines.some((line) =>
+    !Number.isSafeInteger(line.account_id) || line.account_id <= 0 || typeof line.debit !== "number" || typeof line.credit !== "number"))) {
+    return c.json({ error: "invalid_purchase_lines" }, 400);
+  }
+  const normalizedReplacementLines = replacementLines?.map((line) => ({ ...line, currency: (line.currency ?? currency).toUpperCase() }));
+  if (normalizedReplacementLines?.some((line) => line.currency !== currency)) {
+    return c.json({ error: "purchase_lines_currency_mismatch" }, 400);
+  }
+  if (normalizedReplacementLines?.some((line) => line.credit_card_billing_offset_months != null &&
+    (!Number.isSafeInteger(line.credit_card_billing_offset_months) || line.credit_card_billing_offset_months < 0))) {
+    return c.json({ error: "invalid_credit_card_billing_offset" }, 400);
+  }
+  if (normalizedReplacementLines) {
+    const lineMoneyError = findInvalidMoneyField(normalizedReplacementLines.flatMap((line, index) => [
+      { path: `purchase_lines[${index}].debit`, value: line.debit, currency },
+      { path: `purchase_lines[${index}].credit`, value: line.credit, currency },
+    ]));
+    if (lineMoneyError) return c.json(invalidMoneyResponse(lineMoneyError, currency), 400);
+    const balanceError = journalBalanceError(normalizedReplacementLines, false, scales);
+    if (balanceError) return c.json({ error: "invalid_purchase_journal", detail: balanceError }, 400);
+    if (!normalizedReplacementLines.some((line) => line.account_id === newAssetAccountId && line.debit > 0)) {
+      return c.json({ error: "purchase_asset_line_required" }, 400);
+    }
+  }
+  const selectedAccountIds = [...new Set([
+    newAssetAccountId, newExpenseAccountId,
+    ...(paymentAccountId == null ? [] : [paymentAccountId]),
+    ...purchaseLines.map((line) => line.account_id),
+    ...(normalizedReplacementLines ?? []).map((line) => line.account_id),
+  ])];
+  const selectedAccounts = await db.select().from(accounts).where(inArray(accounts.id, selectedAccountIds));
+  if (selectedAccounts.length !== selectedAccountIds.length) return c.json({ error: "account_not_found" }, 400);
+  if (selectedAccounts.find((account) => account.id === newAssetAccountId)?.type !== "asset") {
+    return c.json({ error: "asset_account_must_be_asset" }, 400);
+  }
+  if (isBudgetAccount(selectedAccounts.find((account) => account.id === newAssetAccountId))) {
+    return c.json({ error: "invalid_depreciation_asset_account" }, 400);
+  }
+  if (selectedAccounts.find((account) => account.id === newExpenseAccountId)?.type !== "expense") {
+    return c.json({ error: "expense_account_must_be_expense" }, 400);
+  }
+  const targetPurchaseLines = normalizedReplacementLines
+    ? normalizedReplacementLines.map((line) => ({
+        account_id: line.account_id,
+        debit: toStorageMoneyAmount(line.debit, currency, scales),
+        credit: toStorageMoneyAmount(line.credit, currency, scales),
+        currency,
+      }))
+    : purchaseLines.map((line) => ({ account_id: line.account_id, debit: line.debit, credit: line.credit, currency: line.currency }));
+  const assetAcquisition = targetPurchaseLines.reduce((total, line) => total +
+    (line.account_id === newAssetAccountId ? line.debit - line.credit : 0), 0);
+  if (assetAcquisition < totalAmount) return c.json({ error: "purchase_asset_basis_insufficient" }, 400);
+  const targetAmount = Math.min(Math.max(0, -budgetAccountDelta(targetPurchaseLines, selectedAccounts, currency)), totalAmount);
+  const settings = schedule.budget_settings
+    ? normalizeDepreciationBudgetSettings(JSON.parse(schedule.budget_settings) as DepreciationBudgetSettings)
+    : null;
+  if (!settings) return c.json({ error: "budget_configuration_missing" }, 409);
+
+  // Accounting edits preserve the saved routing/reset choices. If a date move
+  // changes which historical boundaries apply, require a fresh explicit repair
+  // instead of silently dropping or reinterpreting those decisions.
+  const oldBoundaries = await findRelevantResetBoundaries(c, schedule, settings);
+  const nextSchedule = { ...schedule, start_date: newPurchaseDate, total_amount: totalAmount, months: newMonths,
+    asset_account_id: newAssetAccountId, expense_account_id: newExpenseAccountId };
+  const nextBoundaries = await findRelevantResetBoundaries(c, nextSchedule, settings);
+  const oldBoundaryIds = oldBoundaries.map((boundary) => boundary.reset_log_id).sort((a, b) => a - b);
+  const nextBoundaryIds = nextBoundaries.map((boundary) => boundary.reset_log_id).sort((a, b) => a - b);
+  if (stableSerialize(oldBoundaryIds) !== stableSerialize(nextBoundaryIds)) {
+    return c.json({ error: "purchase_date_crosses_reset_repair_required" }, 409);
+  }
+  const missingDecision = nextBoundaries.some((boundary) => {
+    const decision = settings.reset_decisions?.find((row) => row.reset_log_id === boundary.reset_log_id);
+    if (!decision) return true;
+    const validAction = boundary.action_kind === "carry_or_settle"
+      ? decision.action === "carry" || decision.action === "settle"
+      : decision.action === "continue" || decision.action === "end";
+    return !validAction || (boundary.scope_confirmation_required && !decision.scope) ||
+      (boundary.required_action === "order" && !decision.same_day_order);
+  });
+  if (missingDecision) return c.json({ error: "reset_decision_required" }, 409);
+
+  const amounts = computeMonthlyAmounts(totalAmount, newMonths, newPurchaseDate);
+  const dates = amounts.map((_, index) => index === 0 ? newPurchaseDate : firstOfMonth(newPurchaseDate, index));
+  const createdAt = new Date().toISOString().replace("T", " ").slice(0, 19);
+  const [purchaseHeader] = await db.select({ created_at: journalEntries.created_at })
+    .from(journalEntries).where(eq(journalEntries.id, schedule.source_journal_entry_id));
+  const oldMonthAnchors = await db.select({
+    month_number: depreciationEntries.month_number,
+    date: journalEntries.date,
+    created_at: journalEntries.created_at,
+  }).from(depreciationEntries)
+    .innerJoin(journalEntries, eq(depreciationEntries.journal_entry_id, journalEntries.id))
+    .where(eq(depreciationEntries.schedule_id, schedule.id));
+  const oldAnchorByMonth = new Map(oldMonthAnchors.map((row) => [row.month_number, row]));
+  const monthCreatedAts = dates.map((date, index) => {
+    const old = oldAnchorByMonth.get(index + 1);
+    return old?.date === date ? old.created_at : old?.created_at ?? purchaseHeader?.created_at ?? schedule.created_at;
+  });
+  const hypotheticalMonths = amounts.map((amount, index) => ({
+    journal_entry_id: null,
+    month_number: index + 1,
+    date: dates[index]!,
+    created_at: monthCreatedAts[index]!,
+    amount,
+  }));
+  let expectedRows;
+  try {
+    expectedRows = await buildOwnedDepreciationBudgetRows(
+      db,
+      nextSchedule,
+      settings,
+      targetAmount,
+      schedule.budget_special_category_id,
+      scales,
+      { months: hypotheticalMonths, purchaseCreatedAt: purchaseHeader?.created_at ?? schedule.created_at },
+    );
+  } catch (error) {
+    if (error instanceof DepreciationBudgetPlanError) {
+      const status = error.code === "settlement_exceeds_remaining_principal" ? 409 : 400;
+      return c.json({ error: error.code }, status);
+    }
+    throw error;
+  }
+  const today = toLocalDateString();
+  const futureCategoryIds = [...new Set(expectedRows
+    .filter((row) => row.date >= today && row.budget_category_id > 0)
+    .map((row) => row.budget_category_id))];
+  if (futureCategoryIds.length) {
+    const futureCategories = await db.select({ is_archived: budgetCategories.is_archived })
+      .from(budgetCategories).where(inArray(budgetCategories.id, futureCategoryIds));
+    if (futureCategories.some((row) => row.is_archived === 1)) return c.json({ error: "budget_category_archived" }, 409);
+  }
+  const linesChanged = normalizedReplacementLines != null;
+  const firstMonthJournalId = await nextJournalEntryId(c.env.DB);
+  const monthJournalEntryIds = amounts.map((_, index) => firstMonthJournalId + index);
+  const persistedExpectedRows = expectedRows.map((row) => {
+    const month = /^monthly:(\d+)$/.exec(row.depreciation_event_key);
+    return {
+      ...row,
+      journal_entry_id: row.depreciation_event_key.startsWith("purchase:")
+        ? schedule.source_journal_entry_id
+        : month ? monthJournalEntryIds[Number(month[1]) - 1] ?? null : row.journal_entry_id,
+    };
+  });
+  const statements: D1PreparedStatement[] = [
+    ...buildDepreciationBudgetRevisionGuard(c.env.DB, sourceRevision),
+    c.env.DB.prepare("DELETE FROM journal_entries WHERE id IN (SELECT journal_entry_id FROM depreciation_entries WHERE schedule_id=?)").bind(schedule.id),
+    c.env.DB.prepare("DELETE FROM budget_adjustment_logs WHERE depreciation_schedule_id=?").bind(schedule.id),
+    c.env.DB.prepare("DELETE FROM depreciation_budget_reservations WHERE schedule_id=?").bind(schedule.id),
+    c.env.DB.prepare(`UPDATE journal_entries SET date=?,description=? WHERE id=?`)
+      .bind(newPurchaseDate, newDescription, schedule.source_journal_entry_id),
+  ];
+  for (const allocationChunk of chunkForD1InClause(allocationLinks.safeIds)) {
+    const placeholders = allocationChunk.map(() => "?").join(",");
+    statements.push(c.env.DB.prepare(`DELETE FROM journal_entry_budget_allocations WHERE id IN (${placeholders})`)
+      .bind(...allocationChunk));
+  }
+  if (linesChanged) {
+    statements.push(c.env.DB.prepare("DELETE FROM journal_lines WHERE journal_entry_id=?").bind(schedule.source_journal_entry_id));
+    const purchaseLineRows = normalizedReplacementLines!.map((line) => ({
+      account_id: line.account_id,
+      debit: toStorageMoneyAmount(line.debit, currency, scales),
+      credit: toStorageMoneyAmount(line.credit, currency, scales),
+      currency,
+      credit_card_billing_offset_months: line.credit_card_billing_offset_months ?? null,
+    }));
+    statements.push(c.env.DB.prepare(`INSERT INTO journal_lines
+      (journal_entry_id,account_id,debit,credit,currency,credit_card_billing_offset_months)
+      SELECT ?,CAST(json_extract(value,'$.account_id') AS INTEGER),
+        CAST(json_extract(value,'$.debit') AS INTEGER),CAST(json_extract(value,'$.credit') AS INTEGER),
+        json_extract(value,'$.currency'),json_extract(value,'$.credit_card_billing_offset_months') FROM json_each(?)`)
+      .bind(schedule.source_journal_entry_id, JSON.stringify(purchaseLineRows)));
+  }
+  statements.push(c.env.DB.prepare(`UPDATE depreciation_schedules SET start_date=?,description=?,total_amount=?,months=?,
+    asset_account_id=?,expense_account_id=?,budget_target_amount=?,budget_revision=budget_revision+1 WHERE id=?`)
+    .bind(newPurchaseDate, newDescription, totalAmount, newMonths, newAssetAccountId, newExpenseAccountId, targetAmount, schedule.id));
+  const monthlyJournalRows = amounts.map((_, index) => ({
+    id: monthJournalEntryIds[index]!,
+    date: dates[index]!,
+    description: `${newDescription} 減価償却費 (${index + 1}/${newMonths}ヶ月)`,
+    created_at: monthCreatedAts[index]!,
+  }));
+  statements.push(c.env.DB.prepare(`INSERT INTO journal_entries(id,date,description,created_at)
+    SELECT CAST(json_extract(value,'$.id') AS INTEGER),json_extract(value,'$.date'),
+      json_extract(value,'$.description'),json_extract(value,'$.created_at') FROM json_each(?)`)
+    .bind(JSON.stringify(monthlyJournalRows)));
+  statements.push(c.env.DB.prepare(`INSERT INTO depreciation_entries(schedule_id,journal_entry_id,month_number)
+    SELECT ?,CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),
+      CAST(json_extract(value,'$.month_number') AS INTEGER) FROM json_each(?)`)
+    .bind(schedule.id, JSON.stringify(monthJournalEntryIds.map((journal_entry_id, index) => ({
+      journal_entry_id, month_number: index + 1,
+    })))));
+  const monthlyJournalLines = amounts.flatMap((amount, index) => [
+    { journal_entry_id: monthJournalEntryIds[index]!, account_id: newExpenseAccountId, debit: amount, credit: 0, currency },
+    { journal_entry_id: monthJournalEntryIds[index]!, account_id: newAssetAccountId, debit: 0, credit: amount, currency },
+  ]);
+  statements.push(c.env.DB.prepare(`INSERT INTO journal_lines(journal_entry_id,account_id,debit,credit,currency)
+    SELECT CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),CAST(json_extract(value,'$.account_id') AS INTEGER),
+      CAST(json_extract(value,'$.debit') AS INTEGER),CAST(json_extract(value,'$.credit') AS INTEGER),json_extract(value,'$.currency')
+    FROM json_each(?)`).bind(JSON.stringify(monthlyJournalLines)));
+  statements.push(c.env.DB.prepare(`INSERT INTO budget_adjustment_logs
+    (budget_category_id,year_month,amount,currency,date,adjustment_type,journal_entry_id,
+     depreciation_schedule_id,depreciation_event_key,depreciation_event_side,created_at)
+    SELECT CASE WHEN json_extract(value,'$.special_category')=1
+        THEN (SELECT budget_special_category_id FROM depreciation_schedules WHERE id=?)
+        ELSE CAST(json_extract(value,'$.budget_category_id') AS INTEGER) END,
+      json_extract(value,'$.year_month'),CAST(json_extract(value,'$.amount') AS INTEGER),
+      json_extract(value,'$.currency'),json_extract(value,'$.date'),json_extract(value,'$.adjustment_type'),
+      CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),?,
+      json_extract(value,'$.depreciation_event_key'),json_extract(value,'$.depreciation_event_side'),
+      json_extract(value,'$.created_at') FROM json_each(?)`)
+    .bind(schedule.id, schedule.id, JSON.stringify(persistedExpectedRows)));
+  const beforeEvents = await getOwnedBudgetRows(db, schedule.id);
+  statements.push(c.env.DB.prepare(`INSERT INTO depreciation_budget_revisions
+    (schedule_id,revision,action,request_key,before_settings,after_settings,before_events,after_events,created_at)
+    VALUES(?,?,'accounting_edit',?,?,?,?,?,?)`).bind(
+      schedule.id, schedule.budget_revision + 1, body.idempotency_key ?? null,
+      schedule.budget_settings, schedule.budget_settings,
+      JSON.stringify(beforeEvents), JSON.stringify({ request: stableSerialize(body), targetAmount, amounts, dates, events: persistedExpectedRows }), createdAt,
+    ));
+  try {
+    await c.env.DB.batch(statements);
+  } catch (error) {
+    if (String(error).includes("stale_depreciation_budget_preview")) return c.json({ error: "stale_schedule" }, 409);
+    throw error;
+  }
+  return c.json({ schedule_id: schedule.id, monthly_amounts: amounts.map((amount) => fromStorageMoneyAmount(amount, currency, scales)), entry_dates: dates });
+}
+
 // ── routes ───────────────────────────────────────────────────────────────────
+
+router.post("/:id/budget/preview", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isSafeInteger(id) || id <= 0) return c.json({ error: "invalid_id" }, 400);
+  const body = await c.req.json<{ settings?: DepreciationBudgetSettings }>();
+  if (!body.settings) return c.json({ error: "settings_required" }, 400);
+  const db = createDb(c.env);
+  const [schedule] = await db.select().from(depreciationSchedules).where(eq(depreciationSchedules.id, id));
+  if (!schedule) return c.json({ error: "not_found" }, 404);
+  let preview: Awaited<ReturnType<typeof buildDepreciationBudgetPreview>>;
+  try {
+    preview = await buildDepreciationBudgetPreview(c, schedule, body.settings);
+  } catch (error) {
+    if(String(error).includes("stale_depreciation_budget_preview")) return c.json({error:"stale_preview"},409);
+    if (error instanceof DepreciationBudgetPlanError) return c.json({ error: error.code }, 400);
+    throw error;
+  }
+  const { _revision: _revision, _expectedRows: _expectedRows, _allocationIds: _allocationIds, ...payload } = preview;
+  return c.json(payload);
+});
+
+router.post("/:id/budget/apply", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isSafeInteger(id) || id <= 0) return c.json({ error: "invalid_id" }, 400);
+  const body = await c.req.json<ApplyDepreciationBudgetInput>();
+  if (!body.token || !body.settings) return c.json({ error: "token_and_settings_required" }, 400);
+  if (!body.confirmed) return c.json({ error: "confirmation_required" }, 400);
+  const db = createDb(c.env);
+  const [schedule] = await db.select().from(depreciationSchedules).where(eq(depreciationSchedules.id, id));
+  if (!schedule) return c.json({ error: "not_found" }, 404);
+
+  const replay = await db.select().from(depreciationBudgetRevisions).where(and(
+    eq(depreciationBudgetRevisions.schedule_id, id),
+    eq(depreciationBudgetRevisions.request_key, body.token),
+  ));
+  if (replay.length) {
+    const progress = await getDepreciationBudgetProgress(db, schedule);
+    return c.json({ schedule_id: id, budget: progress, replayed: true });
+  }
+
+  let preview: Awaited<ReturnType<typeof buildDepreciationBudgetPreview>>;
+  try {
+    preview = await buildDepreciationBudgetPreview(c, schedule, body.settings);
+  } catch (error) {
+    if(String(error).includes("stale_depreciation_budget_preview")) return c.json({error:"stale_preview"},409);
+    if (error instanceof DepreciationBudgetPlanError) return c.json({ error: error.code }, 400);
+    throw error;
+  }
+  if (preview.token !== body.token) return c.json({ error: "stale_preview" }, 409);
+  if (!preview.can_apply) return c.json({ error: "budget_plan_not_applicable", warnings: preview.warnings }, 409);
+
+  const oldSettings = schedule.budget_settings;
+  const normalizedSettings = normalizeDepreciationBudgetSettings(body.settings);
+  const sameSettings = schedule.budget_method === normalizedSettings.method &&
+    oldSettings === JSON.stringify(normalizedSettings);
+  const oldEvents = await getOwnedBudgetRows(db, id);
+  const reservationCount = await db.select()
+    .from(depreciationBudgetReservations).where(eq(depreciationBudgetReservations.schedule_id, id));
+  const legacyAllocationRows=(await Promise.all(chunkForD1InClause(preview._allocationIds).map(chunk=>
+    db.select().from(journalEntryBudgetAllocations).where(inArray(journalEntryBudgetAllocations.id,chunk))))).flat();
+  if (sameSettings && preview.changes.length === 0 && reservationCount.length === 0 && preview._allocationIds.length === 0) {
+    return c.json({ schedule_id: id, budget: await getDepreciationBudgetProgress(db, schedule), replayed: false, unchanged: true });
+  }
+
+  const createdAt = new Date().toISOString().replace("T", " ").slice(0, 19);
+  const specialCategoryNeedsCreate = normalizedSettings.method === "special" && schedule.budget_special_category_id == null;
+  const targetAmount = await getDepreciationPurchaseTarget(db, schedule);
+  const statements: D1PreparedStatement[] = [
+    ...buildDepreciationBudgetRevisionGuard(c.env.DB, preview._revision),
+  ];
+  if (specialCategoryNeedsCreate) {
+    statements.push(c.env.DB.prepare(`INSERT INTO budget_categories
+      (name,sort_order,rollover_months,budget_group,is_archived) VALUES(?,0,-1,'減価償却',0)`)
+      .bind(`減価償却 ${schedule.id}`));
+    statements.push(c.env.DB.prepare("UPDATE depreciation_schedules SET budget_special_category_id=last_insert_rowid() WHERE id=?").bind(id));
+  }
+  statements.push(c.env.DB.prepare("DELETE FROM budget_adjustment_logs WHERE depreciation_schedule_id=?").bind(id));
+  statements.push(c.env.DB.prepare("DELETE FROM depreciation_budget_reservations WHERE schedule_id=?").bind(id));
+  for(const chunk of chunkForD1InClause(preview._allocationIds)) {
+    const placeholders = chunk.map(() => "?").join(",");
+    statements.push(c.env.DB.prepare(`DELETE FROM journal_entry_budget_allocations WHERE id IN (${placeholders})`)
+      .bind(...chunk));
+  }
+  statements.push(c.env.DB.prepare(`UPDATE depreciation_schedules SET budget_method=?,budget_settings=?,
+    budget_revision=budget_revision+1,budget_target_amount=?,budget_currency=?
+    WHERE id=?`).bind(
+      normalizedSettings.method,
+      JSON.stringify(normalizedSettings),
+      targetAmount,
+      schedule.budget_currency || "JPY",
+      id,
+    ));
+  for (const row of preview._expectedRows) {
+    const special = row.special_category || row.budget_category_id === 0;
+    const categoryExpression = special
+      ? "(SELECT budget_special_category_id FROM depreciation_schedules WHERE id=?)"
+      : "?";
+    const values = [
+      row.year_month,
+      row.amount,
+      row.currency,
+      row.date,
+      row.adjustment_type,
+      row.journal_entry_id,
+      row.depreciation_schedule_id,
+      row.depreciation_event_key,
+      row.depreciation_event_side,
+      row.created_at ?? createdAt,
+    ];
+    statements.push(c.env.DB.prepare(`INSERT INTO budget_adjustment_logs
+      (budget_category_id,year_month,amount,currency,date,adjustment_type,journal_entry_id,
+       depreciation_schedule_id,depreciation_event_key,depreciation_event_side,created_at)
+      VALUES(${categoryExpression},?,?,?,?,?,?,?,?,?,?)`).bind(
+        ...(special ? [id, ...values] : [row.budget_category_id, ...values]),
+      ));
+  }
+  statements.push(c.env.DB.prepare(`INSERT INTO depreciation_budget_revisions
+    (schedule_id,revision,action,request_key,before_settings,after_settings,before_events,after_events,created_at)
+    VALUES(?,?,'apply',?,?,?,?,?,?)`).bind(
+      id,
+      schedule.budget_revision + 1,
+      body.token,
+      oldSettings,
+      JSON.stringify(normalizedSettings),
+      JSON.stringify({owned:oldEvents,legacy_reservations:reservationCount,legacy_allocations:legacyAllocationRows}),
+      JSON.stringify(preview._expectedRows),
+      createdAt,
+    ));
+
+  try {
+    await c.env.DB.batch(statements);
+  } catch (error) {
+    const message = String(error);
+    if (message.includes("stale_depreciation_budget_preview") || message.includes("depreciation_budget_apply_guard")) {
+      return c.json({ error: "stale_preview" }, 409);
+    }
+    throw error;
+  }
+  const [updated] = await db.select().from(depreciationSchedules).where(eq(depreciationSchedules.id, id));
+  return c.json({ schedule_id: id, budget: await getDepreciationBudgetProgress(db, updated!), replayed: false });
+});
 
 // GET /api/depreciation — list all schedules
 router.get("/", async (c) => {
@@ -144,11 +1253,17 @@ router.get("/", async (c) => {
 
   const scheduleIds = schedules.map((s) => s.id);
 
-  const entries = await db
-    .select()
-    .from(depreciationEntries)
-    .where(inArray(depreciationEntries.schedule_id, scheduleIds))
-    .orderBy(depreciationEntries.schedule_id, depreciationEntries.month_number);
+  const entries = (
+    await Promise.all(
+      chunkForD1InClause(scheduleIds).map((chunk) =>
+        db
+          .select()
+          .from(depreciationEntries)
+          .where(inArray(depreciationEntries.schedule_id, chunk))
+          .orderBy(depreciationEntries.schedule_id, depreciationEntries.month_number),
+      ),
+    )
+  ).flat().sort((a, b) => a.schedule_id - b.schedule_id || a.month_number - b.month_number);
 
   // Fetch account names
   const accountIds = [
@@ -156,37 +1271,55 @@ router.get("/", async (c) => {
       schedules.flatMap((s) => [s.asset_account_id, s.expense_account_id]),
     ),
   ];
-  const accountRows = await db
-    .select({ id: accounts.id, name: accounts.name })
-    .from(accounts)
-    .where(inArray(accounts.id, accountIds));
+  const accountRows = (
+    await Promise.all(
+      chunkForD1InClause(accountIds).map((chunk) =>
+        db
+          .select({ id: accounts.id, name: accounts.name })
+          .from(accounts)
+          .where(inArray(accounts.id, chunk)),
+      ),
+    )
+  ).flat();
   const accountMap = new Map(accountRows.map((a) => [a.id, a.name]));
 
   // Fetch entry dates and amounts for each schedule
   const entryJournalIds = entries.map((e) => e.journal_entry_id);
   const journalRows =
     entryJournalIds.length > 0
-      ? await db
-          .select({
-            id: journalEntries.id,
-            date: journalEntries.date,
-          })
-          .from(journalEntries)
-          .where(inArray(journalEntries.id, entryJournalIds))
+      ? (
+          await Promise.all(
+            chunkForD1InClause(entryJournalIds).map((chunk) =>
+              db
+                .select({
+                  id: journalEntries.id,
+                  date: journalEntries.date,
+                })
+                .from(journalEntries)
+                .where(inArray(journalEntries.id, chunk)),
+            ),
+          )
+        ).flat()
       : [];
   const journalDateMap = new Map(journalRows.map((j) => [j.id, j.date]));
 
   // Fetch debit amounts for depreciation lines
   const lineRows =
     entryJournalIds.length > 0
-      ? await db
-          .select({
-            journal_entry_id: journalLines.journal_entry_id,
-            debit: journalLines.debit,
-            account_id: journalLines.account_id,
-          })
-          .from(journalLines)
-          .where(inArray(journalLines.journal_entry_id, entryJournalIds))
+      ? (
+          await Promise.all(
+            chunkForD1InClause(entryJournalIds).map((chunk) =>
+              db
+                .select({
+                  journal_entry_id: journalLines.journal_entry_id,
+                  debit: journalLines.debit,
+                  account_id: journalLines.account_id,
+                })
+                .from(journalLines)
+                .where(inArray(journalLines.journal_entry_id, chunk)),
+            ),
+          )
+        ).flat()
       : [];
 
   // Per journal entry → debit amount (the expense side)
@@ -202,6 +1335,11 @@ router.get("/", async (c) => {
     const arr = entriesBySchedule.get(e.schedule_id) ?? [];
     arr.push(e);
     entriesBySchedule.set(e.schedule_id, arr);
+  }
+
+  const budgets = new Map<number, Awaited<ReturnType<typeof getDepreciationBudgetProgress>>>();
+  for (const schedule of schedules) {
+    budgets.set(schedule.id, await getDepreciationBudgetProgress(db, schedule));
   }
 
   return c.json(
@@ -221,6 +1359,7 @@ router.get("/", async (c) => {
         start_date: s.start_date,
         description: s.description,
         created_at: s.created_at,
+        budget: budgets.get(s.id)!,
         monthly_amounts: sEntries.map(
           (e) => entryAmountMap.get(e.journal_entry_id) ?? 0,
         ),
@@ -234,169 +1373,13 @@ router.get("/", async (c) => {
 
 // POST /api/depreciation — create schedule + all journal entries
 router.post("/", async (c) => {
-  const body = await c.req.json<{
-    purchase_date: string;
-    description: string;
-    asset_account_id: number;
-    payment_account_id: number;
-    expense_account_id: number;
-    total_amount: number;
-    months: number;
-  }>();
-
-  const {
-    purchase_date,
-    description,
-    asset_account_id,
-    payment_account_id,
-    expense_account_id,
-    total_amount,
-    months,
-  } = body;
-
+  const body = await c.req.json<DepreciationCreateBody>();
   const invalidMoneyField = findInvalidMoneyField([
-    { path: "total_amount", value: total_amount },
+    { path: "total_amount", value: body.total_amount, currency: body.currency || "JPY" },
   ]);
-  if (invalidMoneyField) {
-    return c.json(invalidMoneyResponse(invalidMoneyField), 400);
-  }
-
-  if (
-    !purchase_date ||
-    !description ||
-    !asset_account_id ||
-    !payment_account_id ||
-    !expense_account_id ||
-    total_amount <= 0 ||
-    months < 1
-  ) {
-    return c.json({ error: "Missing or invalid fields" }, 400);
-  }
-
-  const db = createDb(c.env);
-  const monthlyAmounts = computeMonthlyAmounts(
-    total_amount,
-    months,
-    purchase_date,
-  );
-
-  // Fetch budget ratios for the chosen expense account
-  const budgetRatios = await db
-    .select()
-    .from(budgetCategoryAccounts)
-    .where(eq(budgetCategoryAccounts.account_id, expense_account_id));
-
-  // 1. Purchase entry: DR asset / CR payment (no budget allocation — CapEx, not OpEx)
-  const [purchaseEntry] = await db
-    .insert(journalEntries)
-    .values({ date: purchase_date, description })
-    .returning();
-  if (!purchaseEntry)
-    return c.json({ error: "Failed to create purchase entry" }, 500);
-
-  await db.insert(journalLines).values([
-    {
-      journal_entry_id: purchaseEntry.id,
-      account_id: asset_account_id,
-      debit: total_amount,
-      credit: 0,
-    },
-    {
-      journal_entry_id: purchaseEntry.id,
-      account_id: payment_account_id,
-      debit: 0,
-      credit: total_amount,
-    },
-  ]);
-
-  // 2. Create schedule record
-  const [schedule] = await db
-    .insert(depreciationSchedules)
-    .values({
-      source_journal_entry_id: purchaseEntry.id,
-      asset_account_id,
-      expense_account_id,
-      total_amount,
-      months,
-      start_date: purchase_date,
-      description,
-    })
-    .returning();
-  if (!schedule) return c.json({ error: "Failed to create schedule" }, 500);
-
-  const reservationRows = buildBudgetReservations(
-    schedule.id,
-    total_amount,
-    budgetRatios,
-  );
-  if (reservationRows.length > 0) {
-    await db.insert(depreciationBudgetReservations).values(reservationRows);
-  }
-
-  // 3. Monthly depreciation entries: DR expense / CR asset
-  const entryDates: string[] = [];
-  for (let i = 0; i < months; i++) {
-    entryDates.push(i === 0 ? purchase_date : firstOfMonth(purchase_date, i));
-  }
-
-  const monthlyJournalIds: number[] = [];
-  for (let i = 0; i < months; i++) {
-    const amt = monthlyAmounts[i] ?? 0;
-    const entryDesc = `${description} 減価償却費 (${i + 1}/${months}ヶ月)`;
-    const [entry] = await db
-      .insert(journalEntries)
-      .values({ date: entryDates[i]!, description: entryDesc })
-      .returning();
-    if (!entry) continue;
-    await db.insert(journalLines).values([
-      {
-        journal_entry_id: entry.id,
-        account_id: expense_account_id,
-        debit: amt,
-        credit: 0,
-      },
-      {
-        journal_entry_id: entry.id,
-        account_id: asset_account_id,
-        debit: 0,
-        credit: amt,
-      },
-    ]);
-    // Budget allocations: distribute monthly amount across budget categories by ratio
-    if (budgetRatios.length > 0) {
-      const allocRows = buildBudgetAllocations(entry.id, amt, budgetRatios);
-      if (allocRows.length > 0) {
-        await db.insert(journalEntryBudgetAllocations).values(
-          allocRows.map((row) => ({ ...row, source: "depreciation" })),
-        );
-      }
-    }
-    monthlyJournalIds.push(entry.id);
-  }
-
-  // 4. Link schedule → depreciation entries
-  if (monthlyJournalIds.length > 0) {
-    await insertDepreciationEntriesChunked(
-      db,
-      monthlyJournalIds.map((jid, i) => ({
-        schedule_id: schedule.id,
-        journal_entry_id: jid,
-        month_number: i + 1,
-      })),
-    );
-  }
-
-  return c.json(
-    {
-      schedule_id: schedule.id,
-      source_journal_entry_id: purchaseEntry.id,
-      monthly_amounts: monthlyAmounts,
-      entry_dates: entryDates,
-    },
-    201,
-  );
+  if (invalidMoneyField) return c.json(invalidMoneyResponse(invalidMoneyField, body.currency), 400);
+  return createConfiguredDepreciation(c, body);
 });
-
 // PATCH /api/depreciation/:id — update schedule (regenerates all monthly entries)
 router.patch("/:id", async (c) => {
   const id = Number(c.req.param("id"));
@@ -410,10 +1393,17 @@ router.patch("/:id", async (c) => {
     asset_account_id?: number;
     expense_account_id?: number;
     payment_account_id?: number;
+    currency?: string;
+    budget_settings?: DepreciationBudgetSettings;
+    idempotency_key?: string;
+    purchase_lines?: Array<{
+      account_id: number; debit: number; credit: number; currency?: string;
+      credit_card_billing_offset_months?: number | null;
+    }>;
   }>();
 
   const invalidMoneyField = findInvalidMoneyField([
-    { path: "total_amount", value: body.total_amount },
+    { path: "total_amount", value: body.total_amount, currency: body.currency || "JPY" },
   ]);
   if (invalidMoneyField) {
     return c.json(invalidMoneyResponse(invalidMoneyField), 400);
@@ -426,6 +1416,8 @@ router.patch("/:id", async (c) => {
     .from(depreciationSchedules)
     .where(eq(depreciationSchedules.id, id));
   if (!schedule) return c.json({ error: "Not found" }, 404);
+
+  if (schedule.budget_method) return updateConfiguredDepreciation(c, schedule, body);
 
   const newPurchaseDate = body.purchase_date ?? schedule.start_date;
   const newDescription = body.description ?? schedule.description;
@@ -600,41 +1592,33 @@ router.patch("/:id", async (c) => {
 // DELETE /api/depreciation/:id — delete schedule + all its entries
 router.delete("/:id", async (c) => {
   const id = Number(c.req.param("id"));
-  if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);
-
+  if (!Number.isSafeInteger(id) || id <= 0) return c.json({ error: "invalid_id" }, 400);
   const db = createDb(c.env);
-
-  const [schedule] = await db
-    .select()
-    .from(depreciationSchedules)
-    .where(eq(depreciationSchedules.id, id));
-  if (!schedule) return c.json({ error: "Not found" }, 404);
-
-  // Delete all monthly journal entries
-  const depEntries = await db
-    .select()
-    .from(depreciationEntries)
-    .where(eq(depreciationEntries.schedule_id, id));
-  const journalIds = depEntries.map((e) => e.journal_entry_id);
-  if (journalIds.length > 0) {
-    await db
-      .delete(journalEntries)
-      .where(inArray(journalEntries.id, journalIds));
+  const expectedRevision = await getDepreciationBudgetRevision(c.env.DB);
+  const [schedule] = await db.select().from(depreciationSchedules).where(eq(depreciationSchedules.id, id));
+  if (!schedule) return c.json({ error: "not_found" }, 404);
+  const ownedEvents = await getOwnedBudgetRows(db, id);
+  const createdAt = new Date().toISOString().replace("T", " ").slice(0, 19);
+  const statements: D1PreparedStatement[] = [
+    ...buildDepreciationBudgetRevisionGuard(c.env.DB, expectedRevision),
+  ];
+  statements.push(c.env.DB.prepare(`DELETE FROM journal_entries WHERE id IN
+    (SELECT journal_entry_id FROM depreciation_entries WHERE schedule_id=?)`).bind(id));
+  statements.push(c.env.DB.prepare("DELETE FROM journal_entries WHERE id=?").bind(schedule.source_journal_entry_id));
+  statements.push(c.env.DB.prepare(`INSERT INTO depreciation_budget_revisions
+    (schedule_id,revision,action,before_settings,after_settings,before_events,after_events,created_at)
+    VALUES(?,?,'delete',?,NULL,?,'[]',?)`).bind(
+      id, schedule.budget_revision + 1, schedule.budget_settings, JSON.stringify(ownedEvents), createdAt,
+    ));
+  statements.push(c.env.DB.prepare("DELETE FROM depreciation_schedules WHERE id=?").bind(id));
+  try {
+    await c.env.DB.batch(statements);
+  } catch (error) {
+    if (String(error).includes("stale_depreciation_budget_preview")) return c.json({ error: "stale_schedule" }, 409);
+    throw error;
   }
-
-  // Delete schedule (cascades to depreciation_entries)
-  await db
-    .delete(depreciationSchedules)
-    .where(eq(depreciationSchedules.id, id));
-
-  // Delete purchase journal entry
-  await db
-    .delete(journalEntries)
-    .where(eq(journalEntries.id, schedule.source_journal_entry_id));
-
   return c.json({ success: true });
 });
-
 // GET /api/depreciation/report?year=YYYY or ?year_month=YYYY-MM
 router.get("/report", async (c) => {
   const year = c.req.query("year");
@@ -658,10 +1642,16 @@ router.get("/report", async (c) => {
   const scheduleIds = allSchedules.map((s) => s.id);
 
   // Fetch all depreciation entries linked to those schedules
-  const depEntries = await db
-    .select()
-    .from(depreciationEntries)
-    .where(inArray(depreciationEntries.schedule_id, scheduleIds));
+  const depEntries = (
+    await Promise.all(
+      chunkForD1InClause(scheduleIds).map((chunk) =>
+        db
+          .select()
+          .from(depreciationEntries)
+          .where(inArray(depreciationEntries.schedule_id, chunk)),
+      ),
+    )
+  ).flat();
 
   if (depEntries.length === 0) {
     return c.json({
@@ -674,10 +1664,16 @@ router.get("/report", async (c) => {
   const journalIds = depEntries.map((e) => e.journal_entry_id);
 
   // Fetch journal entries to filter by date
-  const journalRows = await db
-    .select({ id: journalEntries.id, date: journalEntries.date })
-    .from(journalEntries)
-    .where(inArray(journalEntries.id, journalIds));
+  const journalRows = (
+    await Promise.all(
+      chunkForD1InClause(journalIds).map((chunk) =>
+        db
+          .select({ id: journalEntries.id, date: journalEntries.date })
+          .from(journalEntries)
+          .where(inArray(journalEntries.id, chunk)),
+      ),
+    )
+  ).flat();
 
   // Filter by period
   const filteredJournalIds = new Set(
@@ -699,13 +1695,20 @@ router.get("/report", async (c) => {
   }
 
   // Fetch line amounts
-  const lineRows = await db
-    .select({
-      journal_entry_id: journalLines.journal_entry_id,
-      debit: journalLines.debit,
-    })
-    .from(journalLines)
-    .where(inArray(journalLines.journal_entry_id, [...filteredJournalIds]));
+  const filteredIds = [...filteredJournalIds];
+  const lineRows = (
+    await Promise.all(
+      chunkForD1InClause(filteredIds).map((chunk) =>
+        db
+          .select({
+            journal_entry_id: journalLines.journal_entry_id,
+            debit: journalLines.debit,
+          })
+          .from(journalLines)
+          .where(inArray(journalLines.journal_entry_id, chunk)),
+      ),
+    )
+  ).flat();
 
   // Sum debit per journal entry
   const amountByJournal = new Map<number, number>();
@@ -726,10 +1729,16 @@ router.get("/report", async (c) => {
 
   // Fetch account names
   const accountIds = [...new Set(allSchedules.map((s) => s.asset_account_id))];
-  const accountRows = await db
-    .select({ id: accounts.id, name: accounts.name })
-    .from(accounts)
-    .where(inArray(accounts.id, accountIds));
+  const accountRows = (
+    await Promise.all(
+      chunkForD1InClause(accountIds).map((chunk) =>
+        db
+          .select({ id: accounts.id, name: accounts.name })
+          .from(accounts)
+          .where(inArray(accounts.id, chunk)),
+      ),
+    )
+  ).flat();
   const accountMap = new Map(accountRows.map((a) => [a.id, a.name]));
 
   const resultEntries = allSchedules

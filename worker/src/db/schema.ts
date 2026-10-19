@@ -330,6 +330,14 @@ export const budgetAdjustmentLogs = sqliteTable("budget_adjustment_logs", {
     () => journalEntries.id,
     { onDelete: "cascade" },
   ),
+  // Migration adds the FK after depreciation_schedules is created.
+  depreciation_schedule_id: integer("depreciation_schedule_id"),
+  depreciation_event_key: text("depreciation_event_key"),
+  depreciation_event_side: text("depreciation_event_side", {
+    enum: ["source", "destination"],
+  }),
+  reset_scope: text("reset_scope", { enum: ["category", "all"] }),
+  reset_group_key: text("reset_group_key"),
   created_at: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
@@ -775,6 +783,22 @@ export const depreciationSchedules = sqliteTable("depreciation_schedules", {
   months: integer("months").notNull(),
   start_date: text("start_date").notNull(),
   description: text("description").notNull().default(""),
+  /** Null means this row predates explicit depreciation budget handling. */
+  budget_method: text("budget_method", {
+    enum: ["assigned", "special", "unallocated"],
+  }),
+  /** Serialized, user-confirmed routing and reset decisions for this schedule. */
+  budget_settings: text("budget_settings"),
+  budget_revision: integer("budget_revision").notNull().default(0),
+  budget_special_category_id: integer("budget_special_category_id").references(
+    () => budgetCategories.id,
+    { onDelete: "set null" },
+  ),
+  /** Purchase budget target in the currency's smallest stored unit. */
+  budget_target_amount: integer("budget_target_amount").notNull().default(0),
+  budget_currency: text("budget_currency").notNull().default("JPY"),
+  /** Optional create-request replay key. */
+  budget_idempotency_key: text("budget_idempotency_key"),
   created_at: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
@@ -783,6 +807,13 @@ export const depreciationSchedules = sqliteTable("depreciation_schedules", {
     "chk_depreciation_schedules_total_amount_integer",
     sql`typeof(${table.total_amount}) = 'integer'`,
   ),
+  targetAmountInteger: check(
+    "chk_depreciation_schedules_budget_target_integer",
+    sql`typeof(${table.budget_target_amount}) = 'integer' AND ${table.budget_target_amount} >= 0`,
+  ),
+  budgetIdempotencyUnique: uniqueIndex(
+    "uq_depreciation_schedules_budget_idempotency_key",
+  ).on(table.budget_idempotency_key),
 }));
 
 export const depreciationEntries = sqliteTable("depreciation_entries", {
@@ -830,6 +861,54 @@ export const depreciationBudgetReservations = sqliteTable(
       sql`${table.amount} > 0`,
     ),
   }),
+);
+
+export const depreciationBudgetRevisions = sqliteTable(
+  "depreciation_budget_revisions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    // Keep revisions after a schedule is deleted so canceled accounting plans
+    // remain auditable.
+    schedule_id: integer("schedule_id").notNull(),
+    revision: integer("revision").notNull(),
+    action: text("action").notNull(),
+    request_key: text("request_key"),
+    before_settings: text("before_settings"),
+    after_settings: text("after_settings"),
+    before_events: text("before_events"),
+    after_events: text("after_events"),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    scheduleRevisionUnique: uniqueIndex(
+      "uq_depreciation_budget_revisions_schedule_revision",
+    ).on(table.schedule_id, table.revision),
+    scheduleRequestUnique: uniqueIndex(
+      "uq_depreciation_budget_revisions_schedule_request",
+    )
+      .on(table.schedule_id, table.request_key)
+      .where(sql`${table.request_key} IS NOT NULL`),
+  }),
+);
+
+/** Singleton source-data revision used to reject stale budget previews. */
+export const depreciationBudgetState = sqliteTable(
+  "depreciation_budget_state",
+  {
+    id: integer("id").primaryKey(),
+    revision: integer("revision").notNull().default(0),
+  },
+);
+
+/** D1 batch latch; triggers compare the expected revision and bump the state. */
+export const depreciationBudgetApplyGuard = sqliteTable(
+  "depreciation_budget_apply_guard",
+  {
+    id: integer("id").primaryKey(),
+    expected_revision: integer("expected_revision").notNull(),
+  },
 );
 
 export const actualBalanceSnapshots = sqliteTable("actual_balance_snapshots", {
@@ -1108,6 +1187,10 @@ export type DepreciationBudgetReservation =
   typeof depreciationBudgetReservations.$inferSelect;
 export type NewDepreciationBudgetReservation =
   typeof depreciationBudgetReservations.$inferInsert;
+export type DepreciationBudgetRevision =
+  typeof depreciationBudgetRevisions.$inferSelect;
+export type DepreciationBudgetState =
+  typeof depreciationBudgetState.$inferSelect;
 export type ActualBalanceSnapshot = typeof actualBalanceSnapshots.$inferSelect;
 export type NewActualBalanceSnapshot =
   typeof actualBalanceSnapshots.$inferInsert;

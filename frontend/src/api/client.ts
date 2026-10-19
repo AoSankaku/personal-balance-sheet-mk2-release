@@ -34,6 +34,11 @@ import type {
   DepreciationSchedule,
   CreateDepreciationInput,
   UpdateDepreciationInput,
+  DepreciationBudgetPreview,
+  DepreciationBudgetProgress,
+  DepreciationBudgetSettings,
+  ApplyDepreciationBudgetInput,
+  DepreciationResetPlan,
   DepreciationReport,
   ActualBalanceSnapshot,
   CreateActualBalanceSnapshotInput,
@@ -512,6 +517,20 @@ export const api = {
         `/budget/history?${q.toString()}`,
       );
     },
+    depreciationResetPlans: (input: {
+      category_id: number;
+      date: string;
+      currency?: string;
+    }) => {
+      const q = new URLSearchParams({
+        category_id: String(input.category_id),
+        date: input.date,
+      });
+      if (input.currency) q.set("currency", input.currency);
+      return request<{
+        plans: DepreciationResetPlan[];
+      }>(`/budget/depreciation-reset-plans?${q.toString()}`);
+    },
     patchAdhocAllocation: (input: {
       budget_category_id: number;
       year_month: string;
@@ -521,6 +540,13 @@ export const api = {
       note?: string | null;
       adjustment_type?: "allocation" | "reset";
       archive_category?: boolean;
+      depreciation_decisions?: Array<{
+        schedule_id: number;
+        action: "continue" | "end" | "carry" | "settle";
+        settlement_source_category_id?: number | null;
+        monthly_source_category_id?: number;
+        destination_category_id?: number;
+      }>;
     }) =>
       mutationRequest<BudgetAdjustmentLog>("/budget/allocations", {
         method: "PATCH",
@@ -689,7 +715,10 @@ export const api = {
       ),
   },
   depreciation: {
-    list: () => request<DepreciationSchedule[]>("/depreciation"),
+    list: () =>
+      request<(DepreciationSchedule & { budget: DepreciationBudgetProgress })[]>(
+        "/depreciation",
+      ),
     create: (input: CreateDepreciationInput) =>
       request<{
         schedule_id: number;
@@ -710,6 +739,20 @@ export const api = {
       request<{ success: boolean }>(`/depreciation/${id}`, {
         method: "DELETE",
       }),
+    previewBudget: (id: number, settings: DepreciationBudgetSettings) =>
+      request<DepreciationBudgetPreview>(
+        `/depreciation/${id}/budget/preview`,
+        {
+          method: "POST",
+          body: JSON.stringify({ settings }),
+        },
+      ),
+    applyBudget: (id: number, input: ApplyDepreciationBudgetInput) =>
+      mutationRequest<DepreciationBudgetProgress>(
+        `/depreciation/${id}/budget/apply`,
+        { method: "POST", body: JSON.stringify(input) },
+        [...DERIVED_JOURNAL_PREFIXES, ...BUDGET_PREFIXES, "/depreciation"],
+      ),
     report: (params: { year?: string; year_month?: string }) => {
       const q = new URLSearchParams();
       if (params.year) q.set("year", params.year);

@@ -45,6 +45,16 @@ import {
 import { sumBudgetFundingAfterResetsByPeriod } from "../lib/budgetFunding";
 import { filterBudgetCategoriesForVisibility } from "../lib/budgetCategoryArchive";
 import { replayBudgetHistory } from "../../../shared/budgetHistory";
+import { toLocalDateString } from "../lib/appDate";
+import {
+  categoryHasDepreciationReferences,
+  DepreciationResetError,
+  getDepreciationResetPlans,
+  isManagedDepreciationReset,
+  prepareDepreciationReset,
+} from "../lib/depreciationBudgetReset";
+import type { DepreciationResetInputDecision } from "../../../shared/depreciationBudget";
+import { prepareMutation, readBudgetMutationRevision, runBudgetGuardedBatch } from "../lib/d1Mutation";
 import {
   findInvalidMoneyField,
   fromStorageMoneyAmount,
@@ -365,6 +375,10 @@ router.patch("/categories/:id", async (c) => {
   const db = createDb(c.env);
 
   // Reject if renaming to a name that conflicts with an account
+  const archiveRevision = body.is_archived ? await readBudgetMutationRevision(c.env.DB) : null;
+  if (body.is_archived && await categoryHasDepreciationReferences(c.env.DB,id,toLocalDateString())) {
+    return c.json({ error: "depreciation_routing_required" },409);
+  }
   if (body.name !== undefined) {
     const [existing] = await db
       .select({ name: budgetCategories.name })
@@ -425,10 +439,14 @@ router.patch("/categories/:id", async (c) => {
     updates.is_archived = body.is_archived ? 1 : 0;
 
   if (Object.keys(updates).length > 0) {
-    await db
+    const update = db
       .update(budgetCategories)
       .set(updates)
       .where(eq(budgetCategories.id, id));
+    if (archiveRevision !== null) {
+      if (!await runBudgetGuardedBatch(c.env.DB,archiveRevision,[prepareMutation(c.env.DB,update)]))
+        return c.json({error:"depreciation_preview_stale"},409);
+    } else await update;
   }
 
   if (body.account_ids !== undefined) {
@@ -503,7 +521,12 @@ router.patch("/categories/:id", async (c) => {
 router.delete("/categories/:id", async (c) => {
   const id = Number(c.req.param("id"));
   const db = createDb(c.env);
-  await db.delete(budgetCategories).where(eq(budgetCategories.id, id));
+  const revision = await readBudgetMutationRevision(c.env.DB);
+  if (await categoryHasDepreciationReferences(c.env.DB,id,toLocalDateString(),true)) {
+    return c.json({ error: "depreciation_category_in_use" },409);
+  }
+  if (!await runBudgetGuardedBatch(c.env.DB,revision,[prepareMutation(c.env.DB,
+    db.delete(budgetCategories).where(eq(budgetCategories.id,id)))])) return c.json({error:"depreciation_preview_stale"},409);
   return c.json({ success: true });
 });
 
@@ -600,6 +623,14 @@ router.post("/allocations", async (c) => {
 });
 
 // PATCH /api/budget/allocations — write delta as a log entry (budget_adjustment_logs only)
+router.get("/depreciation-reset-plans", async (c) => {
+  const id = Number(c.req.query("category_id"));
+  const date = c.req.query("date") ?? toLocalDateString();
+  if (!Number.isInteger(id) || id <= 0 || !isValidIsoDate(date)) return c.json({ error: "invalid reset query" },400);
+  const scaleOptions = await loadMoneyScaleOptions(createDb(c.env));
+  return c.json({plans: await getDepreciationResetPlans(c.env.DB,id,date,normalizeCurrency(c.req.query("currency")),scaleOptions)});
+});
+
 router.patch("/allocations", async (c) => {
   const body = await c.req.json<{
     budget_category_id: number;
@@ -610,6 +641,7 @@ router.patch("/allocations", async (c) => {
     note?: string | null;
     adjustment_type?: "allocation" | "reset";
     archive_category?: boolean;
+    depreciation_decisions?: DepreciationResetInputDecision[];
   }>();
 
   if (!body.budget_category_id || !body.year_month) {
@@ -640,13 +672,32 @@ router.patch("/allocations", async (c) => {
   if (body.archive_category && adjustmentType !== "reset") {
     return c.json({ error: "archive_category requires reset adjustment" }, 400);
   }
+  const expectedRevision = await c.env.DB.prepare("SELECT revision FROM depreciation_budget_state WHERE id=1").first<{revision:number}>();
+  const nextId = await c.env.DB.prepare("SELECT COALESCE(MAX(id),0)+1 AS id FROM budget_adjustment_logs").first<{id:number}>();
+  const resetId = nextId!.id;
+  const createdAt = new Date().toISOString().replace("T"," ").replace("Z","");
+  let resetPlan: Awaited<ReturnType<typeof prepareDepreciationReset>> | null = null;
+  if (adjustmentType === "reset") {
+    try {
+      resetPlan = await prepareDepreciationReset(c.env.DB, {categoryId:body.budget_category_id,
+        date:logDate,currency,resetId,createdAt,decisions:body.depreciation_decisions ?? [],scaleOptions,
+        archive:!!body.archive_category});
+    } catch (error) {
+      if (error instanceof DepreciationResetError) return c.json({error:error.code,plans:error.plans},409);
+      throw error;
+    }
+  }
+  if (resetPlan?.skipReset) return c.json({ok:true,carried:true,budget_category_id:body.budget_category_id});
   const statements = [
+    c.env.DB.prepare("DELETE FROM depreciation_budget_apply_guard WHERE id=1"),
+    c.env.DB.prepare("INSERT INTO depreciation_budget_apply_guard(id,expected_revision) VALUES(1,?)").bind(expectedRevision!.revision),
     c.env.DB.prepare(
       `INSERT INTO budget_adjustment_logs
-        (budget_category_id, year_month, amount, currency, date, adjustment_type, note)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+        (id, budget_category_id, year_month, amount, currency, date, adjustment_type, note,created_at,reset_scope)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        RETURNING *`,
     ).bind(
+      resetId,
       body.budget_category_id,
       body.year_month,
       toStorageMoneyAmount(body.adhoc_delta, currency, scaleOptions),
@@ -654,7 +705,10 @@ router.patch("/allocations", async (c) => {
       logDate,
       adjustmentType,
       normalizeNote(body.note),
+      createdAt,
+      adjustmentType==="reset"?"category":null,
     ),
+    ...(resetPlan?.statements ?? []),
   ];
 
   if (body.archive_category) {
@@ -665,9 +719,14 @@ router.patch("/allocations", async (c) => {
     );
   }
 
-  const results = await c.env.DB.batch(statements);
+  let results;
+  try { results = await c.env.DB.batch(statements); }
+  catch (error) {
+    if (String(error).includes("depreciation_budget") || String(error).includes("stale")) return c.json({error:"depreciation_preview_stale"},409);
+    throw error;
+  }
   const logEntry = (
-    results[0] as D1QueryResult<typeof budgetAdjustmentLogs.$inferSelect>
+    results[2] as D1QueryResult<typeof budgetAdjustmentLogs.$inferSelect>
   ).results?.[0];
 
   if (!logEntry) return c.json({ error: "insert failed" }, 500);
@@ -940,6 +999,8 @@ router.get("/adjustment-logs", async (c) => {
     adjustment_type?: "allocation" | "reset" | "transfer";
     journal_entry_id?: number;
     is_reference?: boolean;
+    depreciation_schedule_id?: number | null;
+    depreciation_event_key?: string | null;
   };
 
   const combined: LogEntry[] = [
@@ -967,6 +1028,8 @@ router.get("/adjustment-logs", async (c) => {
             ? "transfer"
             : "allocation") as "allocation" | "reset" | "transfer",
       journal_entry_id: row.journal_entry_id ?? undefined,
+      depreciation_schedule_id: row.depreciation_schedule_id,
+      depreciation_event_key: row.depreciation_event_key,
     })),
     ...journalAllocRows.map((row) => ({
       id: row.id,
@@ -1067,6 +1130,7 @@ router.get("/adjustment-logs", async (c) => {
 router.delete("/adjustment-logs/:id", async (c) => {
   const id = Number(c.req.param("id"));
   const db = createDb(c.env);
+  const mutationRevision=await readBudgetMutationRevision(c.env.DB);
   const scaleOptions = await loadMoneyScaleOptions(db);
 
   const [existing] = await db
@@ -1076,7 +1140,10 @@ router.delete("/adjustment-logs/:id", async (c) => {
 
   if (!existing) return c.json({ error: "not found" }, 404);
 
-  await db.delete(budgetAdjustmentLogs).where(eq(budgetAdjustmentLogs.id, id));
+  if (existing.depreciation_schedule_id != null) return c.json({error:"managed_depreciation_budget"},409);
+  if(existing.adjustment_type==="reset"&&await isManagedDepreciationReset(c.env.DB,id)) return c.json({error:"managed_depreciation_reset"},409);
+  if(!await runBudgetGuardedBatch(c.env.DB,mutationRevision,[prepareMutation(c.env.DB,
+    db.delete(budgetAdjustmentLogs).where(eq(budgetAdjustmentLogs.id,id)))])) return c.json({error:"depreciation_preview_stale"},409);
 
   return c.json({ ok: true });
 });
@@ -1090,6 +1157,7 @@ router.patch("/adjustment-logs/:id", async (c) => {
     note?: string | null;
   }>();
   const db = createDb(c.env);
+  const mutationRevision=await readBudgetMutationRevision(c.env.DB);
   const scaleOptions = await loadMoneyScaleOptions(db);
 
   const [existing] = await db
@@ -1099,6 +1167,8 @@ router.patch("/adjustment-logs/:id", async (c) => {
 
   if (!existing) return c.json({ error: "not found" }, 404);
 
+  if (existing.depreciation_schedule_id != null) return c.json({error:"managed_depreciation_budget"},409);
+  if(body.date!==undefined&&existing.adjustment_type==="reset"&&await isManagedDepreciationReset(c.env.DB,id)) return c.json({error:"managed_depreciation_reset"},409);
   if (body.date !== undefined && !isValidIsoDate(body.date)) {
     return c.json({ error: "date must be a valid YYYY-MM-DD date" }, 400);
   }
@@ -1139,10 +1209,12 @@ router.patch("/adjustment-logs/:id", async (c) => {
   if ("note" in body) updates.note = normalizeNote(body.note);
 
   if (Object.keys(updates).length > 0) {
-    await db
+    const update=db
       .update(budgetAdjustmentLogs)
       .set(updates)
       .where(eq(budgetAdjustmentLogs.id, id));
+    if(!await runBudgetGuardedBatch(c.env.DB,mutationRevision,[prepareMutation(c.env.DB,update)]))
+      return c.json({error:"depreciation_preview_stale"},409);
   }
 
   const [updated] = await db
@@ -1191,6 +1263,7 @@ async function fetchEntryAllocsForPeriod(
   scaleOptions: MoneyScaleOptions,
 ): Promise<
   {
+    allocation_id: number;
     journal_entry_id: number;
     budget_category_id: number;
     amount: number;
@@ -1202,6 +1275,7 @@ async function fetchEntryAllocsForPeriod(
 > {
   const rows = await db
     .select({
+      allocation_id: journalEntryBudgetAllocations.id,
       journal_entry_id: journalEntryBudgetAllocations.journal_entry_id,
       budget_category_id: journalEntryBudgetAllocations.budget_category_id,
       amount: journalEntryBudgetAllocations.amount,
@@ -1219,11 +1293,13 @@ async function fetchEntryAllocsForPeriod(
       depreciationEntries,
       eq(depreciationEntries.journal_entry_id, journalEntries.id),
     )
+    .leftJoin(depreciationSchedules,eq(depreciationSchedules.id,depreciationEntries.schedule_id))
     .where(
       and(
         sql`${journalEntries.date} >= ${dateStart}`,
         sql`${journalEntries.date} <= ${dateEnd}`,
         eq(journalEntryBudgetAllocations.currency, currency),
+        sql`${depreciationSchedules.budget_method} IS NULL`,
       ),
     );
   return rows.map((row) => ({
@@ -1280,11 +1356,21 @@ type BudgetSummaryTarget = {
   effectiveEnd?: string;
 };
 
-async function computeBudgetSummaries(
+/** Read-only hypothetical inputs used by the depreciation correction preview. */
+export interface BudgetSummaryOverrides {
+  adjustmentLogs?: (typeof budgetAdjustmentLogs.$inferSelect)[];
+  extraCategories?: (typeof budgetCategories.$inferSelect)[];
+  excludeLegacyScheduleId?: number;
+  excludeAllocationIds?: number[];
+  through?: {date: string; created_at: string};
+}
+
+export async function computeBudgetSummaries(
   db: ReturnType<typeof createDb>,
   currency: string,
   scaleOptions: MoneyScaleOptions,
   targets: BudgetSummaryTarget[],
+  overrides: BudgetSummaryOverrides = {},
 ): Promise<BudgetSummary[]> {
   if (targets.length === 0) return [];
 
@@ -1299,6 +1385,7 @@ async function computeBudgetSummaries(
     oldestBudgetLog,
     oldestEntryAlloc,
     oldestFunding,
+    depreciationCategoryRows,
   ] =
     await Promise.all([
       db
@@ -1333,14 +1420,19 @@ async function computeBudgetSummaries(
           eq(budgetFundingAllocations.journal_entry_id, journalEntries.id),
         )
         .where(eq(budgetFundingAllocations.currency, currency)),
+      db.selectDistinct({id:budgetAdjustmentLogs.budget_category_id}).from(budgetAdjustmentLogs)
+        .where(sql`${budgetAdjustmentLogs.depreciation_schedule_id} IS NOT NULL`),
     ]);
 
-  const cats = filterBudgetCategoriesForVisibility(allCats);
+  const depreciationCategoryIds = new Set(depreciationCategoryRows.map(row => row.id));
+  const cats = [...allCats,...overrides.extraCategories ?? []].filter(cat =>
+    cat.is_archived !== 1 || depreciationCategoryIds.has(cat.id));
   const targetMap = buildTargetAccountMap(targetRows);
   const oldestYm = [
     oldestBudgetLog[0]?.min_ym,
     oldestEntryAlloc[0]?.min_ym,
     oldestFunding[0]?.min_ym,
+    ...overrides.adjustmentLogs?.map(row => row.year_month) ?? [],
   ]
     .filter((value): value is string => Boolean(value))
     .sort()[0];
@@ -1355,7 +1447,7 @@ async function computeBudgetSummaries(
     ]),
   );
 
-  const adhocLogRows =
+  const storedAdhocLogRows =
     allMonths.length > 0
       ? await db
           .select({
@@ -1374,6 +1466,10 @@ async function computeBudgetSummaries(
             ),
           )
       : [];
+  const isVisible = (row: {date:string;created_at:string}) => !overrides.through ||
+    row.date < overrides.through.date || (row.date === overrides.through.date && row.created_at <= overrides.through.created_at);
+  const adhocLogRows = (overrides.adjustmentLogs ?? storedAdhocLogRows)
+    .filter(row => (!("currency" in row) || row.currency === currency) && isVisible(row));
   const decodedAdhocLogRows = adhocLogRows.map((row) => ({
     ...row,
     amount: fromStorageMoneyAmount(row.amount, currency, scaleOptions),
@@ -1414,7 +1510,7 @@ async function computeBudgetSummaries(
             ),
           )
       : [];
-  const decodedFundingRows = fundingRows.map((row) => ({
+  const decodedFundingRows = fundingRows.filter(isVisible).map((row) => ({
     ...row,
     amount: fromStorageMoneyAmount(row.amount, currency, scaleOptions),
   }));
@@ -1448,12 +1544,14 @@ async function computeBudgetSummaries(
           .where(
             and(
               eq(depreciationBudgetReservations.currency, currency),
+              sql`${depreciationSchedules.budget_method} IS NULL`,
               sql`${depreciationSourceEntries.date} >= ${calculationStartYm + "-01"}`,
               sql`${depreciationSourceEntries.date} <= ${monthEndDate(lastTargetYm)}`,
             ),
           )
       : [];
-  const decodedDepreciationReservationRows = depreciationReservationRows.map(
+  const decodedDepreciationReservationRows = depreciationReservationRows
+    .filter(row => row.schedule_id !== overrides.excludeLegacyScheduleId && isVisible(row)).map(
     (row) => ({
       ...row,
       amount: fromStorageMoneyAmount(row.amount, currency, scaleOptions),
@@ -1506,7 +1604,9 @@ async function computeBudgetSummaries(
         )
       : [];
   const entryAllocsByMonth = groupBudgetEntryAllocationsByMonth(
-    entryAllocsForRange,
+    entryAllocsForRange.filter(row =>
+      row.depreciation_schedule_id !== overrides.excludeLegacyScheduleId &&
+      !overrides.excludeAllocationIds?.includes(row.allocation_id) && isVisible(row)),
     fullMonthDateRangeMap,
   );
 
@@ -1788,6 +1888,12 @@ async function computeBudgetSummaries(
       total_available: categorySummaries.reduce((s, c) => s + c.available, 0),
     };
   });
+}
+
+export async function computeBudgetSummaryForDate(db: ReturnType<typeof createDb>, date: string, currency: string,
+  overrides: BudgetSummaryOverrides = {}) {
+  return (await computeBudgetSummaries(db,currency,await loadMoneyScaleOptions(db),
+    [{yearMonth:date.slice(0,7),effectiveEnd:date}],overrides))[0]!;
 }
 
 router.get("/summary", async (c) => {

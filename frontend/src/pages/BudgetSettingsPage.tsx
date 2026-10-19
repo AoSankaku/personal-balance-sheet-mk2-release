@@ -5,6 +5,7 @@ import {
   Button,
   Divider,
   Group,
+  Modal,
   Paper,
   ScrollArea,
   Select,
@@ -79,6 +80,7 @@ export default function BudgetSettingsPage() {
     null,
   );
   const [showArchivedCategories, setShowArchivedCategories] = useState(false);
+  const [archiveGuidanceOpened, setArchiveGuidanceOpened] = useState(false);
   const [archivedBudgetCategories, setArchivedBudgetCategories] = useState<
     BudgetCategory[]
   >([]);
@@ -116,14 +118,19 @@ export default function BudgetSettingsPage() {
   }
 
   async function handleArchiveBudgetCategory(id: number, isArchived: boolean) {
-    await api.budget.updateCategory(id, { is_archived: isArchived });
-    showFeedback({
-      message: isArchived
-        ? t("archiveBudgetCategory")
-        : t("restoreBudgetCategory"),
-      color: isArchived ? "orange" : "teal",
-    });
-    void refreshBudget();
+    try {
+      await api.budget.updateCategory(id, { is_archived: isArchived });
+      showFeedback({
+        message: isArchived
+          ? t("archiveBudgetCategory")
+          : t("restoreBudgetCategory"),
+        color: isArchived ? "orange" : "teal",
+      });
+      void refreshBudget();
+    } catch {
+      if (isArchived) setArchiveGuidanceOpened(true);
+      else showFeedback({ message: t("depreciationBudgetArchiveBlockedMessage"), color: "red" });
+    }
   }
 
   async function handleMoveBudgetCategory(
@@ -230,6 +237,25 @@ export default function BudgetSettingsPage() {
 
   return (
     <Stack gap="lg">
+      <Modal
+        opened={archiveGuidanceOpened}
+        onClose={() => setArchiveGuidanceOpened(false)}
+        title={t("depreciationBudgetArchiveBlockedTitle")}
+        centered
+        size="sm"
+      >
+        <Stack>
+          <Text size="sm">{t("depreciationBudgetArchiveBlockedMessage")}</Text>
+          <Group justify="space-between">
+            <Button variant="default" onClick={() => setArchiveGuidanceOpened(false)}>
+              {t("cancel")}
+            </Button>
+            <Button component={Link} to="/fs/report" onClick={() => setArchiveGuidanceOpened(false)}>
+              {t("depreciationBudgetOpenSchedules")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
       <Group gap="xs">
         <Anchor component={Link} to="/settings" size="sm">
           {t("backToSettings")}
