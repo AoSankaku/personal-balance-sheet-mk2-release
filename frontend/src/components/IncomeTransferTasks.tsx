@@ -32,7 +32,7 @@ import {
   summarizeBudgetFunding,
 } from "../lib/allocatableBudget";
 import { ConfirmModal } from "./ConfirmModal";
-import { partitionInterestIncomeTransfers } from "../lib/interestIncome";
+import { partitionIncomeTransfers } from "../lib/incomeTransferScheduling";
 
 type TransferCandidate = JournalEntry & {
   has_budget_adjustment_logs: boolean;
@@ -55,7 +55,6 @@ export function IncomeTransferTasks({
   const { t, locale } = useLang();
   const {
     accounts,
-    journal,
     budgetSettings,
     budgetSummary,
     budgetSummaryTotal,
@@ -84,9 +83,9 @@ export function IncomeTransferTasks({
   const [squashConfirmation, setSquashConfirmation] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
-  const { actionable, deferred } = useMemo(() => partitionInterestIncomeTransfers({
-    groups, journal, accounts, rule: budgetSettings?.interest_income_rule,
-  }), [groups, journal, accounts, budgetSettings?.interest_income_rule]);
+  const { actionable, deferred } = useMemo(() => partitionIncomeTransfers({
+    groups, settings: budgetSettings?.income_transfer_settings,
+  }), [groups, budgetSettings?.income_transfer_settings]);
 
   const squashPlacementImpact = useMemo(() => {
     if (!squashPreview) return null;
@@ -293,6 +292,12 @@ export function IncomeTransferTasks({
         </Group>
       </Stack>
       <Group gap="xs">
+        <Button size="xs" variant="subtle" loading={loading}
+          onClick={() => void run(() => api.incomeTransferRequirements.defer(
+            group.requirement_ids[0]!, !deferred.includes(group),
+          ))}>
+          {t(deferred.includes(group) ? "incomeTransferResumeAction" : "incomeTransferDeferAction")}
+        </Button>
         <Button
           size="xs"
           variant="default"
@@ -375,7 +380,7 @@ export function IncomeTransferTasks({
                         String(squashPreview.squashed_transfer_count),
                       )}
                   </Text>
-                  {deferred.length > 0 && <Text size="sm" c="dimmed">{t("interestIncomeSquashHint")}</Text>}
+                  {deferred.length > 0 && <Text size="sm" c="dimmed">{t("incomeTransferDeferredSquashHint")}</Text>}
                   {squashPreview.transfers.length === 0 ? (
                     <Text size="sm" fw={600}>
                       {t("incomeTransferSquashNoTransfer")}
@@ -468,11 +473,11 @@ export function IncomeTransferTasks({
           {actionable.map(renderPendingGroup)}
           {deferred.length > 0 && (
             <Accordion variant="contained" radius="md">
-              <Accordion.Item value="deferred-interest">
-                <Accordion.Control>{t("interestIncomeDeferredTitle").replace("{count}", String(deferred.length))}</Accordion.Control>
+              <Accordion.Item value="deferred-transfers">
+                <Accordion.Control>{t("incomeTransferDeferredTitle").replace("{count}", String(deferred.length))}</Accordion.Control>
                 <Accordion.Panel>
                   <Stack gap="sm">
-                    <Text size="sm" c="dimmed">{t("interestIncomeDeferredHint")}</Text>
+                    <Text size="sm" c="dimmed">{t("incomeTransferDeferredHint")}</Text>
                     {deferred.map(renderPendingGroup)}
                   </Stack>
                 </Accordion.Panel>

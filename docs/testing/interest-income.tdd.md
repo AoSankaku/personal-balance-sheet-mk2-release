@@ -1,5 +1,7 @@
 # Interest income allocation and deferred placement
 
+Historical record for `d58ffe9`. The current feature is generic; see [income transfer scheduling](income-transfer-scheduling.tdd.md) for current behavior and verification commands.
+
 ## Behavior
 
 - Settings binds an explicitly selected interest income account to a default budget category (for example, free spending). IDs are used; account/category names are not inferred.

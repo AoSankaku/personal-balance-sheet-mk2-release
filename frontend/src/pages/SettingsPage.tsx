@@ -55,7 +55,7 @@ import {
 import { renderAccountOption } from "../lib/accountSelect";
 import { AccountTable } from "../components/AccountTable";
 import { AddAccountModal } from "../components/AddAccountModal";
-import { InterestIncomeSettings } from "../components/InterestIncomeSettings";
+import { IncomeTransferSettings } from "../components/IncomeTransferSettings";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { PwaInstallSetting } from "../components/PwaInstallSetting";
 import type {
@@ -538,7 +538,7 @@ export default function SettingsPage() {
       {privacyMode ? null : (
         <>
 
-      <InterestIncomeSettings />
+      <IncomeTransferSettings />
 
       <Divider />
 

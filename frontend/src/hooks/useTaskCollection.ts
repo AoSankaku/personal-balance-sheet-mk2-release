@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { partitionInterestIncomeTransfers } from "../lib/interestIncome";
+import { partitionIncomeTransfers } from "../lib/incomeTransferScheduling";
 import {
   isShortTermBorrowingCategory,
   isShortTermLendingCategory,
@@ -211,7 +211,7 @@ function useTrialBalanceTask(): TrialBalanceTask | null {
 }
 
 function useIncomeTransferTasks() {
-  const { journal, accounts, budgetSettings } = useAppData();
+  const { journal, budgetSettings } = useAppData();
   const [groups, setGroups] = useState<IncomeTransferRequirementGroup[]>([]);
 
   useEffect(() => {
@@ -229,9 +229,9 @@ function useIncomeTransferTasks() {
     };
   }, [journal]);
 
-  return useMemo(() => partitionInterestIncomeTransfers({
-    groups, journal, accounts, rule: budgetSettings?.interest_income_rule,
-  }), [groups, journal, accounts, budgetSettings?.interest_income_rule]);
+  return useMemo(() => partitionIncomeTransfers({
+    groups, settings: budgetSettings?.income_transfer_settings,
+  }), [groups, budgetSettings?.income_transfer_settings]);
 }
 
 export function formatTaskMonth(yearMonth: string, locale: string): string {

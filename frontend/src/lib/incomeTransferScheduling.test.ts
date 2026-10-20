@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { IncomeTransferRequirementGroup } from "@balance-sheet/shared";
-import { buildIncomeTransferThresholds, partitionIncomeTransfers } from "./incomeTransferScheduling";
+import type { IncomeTransferRequirementGroup, JournalEntry } from "@balance-sheet/shared";
+import { buildIncomeTransferThresholds, getIncomeTransferDeferralState, partitionIncomeTransfers } from "./incomeTransferScheduling";
+import { summarizePendingIncomeTransfers } from "./pendingIncomeTransferSummary";
 
 function group(id: number, amount: number, options: { categoryId?: number; to?: number; currency?: string; deferred?: boolean; completed?: boolean } = {}): IncomeTransferRequirementGroup {
   const requirement = { id, source_income_journal_entry_id: id, budget_category_id: options.categoryId ?? 10, budget_category_name: "Budget", from_account_id: 1, to_account_id: options.to ?? 2, amount, currency: options.currency ?? "JPY", is_deferred: options.deferred ?? null, transfer_journal_entry_id: null, completion_source: options.completed ? "created" as const : null, created_at: "", completed_at: null };
@@ -44,5 +45,20 @@ describe("generic income transfer scheduling", () => {
   test("resuming a small transfer overrides automatic thresholds", () => {
     const groups = [group(1, 112, { deferred: false })];
     expect(partition(groups)).toEqual({ actionable: groups, deferred: [] });
+  });
+  test("restores manual, automatic and mixed deferrals without overwriting other routes", () => {
+    expect(getIncomeTransferDeferralState(group(1, 100, { deferred: true }).requirements)).toBe(true);
+    expect(getIncomeTransferDeferralState(group(1, 100, { deferred: false }).requirements)).toBe(false);
+    expect(getIncomeTransferDeferralState(group(1, 100).requirements)).toBeNull();
+    expect(getIncomeTransferDeferralState([...group(1, 100, { deferred: true }).requirements, ...group(2, 100).requirements])).toBeUndefined();
+    expect(getIncomeTransferDeferralState(group(1, 100, { deferred: true, completed: true }).requirements)).toBeNull();
+  });
+  test("reconciliation keeps all pending totals while identifying manual deferrals without settings", () => {
+    const journal = [{ id: 1, income_transfer_requirements: group(1, 20000, { deferred: true }).requirements }] as JournalEntry[];
+    const summary = summarizePendingIncomeTransfers(journal);
+    expect(summary.taskCount).toBe(1);
+    expect(summary.taskCountByAccount.get(1)).toBe(1);
+    expect(summary.actionableTaskCount).toBe(0);
+    expect(summary.deferredTaskCount).toBe(1);
   });
 });

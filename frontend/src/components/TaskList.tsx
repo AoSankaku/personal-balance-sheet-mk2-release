@@ -224,7 +224,7 @@ export function TaskList({ onNavigate, tasks }: TaskListProps) {
 
       {deferredIncomeTransferTasks.length > 0 && (
         <UnstyledButton className="task-menu__item" onClick={() => openTask("/tasks/income-transfer")}>
-          <Text size="sm" c="dimmed">{t("interestIncomeDeferredTitle").replace("{count}", String(deferredIncomeTransferTasks.length))}</Text>
+          <Text size="sm" c="dimmed">{t("incomeTransferDeferredTitle").replace("{count}", String(deferredIncomeTransferTasks.length))}</Text>
         </UnstyledButton>
       )}
 

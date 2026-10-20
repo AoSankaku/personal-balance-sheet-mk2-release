@@ -230,6 +230,8 @@ export interface IncomeTransferDestinationInput {
   to_account_id: number;
   amount: number;
   currency?: string;
+  /** Keep the physical transfer pending without making it actionable. */
+  is_deferred?: boolean | null;
 }
 
 export type IncomeTransferCompletionSource = "created" | "linked";
@@ -247,6 +249,8 @@ export interface IncomeTransferRequirement {
   to_account_name?: string;
   amount: number;
   currency: string;
+  /** Optional for compatibility with cached journal responses from older workers. */
+  is_deferred?: boolean | null;
   transfer_journal_entry_id: number | null;
   completion_source: IncomeTransferCompletionSource | null;
   created_at: string;
@@ -661,6 +665,11 @@ export interface InterestIncomeRule {
   transfer_thresholds: Record<string, number>;
 }
 
+export interface IncomeTransferSettings {
+  /** Per-currency amount below which matching income transfer tasks stay deferred. */
+  transfer_thresholds: Record<string, number>;
+}
+
 export interface BudgetSettings {
   /** Ordered list of preferred payment account IDs (up to 5). First = default. */
   preferred_payment_account_ids: number[];
@@ -678,6 +687,8 @@ export interface BudgetSettings {
   business_advance_budget_category_id?: number | null;
   /** Optional default allocation and deferred transfer policy for interest income. */
   interest_income_rule?: InterestIncomeRule | null;
+  /** Optional generic policy for deferring small income transfer tasks. */
+  income_transfer_settings?: IncomeTransferSettings | null;
 }
 
 export type PlannedExpenseKind =

@@ -195,6 +195,10 @@ describe("generic income transfer deferral", () => {
       { is_deferred: null },
       { is_deferred: null },
     ]);
+    const automaticTasks = await jsonRequest(incomeTransferRequirementsRouter, database, "/?status=pending", "GET");
+    expect(await automaticTasks.json()).toMatchObject({
+      requirements: [{ is_deferred: null }, { is_deferred: null }],
+    });
 
     const deferred = await jsonRequest(incomeTransferRequirementsRouter, database, `/${requirementIds[0]!.id}/defer`, "PATCH", { is_deferred: true });
     expect(deferred.status).toBe(200);
@@ -214,6 +218,10 @@ describe("generic income transfer deferral", () => {
       { is_deferred: 0 },
       { is_deferred: 0 },
     ]);
+    const explicitlyActionableTasks = await jsonRequest(incomeTransferRequirementsRouter, database, "/?status=pending", "GET");
+    expect(await explicitlyActionableTasks.json()).toMatchObject({
+      requirements: [{ is_deferred: false }, { is_deferred: false }],
+    });
   });
 
   test("PUT preserves old deferral when omitted and honors an explicit false", async () => {

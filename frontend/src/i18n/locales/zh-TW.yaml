@@ -375,19 +375,17 @@ rolloverMonthsUnit: 個月
 rolloverMonthsDesc: 未使用預算可結轉的最大月數（1-24）
 budgetSettingsTitle: 預算設定
 budgetSettingsSaved: 預算設定已儲存
-interestIncomeSettingsTitle: 利息收入預算分配
-interestIncomeSettingsDescription: 請選擇用於利息的收入科目。使用該科目輸入收入時，系統會預選所選預算類別。同一來源帳戶、目標帳戶與幣別的轉帳合計達到門檻後，才會顯示在一般任務中。輸入收入時仍可更改分配類別。
-interestIncomeAccountLabel: 利息收入科目
-interestIncomeBudgetLabel: 預設預算類別
-interestIncomeThresholdLabel: 一般任務中顯示的轉帳合計金額
-interestIncomeThresholdHint: 同一來源帳戶、目標帳戶與幣別的利息轉帳會合併計算。合計低於此金額時仍保留為待處理任務，但不會顯示在一般任務中。設為 0 時顯示所有此類任務。
-interestIncomeRuleStatusEnabled: 已設定
-interestIncomeRuleStatusDisabled: 未設定
-interestIncomeSave: 儲存利息設定
-interestIncomeDisable: 清除設定
-interestIncomeSaved: 利息設定已儲存
-interestIncomeRuleDisabled: 已清除利息設定
-interestIncomeSaveFailed: 無法儲存利息設定
+incomeTransferSettingsTitle: 帳戶轉帳暫緩
+incomeTransferSettingsDescription: 依幣別設定收入相關轉帳的合計金額，低於此金額時不會顯示在一般任務中。清除此規則會取消自動暫緩，手動暫緩的任務仍會維持暫緩。
+incomeTransferSettingsThresholdLabel: 一般任務中顯示的轉帳合計金額
+incomeTransferSettingsThresholdHint: 所有收入類型中，來源帳戶、目標帳戶與幣別相同的轉帳會合併計算。合計低於此金額時仍保留為待處理任務，但不會顯示在一般任務中。設為 0 時不會自動暫緩。
+incomeTransferSettingsSave: 儲存設定
+incomeTransferSettingsDisable: 清除自動規則
+incomeTransferSettingsSaved: 轉帳暫緩設定已儲存
+incomeTransferSettingsDisabled: 自動暫緩規則已清除
+incomeTransferSettingsSaveFailed: 無法儲存轉帳暫緩設定
+incomeTransferSettingsStatusEnabled: 已設定
+incomeTransferSettingsStatusDisabled: 未設定
 budgetHistoryJournalTab: 最近交易
 budgetHistoryBudgetTab: 預算歷史
 tabBalanceSheet: 資產負債表
@@ -1640,8 +1638,10 @@ depreciationBudgetPlanTooLarge: "此分期轉帳計畫過大，無法安全儲�
 depreciationPreviewSummary: "首月：{first} · 合計：{total}"
 depreciationBudgetExpenseAccountContext: "費用科目：{account}"
 
-interestIncomeApplyDefault: "使用利息預設分配"
-interestIncomeDefaultHint: "將輸入金額全額分配至設定的預算。手動修改分配金額後，將關閉自動分配。"
-interestIncomeDeferredTitle: "利息待調整轉帳（{count}項）"
-interestIncomeDeferredHint: "收入已分配至預算。小額轉帳可以暫緩，之後合併處理。實際帳戶餘額和資金配置差額仍包含這些待處理轉帳。"
-interestIncomeSquashHint: "合併包含暫緩的利息轉帳。請完成實際帳戶轉帳後再確認。"
+incomeTransferDeferLabel: "暫緩轉帳"
+incomeTransferDeferHint: "預算分配會立即記錄，資金仍留在收到款項的帳戶中。之後可在帳戶轉帳任務頁面管理。"
+incomeTransferDeferredTitle: "待調整的資金配置（{count}項）"
+incomeTransferDeferredHint: "收入已分配至預算，只有實際帳戶轉帳尚未完成。實際帳戶餘額和資金配置差額仍包含這些金額。"
+incomeTransferDeferredSquashHint: "手動和自動暫緩的轉帳都會合併處理。請完成實際帳戶轉帳後再確認。"
+incomeTransferDeferAction: "稍後合併"
+incomeTransferResumeAction: "恢復到一般任務"

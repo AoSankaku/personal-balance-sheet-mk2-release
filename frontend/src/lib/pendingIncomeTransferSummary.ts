@@ -1,7 +1,7 @@
 import type {
-  Account, IncomeTransferRequirementGroup, InterestIncomeRule, JournalEntry,
+  IncomeTransferRequirementGroup, IncomeTransferSettings, JournalEntry,
 } from "@balance-sheet/shared";
-import { partitionInterestIncomeTransfers } from "./interestIncome";
+import { partitionIncomeTransfers } from "./incomeTransferScheduling";
 
 export interface PendingIncomeTransferSummary {
   taskCount: number;
@@ -12,7 +12,7 @@ export interface PendingIncomeTransferSummary {
 
 export function summarizePendingIncomeTransfers(
   journal: JournalEntry[],
-  interest?: { accounts: Account[]; rule: InterestIncomeRule | null | undefined },
+  settings?: IncomeTransferSettings | null,
 ): PendingIncomeTransferSummary {
   const groupAccounts = new Map<string, Set<number>>();
   const seenRequirementIds = new Set<number>();
@@ -71,9 +71,7 @@ export function summarizePendingIncomeTransfers(
     }
   }
 
-  const deferredTaskCount = interest
-    ? partitionInterestIncomeTransfers({ groups: [...groups.values()], journal, ...interest }).deferred.length
-    : 0;
+  const deferredTaskCount = partitionIncomeTransfers({ groups: [...groups.values()], settings }).deferred.length;
   return {
     taskCount: groupAccounts.size,
     taskCountByAccount,

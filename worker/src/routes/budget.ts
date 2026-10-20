@@ -29,6 +29,7 @@ import type {
   BudgetSummary,
   BudgetFilter,
   InterestIncomeRule,
+  IncomeTransferSettings,
 } from "@balance-sheet/shared";
 import {
   applyBudgetBalanceCaps,
@@ -94,6 +95,23 @@ function parseSavedInterestIncomeRule(
   if (!serialized) return null;
   try {
     return JSON.parse(serialized) as InterestIncomeRule;
+  } catch {
+    return null;
+  }
+}
+
+function parseSavedIncomeTransferSettings(
+  serialized: string | null | undefined,
+): IncomeTransferSettings | null {
+  if (!serialized) return null;
+  try {
+    const parsed: unknown = JSON.parse(serialized);
+    if (!isObjectRecord(parsed) || !isObjectRecord(parsed.transfer_thresholds)) {
+      return null;
+    }
+    return {
+      transfer_thresholds: parsed.transfer_thresholds as Record<string, number>,
+    };
   } catch {
     return null;
   }
@@ -796,6 +814,9 @@ router.get("/settings", async (c) => {
     interest_income_rule: parseSavedInterestIncomeRule(
       row?.interest_income_rule,
     ),
+    income_transfer_settings: parseSavedIncomeTransferSettings(
+      row?.income_transfer_settings,
+    ),
   });
 });
 
@@ -810,6 +831,7 @@ router.patch("/settings", async (c) => {
     business_loss_account_id?: number | null;
     business_advance_budget_category_id?: number | null;
     interest_income_rule?: InterestIncomeRule | null;
+    income_transfer_settings?: IncomeTransferSettings | null;
   }>();
 
   const db = createDb(c.env);
@@ -822,6 +844,9 @@ router.patch("/settings", async (c) => {
     : [];
   let newInterestIncomeRule = parseSavedInterestIncomeRule(
     current?.interest_income_rule,
+  );
+  let newIncomeTransferSettings = parseSavedIncomeTransferSettings(
+    current?.income_transfer_settings,
   );
 
   if ("interest_income_rule" in body) {
@@ -909,6 +934,54 @@ router.patch("/settings", async (c) => {
     }
   }
 
+  if ("income_transfer_settings" in body) {
+    const inputSettings: unknown = body.income_transfer_settings;
+    if (inputSettings === null) {
+      newIncomeTransferSettings = null;
+    } else {
+      if (
+        !isObjectRecord(inputSettings) ||
+        !isObjectRecord(inputSettings.transfer_thresholds)
+      ) {
+        return c.json({ error: "income_transfer_settings is invalid" }, 400);
+      }
+
+      const scaleOptions = await loadMoneyScaleOptions(db);
+      const enabledDecimalPlaces = scaleOptions.decimalPlacesByCurrency ?? {};
+      const transferThresholds: Record<string, number> = {};
+      for (const [currencyInput, amount] of Object.entries(
+        inputSettings.transfer_thresholds,
+      )) {
+        const currency = currencyInput.toUpperCase();
+        const decimalPlaces = enabledDecimalPlaces[currency];
+        if (
+          !currency ||
+          decimalPlaces === undefined ||
+          Object.hasOwn(transferThresholds, currency) ||
+          typeof amount !== "number" ||
+          !Number.isFinite(amount) ||
+          amount < 0
+        ) {
+          return c.json(
+            { error: "income_transfer_settings transfer_thresholds must use enabled currencies and nonnegative amounts" },
+            400,
+          );
+        }
+        try {
+          toStorageMoneyAmount(amount, currency, scaleOptions);
+        } catch {
+          return c.json(
+            { error: `income_transfer_settings threshold for ${currency} exceeds its supported precision` },
+            400,
+          );
+        }
+        transferThresholds[currency] = amount;
+      }
+
+      newIncomeTransferSettings = { transfer_thresholds: transferThresholds };
+    }
+  }
+
   let newIds = currentIds;
   if ("preferred_payment_account_ids" in body) {
     const arr = body.preferred_payment_account_ids ?? [];
@@ -988,6 +1061,9 @@ router.patch("/settings", async (c) => {
       interest_income_rule: newInterestIncomeRule
         ? JSON.stringify(newInterestIncomeRule)
         : null,
+      income_transfer_settings: newIncomeTransferSettings
+        ? JSON.stringify(newIncomeTransferSettings)
+        : null,
     })
     .onConflictDoUpdate({
       target: budgetSettings.id,
@@ -1002,6 +1078,9 @@ router.patch("/settings", async (c) => {
         interest_income_rule: newInterestIncomeRule
           ? JSON.stringify(newInterestIncomeRule)
           : null,
+        income_transfer_settings: newIncomeTransferSettings
+          ? JSON.stringify(newIncomeTransferSettings)
+          : null,
       },
     });
 
@@ -1014,6 +1093,7 @@ router.patch("/settings", async (c) => {
     business_loss_account_id: newLossAccountId,
     business_advance_budget_category_id: newAdvanceBudgetCategoryId,
     interest_income_rule: newInterestIncomeRule,
+    income_transfer_settings: newIncomeTransferSettings,
   });
 });
 

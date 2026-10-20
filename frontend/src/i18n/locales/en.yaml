@@ -375,19 +375,17 @@ rolloverMonthsUnit: months
 rolloverMonthsDesc: Max months to carry over unused budget (1–24)
 budgetSettingsTitle: Budget Settings
 budgetSettingsSaved: Budget settings saved
-interestIncomeSettingsTitle: Interest Income Budgeting
-interestIncomeSettingsDescription: Choose the income account used for interest. Income entered with that account will preselect the chosen budget category. Transfers stay out of regular tasks until the total for the same source account, target account, and currency reaches the threshold. You can still change the allocation when entering income.
-interestIncomeAccountLabel: Income account for interest
-interestIncomeBudgetLabel: Default budget category
-interestIncomeThresholdLabel: Transfer total to show in regular tasks
-interestIncomeThresholdHint: Interest transfers with the same source account, target account, and currency are summed. A total below this amount stays pending but is hidden from regular tasks. Set it to 0 to show all such tasks.
-interestIncomeRuleStatusEnabled: Configured
-interestIncomeRuleStatusDisabled: Not configured
-interestIncomeSave: Save interest settings
-interestIncomeDisable: Clear settings
-interestIncomeSaved: Interest settings saved
-interestIncomeRuleDisabled: Interest settings cleared
-interestIncomeSaveFailed: Could not save interest settings
+incomeTransferSettingsTitle: Account transfer deferral
+incomeTransferSettingsDescription: Set, per currency, the transfer total below which income-related account transfers stay out of regular tasks. Clearing these rules removes automatic deferrals; manually deferred tasks remain deferred.
+incomeTransferSettingsThresholdLabel: Transfer total to show in regular tasks
+incomeTransferSettingsThresholdHint: Transfers with the same source account, target account, and currency are summed across all income types. A total below this amount stays pending but is hidden from regular tasks. Set it to 0 to show all automatically.
+incomeTransferSettingsSave: Save settings
+incomeTransferSettingsDisable: Clear automatic rules
+incomeTransferSettingsSaved: Transfer deferral settings saved
+incomeTransferSettingsDisabled: Automatic deferral rules cleared
+incomeTransferSettingsSaveFailed: Could not save transfer deferral settings
+incomeTransferSettingsStatusEnabled: Configured
+incomeTransferSettingsStatusDisabled: Not configured
 budgetHistoryJournalTab: Recent Transactions
 budgetHistoryBudgetTab: Budget History
 tabBalanceSheet: B/S
@@ -1640,8 +1638,10 @@ depreciationBudgetPlanTooLarge: "This monthly transfer plan is too large to save
 depreciationPreviewSummary: "First month: {first} · total: {total}"
 depreciationBudgetExpenseAccountContext: "Expense account: {account}"
 
-interestIncomeApplyDefault: "Use the interest allocation default"
-interestIncomeDefaultHint: "Allocate the full input amount to the configured budget. Editing an allocation amount turns this default off."
-interestIncomeDeferredTitle: "Deferred interest transfers ({count})"
-interestIncomeDeferredHint: "The income is already allocated to the budget. Small account transfers can wait and be combined later. Actual balances and placement differences still include these pending transfers."
-interestIncomeSquashHint: "Deferred interest is included in this consolidation. Complete it after making the actual account transfers."
+incomeTransferDeferLabel: "Defer transfer"
+incomeTransferDeferHint: "The budget allocation is recorded immediately; cash stays in the account that received it. You can manage this later on the transfer tasks page."
+incomeTransferDeferredTitle: "Placement adjustments waiting ({count})"
+incomeTransferDeferredHint: "The income is allocated to the budget; only the physical transfer is pending. Actual balances and placement differences still include these amounts."
+incomeTransferDeferredSquashHint: "This includes manually and automatically deferred transfers. Complete it after making the actual account transfers."
+incomeTransferDeferAction: "Defer for later"
+incomeTransferResumeAction: "Return to regular tasks"

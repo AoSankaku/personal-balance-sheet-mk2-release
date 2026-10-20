@@ -75,12 +75,14 @@ describe("income budget scope in real input components", () => {
     expect(html.includes("budgetDistributionPreview")).toBe(true);
     expect(html.includes("incomeOutsideBudgetHint")).toBe(false);
     expect(html.includes("incomeTransferRequiredTitle")).toBe(false);
+    expect(html.includes("incomeTransferDeferLabel")).toBe(false);
   });
 
   test("tracked cash income keeps its physical transfer guidance", () => {
     const html = renderSimple(1);
     expect(html.includes("budgetDistributionPreview")).toBe(true);
     expect(html.includes("incomeTransferRequiredTitle")).toBe(true);
+    expect(html.includes("incomeTransferDeferLabel")).toBe(true);
   });
 
   test.each([3, 4])("normal income excludes destination %s", (accountId) => {

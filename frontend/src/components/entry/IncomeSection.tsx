@@ -55,9 +55,6 @@ interface Props {
   handleIncomeTypeChange: (v: string | null) => void;
   canAllocateIncome: boolean;
   onIncomeDepositChange: (v: string | null) => void;
-  hasInterestIncomeDefault?: boolean;
-  interestDefaultActive?: boolean;
-  onInterestDefaultChange?: (active: boolean) => void;
 }
 
 export function IncomeSection({
@@ -81,9 +78,6 @@ export function IncomeSection({
   handleIncomeTypeChange,
   canAllocateIncome,
   onIncomeDepositChange,
-  hasInterestIncomeDefault,
-  interestDefaultActive,
-  onInterestDefaultChange,
 }: Props) {
   const { t } = useLang();
   const { displayCurrencySymbol: currencySymbol } = useAppData();
@@ -139,13 +133,6 @@ export function IncomeSection({
         </Text>
       ) : (
         <>
-          {hasInterestIncomeDefault && (
-            <Stack gap={4}>
-              <Switch label={t("interestIncomeApplyDefault")} checked={interestDefaultActive ?? false}
-                onChange={(event) => onInterestDefaultChange?.(event.currentTarget.checked)} />
-              <Text size="xs" c="dimmed">{t("interestIncomeDefaultHint")}</Text>
-            </Stack>
-          )}
           {budgetCategories.length > 0 && (
             <Switch
               label={t("applyBudgetFilterLabel")}

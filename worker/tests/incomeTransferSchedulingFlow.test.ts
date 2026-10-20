@@ -1,30 +1,28 @@
 import { afterEach, expect, test } from "bun:test";
-import type { Account, IncomeTransferRequirementGroup, JournalEntry } from "@balance-sheet/shared";
+import type { IncomeTransferRequirementGroup } from "@balance-sheet/shared";
 import { journalRouter } from "../src/routes/journal";
 import { incomeTransferRequirementsRouter } from "../src/routes/incomeTransferRequirements";
 import { budgetRouter } from "../src/routes/budget";
 import { createIncomeBudgetScopeFixture } from "./helpers/incomeBudgetScopeFixture";
-import { buildInterestIncomeDefault, partitionInterestIncomeTransfers } from "../../frontend/src/lib/interestIncome";
+import { partitionIncomeTransfers } from "../../frontend/src/lib/incomeTransferScheduling";
 
 const fixtures: ReturnType<typeof createIncomeBudgetScopeFixture>[] = [];
 afterEach(() => fixtures.splice(0).forEach(f => f.close()));
 
-test("interest is budgeted immediately, stays pending when deferred, and uses the existing net transfer completion", async () => {
+test("income is budgeted immediately, stays pending when deferred, and uses the existing net transfer completion", async () => {
   const f = createIncomeBudgetScopeFixture();
   fixtures.push(f);
-  const rule = { income_account_id: 1005, budget_category_id: 1001, transfer_thresholds: { JPY: 1000 } };
   for (const amount of [112, 122]) {
     const response = await journalRouter.request("/", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-      date: "2026-10-20", description: "Deposit interest",
+      date: "2026-10-20", description: "Unexpected deposit",
       lines: [{ account_id: 1001, debit: amount, credit: 0 }, { account_id: 1005, debit: 0, credit: amount }],
-      income_budget_allocations: buildInterestIncomeDefault({ rule, incomeAccountId: 1005, amount, categories: [{ id: 1001, name: "Free spending" }] }),
-      income_transfer_destinations: [{ budget_category_id: 1001, from_account_id: 1001, to_account_id: 1007, amount, currency: "JPY" }],
+      income_budget_allocations: [{ budget_category_id: 1001, amount }],
+      income_transfer_destinations: [{ budget_category_id: 1001, from_account_id: 1001, to_account_id: 1007, amount, currency: "JPY", is_deferred: true }],
     }) }, { DB: f.DB });
     expect(response.status).toBe(201);
   }
-  const journal = await (await journalRouter.request("/", {}, { DB: f.DB })).json() as JournalEntry[];
   const { groups } = await (await incomeTransferRequirementsRouter.request("/?status=pending", {}, { DB: f.DB })).json() as { groups: IncomeTransferRequirementGroup[] };
-  const partition = partitionInterestIncomeTransfers({ groups, journal, rule, accounts: [{ id: 1005, type: "income" }] as Account[] });
+  const partition = partitionIncomeTransfers({ groups, settings: null });
   expect(partition.deferred).toHaveLength(2);
   expect(partition.actionable).toHaveLength(0);
   expect(f.sqlite.query("SELECT SUM(debit-credit) AS balance FROM journal_lines WHERE account_id=1001").get()).toEqual({ balance: 100234 });

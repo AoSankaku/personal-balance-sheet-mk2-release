@@ -97,8 +97,8 @@ export function DeviationSection({
     [journal],
   );
   const pendingIncomeTransfers = useMemo(
-    () => summarizePendingIncomeTransfers(journal, { accounts, rule: budgetSettings?.interest_income_rule }),
-    [journal, accounts, budgetSettings?.interest_income_rule],
+    () => summarizePendingIncomeTransfers(journal, budgetSettings?.income_transfer_settings),
+    [journal, budgetSettings?.income_transfer_settings],
   );
   const normalizeCurrency = (currency: string | null | undefined) =>
     (currency || "JPY").toUpperCase();
@@ -723,10 +723,10 @@ export function DeviationSection({
           color={pendingIncomeTransfers.actionableTaskCount > 0 ? "orange" : "blue"}
           variant="light"
           icon={<IconAlertTriangle size={18} aria-hidden="true" />}
-          title={pendingIncomeTransfers.actionableTaskCount > 0 ? t("ttIncomeTransferWarningTitle") : t("interestIncomeDeferredTitle").replace("{count}", String(pendingIncomeTransfers.deferredTaskCount))}
+          title={pendingIncomeTransfers.actionableTaskCount > 0 ? t("ttIncomeTransferWarningTitle") : t("incomeTransferDeferredTitle").replace("{count}", String(pendingIncomeTransfers.deferredTaskCount))}
         >
           <Stack gap="sm" align="flex-start">
-            <Text size="sm">{t(pendingIncomeTransfers.actionableTaskCount > 0 ? "ttIncomeTransferWarningHint" : "interestIncomeDeferredHint")}</Text>
+            <Text size="sm">{t(pendingIncomeTransfers.actionableTaskCount > 0 ? "ttIncomeTransferWarningHint" : "incomeTransferDeferredHint")}</Text>
             <Button
               size="xs"
               color="orange"

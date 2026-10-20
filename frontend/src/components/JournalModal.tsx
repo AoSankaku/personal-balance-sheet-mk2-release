@@ -26,6 +26,7 @@ import { useAppData } from "../context/AppDataContext";
 import { useDepreciationBudget } from "../context/DepreciationBudgetContext";
 import { usePrivacy } from "../context/PrivacyContext";
 import { api } from "../api/client";
+import { getIncomeTransferDeferralState } from "../lib/incomeTransferScheduling";
 import {
   SimpleEntryForm,
   type HouseholdForm,
@@ -557,6 +558,7 @@ export function JournalModal({
         budgetDist,
         showZeroCategories: false,
         incomeDist,
+        deferIncomeTransfers: getIncomeTransferDeferralState(editEntry.income_transfer_requirements ?? []),
         incomeTransferDestinations: Object.fromEntries(
           (editEntry.income_transfer_requirements ?? [])
             .filter(
