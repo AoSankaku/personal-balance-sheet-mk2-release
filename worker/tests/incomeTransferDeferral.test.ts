@@ -48,7 +48,7 @@ function incomeEntry(amount = 5000, destinations: Record<string, unknown>[] = []
   };
 }
 
-function destination(amount: number, is_deferred?: boolean) {
+function destination(amount: number, is_deferred?: boolean | null) {
   return {
     budget_category_id: 1001,
     from_account_id: 1001,
@@ -191,6 +191,10 @@ describe("generic income transfer deferral", () => {
       "SELECT account_id, SUM(debit-credit) AS balance FROM journal_lines GROUP BY account_id ORDER BY account_id",
     ).all();
     const beforeEntries = database.sqlite.query("SELECT COUNT(*) AS count FROM journal_entries").get();
+    expect(database.sqlite.query("SELECT is_deferred FROM income_transfer_requirements ORDER BY id").all()).toEqual([
+      { is_deferred: null },
+      { is_deferred: null },
+    ]);
 
     const deferred = await jsonRequest(incomeTransferRequirementsRouter, database, `/${requirementIds[0]!.id}/defer`, "PATCH", { is_deferred: true });
     expect(deferred.status).toBe(200);
@@ -225,6 +229,14 @@ describe("generic income transfer deferral", () => {
     const clear = await jsonRequest(journalRouter, database, `/${id}`, "PUT", explicitFalse);
     expect(clear.status).toBe(200);
     expect(database.sqlite.query("SELECT is_deferred FROM income_transfer_requirements WHERE source_income_journal_entry_id = ?").get(id)).toEqual({ is_deferred: 0 });
+
+    const omittedAfterFalse = await jsonRequest(journalRouter, database, `/${id}`, "PUT", incomeEntry(5000, [destination(5000)]));
+    expect(omittedAfterFalse.status).toBe(200);
+    expect(database.sqlite.query("SELECT is_deferred FROM income_transfer_requirements WHERE source_income_journal_entry_id = ?").get(id)).toEqual({ is_deferred: 0 });
+
+    const resetAutomatic = await jsonRequest(journalRouter, database, `/${id}`, "PUT", incomeEntry(5000, [destination(5000, null)]));
+    expect(resetAutomatic.status).toBe(200);
+    expect(database.sqlite.query("SELECT is_deferred FROM income_transfer_requirements WHERE source_income_journal_entry_id = ?").get(id)).toEqual({ is_deferred: null });
   });
 
   test("defer endpoint returns 404 for missing and 409 for completed requirements", async () => {
