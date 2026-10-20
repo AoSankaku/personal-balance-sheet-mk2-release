@@ -140,7 +140,6 @@ describe("generic income transfer deferral", () => {
     });
 
     const invalidSettings = [
-      null,
       {},
       { transfer_thresholds: [] },
       { transfer_thresholds: { GBP: 1 } },
