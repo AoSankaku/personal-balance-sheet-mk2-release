@@ -1,15 +1,22 @@
-import type { JournalEntry } from "@balance-sheet/shared";
+import type {
+  IncomeTransferRequirementGroup, IncomeTransferSettings, JournalEntry,
+} from "@balance-sheet/shared";
+import { partitionIncomeTransfers } from "./incomeTransferScheduling";
 
 export interface PendingIncomeTransferSummary {
   taskCount: number;
   taskCountByAccount: Map<number, number>;
+  actionableTaskCount: number;
+  deferredTaskCount: number;
 }
 
 export function summarizePendingIncomeTransfers(
   journal: JournalEntry[],
+  settings?: IncomeTransferSettings | null,
 ): PendingIncomeTransferSummary {
   const groupAccounts = new Map<string, Set<number>>();
   const seenRequirementIds = new Set<number>();
+  const groups = new Map<string, IncomeTransferRequirementGroup>();
 
   for (const entry of journal) {
     for (const requirement of entry.income_transfer_requirements ?? []) {
@@ -26,6 +33,23 @@ export function summarizePendingIncomeTransfers(
         requirement.to_account_id,
         requirement.currency.toUpperCase(),
       ].join(":");
+      const group = groups.get(key) ?? {
+        key,
+        requirement_ids: [],
+        source_income_journal_entry_id: requirement.source_income_journal_entry_id,
+        from_account_id: requirement.from_account_id,
+        to_account_id: requirement.to_account_id,
+        amount: 0,
+        currency: requirement.currency,
+        transfer_journal_entry_id: null,
+        completion_source: null,
+        is_squashed: false,
+        requirements: [],
+      };
+      group.requirement_ids.push(requirement.id);
+      group.requirements.push(requirement);
+      group.amount += requirement.amount;
+      groups.set(key, group);
       groupAccounts.set(
         key,
         new Set([
@@ -47,5 +71,11 @@ export function summarizePendingIncomeTransfers(
     }
   }
 
-  return { taskCount: groupAccounts.size, taskCountByAccount };
+  const deferredTaskCount = partitionIncomeTransfers({ groups: [...groups.values()], settings }).deferred.length;
+  return {
+    taskCount: groupAccounts.size,
+    taskCountByAccount,
+    actionableTaskCount: groupAccounts.size - deferredTaskCount,
+    deferredTaskCount,
+  };
 }

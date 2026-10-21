@@ -375,6 +375,17 @@ rolloverMonthsUnit: 个月
 rolloverMonthsDesc: 未使用预算可结转的最大月数（1-24）
 budgetSettingsTitle: 预算设置
 budgetSettingsSaved: 预算设置已保存
+incomeTransferSettingsTitle: 账户转账暂缓
+incomeTransferSettingsDescription: 按币种设置收入相关转账的合计金额，低于该金额时不显示在常规任务中。清除此规则会取消自动暂缓，手动暂缓的任务仍保持暂缓。
+incomeTransferSettingsThresholdLabel: 常规任务中显示的转账合计金额
+incomeTransferSettingsThresholdHint: 所有收入类型中，来源账户、目标账户和币种相同的转账会合并计算。合计低于此金额时仍保留为待处理任务，但不会显示在常规任务中。设为 0 时不自动暂缓。
+incomeTransferSettingsSave: 保存设置
+incomeTransferSettingsDisable: 清除自动规则
+incomeTransferSettingsSaved: 转账暂缓设置已保存
+incomeTransferSettingsDisabled: 自动暂缓规则已清除
+incomeTransferSettingsSaveFailed: 无法保存转账暂缓设置
+incomeTransferSettingsStatusEnabled: 已设置
+incomeTransferSettingsStatusDisabled: 未设置
 budgetHistoryJournalTab: 最近交易
 budgetHistoryBudgetTab: 预算历史
 tabBalanceSheet: 资产负债表
@@ -1110,7 +1121,7 @@ ttCsvLastRecordedChip: "CSV最后 {date}"
 ttCsvLastRecordedLabel: "上次CSV导入中包含的最后交易日期：{date}"
 ttIncomeTransferPendingChip: "账户转账待处理 {count}"
 ttIncomeTransferWarningTitle: 仍有未完成的账户转账
-ttIncomeTransferWarningHint: 为准确比较账面余额和实际余额，请先完成账户转账任务再继续试算。
+ttIncomeTransferWarningHint: "存在待处理的账户转账。配置差额包含暂缓的转账，请结合转账任务一起确认。"
 ttDeviationSnapshotDate: 快照日期
 ttDeviationAccount: 账户
 ttDeviationBookValue: 账面价值
@@ -1604,7 +1615,7 @@ budgetFundingExcludedInfo: 借贷本金仅通过非预算账户发生变化，�
 
 deductFromBudgetLabel: "从预算总额中扣除"
 deductFromBudgetHint: "从预算资产中扣除此负债余额。信用卡默认启用。"
-incomeOutsideBudgetHint: "存入此账户的收入不会增加预算。转入预算账户时，未分配金额才会增加。"
+incomeOutsideBudgetHint: "此账户不属于预算范围，因此这笔收入无法分配到预算类别。"
 budgetHistorySourceFunding: "借贷的预算资金"
 loanFundingNoBudgetImpactHint: "此本金变动不会改变预算总额。利息等费用请单独记录。"
 depreciationBudgetMonthlySourceTitle: "每月转账来源分配"
@@ -1626,3 +1637,11 @@ depreciationBudgetSourceDestinationMustDiffer: "转账来源类别不能同时�
 depreciationBudgetPlanTooLarge: "此分期转账计划过大，无法安全保存。请减少每月来源类别数量或缩短分期转账期限。"
 depreciationPreviewSummary: "首月：{first} · 合计：{total}"
 depreciationBudgetExpenseAccountContext: "费用科目：{account}"
+
+incomeTransferDeferLabel: "暂缓转账"
+incomeTransferDeferHint: "预算分配会立即记录，资金仍留在收到款项的账户中。之后可在账户转账任务页面管理。"
+incomeTransferDeferredTitle: "待调整的资金配置（{count}项）"
+incomeTransferDeferredHint: "收入已分配至预算，只有实际账户转账尚未完成。实际账户余额和资金配置差额仍包含这些金额。"
+incomeTransferDeferredSquashHint: "手动和自动暂缓的转账都会合并处理。请完成实际账户转账后再确认。"
+incomeTransferDeferAction: "稍后合并"
+incomeTransferResumeAction: "恢复到常规任务"

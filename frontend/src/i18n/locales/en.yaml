@@ -375,6 +375,17 @@ rolloverMonthsUnit: months
 rolloverMonthsDesc: Max months to carry over unused budget (1–24)
 budgetSettingsTitle: Budget Settings
 budgetSettingsSaved: Budget settings saved
+incomeTransferSettingsTitle: Account transfer deferral
+incomeTransferSettingsDescription: Set, per currency, the transfer total below which income-related account transfers stay out of regular tasks. Clearing these rules removes automatic deferrals; manually deferred tasks remain deferred.
+incomeTransferSettingsThresholdLabel: Transfer total to show in regular tasks
+incomeTransferSettingsThresholdHint: Transfers with the same source account, target account, and currency are summed across all income types. A total below this amount stays pending but is hidden from regular tasks. Set it to 0 to show all automatically.
+incomeTransferSettingsSave: Save settings
+incomeTransferSettingsDisable: Clear automatic rules
+incomeTransferSettingsSaved: Transfer deferral settings saved
+incomeTransferSettingsDisabled: Automatic deferral rules cleared
+incomeTransferSettingsSaveFailed: Could not save transfer deferral settings
+incomeTransferSettingsStatusEnabled: Configured
+incomeTransferSettingsStatusDisabled: Not configured
 budgetHistoryJournalTab: Recent Transactions
 budgetHistoryBudgetTab: Budget History
 tabBalanceSheet: B/S
@@ -1110,7 +1121,7 @@ ttCsvLastRecordedChip: "CSV last {date}"
 ttCsvLastRecordedLabel: "Last transaction date included in the previous CSV import: {date}"
 ttIncomeTransferPendingChip: "Transfer pending {count}"
 ttIncomeTransferWarningTitle: Account transfers are still pending
-ttIncomeTransferWarningHint: Complete the account transfer tasks before continuing the trial balance so that book and actual balances can be compared accurately.
+ttIncomeTransferWarningHint: "Account transfers are pending. Placement differences include deferred transfers; review them alongside the transfer tasks."
 ttDeviationSnapshotDate: Snapshot date
 ttDeviationAccount: Account
 ttDeviationBookValue: Book value
@@ -1604,7 +1615,7 @@ budgetFundingExcludedInfo: Loan principal changed only through excluded accounts
 
 deductFromBudgetLabel: "Deduct from budget resources"
 deductFromBudgetHint: "Subtract this liability balance from budget assets. Enabled by default for cards."
-incomeOutsideBudgetHint: "Income received here does not increase the budget. Transferring it to a budget account increases unallocated funds."
+incomeOutsideBudgetHint: "This account is outside the budget scope, so this income cannot be allocated to budget categories."
 budgetHistorySourceFunding: "Loan budget funding"
 loanFundingNoBudgetImpactHint: "This principal movement does not change budget resources. Record interest and other expenses separately."
 depreciationBudgetMonthlySourceTitle: "Budget shares"
@@ -1626,3 +1637,11 @@ depreciationBudgetSourceDestinationMustDiffer: "A source category cannot also be
 depreciationBudgetPlanTooLarge: "This monthly transfer plan is too large to save safely. Reduce the number of monthly source categories or shorten the transfer period."
 depreciationPreviewSummary: "First month: {first} · total: {total}"
 depreciationBudgetExpenseAccountContext: "Expense account: {account}"
+
+incomeTransferDeferLabel: "Defer transfer"
+incomeTransferDeferHint: "The budget allocation is recorded immediately; cash stays in the account that received it. You can manage this later on the transfer tasks page."
+incomeTransferDeferredTitle: "Placement adjustments waiting ({count})"
+incomeTransferDeferredHint: "The income is allocated to the budget; only the physical transfer is pending. Actual balances and placement differences still include these amounts."
+incomeTransferDeferredSquashHint: "This includes manually and automatically deferred transfers. Complete it after making the actual account transfers."
+incomeTransferDeferAction: "Defer for later"
+incomeTransferResumeAction: "Return to regular tasks"

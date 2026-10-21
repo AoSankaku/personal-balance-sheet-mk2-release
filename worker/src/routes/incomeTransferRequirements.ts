@@ -162,6 +162,8 @@ async function serializeRequirements(
   const accountMap = new Map(accountRows.map((account) => [account.id, account.name]));
   return rows.map((row): IncomeTransferRequirement => ({
     ...row,
+    is_deferred:
+      row.is_deferred === null ? null : row.is_deferred === 1,
     source_income_date: sourceMap.get(row.source_income_journal_entry_id)?.date,
     source_income_description:
       sourceMap.get(row.source_income_journal_entry_id)?.description,
@@ -544,6 +546,7 @@ router.post("/", async (c) => {
       to_account_id: number;
       amount: number;
       currency?: string;
+      is_deferred?: boolean | null;
     }>;
   }>();
   if (
@@ -573,7 +576,8 @@ router.post("/", async (c) => {
       (item) =>
         !categoryMap.has(item.budget_category_id) ||
         item.from_account_id === item.to_account_id ||
-        item.amount <= 0,
+        item.amount <= 0 ||
+        (item.is_deferred != null && typeof item.is_deferred !== "boolean"),
     )
   ) {
     return c.json({ error: "invalid income transfer destination" }, 400);
@@ -591,11 +595,52 @@ router.post("/", async (c) => {
           to_account_id: item.to_account_id,
           amount: toStorageMoneyAmount(item.amount, currency, scaleOptions),
           currency,
+          is_deferred:
+            item.is_deferred == null ? null : item.is_deferred ? 1 : 0,
         };
       }),
     )
     .returning();
   return c.json(await serializeRequirements(db, inserted), 201);
+});
+
+router.patch("/:id/defer", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    return c.json({ error: "invalid income transfer requirement id" }, 400);
+  }
+  const body = await c.req.json<{ is_deferred?: unknown }>().catch(() => null);
+  if (!body || typeof body.is_deferred !== "boolean") {
+    return c.json({ error: "is_deferred must be a boolean" }, 400);
+  }
+
+  const db = createDb(c.env);
+  const [anchor] = await db
+    .select()
+    .from(incomeTransferRequirements)
+    .where(eq(incomeTransferRequirements.id, id));
+  if (!anchor) {
+    return c.json({ error: "pending requirement not found" }, 404);
+  }
+  if (anchor.completion_source !== null) {
+    return c.json({ error: "income_transfer_completed_conflict" }, 409);
+  }
+
+  const rows = await pendingGroup(db, id);
+  const ids = rows.map((row) => row.id);
+  if (ids.length === 0) {
+    return c.json({ error: "pending requirement not found" }, 404);
+  }
+  await db
+    .update(incomeTransferRequirements)
+    .set({ is_deferred: body.is_deferred ? 1 : 0 })
+    .where(
+      and(
+        inArray(incomeTransferRequirements.id, ids),
+        sql`${incomeTransferRequirements.completion_source} IS NULL`,
+      ),
+    );
+  return c.json({ requirement_ids: ids, is_deferred: body.is_deferred });
 });
 
 router.post("/:id/complete", async (c) => {

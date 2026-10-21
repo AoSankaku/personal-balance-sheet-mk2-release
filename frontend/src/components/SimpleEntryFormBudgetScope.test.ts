@@ -1,13 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import {
-  buildIncomeBudgetSubmissionFields,
-  buildLoanBudgetSubmissionFields,
-} from "./SimpleEntryForm";
+import { buildIncomeBudgetSubmissionFields } from "../lib/incomeBudgetScope";
+import { buildLoanBudgetSubmissionFields } from "./SimpleEntryForm";
 
 describe("simple-entry budget-scope payloads", () => {
   test("does not submit stale income allocations after an excluded deposit is selected", () => {
     const fields = buildIncomeBudgetSubmissionFields({
-      canAllocateIncome: false,
+      destinationAccount: {
+        id: 22,
+        type: "asset",
+        category: "cash",
+        include_in_allocatable: false,
+      },
       incomeBudgetAllocations: [{ budget_category_id: 4, amount: 3_000 }],
       incomeTransferDestinations: [
         {
@@ -21,7 +24,7 @@ describe("simple-entry budget-scope payloads", () => {
     });
 
     expect(fields.income_budget_allocations).toBeUndefined();
-    expect(fields.income_transfer_destinations).toBeUndefined();
+    expect(fields.income_transfer_destinations).toEqual([]);
   });
 
   test("retains income allocations for a budget asset deposit", () => {
@@ -36,13 +39,43 @@ describe("simple-entry budget-scope payloads", () => {
       },
     ];
     const fields = buildIncomeBudgetSubmissionFields({
-      canAllocateIncome: true,
+      destinationAccount: {
+        id: 20,
+        type: "asset",
+        category: "cash",
+        include_in_allocatable: true,
+      },
       incomeBudgetAllocations: allocations,
       incomeTransferDestinations: destinations,
     });
 
     expect(fields.income_budget_allocations).toBe(allocations);
     expect(fields.income_transfer_destinations).toBe(destinations);
+  });
+
+  test("retains card budget allocations while suppressing physical transfers", () => {
+    const allocations = [{ budget_category_id: 4, amount: 3_000 }];
+    const fields = buildIncomeBudgetSubmissionFields({
+      destinationAccount: {
+        id: 20,
+        type: "liability",
+        category: "credit_card",
+        deduct_from_budget: true,
+      },
+      incomeBudgetAllocations: allocations,
+      incomeTransferDestinations: [
+        {
+          budget_category_id: 4,
+          from_account_id: 20,
+          to_account_id: 21,
+          amount: 3_000,
+          currency: "JPY",
+        },
+      ],
+    });
+
+    expect(fields.income_budget_allocations).toBe(allocations);
+    expect(fields.income_transfer_destinations).toEqual([]);
   });
 
   test("omits all loan-funding and settlement metadata when a card participates", () => {

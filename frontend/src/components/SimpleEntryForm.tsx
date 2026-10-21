@@ -1,6 +1,7 @@
 import {
   Alert,
   Button,
+  Checkbox,
   Group,
   Modal,
   NumberInput,
@@ -81,6 +82,10 @@ import {
   splitByLargestRemainder,
 } from "../lib/multiLineBudgetFunding";
 import { getDepreciationBudgetFormErrors } from "../lib/depreciationBudgetForm";
+import {
+  buildIncomeBudgetSubmissionFields,
+  canAllocateIncomeBudget,
+} from "../lib/incomeBudgetScope";
 
 type EntryType =
   | "expense"
@@ -127,31 +132,7 @@ export interface SimpleEntryMeta {
   };
 }
 
-type IncomeBudgetSubmissionFields = Pick<
-  CreateJournalInput,
-  "income_budget_allocations" | "income_transfer_destinations"
->;
-
-export function buildIncomeBudgetSubmissionFields(input: {
-  canAllocateIncome: boolean;
-  incomeBudgetAllocations?: NonNullable<
-    CreateJournalInput["income_budget_allocations"]
-  >;
-  incomeTransferDestinations?: NonNullable<
-    CreateJournalInput["income_transfer_destinations"]
-  >;
-}): IncomeBudgetSubmissionFields {
-  if (!input.canAllocateIncome) {
-    return {
-      income_budget_allocations: undefined,
-      income_transfer_destinations: undefined,
-    };
-  }
-  return {
-    income_budget_allocations: input.incomeBudgetAllocations,
-    income_transfer_destinations: input.incomeTransferDestinations,
-  };
-}
+export { buildIncomeBudgetSubmissionFields } from "../lib/incomeBudgetScope";
 
 type LoanBudgetSubmissionFields = Pick<
   CreateJournalInput,
@@ -198,6 +179,8 @@ export interface SimpleFormDraft {
   showZeroCategories: boolean;
   incomeDist?: { budget_category_id: number; name: string; amount: number }[];
   incomeTransferDestinations?: Record<number, number | null>;
+  /** Undefined preserves mixed per-route deferrals on edit; null uses automatic rules. */
+  deferIncomeTransfers?: boolean | null;
   isRegularIncome?: boolean;
   selectedFilterId?: string | null;
   filterStepPreview?: StepPreview[];
@@ -327,6 +310,7 @@ export function SimpleEntryForm({
   const {
     budgetCategories,
     budgetSettings,
+    journal,
     displayCurrency,
     displayCurrencySymbol: currencySymbol,
     allocatableToday,
@@ -379,6 +363,9 @@ export function SimpleEntryForm({
   const [incomeDist, setIncomeDist] = useState<
     { budget_category_id: number; name: string; amount: number }[]
   >(initialDraft?.incomeDist ?? []);
+  const [deferIncomeTransfers, setDeferIncomeTransfers] = useState<boolean | null | undefined>(
+    initialDraft?.deferIncomeTransfers,
+  );
   const [
     incomeTransferDestination,
     setIncomeTransferDestination,
@@ -820,6 +807,7 @@ export function SimpleEntryForm({
       showZeroCategories,
       incomeDist,
       incomeTransferDestinations: incomeTransferDestination,
+      deferIncomeTransfers,
       isRegularIncome,
       selectedFilterId,
       filterStepPreview,
@@ -845,6 +833,7 @@ export function SimpleEntryForm({
     showZeroCategories,
     incomeDist,
     incomeTransferDestination,
+    deferIncomeTransfers,
     isRegularIncome,
     selectedFilterId,
     filterStepPreview,
@@ -1611,16 +1600,15 @@ export function SimpleEntryForm({
               to_account_id: toAccountId,
               amount: need.amount,
               currency: selectedCurrency,
+              ...(deferIncomeTransfers === undefined ? {} : { is_deferred: deferIncomeTransfers }),
             }];
           })
         : undefined;
     const incomeBudgetFields =
       values.entryType === "income"
         ? buildIncomeBudgetSubmissionFields({
-            canAllocateIncome: isBudgetAsset(
-              accounts.find(
-                (account) => account.id === values.incomeDepositedToId,
-              ),
+            destinationAccount: accounts.find(
+              (account) => account.id === values.incomeDepositedToId,
             ),
             incomeBudgetAllocations: income_budget_allocations,
             incomeTransferDestinations: income_transfer_destinations,
@@ -1658,6 +1646,7 @@ export function SimpleEntryForm({
       setSelectedFilterId(null);
       setIncomeDist([]);
       setIncomeTransferDestination({});
+      setDeferIncomeTransfers(undefined);
       setFilterStepPreview([]);
       setIsRegularIncome(false);
       setBudgetDist([]);
@@ -1903,8 +1892,14 @@ export function SimpleEntryForm({
 
   function handleIncomeDepositChange(next: string | null) {
     const accountId = next ? Number(next) : null;
+    const destinationAccount = accounts.find(
+      (account) => account.id === accountId,
+    );
     form.setFieldValue("incomeDepositedToId", accountId);
-    if (isBudgetAsset(accounts.find((account) => account.id === accountId))) {
+    if (canAllocateIncomeBudget(destinationAccount)) {
+      if (!isBudgetAsset(destinationAccount)) {
+        setIncomeTransferDestination({});
+      }
       return;
     }
     dirtyIncomeDistCategoryIds.current.clear();
@@ -1924,11 +1919,11 @@ export function SimpleEntryForm({
   }
 
   const entryType = form.values.entryType;
-  const canAllocateIncome = isBudgetAsset(
-    accounts.find(
-      (account) => account.id === form.values.incomeDepositedToId,
-    ),
+  const incomeDepositAccount = accounts.find(
+    (account) => account.id === form.values.incomeDepositedToId,
   );
+  const canAllocateIncome = canAllocateIncomeBudget(incomeDepositAccount);
+  const canReceiveIncomeTransfer = isBudgetAsset(incomeDepositAccount);
   useEffect(() => {
     if (accounts.length === 0 || entryType !== "income" || canAllocateIncome) {
       return;
@@ -1941,6 +1936,11 @@ export function SimpleEntryForm({
     setFilterStepPreview([]);
     setIncomeTransferDestination({});
   }, [entryType, accounts.length, canAllocateIncome]);
+  useEffect(() => {
+    if (entryType === "income" && !canReceiveIncomeTransfer) {
+      setIncomeTransferDestination({});
+    }
+  }, [entryType, canReceiveIncomeTransfer]);
   const transferBudgetOptions = useMemo(
     () =>
       getTransferBudgetCategoryOptions({
@@ -2026,7 +2026,7 @@ export function SimpleEntryForm({
     : incomeDist;
   const incomeTransferNeeds = useMemo(
     () =>
-      canAllocateIncome
+      canReceiveIncomeTransfer
         ? incomeDist
             .filter((distribution) => distribution.amount > 0)
             .map((distribution) => ({
@@ -2040,7 +2040,7 @@ export function SimpleEntryForm({
             }))
         : [],
     [
-      canAllocateIncome,
+      canReceiveIncomeTransfer,
       incomeDist,
       form.values.incomeDepositedToId,
       budgetCategories,
@@ -2364,6 +2364,16 @@ export function SimpleEntryForm({
             />
             {incomeTransferNeeds.length > 0 && (
               <Stack gap="xs">
+                {incomeTransferNeeds.some(need => need.required && need.accountIds.length > 0) &&
+                  !(isEditing && journal?.find(entry => entry.id === editEntryId)?.income_transfer_requirements?.some(requirement => requirement.completion_source != null)) && (
+                  <Stack gap={4}>
+                    <Checkbox label={t("incomeTransferDeferLabel")}
+                      checked={deferIncomeTransfers === true}
+                      indeterminate={isEditing && deferIncomeTransfers === undefined}
+                      onChange={event => setDeferIncomeTransfers(event.currentTarget.checked)} />
+                    <Text size="xs" c="dimmed">{t("incomeTransferDeferHint")}</Text>
+                  </Stack>
+                )}
                 {incomeTransferNeeds.map((need) =>
                   need.accountIds.length === 0 ? (
                     <Text

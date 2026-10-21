@@ -39,6 +39,7 @@ export function TaskList({ onNavigate, tasks }: TaskListProps) {
     creditCardImportTasks,
     creditCardWithdrawalRiskTasks,
     incomeTransferTasks,
+    deferredIncomeTransferTasks,
     negativeAccountTasks,
     overdueLoanTasks,
     paydayTasks,
@@ -52,7 +53,7 @@ export function TaskList({ onNavigate, tasks }: TaskListProps) {
     onNavigate?.();
   }
 
-  if (totalCount === 0) {
+  if (totalCount === 0 && deferredIncomeTransferTasks.length === 0) {
     return (
       <Text size="sm" c="dimmed" ta="center" py="lg">
         {t("noTasks")}
@@ -219,6 +220,12 @@ export function TaskList({ onNavigate, tasks }: TaskListProps) {
             </UnstyledButton>
           ))}
         </Stack>
+      )}
+
+      {deferredIncomeTransferTasks.length > 0 && (
+        <UnstyledButton className="task-menu__item" onClick={() => openTask("/tasks/income-transfer")}>
+          <Text size="sm" c="dimmed">{t("incomeTransferDeferredTitle").replace("{count}", String(deferredIncomeTransferTasks.length))}</Text>
+        </UnstyledButton>
       )}
 
       {budgetTask.show && (

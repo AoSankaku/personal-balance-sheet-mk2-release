@@ -778,6 +778,8 @@ router.get("/", async (c) => {
       incomeTransfersBySource.get(entry.id) ?? []
     ).map((requirement) => ({
       ...requirement,
+      is_deferred:
+        requirement.is_deferred === null ? null : requirement.is_deferred === 1,
       amount: fromStorageMoneyAmount(
         requirement.amount,
         requirement.currency,
@@ -831,6 +833,7 @@ router.post("/", async (c) => {
       to_account_id: number;
       amount: number;
       currency?: string;
+      is_deferred?: boolean | null;
     }>;
     /** Validate a two-leg exchange in distinct currencies. */
     is_currency_exchange?: boolean;
@@ -846,6 +849,13 @@ router.post("/", async (c) => {
       { error: "date, description, and at least 2 lines are required" },
       400,
     );
+  }
+
+  if (body.income_transfer_destinations?.some(
+    (destination) => destination.is_deferred != null &&
+      typeof destination.is_deferred !== "boolean",
+  )) {
+    return c.json({ error: "income transfer is_deferred must be a boolean" }, 400);
   }
 
   const db = createDb(c.env);
@@ -1194,7 +1204,9 @@ router.post("/", async (c) => {
       !Number.isInteger(destination.from_account_id) ||
       !Number.isInteger(destination.to_account_id) ||
       destination.from_account_id === destination.to_account_id ||
-      destination.amount <= 0
+      destination.amount <= 0 ||
+      (destination.is_deferred != null &&
+        typeof destination.is_deferred !== "boolean")
     ) {
       return c.json({ error: "invalid income transfer destination" }, 400);
     }
@@ -1203,9 +1215,9 @@ router.post("/", async (c) => {
       c.env.DB.prepare(
         `INSERT INTO income_transfer_requirements
           (source_income_journal_entry_id, budget_category_id, budget_category_name,
-           from_account_id, to_account_id, amount, currency)
+           from_account_id, to_account_id, amount, currency, is_deferred)
          SELECT
-          (SELECT MAX(id) FROM journal_entries), ?, name, ?, ?, ?, ?
+          (SELECT MAX(id) FROM journal_entries), ?, name, ?, ?, ?, ?, ?
          FROM budget_categories
          WHERE id = ?`,
       ).bind(
@@ -1214,6 +1226,11 @@ router.post("/", async (c) => {
         destination.to_account_id,
         toStorageMoneyAmount(destination.amount, currency, scaleOptions),
         currency,
+        destination.is_deferred == null
+          ? null
+          : destination.is_deferred
+            ? 1
+            : 0,
         destination.budget_category_id,
       ),
     );
@@ -1531,6 +1548,8 @@ router.get("/:id", async (c) => {
       }),
     income_transfer_requirements: incomeTransferRows.map((requirement) => ({
       ...requirement,
+      is_deferred:
+        requirement.is_deferred === null ? null : requirement.is_deferred === 1,
       amount: fromStorageMoneyAmount(
         requirement.amount,
         requirement.currency,
@@ -1649,6 +1668,7 @@ router.put("/:id", async (c) => {
       to_account_id: number;
       amount: number;
       currency?: string;
+      is_deferred?: boolean | null;
     }>;
     is_currency_exchange?: boolean;
   }>();
@@ -1663,6 +1683,13 @@ router.put("/:id", async (c) => {
       { error: "date, description, and at least 2 lines are required" },
       400,
     );
+
+  if (body.income_transfer_destinations?.some(
+    (destination) => destination.is_deferred != null &&
+      typeof destination.is_deferred !== "boolean",
+  )) {
+    return c.json({ error: "income transfer is_deferred must be a boolean" }, 400);
+  }
 
   const db = createDb(c.env);
   const decimalPlacesByCurrency = await loadCurrencyDecimalPlaces(db);
@@ -1795,6 +1822,7 @@ router.put("/:id", async (c) => {
   const [managed] = await db.select({ id: actualBalanceAdjustments.id }).from(actualBalanceAdjustments).where(eq(actualBalanceAdjustments.journal_entry_id, id));
   if (managed) return c.json({ error: "managed_balance_adjustment", message: "Edit or delete the balance confirmation instead" }, 409);
   let preserveIncomeTransferRequirements = false;
+  const previousDeferralByRoute = new Map<string, boolean | null>();
   if (body.income_transfer_destinations === undefined) {
     const completedRequirements = await db
       .select({ id: incomeTransferRequirements.id })
@@ -1827,6 +1855,29 @@ router.put("/:id", async (c) => {
     const completedRequirements = currentRequirements.filter(
       (requirement) => requirement.completion_source != null,
     );
+    for (const requirement of currentRequirements) {
+      const key = [
+        requirement.budget_category_id,
+        requirement.from_account_id,
+        requirement.to_account_id,
+        normalizeCurrency(requirement.currency),
+      ].join(":");
+      const wasDeferred =
+        requirement.is_deferred === null ? null : requirement.is_deferred === 1;
+      const previous = previousDeferralByRoute.get(key);
+      // If several prior rows collapse into one destination, retain deferral
+      // only when every matched row was deferred. Preserve automatic behavior
+      // when rows mix automatic and manually deferred states.
+      if (!previousDeferralByRoute.has(key)) {
+        previousDeferralByRoute.set(key, wasDeferred);
+      } else if (previous === false || wasDeferred === false) {
+        previousDeferralByRoute.set(key, false);
+      } else if (previous === null || wasDeferred === null) {
+        previousDeferralByRoute.set(key, null);
+      } else {
+        previousDeferralByRoute.set(key, true);
+      }
+    }
     if (completedRequirements.length > 0) {
       const currentKeys = currentRequirements
         .map((requirement) =>
@@ -2141,17 +2192,28 @@ router.put("/:id", async (c) => {
       !Number.isInteger(destination.from_account_id) ||
       !Number.isInteger(destination.to_account_id) ||
       destination.from_account_id === destination.to_account_id ||
-      destination.amount <= 0
+      destination.amount <= 0 ||
+      (destination.is_deferred != null &&
+        typeof destination.is_deferred !== "boolean")
     ) {
       return c.json({ error: "invalid income transfer destination" }, 400);
     }
     const currency = normalizeCurrency(destination.currency ?? budgetCurrency);
+    const deferralKey = [
+      destination.budget_category_id,
+      destination.from_account_id,
+      destination.to_account_id,
+      currency,
+    ].join(":");
+    const isDeferred = destination.is_deferred === undefined
+      ? previousDeferralByRoute.get(deferralKey) ?? null
+      : destination.is_deferred;
     statements.push(
       c.env.DB.prepare(
         `INSERT INTO income_transfer_requirements
           (source_income_journal_entry_id, budget_category_id, budget_category_name,
-           from_account_id, to_account_id, amount, currency)
-         SELECT ?, ?, name, ?, ?, ?, ?
+           from_account_id, to_account_id, amount, currency, is_deferred)
+         SELECT ?, ?, name, ?, ?, ?, ?, ?
          FROM budget_categories
          WHERE id = ?`,
       ).bind(
@@ -2161,6 +2223,7 @@ router.put("/:id", async (c) => {
         destination.to_account_id,
         toStorageMoneyAmount(destination.amount, currency, scaleOptions),
         currency,
+        isDeferred === null ? null : isDeferred ? 1 : 0,
         destination.budget_category_id,
       ),
     );

@@ -437,6 +437,7 @@ export const incomeTransferRequirements = sqliteTable(
     completion_source: text("completion_source", {
       enum: ["created", "linked"],
     }),
+    is_deferred: integer("is_deferred"),
     created_at: text("created_at")
       .notNull()
       .default(sql`(datetime('now'))`),
@@ -490,6 +491,10 @@ export const budgetSettings = sqliteTable("budget_settings", {
   business_advance_budget_category_id: integer(
     "business_advance_budget_category_id",
   ).references(() => budgetCategories.id),
+  // JSON-encoded interest income allocation and deferred transfer rule.
+  interest_income_rule: text("interest_income_rule"),
+  // JSON-encoded generic deferred income transfer thresholds by currency.
+  income_transfer_settings: text("income_transfer_settings"),
 });
 
 export const taskSettings = sqliteTable(

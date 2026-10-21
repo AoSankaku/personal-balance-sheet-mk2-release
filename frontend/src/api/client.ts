@@ -25,6 +25,8 @@ import type {
   CreateBudgetFilterInput,
   BudgetAdjustmentLog,
   BudgetSettings,
+  InterestIncomeRule,
+  IncomeTransferSettings,
   CreditCardSettings,
   CreateCreditCardSettingsInput,
   CreditCardStatementCompletion,
@@ -372,11 +374,18 @@ export const api = {
         to_account_id: number;
         amount: number;
         currency?: string;
+        is_deferred?: boolean | null;
       }>;
     }) =>
       mutationRequest<IncomeTransferRequirement[]>(
         "/income-transfer-requirements",
         { method: "POST", body: JSON.stringify(input) },
+        DERIVED_JOURNAL_PREFIXES,
+      ),
+    defer: (id: number, is_deferred: boolean) =>
+      mutationRequest<{ requirement_ids: number[]; is_deferred: boolean }>(
+        `/income-transfer-requirements/${id}/defer`,
+        { method: "PATCH", body: JSON.stringify({ is_deferred }) },
         DERIVED_JOURNAL_PREFIXES,
       ),
     complete: (id: number, description: string) =>
@@ -577,6 +586,8 @@ export const api = {
       business_advance_account_id?: number | null;
       business_loss_account_id?: number | null;
       business_advance_budget_category_id?: number | null;
+      interest_income_rule?: InterestIncomeRule | null;
+      income_transfer_settings?: IncomeTransferSettings | null;
     }) =>
       mutationRequest<BudgetSettings>("/budget/settings", {
         method: "PATCH",

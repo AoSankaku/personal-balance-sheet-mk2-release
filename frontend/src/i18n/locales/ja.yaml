@@ -375,6 +375,17 @@ rolloverMonthsUnit: ヶ月
 rolloverMonthsDesc: 未使用予算を引き継ぐ最大月数（1〜24ヶ月）
 budgetSettingsTitle: 予算の設定
 budgetSettingsSaved: 予算設定を保存しました
+incomeTransferSettingsTitle: 口座移動の保留
+incomeTransferSettingsDescription: 通貨ごとに、通常タスクへの表示を保留する振替合計額を設定します。設定を解除すると自動保留ルールだけが解除され、手動で保留したタスクはそのまま保留されます。
+incomeTransferSettingsThresholdLabel: 通常タスクに表示する振替合計額
+incomeTransferSettingsThresholdHint: すべての収入について、同じ入金口座・配賦先口座・通貨の振替を合算します。合計がこの金額未満の間は通常タスクに表示されず、未完了タスクとして保留されます。0にすると自動保留しません。
+incomeTransferSettingsSave: 設定を保存
+incomeTransferSettingsDisable: 自動保留ルールを解除
+incomeTransferSettingsSaved: 口座移動の保留設定を保存しました
+incomeTransferSettingsDisabled: 自動保留ルールを解除しました
+incomeTransferSettingsSaveFailed: 口座移動の保留設定を保存できませんでした
+incomeTransferSettingsStatusEnabled: 設定済み
+incomeTransferSettingsStatusDisabled: 未設定
 budgetHistoryJournalTab: 最近の仕訳
 budgetHistoryBudgetTab: 予算増減履歴
 tabBalanceSheet: 貸借対照表
@@ -1110,7 +1121,7 @@ ttCsvLastRecordedChip: "CSV最終 {date}"
 ttCsvLastRecordedLabel: "前回のCSVインポートに含まれる最終取引日: {date}"
 ttIncomeTransferPendingChip: "口座移動待ち {count}件"
 ttIncomeTransferWarningTitle: 未完了の口座移動があります
-ttIncomeTransferWarningHint: 正確に比較するため、試算を続ける前に口座移動タスクを完了してください。
+ttIncomeTransferWarningHint: "未完了の口座移動があります。配置差額には保留分も含まれるため、口座移動タスクと合わせて確認してください。"
 ttDeviationSnapshotDate: 基準日
 ttDeviationAccount: 勘定科目
 ttDeviationBookValue: 簿価
@@ -1604,7 +1615,7 @@ budgetFundingExcludedInfo: 対象外口座だけで貸し借り元本が変動�
 
 deductFromBudgetLabel: "予算総額から控除する"
 deductFromBudgetHint: "この負債の残高を予算対象資産から差し引きます。カードは初期設定で有効です。"
-incomeOutsideBudgetHint: "この口座への収入は予算を増やしません。予算対象口座へ振り替えた時に未割当が増えます。"
+incomeOutsideBudgetHint: "この口座は予算対象外のため、この収入を予算科目に配賦できません。"
 budgetHistorySourceFunding: "貸借の予算への反映"
 loanFundingNoBudgetImpactHint: "この元本の移動は予算総額を変えません。利息などの費用は別に記録します。"
 depreciationBudgetMonthlySourceTitle: "予算割合"
@@ -1626,3 +1637,11 @@ depreciationBudgetSourceDestinationMustDiffer: "振替元と振替先には同�
 depreciationBudgetPlanTooLarge: "月次振替計画が大きすぎるため安全に保存できません。月次振替元のカテゴリ数を減らすか、振替期間を短くしてください。"
 depreciationPreviewSummary: "初月：{first} · 合計：{total}"
 depreciationBudgetExpenseAccountContext: "費用科目：{account}"
+
+incomeTransferDeferLabel: "振替を後回しにする"
+incomeTransferDeferHint: "予算配賦はすぐに確定し、現金は入金された口座に置いたままにします。後から口座移動タスクで管理できます。"
+incomeTransferDeferredTitle: "配置調整待ち（{count}件）"
+incomeTransferDeferredHint: "予算への配賦は済んでおり、実際の口座移動だけが未完了です。実際の口座残高と配置差額には保留分も反映されています。"
+incomeTransferDeferredSquashHint: "手動・自動で保留した振替をまとめて処理します。実際に口座振替を行ってから完了してください。"
+incomeTransferDeferAction: "後でまとめる"
+incomeTransferResumeAction: "通常タスクに戻す"
