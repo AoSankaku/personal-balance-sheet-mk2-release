@@ -28,6 +28,10 @@ import {
 import { findOverdueShortTermLoanAccounts } from "../pages/dbPageUtils";
 import { useDepreciationBudget } from "../context/DepreciationBudgetContext";
 import { getDepreciationBudgetTaskSchedules } from "../lib/depreciationBudgetTasks";
+import { filterUncoveredIncomeTransfers } from "../lib/incomeTransferPlacementTasks";
+import { useBudgetPlacementReconciliation } from "./useBudgetPlacementReconciliation";
+import type { BudgetPlacementTransfer } from "../lib/budgetPlacement";
+import { splitBudgetPlacementTransfersByDeferral } from "../lib/budgetPlacementDeferral";
 
 interface AppTask {
   id: string;
@@ -51,6 +55,11 @@ export interface TaskCollection {
   creditCardWithdrawalRiskTasks: CreditCardWithdrawalRiskTask[];
   incomeTransferTasks: IncomeTransferRequirementGroup[];
   deferredIncomeTransferTasks: IncomeTransferRequirementGroup[];
+  budgetPlacementTasks: BudgetPlacementTransfer[];
+  deferredBudgetPlacementTasks: number;
+  budgetPlacementDeferredIncomeGroupCount: number;
+  budgetPlacementError: Error | null;
+  budgetPlacementLoading: boolean;
   negativeAccountTasks: AppTask[];
   overdueLoanTasks: OverdueLoanTask[];
   paydayTasks: AppTask[];
@@ -210,7 +219,7 @@ function useTrialBalanceTask(): TrialBalanceTask | null {
   });
 }
 
-function useIncomeTransferTasks() {
+function useIncomeTransferTasks(coveredRequirementIds: number[]) {
   const { journal, budgetSettings } = useAppData();
   const [groups, setGroups] = useState<IncomeTransferRequirementGroup[]>([]);
 
@@ -230,8 +239,9 @@ function useIncomeTransferTasks() {
   }, [journal]);
 
   return useMemo(() => partitionIncomeTransfers({
-    groups, settings: budgetSettings?.income_transfer_settings,
-  }), [groups, budgetSettings?.income_transfer_settings]);
+    groups: filterUncoveredIncomeTransfers(groups, coveredRequirementIds),
+    settings: budgetSettings?.income_transfer_settings,
+  }), [coveredRequirementIds, groups, budgetSettings?.income_transfer_settings]);
 }
 
 export function formatTaskMonth(yearMonth: string, locale: string): string {
@@ -250,7 +260,13 @@ export function useTaskCollection(): TaskCollection {
   const creditCardImportTasks = useCreditCardImportTasks();
   const creditCardWithdrawalRiskTasks = useCreditCardWithdrawalRiskTasks();
   const trialBalanceTask = useTrialBalanceTask();
-  const { actionable: incomeTransferTasks, deferred: deferredIncomeTransferTasks } = useIncomeTransferTasks();
+  const placementReconciliation = useBudgetPlacementReconciliation();
+  const { budgetSettings: placementBudgetSettings, loading: appDataLoading } = useAppData();
+  const placementLoading = placementReconciliation.loading || appDataLoading;
+  const coveredRequirementIds = placementReconciliation.plan?.requirement_ids ?? [];
+  const transferGroups = useIncomeTransferTasks(coveredRequirementIds);
+  const incomeTransferTasks = placementLoading || placementReconciliation.error != null ? [] : transferGroups.actionable;
+  const deferredIncomeTransferTasks = placementLoading || placementReconciliation.error != null ? [] : transferGroups.deferred;
   const { schedules: depreciationSchedules } = useDepreciationBudget();
   const depreciationBudgetTasks = getDepreciationBudgetTaskSchedules(
     depreciationSchedules,
@@ -258,6 +274,22 @@ export function useTaskCollection(): TaskCollection {
   const isOnline = useOnlineStatus();
   const offlineDrafts = useOfflineDrafts();
   const pendingOfflineDrafts = isOnline ? offlineDrafts : [];
+  const placementDisposition = splitBudgetPlacementTransfersByDeferral({
+    transfers: placementReconciliation.plan?.transfers ?? [],
+    pendingGroups: placementReconciliation.plan?.pending_transfers ?? [],
+    settings: placementBudgetSettings?.income_transfer_settings,
+  });
+  const budgetPlacementTasks = placementLoading || placementReconciliation.error != null
+    ? []
+    : placementDisposition.actionableTransfers;
+  const deferredBudgetPlacementTasks = placementLoading || placementReconciliation.error != null
+    ? 0
+    : placementDisposition.fullyDeferred
+      ? placementDisposition.deferredGroupCount
+      : 0;
+  const budgetPlacementDeferredIncomeGroupCount = placementLoading || placementReconciliation.error != null
+    ? 0
+    : placementDisposition.deferredGroupCount;
   const totalCount =
     pendingOfflineDrafts.length +
     depreciationBudgetTasks.length +
@@ -268,7 +300,10 @@ export function useTaskCollection(): TaskCollection {
     (budgetTask.show ? 1 : 0) +
     (overdueLoanTasks.length > 0 ? 1 : 0) +
     (negativeAccountTasks.length > 0 ? 1 : 0) +
-    (creditCardWithdrawalRiskTasks.length > 0 ? 1 : 0);
+    (creditCardWithdrawalRiskTasks.length > 0 ? 1 : 0) +
+    budgetPlacementTasks.length +
+    (placementLoading ? 1 : 0) +
+    (placementReconciliation.error ? 1 : 0);
 
   return {
     budgetTask,
@@ -277,6 +312,11 @@ export function useTaskCollection(): TaskCollection {
     creditCardWithdrawalRiskTasks,
     incomeTransferTasks,
     deferredIncomeTransferTasks,
+    budgetPlacementTasks,
+    deferredBudgetPlacementTasks,
+    budgetPlacementDeferredIncomeGroupCount,
+    budgetPlacementError: placementReconciliation.error,
+    budgetPlacementLoading: placementLoading,
     negativeAccountTasks,
     overdueLoanTasks,
     paydayTasks,

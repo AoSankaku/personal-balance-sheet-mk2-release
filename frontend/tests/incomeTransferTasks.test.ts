@@ -42,7 +42,7 @@ describe("income-linked account transfer tasks", () => {
     const taskPage = source("src/pages/TasksPage.tsx");
 
     expect(list).toContain("incomeTransferTasks.length > 0 &&");
-    expect(taskPage).toContain("tasks.incomeTransferTasks.length > 0");
+    expect(taskPage).toContain("tasks.deferredBudgetPlacementTasks > 0");
     expect(list).toContain('openTask("/tasks/income-transfer")');
   });
 

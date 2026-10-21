@@ -288,6 +288,28 @@ export interface IncomeTransferSquashPreview {
   transfers: IncomeTransferSquashTransfer[];
 }
 
+export type BudgetPlacementReconciliation = import("./budgetPlacement").BudgetPlacementPlan & {
+  as_of: string;
+  currency: string;
+  revision: number;
+  token: string;
+  requirement_ids: number[];
+  /** Covered source tasks that remain pending because the placement is underfunded. */
+  unresolved_requirement_ids: number[];
+  pending_transfers: IncomeTransferRequirementGroup[];
+  expense_evidence: {
+    journal_entry_id: number;
+    date: string;
+    description: string;
+    budget_category_id: number;
+    budget_category_name: string;
+    from_account_id: number;
+    from_account_name: string;
+    to_group_id: string;
+    amount: number;
+  }[];
+}
+
 export interface IncomeTransferHistoricalCandidate {
   source_income_journal_entry_id: number;
   source_income_date: string;

@@ -32,7 +32,7 @@ export default function TasksPage() {
             </Text>
           </Box>
         </Group>
-        {tasks.incomeTransferTasks.length + tasks.deferredIncomeTransferTasks.length > 0 && (
+        {tasks.incomeTransferTasks.length + tasks.deferredIncomeTransferTasks.length + tasks.budgetPlacementTasks.length + tasks.deferredBudgetPlacementTasks > 0 && (
           <Button
             component={Link}
             to="/tasks/income-transfer"
@@ -41,7 +41,7 @@ export default function TasksPage() {
           >
             {t("incomeTransferOpenTasksPage").replace(
               "{count}",
-              String(tasks.incomeTransferTasks.length + tasks.deferredIncomeTransferTasks.length),
+              String(tasks.incomeTransferTasks.length + tasks.deferredIncomeTransferTasks.length + tasks.budgetPlacementTasks.length + tasks.deferredBudgetPlacementTasks),
             )}
           </Button>
         )}

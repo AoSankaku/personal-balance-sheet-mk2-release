@@ -45,6 +45,7 @@ import {
 import { formatCurrency, formatJPY } from "../../lib/numberFormat";
 import { showFeedback } from "../../lib/feedback";
 import { BudgetPlacementTable } from "../BudgetPlacementTable";
+import { BudgetPlacementReconciliationPanel } from "../BudgetPlacementReconciliationPanel";
 import { JournalModal } from "../JournalModal";
 import {
   getBudgetCheckTotals,
@@ -399,6 +400,8 @@ export function BudgetCheckSection() {
           currency={displayCurrency || "JPY"}
         />
       </Paper>
+
+      <BudgetPlacementReconciliationPanel />
 
       <Paper withBorder radius="md" p="md">
         <Group mb="sm" justify="space-between">
