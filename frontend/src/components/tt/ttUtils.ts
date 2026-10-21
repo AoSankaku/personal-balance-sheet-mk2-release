@@ -106,7 +106,9 @@ export function getBudgetCheckTotals(
   const totalExpenseAllocated = -(entry.budget_allocations ?? [])
     .filter((a) => a.budget_category_id !== excludedExpenseAllocationCategoryId)
     .reduce((s, a) => s + a.amount, 0);
-  const totalIncomeAllocated = (entry.income_budget_allocations ?? []).reduce(
+  const totalIncomeAllocated = (entry.income_budget_allocations ?? [])
+    .filter((allocation) => allocation.adjustment_type !== "transfer")
+    .reduce(
     (s, a) => s + a.amount,
     0,
   );
@@ -159,7 +161,9 @@ export function getSuspiciousReasons(
 
   if (incomeLines.length > 0) {
     const totalIncomeLine = totalIncome;
-    const incomeAllocs = entry.income_budget_allocations ?? [];
+    const incomeAllocs = (entry.income_budget_allocations ?? []).filter(
+      (allocation) => allocation.adjustment_type !== "transfer",
+    );
     if (incomeAllocs.length > 0) {
       const totalDistributed = totalIncomeAllocated;
       if (hasBudgetAllocationMismatch(totalIncomeLine, totalDistributed)) {
