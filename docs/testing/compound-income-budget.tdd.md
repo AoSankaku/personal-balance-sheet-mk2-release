@@ -23,4 +23,38 @@ Executed on dev before implementation: 0 passed, 3 failed. The real compound ent
 - Frontend typecheck/build and an isolated headless browser flow, reusing the existing project dev server where practical.
 - Independent review of financial state and regression risks.
 
-GREEN and review results will be appended after implementation.
+## GREEN evidence
+
+- Shared boundary, input component, allocation/transfer API, ordinary income, excluded cash/refunds, expense limits, and deferral regressions: 84 passed, 0 failed (295 assertions).
+- Income/principal reconciliation plus existing consistency tests: 19 passed, 0 failed. The separate reconciliation RED checkpoint is `5440eed`; its GREEN fix is `4b5ad57`.
+- Focused coverage: 9 passed, 0 failed; 81.28% lines overall for that group, 96.99% lines and 100% functions for `shared/journalIncomeBudget.ts`.
+- Frontend TypeScript and Vite/PWA production build: passed.
+- Worker TypeScript diagnostics against pre-task `1498b22`: 112 baseline and 112 current, no added diagnostics.
+- Six-locale key parity and UTF-8 without BOM checked.
+
+Local ignored evidence: `.tmp/compound-income/{check-green.log,coverage.log,frontend-build.log,worker-typecheck.json,browser/results.json}`.
+
+## Real input-path verification
+
+`worker/tests/investmentSale.browser.mjs` uses the existing Vite instance and `worker/tests/helpers/investmentSaleQaServer.ts`, which supplies only a disposable in-memory D1 implementation. All API requests are intercepted and sent to that fixture. No production or regular local D1 records are written.
+
+Headless Chrome at 1440px and 390px passed:
+
+- legacy positive allocation conversion while preserving a separate negative allocation and both category balances;
+- assisted creation with full proceeds allocated and full-proceeds account placement tasks;
+- unchanged save/reopen without erasure or duplication;
+- scheduling-only edits;
+- changing disposed book value and gain while leaving proceeds unchanged;
+- changing the receiving bank and clearing obsolete tasks;
+- changing to excluded cash and explicitly clearing the still-visible allocation;
+- compound income credited to a budget-deducted card, with no physical transfer task.
+
+Additional desktop flows passed for mixed route deferral preservation, multiple receiving banks, and cross-category rounding (59,999 / 60,001 against two 60,000 inflows).
+
+The test API and headless browser were stopped after verification. Existing Vite/Worker development processes were retained.
+
+## Independent review
+
+Reviewed budget boundaries, returned principal, legacy conversion, signed allocation preservation, edit equality checks, route/defer-state preservation, excluded-account editing, and currency rounding. All actionable findings were fixed and rechecked; no unresolved data-loss, over-allocation, or unsavable-edit finding remained in the review scope.
+
+Existing real records are converted only through an explicit edit/save. This change requires no database migration.

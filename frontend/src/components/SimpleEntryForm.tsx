@@ -86,6 +86,7 @@ import {
   buildIncomeBudgetSubmissionFields,
   canAllocateIncomeBudget,
 } from "../lib/incomeBudgetScope";
+import { resolveIncomeTransferAccounts } from "../lib/incomeTransferAccounts";
 
 type EntryType =
   | "expense"
@@ -204,74 +205,6 @@ export interface SimpleFormDraft {
 function createDepreciationIdempotencyKey() {
   return globalThis.crypto?.randomUUID?.() ??
     `depreciation-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function resolveIncomeTransferAccounts(input: {
-  categoryId: number;
-  depositAccountId: number | null;
-  categories: Array<{
-    id: number;
-    target_accounts?: Array<{ account_id: number; ratio: number }>;
-  }>;
-  accounts: Account[];
-}): { required: boolean; accountIds: number[] } {
-  const validAccountIds = new Set(
-    input.accounts
-      .filter(
-        (account) =>
-          account.type === "asset" &&
-          account.category === "cash" &&
-          account.include_in_allocatable !== false &&
-          !account.is_depreciable,
-      )
-      .map((account) => account.id),
-  );
-  const categoryAccounts = new Map(
-    input.categories.map((category) => [
-      category.id,
-      new Set(
-        (category.target_accounts ?? [])
-          .filter(
-            (target) =>
-              target.ratio > 0 && validAccountIds.has(target.account_id),
-          )
-          .map((target) => target.account_id),
-      ),
-    ]),
-  );
-  const accountCategories = new Map<number, Set<number>>();
-  for (const [categoryId, accountIds] of categoryAccounts) {
-    for (const accountId of accountIds) {
-      const categoryIds = accountCategories.get(accountId) ?? new Set<number>();
-      categoryIds.add(categoryId);
-      accountCategories.set(accountId, categoryIds);
-    }
-  }
-  const categoriesToVisit = [input.categoryId];
-  const visitedCategories = new Set<number>();
-  const groupAccounts = new Set<number>();
-  while (categoriesToVisit.length > 0) {
-    const categoryId = categoriesToVisit.pop()!;
-    if (visitedCategories.has(categoryId)) continue;
-    visitedCategories.add(categoryId);
-    for (const accountId of categoryAccounts.get(categoryId) ?? []) {
-      if (groupAccounts.has(accountId)) continue;
-      groupAccounts.add(accountId);
-      for (const linkedCategory of accountCategories.get(accountId) ?? []) {
-        if (!visitedCategories.has(linkedCategory)) {
-          categoriesToVisit.push(linkedCategory);
-        }
-      }
-    }
-  }
-  const accountIds = [...groupAccounts].sort((a, b) => a - b);
-  return {
-    required:
-      accountIds.length > 0 &&
-      (input.depositAccountId == null ||
-        !groupAccounts.has(input.depositAccountId)),
-    accountIds,
-  };
 }
 
 interface Props {

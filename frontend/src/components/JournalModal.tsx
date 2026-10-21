@@ -612,6 +612,18 @@ export function JournalModal({
       })),
       budgetAllocs,
       budgetFundingComponents: editEntry.budget_funding_components ?? [],
+      incomeBudgetAllocations: editEntry.income_budget_allocations ?? [],
+      deferIncomeTransfers: getIncomeTransferDeferralState(editEntry.income_transfer_requirements ?? []),
+      incomeTransferDestinations: (editEntry.income_transfer_requirements ?? [])
+        .filter((requirement) => requirement.budget_category_id != null)
+        .map((requirement) => ({
+          budget_category_id: requirement.budget_category_id!,
+          from_account_id: requirement.from_account_id,
+          to_account_id: requirement.to_account_id,
+          amount: requirement.amount,
+          currency: requirement.currency,
+          is_deferred: requirement.is_deferred,
+        })),
     };
   }, [opened, editEntry?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
