@@ -33,6 +33,9 @@ import {
 } from "../lib/allocatableBudget";
 import { ConfirmModal } from "./ConfirmModal";
 import { partitionIncomeTransfers } from "../lib/incomeTransferScheduling";
+import { filterUncoveredIncomeTransfers } from "../lib/incomeTransferPlacementTasks";
+import { BudgetPlacementReconciliationPanel } from "./BudgetPlacementReconciliationPanel";
+import { useBudgetPlacementReconciliation } from "../hooks/useBudgetPlacementReconciliation";
 
 type TransferCandidate = JournalEntry & {
   has_budget_adjustment_logs: boolean;
@@ -83,9 +86,16 @@ export function IncomeTransferTasks({
   const [squashConfirmation, setSquashConfirmation] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
+  const reconciliation = useBudgetPlacementReconciliation();
+  const uncoveredGroups = useMemo(
+    () => reconciliation.loading || reconciliation.error != null
+      ? []
+      : filterUncoveredIncomeTransfers(groups, reconciliation.plan?.requirement_ids ?? []),
+    [groups, reconciliation.error, reconciliation.loading, reconciliation.plan?.requirement_ids],
+  );
   const { actionable, deferred } = useMemo(() => partitionIncomeTransfers({
-    groups, settings: budgetSettings?.income_transfer_settings,
-  }), [groups, budgetSettings?.income_transfer_settings]);
+    groups: uncoveredGroups, settings: budgetSettings?.income_transfer_settings,
+  }), [uncoveredGroups, budgetSettings?.income_transfer_settings]);
 
   const squashPlacementImpact = useMemo(() => {
     if (!squashPreview) return null;
@@ -185,7 +195,7 @@ export function IncomeTransferTasks({
     setLoading(true);
     try {
       await action();
-      await Promise.all([refresh(), refreshAppData()]);
+      await Promise.all([refresh(), refreshAppData(), reconciliation.refresh().catch(() => undefined)]);
     } catch (error) {
       showFeedback({
         color: "red",
@@ -330,7 +340,10 @@ export function IncomeTransferTasks({
   if (
     !initialLoading &&
     !showEmpty &&
-    groups.length === 0 &&
+    reconciliation.error == null &&
+    uncoveredGroups.length === 0 &&
+    (reconciliation.plan?.transfers.length ?? 0) === 0 &&
+    (reconciliation.plan?.requirement_ids.length ?? 0) === 0 &&
     completedGroups.length === 0 &&
     historical.length === 0
   ) {
@@ -341,6 +354,7 @@ export function IncomeTransferTasks({
     <>
       <Paper withBorder p="md">
         <Stack gap="sm">
+          <BudgetPlacementReconciliationPanel showExecute onCompleted={refresh} />
           {showTitle && (
             <Text fw={700}>{t("incomeTransferTasksTitle")}</Text>
           )}
@@ -352,12 +366,13 @@ export function IncomeTransferTasks({
               </Text>
             </Group>
           )}
-          {!initialLoading && groups.length === 0 && (
+          {!initialLoading && reconciliation.error == null && uncoveredGroups.length === 0 && (
             <Text size="sm" c="dimmed">
               {t("incomeTransferNoTasks")}
             </Text>
           )}
           {squashPreview != null &&
+            reconciliation.plan?.requirement_ids.length === 0 &&
             squashPreview.original_transfer_count >
               squashPreview.squashed_transfer_count && (
               <Paper

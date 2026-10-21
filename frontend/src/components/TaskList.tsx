@@ -19,6 +19,7 @@ import {
 import type { TaskCollection } from "../hooks/useTaskCollection";
 import { formatTaskMonth } from "../hooks/useTaskCollection";
 import { useDepreciationBudget } from "../context/DepreciationBudgetContext";
+import { useAppData } from "../context/AppDataContext";
 import { useLang } from "../i18n";
 import { accountDisplayNameFromName } from "../lib/accountUtils";
 import { formatCurrency, formatJPY } from "../lib/numberFormat";
@@ -33,6 +34,7 @@ export function TaskList({ onNavigate, tasks }: TaskListProps) {
   const { t, locale } = useLang();
   const navigate = useNavigate();
   const { openRepair } = useDepreciationBudget();
+  const { accountsToday, enabledCurrencies } = useAppData();
   const {
     budgetTask,
     depreciationBudgetTasks,
@@ -40,6 +42,11 @@ export function TaskList({ onNavigate, tasks }: TaskListProps) {
     creditCardWithdrawalRiskTasks,
     incomeTransferTasks,
     deferredIncomeTransferTasks,
+    budgetPlacementTasks,
+    deferredBudgetPlacementTasks,
+    budgetPlacementDeferredIncomeGroupCount,
+    budgetPlacementError,
+    budgetPlacementLoading,
     negativeAccountTasks,
     overdueLoanTasks,
     paydayTasks,
@@ -53,7 +60,7 @@ export function TaskList({ onNavigate, tasks }: TaskListProps) {
     onNavigate?.();
   }
 
-  if (totalCount === 0 && deferredIncomeTransferTasks.length === 0) {
+  if (totalCount === 0 && deferredIncomeTransferTasks.length === 0 && deferredBudgetPlacementTasks === 0) {
     return (
       <Text size="sm" c="dimmed" ta="center" py="lg">
         {t("noTasks")}
@@ -63,6 +70,11 @@ export function TaskList({ onNavigate, tasks }: TaskListProps) {
 
   return (
     <Stack gap="sm">
+      {budgetPlacementLoading && (
+        <Text size="sm" c="dimmed" role="status">
+          {t("budgetPlacementPlanLoading")}
+        </Text>
+      )}
       {pendingOfflineDrafts.length > 0 && (
         <Stack gap={4}>
           <Text className="task-menu__section-label">
@@ -222,9 +234,52 @@ export function TaskList({ onNavigate, tasks }: TaskListProps) {
         </Stack>
       )}
 
+      {budgetPlacementTasks.length > 0 && (
+        <Stack gap={4}>
+          <Text className="task-menu__section-label">
+            {t("budgetPlacementPlanTransfersTitle")}
+          </Text>
+          {budgetPlacementTasks.map((transfer, index) => (
+            <UnstyledButton
+              key={`${transfer.currency}:${transfer.from_account_id}:${transfer.to_account_id}:${index}`}
+              className="task-menu__item"
+              onClick={() => openTask("/tasks/income-transfer")}
+            >
+              <Stack gap={2}>
+                <Text size="sm">
+                  {accountDisplayNameFromName(accountsToday.find(account => account.id === transfer.from_account_id)?.name ?? `#${transfer.from_account_id}`, t)} → {accountDisplayNameFromName(accountsToday.find(account => account.id === transfer.to_account_id)?.name ?? `#${transfer.to_account_id}`, t)}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {formatCurrency(transfer.amount, locale, transfer.currency, undefined, enabledCurrencies.find(currency => currency.code.toUpperCase() === transfer.currency.toUpperCase())?.decimal_places)}
+                </Text>
+              </Stack>
+            </UnstyledButton>
+          ))}
+        </Stack>
+      )}
+
+      {budgetPlacementTasks.length > 0 && budgetPlacementDeferredIncomeGroupCount > 0 && (
+        <Text size="xs" c="dimmed" px="sm">{t("incomeTransferDeferredHint")}</Text>
+      )}
+
+      {budgetPlacementError && (
+        <UnstyledButton className="task-menu__item" onClick={() => openTask("/tasks/income-transfer")}>
+          <Text size="sm" c="orange">{t("budgetPlacementPlanUnavailable")}</Text>
+        </UnstyledButton>
+      )}
+
       {deferredIncomeTransferTasks.length > 0 && (
         <UnstyledButton className="task-menu__item" onClick={() => openTask("/tasks/income-transfer")}>
           <Text size="sm" c="dimmed">{t("incomeTransferDeferredTitle").replace("{count}", String(deferredIncomeTransferTasks.length))}</Text>
+        </UnstyledButton>
+      )}
+
+      {deferredBudgetPlacementTasks > 0 && (
+        <UnstyledButton className="task-menu__item" onClick={() => openTask("/tasks/income-transfer")}>
+          <Stack gap={2}>
+            <Text size="sm" c="dimmed">{t("budgetPlacementDeferredTitle").replace("{count}", String(deferredBudgetPlacementTasks))}</Text>
+            <Text size="xs" c="dimmed">{t("budgetPlacementDeferredHint")}</Text>
+          </Stack>
         </UnstyledButton>
       )}
 

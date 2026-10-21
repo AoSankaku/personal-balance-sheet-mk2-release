@@ -3,7 +3,6 @@ import {
   Alert,
   Badge,
   Group,
-  List,
   Paper,
   ScrollArea,
   SimpleGrid,
@@ -21,15 +20,14 @@ import {
   IconWallet,
 } from "@tabler/icons-react";
 import { useLang } from "../i18n";
+import { useAppData } from "../context/AppDataContext";
 import {
   accountDisplayNameFromName,
-  displaySystemAccountNamesInText,
 } from "../lib/accountUtils";
 import { formatCurrency } from "../lib/numberFormat";
 import {
   calculateBudgetPlacement,
-  generateBudgetPlacementHints,
-  type BudgetPlacementHint,
+  generateBudgetPlacementPlan,
 } from "../lib/budgetPlacement";
 import {
   sumBudgetResourceBalances,
@@ -40,49 +38,9 @@ function formatSignedCurrency(
   amount: number,
   locale: string,
   currency: string,
+  decimalPlaces?: number,
 ) {
-  return `${amount >= 0 ? "+" : ""}${formatCurrency(amount, locale, currency)}`;
-}
-
-function renderHint(
-  hint: BudgetPlacementHint,
-  locale: string,
-  currency: string,
-) {
-  const amount = formatCurrency(Math.abs(hint.amount), locale, currency);
-  const target =
-    hint.target?.replace(
-      "unplaced budgets",
-      locale === "ja" ? "未配置予算" : "unplaced budgets",
-    ) ?? "";
-  if (hint.type === "move_cash") {
-    if (locale === "ja") {
-      return `${hint.from} から ${hint.to} へ ${amount} 移動`;
-    }
-    return `Move ${amount} from ${hint.from} to ${hint.to}`;
-  }
-  if (hint.type === "allocate_budget") {
-    if (locale === "ja") {
-      return `${target} に ${amount} 追加で割り当て`;
-    }
-    return `Allocate ${amount} more to ${target}`;
-  }
-  if (hint.type === "reduce_budget") {
-    if (locale === "ja") {
-      return `${target} を ${amount} 減らす、または対象口座へ入金`;
-    }
-    return `Reduce ${target} by ${amount}, or add cash to its target account`;
-  }
-  if (locale !== "ja") {
-    const action =
-      hint.amount > 0
-        ? "allocate more to unplaced budgets"
-        : "reduce unplaced budgets";
-    return `${target}: ${amount} ${action}`;
-  }
-  const direction =
-    hint.amount > 0 ? "未配置予算へ追加割り当て" : "未配置予算を減額";
-  return `${target}: ${amount} ${direction}`;
+  return `${amount >= 0 ? "+" : ""}${formatCurrency(amount, locale, currency, undefined, decimalPlaces)}`;
 }
 
 export function BudgetPlacementTable({
@@ -97,12 +55,21 @@ export function BudgetPlacementTable({
   title?: string;
 }) {
   const { t, locale } = useLang();
+  const { enabledCurrencies } = useAppData();
   const placement = calculateBudgetPlacement({
     accounts,
     categorySummaries,
     currency,
   });
-  const hints = generateBudgetPlacementHints(placement);
+  const decimalPlaces = enabledCurrencies.find(
+    (enabled) => enabled.code.toUpperCase() === currency.toUpperCase(),
+  )?.decimal_places ?? 0;
+  const plan = generateBudgetPlacementPlan({
+    accounts,
+    categorySummaries,
+    currency,
+    decimalPlaces,
+  });
   const hasUnplaced =
     placement.unplacedBudget !== 0 || placement.unplacedAccounts.length > 0;
   const unplacedActual = placement.unplacedAccounts.reduce(
@@ -405,7 +372,7 @@ export function BudgetPlacementTable({
         </Text>
       ) : (
         <ScrollArea>
-          <Table withTableBorder withColumnBorders style={{ minWidth: 680 }}>
+          <Table withTableBorder withColumnBorders style={{ minWidth: 980 }}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>{t("budgetPlacementAccounts")}</Table.Th>
@@ -418,10 +385,16 @@ export function BudgetPlacementTable({
                 <Table.Th className="currency-cell">
                   {t("budgetPlacementSurplusShortage")}
                 </Table.Th>
+                <Table.Th className="currency-cell">
+                  {t("budgetPlacementAfterTransfers")}
+                </Table.Th>
+                <Table.Th className="currency-cell">
+                  {t("budgetPlacementAfterCardDebt")}
+                </Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {placement.placementGroups.map((row) => (
+              {plan.groups.map((row) => (
                 <Table.Tr key={row.group_id}>
                   <Table.Td>
                     <Stack gap={2}>
@@ -498,6 +471,14 @@ export function BudgetPlacementTable({
                       )}
                     </Text>
                   </Table.Td>
+                  <Table.Td className="currency-cell">
+                    <Text size="sm" fw={600} c={row.after_difference >= 0 ? "teal" : "orange"}>
+                      {formatSignedCurrency(row.after_difference, locale, currency, decimalPlaces)}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td className="currency-cell">
+                    <Text size="xs" c="dimmed">{t("budgetPlacementCardDebtTotalOnly")}</Text>
+                  </Table.Td>
                 </Table.Tr>
               ))}
               {hasUnplaced && (
@@ -544,6 +525,14 @@ export function BudgetPlacementTable({
                       )}
                     </Text>
                   </Table.Td>
+                  <Table.Td className="currency-cell">
+                    <Text size="sm" fw={600} c={plan.unplaced_after_difference >= 0 ? "teal" : "orange"}>
+                      {formatSignedCurrency(plan.unplaced_after_difference, locale, currency, decimalPlaces)}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td className="currency-cell">
+                    <Text size="xs" c="dimmed">{t("budgetPlacementCardDebtTotalOnly")}</Text>
+                  </Table.Td>
                 </Table.Tr>
               )}
             </Table.Tbody>
@@ -565,29 +554,36 @@ export function BudgetPlacementTable({
                     {formatSignedCurrency(totalDifference, locale, currency)}
                   </Text>
                 </Table.Th>
+                <Table.Th className="currency-cell">
+                  <Text
+                    size="sm"
+                    fw={700}
+                    c={plan.after_total_difference >= 0 ? "teal" : "orange"}
+                  >
+                    {formatSignedCurrency(plan.after_total_difference, locale, currency, decimalPlaces)}
+                  </Text>
+                </Table.Th>
+                <Table.Th className="currency-cell">
+                  <Text
+                    size="sm"
+                    fw={700}
+                    c={plan.adjusted_total_difference >= 0 ? "teal" : "orange"}
+                  >
+                    {formatSignedCurrency(plan.adjusted_total_difference, locale, currency, decimalPlaces)}
+                  </Text>
+                  {plan.liabilities.map((liability) => (
+                    <Text key={liability.account_id} size="xs" c="dimmed">
+                      {accountDisplayNameFromName(liability.account_name, t)}: {formatCurrency(liability.amount, locale, currency, undefined, decimalPlaces)}
+                    </Text>
+                  ))}
+                </Table.Th>
               </Table.Tr>
             </Table.Tfoot>
           </Table>
         </ScrollArea>
       )}
 
-      {hints.length > 0 && (
-        <Stack gap={4}>
-          <Text size="sm" fw={600}>
-            {t("budgetPlacementHintsTitle")}
-          </Text>
-          <List size="sm" spacing={2}>
-            {hints.map((hint, index) => (
-              <List.Item key={index}>
-                {displaySystemAccountNamesInText(
-                  renderHint(hint, locale, currency),
-                  t,
-                )}
-              </List.Item>
-            ))}
-          </List>
-        </Stack>
-      )}
+      <Text size="xs" c="dimmed">{t("budgetPlacementCardDebtAdjustmentHint")}</Text>
     </Stack>
   );
 }

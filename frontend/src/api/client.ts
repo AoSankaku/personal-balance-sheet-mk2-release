@@ -72,6 +72,7 @@ import type {
   IncomeTransferRequirementGroup,
   IncomeTransferHistoricalCandidate,
   IncomeTransferSquashPreview,
+  BudgetPlacementReconciliation,
 } from "@balance-sheet/shared";
 import { createInFlightRequestDeduper } from "./inFlightRequest";
 import {
@@ -355,6 +356,20 @@ export const api = {
     squashPreview: () =>
       request<IncomeTransferSquashPreview>(
         "/income-transfer-requirements/squash-preview",
+      ),
+    placementPreview: (currency: string) =>
+      request<BudgetPlacementReconciliation>(
+        `/income-transfer-requirements/placement-preview?currency=${encodeURIComponent(currency)}`,
+      ),
+    placementComplete: (input: { currency: string; token: string; description: string }) =>
+      mutationRequest<{
+        transfer_journal_entry: JournalEntry | null;
+        requirement_ids: number[];
+        transfers: BudgetPlacementReconciliation["transfers"];
+      }>(
+        "/income-transfer-requirements/placement-complete",
+        { method: "POST", body: JSON.stringify(input) },
+        DERIVED_JOURNAL_PREFIXES,
       ),
     squash: (description: string) =>
       mutationRequest<{

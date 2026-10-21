@@ -23,6 +23,7 @@ import {
   toStorageMoneyAmount,
 } from "../lib/moneyValidation";
 import { chunkForD1InClause } from "../lib/d1Query";
+import { completeBudgetPlacement, previewBudgetPlacement } from "../lib/budgetPlacementReconciliation";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
 import {
   connectedTargetAccounts,
@@ -40,6 +41,30 @@ function placeholders(count: number): string {
 function normalizeCurrency(value: string | null | undefined): string {
   return (value || "JPY").toUpperCase();
 }
+
+router.get("/placement-preview", async c => {
+  const currency = normalizeCurrency(c.req.query("currency"));
+  try {
+    return c.json(await previewBudgetPlacement(c.env, currency));
+  } catch (error) {
+    if (String(error).includes("budget_placement_read_conflict")) return c.json({ error: "budget_placement_stale" }, 409);
+    throw error;
+  }
+});
+
+router.post("/placement-complete", async c => {
+  const body = await c.req.json<{ currency?: unknown; token?: unknown; description?: unknown }>().catch(() => null);
+  if (!body || typeof body.currency !== "string" || typeof body.token !== "string" || !body.token || typeof body.description !== "string" || !body.description.trim()) {
+    return c.json({ error: "currency, token, and description are required" }, 400);
+  }
+  try {
+    const result = await completeBudgetPlacement(c.env, { currency: normalizeCurrency(body.currency), token: body.token, description: body.description.trim() });
+    return c.json(result.body, result.status);
+  } catch (error) {
+    if (String(error).includes("budget_placement_read_conflict") || String(error).includes("stale_depreciation_budget_preview")) return c.json({ error: "budget_placement_stale" }, 409);
+    throw error;
+  }
+});
 
 function journalLineRowsSql(rowCount: number): string {
   return Array.from(
