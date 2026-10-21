@@ -4,7 +4,11 @@
 // survives tab switches / unmounts without needing a global store.
 
 import type { SimpleFormDraft } from "../components/SimpleEntryForm";
-import type { CompleteCreditCardStatementInput } from "@balance-sheet/shared";
+import type {
+  BudgetFundingComponentRecord,
+  CompleteCreditCardStatementInput,
+  CreateJournalInput,
+} from "@balance-sheet/shared";
 import type { CsvFormat, ParseResult } from "./csvParser";
 
 // ── Types for multi-line form ─────────────────────────────────────────────────
@@ -14,6 +18,20 @@ export interface MultiLineRow {
   debit: number;
   credit: number;
   creditCardStatementOffsetMonths: number;
+}
+
+export interface MultiLineDraft {
+  date: Date;
+  description: string;
+  rows: MultiLineRow[];
+  budgetAllocs?: Record<number, number>;
+  budgetFundingComponents?: BudgetFundingComponentRecord[];
+  incomeBudgetAllocations?: NonNullable<CreateJournalInput["income_budget_allocations"]>;
+  incomeTransferDestinations?: NonNullable<CreateJournalInput["income_transfer_destinations"]>;
+  incomeBudgetAllocs?: Record<number, number>;
+  incomeTransferSources?: Record<number, number | null>;
+  incomeTransferTargets?: Record<number, number | null>;
+  deferIncomeTransfers?: boolean | null;
 }
 
 // ── Types for CSV import ──────────────────────────────────────────────────────
@@ -77,11 +95,7 @@ export const DEFAULT_BILLING_ROW: BillingRow = { label: "", amount: "" };
 
 export let savedTab = "simple";
 export let simpleDraft: SimpleFormDraft | null = null;
-export let multiDraft: {
-  date: Date;
-  description: string;
-  rows: MultiLineRow[];
-} | null = null;
+export let multiDraft: MultiLineDraft | null = null;
 export let budgetDraft: {
   categoryId: string | null;
   amount: number | string;
@@ -109,9 +123,7 @@ export function setSavedTab(v: string) {
 export function setSimpleDraft(v: SimpleFormDraft | null) {
   simpleDraft = v;
 }
-export function setMultiDraft(
-  v: { date: Date; description: string; rows: MultiLineRow[] } | null,
-) {
+export function setMultiDraft(v: MultiLineDraft | null) {
   multiDraft = v;
 }
 export function setBudgetDraft(

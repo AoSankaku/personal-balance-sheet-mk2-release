@@ -82,6 +82,7 @@ export function getUnallocatedAllocatableIncomeAmount(
 ): number {
   if (
     (entry.income_budget_allocations ?? []).some((allocation) =>
+      allocation.adjustment_type !== "transfer" &&
       lineCurrencyMatches(allocation.currency, currency),
     )
   ) {

@@ -14,6 +14,8 @@ export function createIncomeBudgetScopeFixture() {
       (1006,'テスト費用','expense','other',1,0),
       (1007,'別の銀行','asset','cash',1,0),
       (1008,'初期残高','equity','opening_balance',1,0);
+    INSERT INTO accounts(id,name,type,category,include_in_allocatable,deduct_from_budget) VALUES
+      (1009,'NISA証券','asset','investment',0,0);
     INSERT INTO budget_categories(id,name) VALUES (1001,'生活費');
     INSERT INTO budget_category_accounts(budget_category_id,account_id,ratio) VALUES (1001,1006,100);
     INSERT INTO budget_category_account_targets(budget_category_id,account_id,ratio) VALUES (1001,1007,100);

@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Accordion,
   Alert,
   Badge,
   Button,
@@ -26,7 +27,6 @@ import {
 import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
-  BudgetFundingComponentRecord,
   CreateJournalInput,
   UnsettledLoanEntry,
 } from "@balance-sheet/shared";
@@ -51,6 +51,7 @@ import {
 import {
   multiDraft,
   setMultiDraft,
+  type MultiLineDraft,
   type MultiLineRow,
 } from "../utils/inputDrafts";
 import {
@@ -59,6 +60,14 @@ import {
   splitByLargestRemainder,
 } from "../lib/multiLineBudgetFunding";
 import { shouldUseReferenceBudgetAllocations } from "../lib/budgetConsistency";
+import { calculateJournalIncomeBudgetImpact } from "../../../shared/journalIncomeBudget";
+import {
+  resolveIncomeTransferAccounts,
+  splitIncomeAllocationsAcrossSources,
+} from "../lib/incomeTransferAccounts";
+
+type IncomeBudgetAllocationInput = NonNullable<CreateJournalInput["income_budget_allocations"]>[number];
+type IncomeTransferDestinationInput = NonNullable<CreateJournalInput["income_transfer_destinations"]>[number];
 
 export type { MultiLineRow };
 
@@ -68,13 +77,7 @@ interface MultiForm {
   rows: MultiLineRow[];
 }
 
-export interface MultiLineInitialValues {
-  date: Date;
-  description: string;
-  rows: MultiLineRow[];
-  budgetAllocs: Record<number, number>;
-  budgetFundingComponents?: BudgetFundingComponentRecord[];
-}
+export type MultiLineInitialValues = MultiLineDraft;
 
 interface Props {
   onSubmit: (values: CreateJournalInput) => Promise<void>;
@@ -83,6 +86,33 @@ interface Props {
   initialValues?: MultiLineInitialValues;
   submitLabel?: string;
   editEntryId?: number;
+}
+
+function sameBudgetAmounts(
+  left: Record<number, number>,
+  right: Record<number, number>,
+  decimalPlaces: number,
+): boolean {
+  const scale = 10 ** decimalPlaces;
+  const categoryIds = new Set([...Object.keys(left), ...Object.keys(right)].map(Number));
+  return [...categoryIds].every((categoryId) =>
+    Math.round((left[categoryId] ?? 0) * scale) ===
+    Math.round((right[categoryId] ?? 0) * scale),
+  );
+}
+
+function sameJournalLines(
+  left: MultiLineRow[],
+  right: MultiLineRow[],
+  decimalPlaces: number,
+): boolean {
+  const scale = 10 ** decimalPlaces;
+  const key = (rows: MultiLineRow[]) => rows
+    .filter((row) => row.account_id != null && ((row.debit ?? 0) !== 0 || (row.credit ?? 0) !== 0))
+    .map((row) => `${row.account_id}:${Math.round((row.debit ?? 0) * scale)}:${Math.round((row.credit ?? 0) * scale)}`)
+    .sort()
+    .join("|");
+  return key(left) === key(right);
 }
 
 export function MultiLineEntryForm({
@@ -97,6 +127,7 @@ export function MultiLineEntryForm({
   const {
     accounts,
     budgetCategories,
+    journal,
     enabledCurrencies,
     displayCurrency,
     displayCurrencySymbol: currencySymbol,
@@ -108,9 +139,92 @@ export function MultiLineEntryForm({
   );
   const isMobile = useMediaQuery("(max-width: 48em)");
   const isControlled = initialValues != null;
+  const draftInitialValues: MultiLineDraft | undefined = initialValues ?? multiDraft ?? undefined;
+
+  const currencyDecimalPlaces =
+    enabledCurrencies.find((currency) => currency.code === selectedCurrency)
+      ?.decimal_places ?? 0;
+  const initialIncomeLines = (draftInitialValues?.rows ?? [])
+    .filter((row) => row.account_id != null)
+    .map((row) => ({
+      account_id: row.account_id!,
+      debit: row.debit ?? 0,
+      credit: row.credit ?? 0,
+      currency: selectedCurrency,
+    }));
+  const initialIncomeImpact = draftInitialValues
+    ? calculateJournalIncomeBudgetImpact({
+        lines: initialIncomeLines,
+        accounts,
+        currency: selectedCurrency,
+        decimalPlaces: currencyDecimalPlaces,
+      })
+    : null;
+  const initialHasIncome = initialIncomeLines.some((line) =>
+    accounts.find((account) => account.id === line.account_id)?.type === "income",
+  );
+  const initialHasExpense = initialIncomeLines.some((line) =>
+    accounts.find((account) => account.id === line.account_id)?.type === "expense",
+  );
+  const hasLegacyIncomeAllocation =
+    !draftInitialValues?.incomeBudgetAllocs &&
+    (draftInitialValues?.incomeBudgetAllocations?.length ?? 0) === 0 &&
+    (initialIncomeImpact?.totalCapacity ?? 0) > 0 &&
+    (initialIncomeImpact?.isInvestmentSale || (initialHasIncome && !initialHasExpense)) &&
+    Object.values(draftInitialValues?.budgetAllocs ?? {}).some((amount) => amount > 0);
+  const legacyIncomeAllocations = hasLegacyIncomeAllocation
+    ? Object.fromEntries(
+        Object.entries(draftInitialValues?.budgetAllocs ?? {}).filter(([, amount]) => amount > 0),
+      )
+    : {};
+  const legacyExpenseAllocations = hasLegacyIncomeAllocation
+    ? Object.fromEntries(
+        Object.entries(draftInitialValues?.budgetAllocs ?? {}).filter(([, amount]) => amount <= 0),
+      )
+    : draftInitialValues?.budgetAllocs ?? {};
+  const initialIncomeBudgetTotals = draftInitialValues?.incomeBudgetAllocs ?? (draftInitialValues?.incomeBudgetAllocations?.length
+    ? Object.fromEntries(
+        draftInitialValues.incomeBudgetAllocations.reduce((totals, allocation) => {
+          totals.set(
+            allocation.budget_category_id,
+            (totals.get(allocation.budget_category_id) ?? 0) + allocation.amount,
+          );
+          return totals;
+        }, new Map<number, number>()),
+      )
+    : legacyIncomeAllocations);
 
   const [budgetAllocs, setBudgetAllocs] = useState<Record<number, number>>(
-    initialValues?.budgetAllocs ?? {},
+    legacyExpenseAllocations,
+  );
+  const [incomeBudgetAllocs, setIncomeBudgetAllocs] = useState<Record<number, number>>(
+    initialIncomeBudgetTotals,
+  );
+  const [incomeTransferTargets, setIncomeTransferTargets] = useState<Record<number, number | null>>(() =>
+    draftInitialValues?.incomeTransferTargets ?? Object.fromEntries((draftInitialValues?.incomeTransferDestinations ?? []).map((destination) => [destination.budget_category_id, destination.to_account_id])),
+  );
+  const [deferIncomeTransfers, setDeferIncomeTransfers] = useState<boolean | null | undefined>(() => {
+    if (draftInitialValues?.deferIncomeTransfers !== undefined) return draftInitialValues.deferIncomeTransfers;
+    const values = (draftInitialValues?.incomeTransferDestinations ?? []).map((destination) => destination.is_deferred);
+    if (values.length === 0) return undefined;
+    const distinct = new Set(values.map((value) => value ?? null));
+    return distinct.size === 1 ? [...distinct][0] : undefined;
+  });
+  const [deferIncomeTransfersTouched, setDeferIncomeTransfersTouched] = useState(false);
+  const [saleSourceAccountId, setSaleSourceAccountId] = useState<number | null>(() =>
+    accounts.find((account) => account.type === "asset" && account.category === "investment")?.id ?? null,
+  );
+  const [saleReceivingAccountId, setSaleReceivingAccountId] = useState<number | null>(() =>
+    accounts.find((account) => account.type === "asset" && account.category === "cash" && account.include_in_allocatable !== false && !account.is_depreciable)?.id ?? null,
+  );
+  const [saleProceeds, setSaleProceeds] = useState<number | string>(0);
+  const [saleBookValue, setSaleBookValue] = useState<number | string>(0);
+  const [saleGainAccountId, setSaleGainAccountId] = useState<number | null>(() =>
+    accounts.find((account) => account.type === "income" && account.category === "investment")?.id ??
+      accounts.find((account) => account.type === "income")?.id ?? null,
+  );
+  const [saleLossAccountId, setSaleLossAccountId] = useState<number | null>(() =>
+    accounts.find((account) => account.type === "expense" && account.category === "investment_loss")?.id ?? null,
   );
   const initialFundingCategoryAmounts = useMemo(
     () =>
@@ -163,8 +277,7 @@ export function MultiLineEntryForm({
   ];
 
   const form = useForm<MultiForm>({
-    initialValues: initialValues ??
-      multiDraft ?? {
+    initialValues: draftInitialValues ?? {
         date: new Date(),
         description: "",
         rows: defaultRows,
@@ -177,9 +290,15 @@ export function MultiLineEntryForm({
 
   useEffect(() => {
     if (!isControlled) {
-      setMultiDraft(form.values);
+      setMultiDraft({
+        ...form.values,
+        budgetAllocs,
+        incomeBudgetAllocs,
+        incomeTransferTargets,
+        deferIncomeTransfers,
+      });
     }
-  }, [form.values, isControlled]);
+  }, [form.values, budgetAllocs, incomeBudgetAllocs, incomeTransferTargets, deferIncomeTransfers, isControlled]);
 
   // Accounts in "settlement direction": debit of short_term_loan (repayment)
   // or credit of short_term_lending (collection)
@@ -320,14 +439,108 @@ export function MultiLineEntryForm({
     totalDebit > 0
       ? Math.round((totalBudgetAlloc / totalDebit) * 1000) / 10
       : 0;
+  const budgetLines = form.values.rows
+    .filter((row) => row.account_id != null)
+    .map((row) => ({
+      account_id: row.account_id!,
+      debit: row.debit ?? 0,
+      credit: row.credit ?? 0,
+      currency: selectedCurrency,
+    }));
+  const incomeImpact = useMemo(
+    () => calculateJournalIncomeBudgetImpact({
+      lines: budgetLines,
+      accounts,
+      currency: selectedCurrency,
+      decimalPlaces: currencyDecimalPlaces,
+    }),
+    [budgetLines.map((line) => `${line.account_id}:${line.debit}:${line.credit}`).join("|"), accounts, selectedCurrency, currencyDecimalPlaces],
+  );
+  const incomeBudgetCapacity = incomeImpact.isInvestmentSale
+    ? incomeImpact.totalCapacity
+    : incomeImpact.incomeCapacity;
+  const totalIncomeBudgetAlloc = Object.values(incomeBudgetAllocs).reduce((sum, amount) => sum + Math.abs(amount), 0);
+  const totalIncomeBudgetPct = incomeBudgetCapacity > 0
+    ? Math.round((totalIncomeBudgetAlloc / incomeBudgetCapacity) * 1000) / 10
+    : 0;
   const hasExpenseRow = form.values.rows.some(
     (r) =>
       r.account_id != null &&
       accounts.find((a) => a.id === r.account_id)?.type === "expense",
   );
-  const currencyDecimalPlaces =
-    enabledCurrencies.find((currency) => currency.code === selectedCurrency)
-      ?.decimal_places ?? 0;
+  const hasIncomeRow = form.values.rows.some(
+    (r) => r.account_id != null && accounts.find((a) => a.id === r.account_id)?.type === "income",
+  );
+  const showExpenseBudgetPanel = !incomeImpact.isInvestmentSale &&
+    (hasExpenseRow || !hasIncomeRow || totalBudgetAlloc !== 0) ||
+    (incomeImpact.isInvestmentSale && Object.values(budgetAllocs).some((amount) => amount < 0));
+  const actualCashSources = Object.entries(incomeImpact.trackedCashInflowByAccount)
+    .filter(([, amount]) => amount > 0)
+    .map(([accountId, amount]) => ({ accountId: Number(accountId), amount }))
+    .sort((left, right) => left.accountId - right.accountId);
+  const incomeTransferNeeds = useMemo(
+    () => {
+      const sourceAllocations = splitIncomeAllocationsAcrossSources({
+        allocations: budgetCategories.map((category) => ({
+          budgetCategoryId: category.id,
+          amount: incomeBudgetAllocs[category.id] ?? 0,
+        })),
+        sources: actualCashSources,
+        decimalPlaces: currencyDecimalPlaces,
+      });
+      return budgetCategories.flatMap((category) => {
+      const amount = incomeBudgetAllocs[category.id] ?? 0;
+      if (amount <= 0 || actualCashSources.length === 0) return [];
+      const sourcePlans = actualCashSources.map((source) => {
+        const sourceResolution = resolveIncomeTransferAccounts({
+          categoryId: category.id,
+          depositAccountId: source.accountId,
+          categories: budgetCategories,
+          accounts,
+        });
+        return {
+          accountId: source.accountId,
+          receivedAmount: source.amount,
+          amount: sourceAllocations[category.id]?.[source.accountId] ?? 0,
+          required: sourceResolution.required,
+          targetAccountIds: sourceResolution.accountIds,
+        };
+      }).filter((source) => source.amount > 0);
+      const routedAmount = sourcePlans
+        .filter((source) => source.required)
+        .reduce((sum, source) => sum + source.amount, 0);
+      return [{
+        category,
+        amount,
+        sources: sourcePlans,
+        routedAmount,
+        targetAccountIds: sourcePlans[0]?.targetAccountIds ?? [],
+        required: sourcePlans.some((source) => source.required),
+      }];
+      });
+    },
+    [budgetCategories, incomeBudgetAllocs, actualCashSources.map((source) => `${source.accountId}:${source.amount}`).join(","), accounts, currencyDecimalPlaces],
+  );
+  const hasCompletedIncomeTransfer = (journal ?? [])
+    .find((entry) => entry.id === editEntryId)
+    ?.income_transfer_requirements?.some((requirement) => requirement.completion_source != null) ?? false;
+  useEffect(() => {
+    setIncomeTransferTargets((previous) => {
+      let changed = false;
+      const next = { ...previous };
+      for (const need of incomeTransferNeeds) {
+        const selected = previous[need.category.id];
+        if (need.required && need.targetAccountIds.length === 1 && selected == null) {
+          next[need.category.id] = need.targetAccountIds[0]!;
+          changed = true;
+        } else if (selected != null && !need.targetAccountIds.includes(selected)) {
+          next[need.category.id] = null;
+          changed = true;
+        }
+      }
+      return changed ? next : previous;
+    });
+  }, [incomeTransferNeeds]);
   const fundingImpact = useMemo(
     () =>
       calculateMultiLineBudgetFundingImpact({
@@ -374,12 +587,83 @@ export function MultiLineEntryForm({
       selectedCurrency,
     );
     const budget_allocations = Object.entries(budgetAllocs)
-      .filter(([, amt]) => amt !== 0)
+      .filter(([, amt]) => incomeImpact.isInvestmentSale ? amt < 0 : amt !== 0)
       .map(([catId, amount]) => ({
         budget_category_id: Number(catId),
         amount,
         is_reference: referenceAllocations,
       }));
+    const incomeAllocationsUnchanged = sameBudgetAmounts(
+      incomeBudgetAllocs,
+      initialIncomeBudgetTotals,
+      currencyDecimalPlaces,
+    );
+    const journalLinesUnchanged = initialValues != null &&
+      sameJournalLines(initialValues.rows, values.rows, currencyDecimalPlaces);
+    const income_budget_allocations: IncomeBudgetAllocationInput[] =
+      initialValues?.incomeBudgetAllocations?.length && incomeAllocationsUnchanged && journalLinesUnchanged
+        ? initialValues.incomeBudgetAllocations
+        : incomeImpact.isInvestmentSale
+          ? (() => {
+              const entries = Object.entries(incomeBudgetAllocs)
+                .map(([categoryId, amount]) => ({ categoryId: Number(categoryId), amount: Math.max(0, amount) }))
+                .filter((entry) => entry.amount > 0);
+              const incomeParts = splitByLargestRemainder(
+                Math.min(incomeImpact.incomeCapacity, entries.reduce((sum, entry) => sum + entry.amount, 0)),
+                entries.map((entry) => entry.amount),
+                currencyDecimalPlaces,
+              );
+              return entries.flatMap((entry, index) => {
+                const incomeAmount = incomeParts[index] ?? 0;
+                const principalAmount = entry.amount - incomeAmount;
+                return [
+                  ...(incomeAmount > 0 ? [{ budget_category_id: entry.categoryId, amount: incomeAmount, currency: selectedCurrency, adjustment_type: "allocation" as const }] : []),
+                  ...(principalAmount > 0 ? [{ budget_category_id: entry.categoryId, amount: principalAmount, currency: selectedCurrency, adjustment_type: "transfer" as const }] : []),
+                ];
+              });
+            })()
+          : Object.entries(incomeBudgetAllocs)
+              .filter(([, amount]) => amount !== 0)
+              .map(([categoryId, amount]) => ({
+                budget_category_id: Number(categoryId),
+                amount,
+                currency: selectedCurrency,
+                adjustment_type: "allocation" as const,
+              }));
+    const savedDestinations = initialValues?.incomeTransferDestinations;
+    const plannedTransferDestinations = incomeTransferNeeds.flatMap((need) => {
+      if (!need.required) return [];
+      const toAccountId = incomeTransferTargets[need.category.id];
+      if (toAccountId == null) return [];
+      return need.sources.filter((source) => source.required && source.amount > 0).map((source) => ({
+        budget_category_id: need.category.id,
+        from_account_id: source.accountId,
+        to_account_id: toAccountId,
+        amount: source.amount,
+        currency: selectedCurrency,
+      }));
+    });
+    const routeKey = (destination: Pick<IncomeTransferDestinationInput, "budget_category_id" | "from_account_id" | "to_account_id">) =>
+      `${destination.budget_category_id}:${destination.from_account_id}:${destination.to_account_id}`;
+    const savedRouteKeys = (savedDestinations ?? []).map(routeKey).sort();
+    const plannedRouteKeys = plannedTransferDestinations.map(routeKey).sort();
+    const incomeTransferRoutesUnchanged =
+      savedDestinations != null &&
+      savedRouteKeys.length === plannedRouteKeys.length &&
+      savedRouteKeys.every((key, index) => key === plannedRouteKeys[index]);
+    const income_transfer_destinations: IncomeTransferDestinationInput[] =
+      incomeAllocationsUnchanged && journalLinesUnchanged && incomeTransferRoutesUnchanged && !deferIncomeTransfersTouched
+        ? savedDestinations
+        : plannedTransferDestinations.map((destination) => {
+            const saved = savedDestinations?.find((candidate) => routeKey(candidate) === routeKey(destination));
+            const deferred = deferIncomeTransfersTouched
+              ? deferIncomeTransfers
+              : saved ? saved.is_deferred : deferIncomeTransfers;
+            return {
+              ...destination,
+              ...(deferred === undefined ? {} : { is_deferred: deferred }),
+            };
+          });
     const allSettledIds = Object.values(settledIdsByAccount).flat();
     const sourceEntries =
       allSettledIds.length === 0
@@ -534,6 +818,11 @@ export function MultiLineEntryForm({
       })),
       budget_allocations:
         budget_allocations.length > 0 ? budget_allocations : undefined,
+      income_budget_allocations:
+        income_budget_allocations.length > 0 ? income_budget_allocations : undefined,
+      income_transfer_destinations:
+        income_transfer_destinations.length > 0 ? income_transfer_destinations :
+          initialValues?.incomeTransferDestinations ? [] : undefined,
       budget_source: "multiline",
       loan_settlement_opening: openingAccountIds.length > 0 || undefined,
       loan_settlement_journal_entry_ids:
@@ -547,14 +836,19 @@ export function MultiLineEntryForm({
       setMultiDraft(null);
       form.reset();
       setBudgetAllocs({});
+      setIncomeBudgetAllocs({});
       setSettledIdsByAccount({});
       setFundingCategoryAmounts({});
     }
   }
 
   async function handleSubmit(values: MultiForm) {
-    if (budgetCategories.length > 0 && totalBudgetPct > 100) {
+    if (budgetCategories.length > 0 && (totalBudgetPct > 100 || totalIncomeBudgetPct > 100)) {
       setOverBudgetWarnOpen(true);
+      return;
+    }
+    if (totalIncomeBudgetAlloc > incomeBudgetCapacity + 10 ** -currencyDecimalPlaces / 2) {
+      showFeedback({ message: t("incomeBudgetCapacityError"), color: "red" });
       return;
     }
     if (
@@ -565,6 +859,36 @@ export function MultiLineEntryForm({
     ) {
       pendingValues.current = values;
       setUnderBudgetWarnOpen(true);
+      return;
+    }
+    const incomeLineTotal = budgetLines.reduce((sum, line) => {
+      const account = accountMap.get(line.account_id);
+      return account?.type === "income" ? sum + line.credit - line.debit : sum;
+    }, 0);
+    const expectedDirection = incomeLineTotal < 0 ? -1 : 1;
+    if (!incomeImpact.isInvestmentSale && Object.values(incomeBudgetAllocs).some((amount) => amount !== 0 && Math.sign(amount) !== expectedDirection)) {
+      showFeedback({ message: t("incomeBudgetDirectionError"), color: "red" });
+      return;
+    }
+    for (const need of incomeTransferNeeds) {
+      if (!need.required) continue;
+      if (!need.sources.some((source) => source.required && source.amount > 0) || incomeTransferTargets[need.category.id] == null) {
+        showFeedback({ message: t("incomeTransferRequiredHint"), color: "red" });
+        return;
+      }
+    }
+    const plannedTransfersBySource = new Map<number, number>();
+    for (const need of incomeTransferNeeds) {
+      if (!need.required) continue;
+      for (const source of need.sources) {
+        if (!source.required) continue;
+        plannedTransfersBySource.set(source.accountId, (plannedTransfersBySource.get(source.accountId) ?? 0) + source.amount);
+      }
+    }
+    if ([...plannedTransfersBySource].some(([sourceId, amount]) =>
+      amount > (incomeImpact.trackedCashInflowByAccount[sourceId] ?? 0) + 10 ** -currencyDecimalPlaces / 2,
+    )) {
+      showFeedback({ message: t("incomeTransferSourceAmountError"), color: "red" });
       return;
     }
     try {
@@ -591,10 +915,111 @@ export function MultiLineEntryForm({
     }
   }
 
+  function createInvestmentSaleRows() {
+    const proceeds = Number(saleProceeds) || 0;
+    const bookValue = Number(saleBookValue) || 0;
+    if (saleSourceAccountId == null || saleReceivingAccountId == null || proceeds <= 0 || bookValue < 0) return;
+    const difference = proceeds - bookValue;
+    if (difference > 0 && saleGainAccountId == null) return;
+    if (difference < 0 && saleLossAccountId == null) return;
+    const rows: MultiLineRow[] = [
+      { account_id: saleReceivingAccountId, debit: proceeds, credit: 0, creditCardStatementOffsetMonths: 0 },
+    ];
+    if (bookValue > 0) rows.push({ account_id: saleSourceAccountId, debit: 0, credit: bookValue, creditCardStatementOffsetMonths: 0 });
+    if (difference > 0 && saleGainAccountId != null) rows.push({ account_id: saleGainAccountId, debit: 0, credit: difference, creditCardStatementOffsetMonths: 0 });
+    if (difference < 0 && saleLossAccountId != null) rows.push({ account_id: saleLossAccountId, debit: -difference, credit: 0, creditCardStatementOffsetMonths: 0 });
+    while (rows.length < 2) rows.push({ account_id: null, debit: 0, credit: 0, creditCardStatementOffsetMonths: 0 });
+    form.setValues({
+      ...form.values,
+      description: form.values.description || t("investmentSaleInputTitle"),
+      rows,
+    });
+    setBudgetAllocs({});
+    setIncomeBudgetAllocs({});
+  }
+
   return (
     <>
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack>
+          <Accordion variant="separated" data-testid="investment-sale-assist">
+            <Accordion.Item value="investment-sale">
+              <Accordion.Control>{t("investmentSaleInputTitle")}</Accordion.Control>
+              <Accordion.Panel>
+                <Stack gap="xs">
+                  <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                    <Select
+                      label={t("investmentSaleSourceAccount")}
+                      data={accounts.filter((account) => account.type === "asset" && account.category === "investment").map((account) => toAccountOption(account, t))}
+                      renderOption={renderAccountOption}
+                      value={saleSourceAccountId == null ? null : String(saleSourceAccountId)}
+                      onChange={(value) => setSaleSourceAccountId(value ? Number(value) : null)}
+                    />
+                    <Select
+                      label={t("investmentSaleReceivingAccount")}
+                      data={accounts.filter((account) => account.type === "asset" && account.category === "cash" && account.include_in_allocatable !== false && !account.is_depreciable).map((account) => toAccountOption(account, t))}
+                      renderOption={renderAccountOption}
+                      value={saleReceivingAccountId == null ? null : String(saleReceivingAccountId)}
+                      onChange={(value) => setSaleReceivingAccountId(value ? Number(value) : null)}
+                    />
+                    <NumberInput
+                      label={t("investmentSaleProceeds")}
+                      min={0}
+                      step={amountStep}
+                      decimalScale={currencyDecimalPlaces}
+                      prefix={currencySymbol}
+                      thousandSeparator=","
+                      value={saleProceeds}
+                      onChange={setSaleProceeds}
+                    />
+                    <NumberInput
+                      label={t("investmentSaleBookValue")}
+                      min={0}
+                      step={amountStep}
+                      decimalScale={currencyDecimalPlaces}
+                      prefix={currencySymbol}
+                      thousandSeparator=","
+                      value={saleBookValue}
+                      onChange={setSaleBookValue}
+                    />
+                    {Number(saleProceeds) > Number(saleBookValue) && (
+                      <Select
+                        label={t("investmentSaleGainAccount")}
+                        data={accounts.filter((account) => account.type === "income").map((account) => toAccountOption(account, t))}
+                        renderOption={renderAccountOption}
+                        value={saleGainAccountId == null ? null : String(saleGainAccountId)}
+                        onChange={(value) => setSaleGainAccountId(value ? Number(value) : null)}
+                      />
+                    )}
+                    {Number(saleBookValue) > Number(saleProceeds) && (
+                      <Select
+                        label={t("investmentSaleLossAccount")}
+                        data={accounts.filter((account) => account.type === "expense" && account.category === "investment_loss").map((account) => toAccountOption(account, t))}
+                        renderOption={renderAccountOption}
+                        value={saleLossAccountId == null ? null : String(saleLossAccountId)}
+                        onChange={(value) => setSaleLossAccountId(value ? Number(value) : null)}
+                      />
+                    )}
+                  </SimpleGrid>
+                  {Number(saleProceeds) !== Number(saleBookValue) && Number(saleProceeds) > 0 && (
+                    <Text size="sm" c={Number(saleProceeds) > Number(saleBookValue) ? "teal" : "red"}>
+                      {Number(saleProceeds) > Number(saleBookValue) ? t("investmentSaleProfit") : t("investmentSaleLoss")}: {formatCurrency(Math.abs(Number(saleProceeds) - Number(saleBookValue)), locale, selectedCurrency, currencySymbol)}
+                    </Text>
+                  )}
+                  <Text size="xs" c="dimmed">{t("investmentSaleInputHint")}</Text>
+                  <Group justify="flex-end">
+                    <Button
+                      variant="light"
+                      disabled={Number(saleProceeds) <= 0 || saleSourceAccountId == null || saleReceivingAccountId == null || (Number(saleProceeds) > Number(saleBookValue) && saleGainAccountId == null) || (Number(saleBookValue) > Number(saleProceeds) && saleLossAccountId == null)}
+                      onClick={createInvestmentSaleRows}
+                    >
+                      {t("investmentSaleCreate")}
+                    </Button>
+                  </Group>
+                </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
           <SimpleGrid cols={{ base: 1, sm: 2 }}>
             <DateInput
               label={t("dateLabel")}
@@ -614,6 +1039,7 @@ export function MultiLineEntryForm({
             isMobile ? (
               <Stack
                 key={i}
+                data-testid={`multiline-entry-row-${i}`}
                 gap={6}
                 style={
                   i > 0
@@ -686,7 +1112,7 @@ export function MultiLineEntryForm({
                 )}
               </Stack>
             ) : (
-              <Group key={i} align="flex-end">
+              <Group key={i} data-testid={`multiline-entry-row-${i}`} align="flex-end">
                 <Select
                   label={i === 0 ? t("multiAccountColHeader") : undefined}
                   placeholder={t("selectAccount")}
@@ -1032,7 +1458,7 @@ export function MultiLineEntryForm({
             </>
           )}
 
-          {budgetCategories.length > 0 && (
+          {budgetCategories.length > 0 && showExpenseBudgetPanel && (
             <>
               <Divider
                 label={t("multiLineBudgetRatios")}
@@ -1120,6 +1546,7 @@ export function MultiLineEntryForm({
                       <NumberInput
                         w={130}
                         size="sm"
+                        aria-label={cat.name}
                         allowNegative
                         prefix={currencySymbol}
                         thousandSeparator=","
@@ -1144,6 +1571,126 @@ export function MultiLineEntryForm({
                 })}
               </Stack>
             </>
+          )}
+
+          {budgetCategories.length > 0 && (incomeImpact.isInvestmentSale || incomeImpact.incomeCapacity > 0 || totalIncomeBudgetAlloc > 0) && (
+            <Stack gap="xs" data-testid="multiline-income-budget">
+              <Divider label={t("multiLineIncomeBudgetTitle")} labelPosition="left" />
+              <Group justify="space-between">
+                <Text size="xs" c="dimmed">{t("multiLineIncomeBudgetAllocHint")}</Text>
+                <Badge size="xs" variant="light" color={totalIncomeBudgetPct > 100 ? "red" : "teal"}>
+                  {t("budgetDistributionTotal")}: {totalIncomeBudgetPct}%
+                </Badge>
+              </Group>
+              {incomeImpact.isInvestmentSale && (
+                <Alert color="blue" variant="light" icon={<IconInfoCircle size={18} />}>
+                  {t("multiLineInvestmentReturnHint")}
+                </Alert>
+              )}
+              {!incomeImpact.isInvestmentSale && incomeImpact.incomeCapacity <= 0 && totalIncomeBudgetAlloc > 0 && (
+                <Alert color="yellow" variant="light" icon={<IconAlertTriangle size={18} />}>
+                  {t("incomeBudgetCapacityError")}
+                </Alert>
+              )}
+              <Stack gap={6}>
+                {budgetCategories.map((category) => {
+                  const amount = incomeBudgetAllocs[category.id] ?? 0;
+                  const percentage = incomeBudgetCapacity > 0
+                    ? Math.round((amount / incomeBudgetCapacity) * 1000) / 10
+                    : 0;
+                  return (
+                    <Group key={category.id} align="center" gap="xs">
+                      <Text size="sm" flex={1}>{category.name}</Text>
+                      <NumberInput
+                        w={90}
+                        size="sm"
+                        aria-label={`${category.name} %`}
+                        min={incomeImpact.isInvestmentSale ? 0 : undefined}
+                        allowNegative={!incomeImpact.isInvestmentSale}
+                        suffix="%"
+                        decimalScale={1}
+                        placeholder="0"
+                        hideControls={isMobile}
+                        disabled={incomeBudgetCapacity <= 0}
+                        value={percentage}
+                        onChange={(value) => {
+                          const next = incomeBudgetCapacity > 0
+                            ? Math.round((incomeBudgetCapacity * (Number(value) || 0) / 100) * 10 ** currencyDecimalPlaces) / 10 ** currencyDecimalPlaces
+                            : 0;
+                          setIncomeBudgetAllocs((previous) => ({ ...previous, [category.id]: next }));
+                        }}
+                      />
+                      <NumberInput
+                        w={130}
+                        size="sm"
+                        aria-label={category.name}
+                        min={incomeImpact.isInvestmentSale ? 0 : undefined}
+                        allowNegative={!incomeImpact.isInvestmentSale}
+                        prefix={currencySymbol}
+                        thousandSeparator=","
+                        step={amountStep}
+                        decimalScale={currencyDecimalPlaces}
+                        placeholder="0"
+                        hideControls={isMobile}
+                        value={amount}
+                        onChange={(value) => setIncomeBudgetAllocs((previous) => ({ ...previous, [category.id]: Number(value) || 0 }))}
+                      />
+                    </Group>
+                  );
+                })}
+              </Stack>
+              {incomeTransferNeeds.some((need) => need.required) && (
+                <Stack gap="xs">
+                  <Checkbox
+                    label={t("incomeTransferDeferLabel")}
+                    checked={deferIncomeTransfers === true}
+                    indeterminate={editEntryId != null && deferIncomeTransfers === undefined}
+                    disabled={hasCompletedIncomeTransfer}
+                    onChange={(event) => {
+                      setDeferIncomeTransfers(event.currentTarget.checked);
+                      setDeferIncomeTransfersTouched(true);
+                    }}
+                  />
+                  <Text size="xs" c="dimmed">{t("incomeTransferDeferHint")}</Text>
+                  {incomeTransferNeeds.filter((need) => need.required).map((need) => {
+                    return (
+                      <Stack key={need.category.id} gap={4} p="xs" style={{ border: "1px solid var(--mantine-color-default-border)", borderRadius: "var(--mantine-radius-sm)" }}>
+                        <Text size="xs" fw={600}>
+                          {t("incomeTransferRequiredTitle")}: {need.category.name}・{formatCurrency(need.routedAmount, locale, selectedCurrency, currencySymbol)}
+                        </Text>
+                        {need.sources.filter((source) => source.required).length > 1 && (
+                          <Stack gap={2}>
+                            <Text size="xs" c="dimmed">{t("incomeTransferSourceAccount")}</Text>
+                            {need.sources.filter((source) => source.required).map((source) => {
+                              const account = accounts.find((candidate) => candidate.id === source.accountId);
+                              if (!account) return null;
+                              return (
+                                <Text key={source.accountId} size="xs">
+                                  {accountDisplayName(account, t)}: {formatCurrency(source.amount, locale, selectedCurrency, currencySymbol)}
+                                </Text>
+                              );
+                            })}
+                          </Stack>
+                        )}
+                        {need.targetAccountIds.length === 0 ? (
+                          <Text size="xs" c="yellow">{t("incomeTransferNoTarget")}</Text>
+                        ) : (
+                          <Select
+                            label={t("incomeTransferDestination")}
+                            required
+                            data={need.targetAccountIds.map((accountId) => accounts.find((account) => account.id === accountId)).filter((account): account is (typeof accounts)[number] => !!account).map((account) => toAccountOption(account, t))}
+                            renderOption={renderAccountOption}
+                            value={incomeTransferTargets[need.category.id] == null ? null : String(incomeTransferTargets[need.category.id])}
+                            disabled={hasCompletedIncomeTransfer}
+                            onChange={(value) => setIncomeTransferTargets((previous) => ({ ...previous, [need.category.id]: value ? Number(value) : null }))}
+                          />
+                        )}
+                      </Stack>
+                    );
+                  })}
+                </Stack>
+              )}
+            </Stack>
           )}
 
           <Group justify="space-between">
