@@ -39,6 +39,7 @@ import {
   computeFilterSteps,
   computeFilterPreview,
   getIncomeDescriptionForSubmit,
+  getLoanSettlementDifference,
   mergeIncomeDistributionDefaults,
   summarizeAmountDistribution,
   summarizeBudgetDistribution,
@@ -83,7 +84,7 @@ import {
 } from "../lib/multiLineBudgetFunding";
 import { getDepreciationBudgetFormErrors } from "../lib/depreciationBudgetForm";
 import {
-  buildIncomeBudgetSubmissionFields,
+  buildIncomeBudgetEntryFields,
   canAllocateIncomeBudget,
 } from "../lib/incomeBudgetScope";
 import { resolveIncomeTransferAccounts } from "../lib/incomeTransferAccounts";
@@ -165,6 +166,14 @@ export function buildLoanBudgetSubmissionFields(
   };
 }
 
+/** Tag every line assembled by the normal loan flow before currency-aware calculations. */
+export function tagLoanLinesWithCurrency(
+  lines: CreateJournalInput["lines"],
+  currency: string,
+): CreateJournalInput["lines"] {
+  return lines.map((line) => ({ ...line, currency }));
+}
+
 export interface BudgetDistributionItem {
   budget_category_id: number;
   name: string;
@@ -222,6 +231,10 @@ interface Props {
   onDraftChange?: (draft: SimpleFormDraft) => void;
   isEditing?: boolean;
   editEntryId?: number;
+  /** Lock this form to one entry type when embedded in another workflow. */
+  fixedEntryType?: EntryType;
+  /** Keep loan cash flow on the parent workflow's selected payment account. */
+  fixedLoanCounterAccountId?: number;
 }
 
 export type { StepPreview };
@@ -238,6 +251,8 @@ export function SimpleEntryForm({
   onDraftChange,
   isEditing = false,
   editEntryId,
+  fixedEntryType,
+  fixedLoanCounterAccountId,
 }: Props) {
   const { t, locale } = useLang();
   const {
@@ -643,7 +658,7 @@ export function SimpleEntryForm({
     initialValues: {
       date: new Date(),
       description: "",
-      entryType: "expense",
+      entryType: fixedEntryType ?? "expense",
       expenseCategoryId: null,
       expensePaidFromId: defaultPaymentAccount?.id ?? null,
       incomeTypeId: null,
@@ -662,6 +677,10 @@ export function SimpleEntryForm({
       businessRatio: 100,
       creditCardStatementOffsetMonths: 0,
       ...initialDraft?.formValues,
+      ...(fixedEntryType ? { entryType: fixedEntryType } : {}),
+      ...(fixedLoanCounterAccountId != null
+        ? { loanCounterAccountId: fixedLoanCounterAccountId }
+        : {}),
     },
     validate: {
       description: (v, vals) => {
@@ -1039,7 +1058,7 @@ export function SimpleEntryForm({
           budgetSettings?.business_advance_budget_category_id ?? null;
         const personalBudgetAllocs =
           budgetDist.length > 0 && personalAmount > 0
-            ? buildExpenseBudgetAllocations(personalAmount, budgetDist)
+            ? buildExpenseBudgetAllocations(personalAmount, budgetDist, -1, currencyDecimalPlaces)
             : [];
         const budget_allocations = [
           ...(advanceBudgetCatId
@@ -1104,7 +1123,7 @@ export function SimpleEntryForm({
         // personalAmount >= totalAmount (ratio = 0%) — treat as normal expense
         const budget_allocations =
           budgetDist.length > 0 && totalAmount > 0
-            ? buildExpenseBudgetAllocations(totalAmount, budgetDist)
+            ? buildExpenseBudgetAllocations(totalAmount, budgetDist, -1, currencyDecimalPlaces)
             : undefined;
         await onSubmit({
           date,
@@ -1163,7 +1182,7 @@ export function SimpleEntryForm({
         : actualAmount; // no settlement = simple 2-line entry
 
       const loanAmount = hasSettlements ? selectedTotal : actualAmount;
-      const diff = actualAmount - loanAmount; // positive = paid/received more, negative = less
+      const diff = getLoanSettlementDifference(actualAmount, loanAmount, currencyDecimalPlaces);
 
       // Determine debit/credit IDs for the loan account line
       let loanDebit: number, loanCredit: number;
@@ -1187,7 +1206,7 @@ export function SimpleEntryForm({
 
       const lines: CreateJournalInput["lines"] = [];
 
-      if (!hasSettlements || Math.abs(diff) < 0.01) {
+      if (!hasSettlements || diff === 0) {
         // Simple 2-line entry
         lines.push(
           { account_id: loanDebit, debit: loanAmount, credit: 0 },
@@ -1261,6 +1280,13 @@ export function SimpleEntryForm({
         }
       }
 
+      // Funding impact is currency-filtered; tag the complete direction/difference
+      // line set before calculating it, then submit the same tagged lines.
+      const currencyTaggedLines = tagLoanLinesWithCurrency(
+        lines,
+        selectedCurrency,
+      );
+
       // Build budget allocations for difference account (expense) if applicable
       const diffIsExpense =
         values.loanDifferenceAccountId != null &&
@@ -1268,7 +1294,7 @@ export function SimpleEntryForm({
           "expense";
       const diffBudgetAllocs =
         diffIsExpense && diffBudgetDist.length > 0 && Math.abs(diff) > 0
-          ? buildExpenseBudgetAllocations(Math.abs(diff), diffBudgetDist)
+          ? buildExpenseBudgetAllocations(Math.abs(diff), diffBudgetDist, -1, currencyDecimalPlaces)
           : undefined;
 
       // Build budget allocations for counter account (expense) when direction is increase/collect
@@ -1280,7 +1306,7 @@ export function SimpleEntryForm({
           "expense";
       const loanCounterBudgetAllocs =
         counterIsExpense && loanCounterBudgetDist.length > 0 && loanAmount > 0
-          ? buildExpenseBudgetAllocations(loanAmount, loanCounterBudgetDist)
+          ? buildExpenseBudgetAllocations(loanAmount, loanCounterBudgetDist, -1, currencyDecimalPlaces)
           : undefined;
 
       const combinedBudgetAllocs = [
@@ -1328,7 +1354,7 @@ export function SimpleEntryForm({
         const automaticSettlement =
           !isOpening && isShortTerm && settledEntryIds.length > 0;
         const calculatedFunding = calculateMultiLineBudgetFundingImpact({
-          lines,
+          lines: currencyTaggedLines,
           accounts,
           currency: selectedCurrency,
           decimalPlaces: currencyDecimalPlaces,
@@ -1459,7 +1485,7 @@ export function SimpleEntryForm({
       await onSubmit({
         date: transactionDate,
         description: values.description,
-        lines,
+        lines: currencyTaggedLines,
         budget_allocations:
           combinedBudgetAllocs.length > 0 ? combinedBudgetAllocs : undefined,
         budget_source: "simple",
@@ -1498,7 +1524,7 @@ export function SimpleEntryForm({
       values.entryType === "expense" &&
       budgetDist.length > 0 &&
       values.amount > 0
-        ? buildExpenseBudgetAllocations(values.amount, budgetDist)
+        ? buildExpenseBudgetAllocations(values.amount, budgetDist, -1, currencyDecimalPlaces)
         : undefined;
 
     const income_budget_allocations =
@@ -1517,38 +1543,21 @@ export function SimpleEntryForm({
                 values.transferBudgetDestinationCategoryId,
             })
           : undefined;
-    const income_transfer_destinations =
-      values.entryType === "income"
-        ? incomeTransferNeeds.flatMap((need) => {
-            if (!need.required || need.amount <= 0) return [];
-            const toAccountId =
-              incomeTransferDestination[need.budget_category_id] ??
-              (need.accountIds.length === 1 ? need.accountIds[0] : null);
-            if (toAccountId == null) {
-              throw new Error(t("incomeTransferDestination"));
-            }
-            return [{
-              budget_category_id: need.budget_category_id,
-              from_account_id: values.incomeDepositedToId!,
-              to_account_id: toAccountId,
-              amount: need.amount,
-              currency: selectedCurrency,
-              ...(deferIncomeTransfers === undefined ? {} : { is_deferred: deferIncomeTransfers }),
-            }];
-          })
-        : undefined;
     const incomeBudgetFields =
       values.entryType === "income"
-        ? buildIncomeBudgetSubmissionFields({
+        ? buildIncomeBudgetEntryFields({
             destinationAccount: accounts.find(
               (account) => account.id === values.incomeDepositedToId,
             ),
             incomeBudgetAllocations: income_budget_allocations,
-            incomeTransferDestinations: income_transfer_destinations,
+            categories: budgetCategories,
+            accounts,
+            currency: selectedCurrency,
+            transferTargets: incomeTransferDestination,
+            defer: deferIncomeTransfers,
           })
         : {
             income_budget_allocations,
-            income_transfer_destinations,
           };
 
     await onSubmit({
@@ -1628,6 +1637,9 @@ export function SimpleEntryForm({
       await doSubmit(values);
     } catch (e) {
       const msg =
+        e instanceof Error && e.message === "income_transfer_destination_required"
+          ? t("incomeTransferDestination")
+          :
         e instanceof ApiError &&
         e.body.error === "income_transfer_completed_conflict"
           ? t("incomeTransferEditConflict")
@@ -1705,7 +1717,7 @@ export function SimpleEntryForm({
   }
 
   function handleLoanCounterAccountChange(v: string | null) {
-    const accountId = v ? Number(v) : null;
+    const accountId = fixedLoanCounterAccountId ?? (v ? Number(v) : null);
     form.setFieldValue("loanCounterAccountId", accountId);
     const account = accounts.find((candidate) => candidate.id === accountId);
     if (account?.type === "liability" && account.category === "credit_card") {
@@ -1743,11 +1755,20 @@ export function SimpleEntryForm({
     baseAmount: number,
     distribution: BudgetDistributionItem[],
   ): BudgetDistributionItem[] {
-    const amounts = computeBudgetDistributionAmounts(baseAmount, distribution);
+    const amounts = computeBudgetDistributionAmounts(
+      baseAmount,
+      distribution,
+      currencyDecimalPlaces,
+    );
     return distribution.map((item) => ({
       ...item,
       amount: amounts.get(item.budget_category_id) ?? 0,
     }));
+  }
+
+  function roundToCurrencyPrecision(amount: number): number {
+    const scale = 10 ** currencyDecimalPlaces;
+    return Math.max(0, Math.round((Number(amount) || 0) * scale) / scale);
   }
 
   function handleRatioChange(
@@ -1768,7 +1789,7 @@ export function SimpleEntryForm({
     newAmount: number,
     baseAmount: number,
   ) {
-    const amount = Math.max(0, Math.round(Number(newAmount) || 0));
+    const amount = roundToCurrencyPrecision(newAmount);
     const ratio =
       baseAmount > 0 ? Math.round((amount / baseAmount) * 100) : 0;
     setBudgetDist((prev) =>
@@ -1779,7 +1800,7 @@ export function SimpleEntryForm({
   }
 
   function handleIncomeDistChange(catId: number, newAmt: number) {
-    const amount = Math.max(0, Math.round(Number(newAmt) || 0));
+    const amount = roundToCurrencyPrecision(newAmt);
     if (!showManualIncomeDist) {
       const defaultAmount = filterStepPreview.reduce((sum, step) => {
         const row = step.allocations.find(
@@ -1892,6 +1913,7 @@ export function SimpleEntryForm({
   const incomeDistributionSummary = summarizeAmountDistribution(
     form.values.amount,
     incomeDist,
+    currencyDecimalPlaces,
   );
   const businessRatio = Math.min(
     100,
@@ -1944,6 +1966,7 @@ export function SimpleEntryForm({
   const budgetDistributionSummary = summarizeBudgetDistribution(
     expenseBudgetBase,
     budgetDist,
+    currencyDecimalPlaces,
   );
   // In manual mode (no filter), show all budget categories (filling 0 for unset)
   const showManualIncomeDist = !isRegularIncome || !selectedFilterId;
@@ -2177,7 +2200,7 @@ export function SimpleEntryForm({
       }
     >
       <Stack>
-        <SegmentedControl
+        {!fixedEntryType && <SegmentedControl
           data={[
             { value: "expense", label: t("transactionTypeExpense") },
             { value: "income", label: t("transactionTypeIncome") },
@@ -2193,7 +2216,7 @@ export function SimpleEntryForm({
             form.setFieldValue("entryType", v as EntryType);
           }}
           fullWidth
-        />
+        />}
 
         <SimpleGrid cols={{ base: 1, sm: 2 }}>
           <DateInput
@@ -2474,6 +2497,7 @@ export function SimpleEntryForm({
             budgetCategories={budgetCategories}
             locale={locale}
             selectedCurrency={selectedCurrency}
+            currencyDecimalPlaces={currencyDecimalPlaces}
             currencySymbol={currencySymbol}
             unsettledEntries={unsettledEntries}
             setUnsettledEntries={setUnsettledEntries}
@@ -2489,6 +2513,7 @@ export function SimpleEntryForm({
             currentUnallocatedFunding={allocatableToday}
             showFundingSuggestion={!isEditing}
             handleLoanCounterAccountChange={handleLoanCounterAccountChange}
+            fixedCounterAccountId={fixedLoanCounterAccountId}
           />
         )}
 

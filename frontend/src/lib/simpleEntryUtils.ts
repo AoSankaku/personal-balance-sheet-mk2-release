@@ -55,6 +55,15 @@ export interface IncomeDistributionItem {
   amount: number;
 }
 
+export function getLoanSettlementDifference(
+  actualAmount: number,
+  principalAmount: number,
+  decimalPlaces = 0,
+): number {
+  const scale = 10 ** decimalPlaces;
+  return (Math.round(actualAmount * scale) - Math.round(principalAmount * scale)) / scale;
+}
+
 type DistributionRatioDirection = "exact" | "over" | "under";
 
 export function getIncomeDescriptionForSubmit(

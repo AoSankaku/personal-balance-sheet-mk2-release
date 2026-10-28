@@ -8,6 +8,7 @@ import {
   Divider,
   Group,
   List,
+  Modal,
   NumberInput,
   Paper,
   ScrollArea,
@@ -26,18 +27,21 @@ import {
   IconPlus,
   IconTrash,
 } from "@tabler/icons-react";
-import dayjs from "dayjs";
 import { useEffect, useRef, useState } from "react";
 import type {
   CompleteCreditCardStatementInput,
   CreateJournalInput,
 } from "@balance-sheet/shared";
-import { api } from "../api/client";
 import {
-  buildIncomeBudgetSubmissionFields,
-  canAllocateIncomeBudget,
-} from "../lib/incomeBudgetScope";
-import { buildExpenseBudgetAllocations } from "../lib/simpleEntryUtils";
+  isAnyLendingCategory,
+  isLongTermBorrowingCategory,
+  isShortTermBorrowingCategory,
+} from "@balance-sheet/shared";
+import { api } from "../api/client";
+import { canAllocateIncomeBudget } from "../lib/incomeBudgetScope";
+import { buildBulkJournalEntries, BulkEntrySubmissionError } from "../lib/bulkEntrySubmission";
+import { resolveIncomeTransferAccounts } from "../lib/incomeTransferAccounts";
+import { formatCurrency } from "../lib/numberFormat";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { showFeedback } from "../lib/feedback";
@@ -59,22 +63,33 @@ import {
   DEFAULT_BILLING_ROW,
   type BulkExpenseRow,
   type BulkDiscountRow,
+  type BulkLoanRow,
   type BulkRow,
   type BillingRow,
 } from "../utils/inputDrafts";
+import { SimpleEntryForm, type SimpleFormDraft } from "./SimpleEntryForm";
 import {
   BULK_COPY_LAST_DATE_STORAGE_KEY,
   shouldCopyLastDateByDefault,
 } from "../utils/bulkExpensePreferences";
+
+export { buildBulkJournalEntries } from "../lib/bulkEntrySubmission";
 
 export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
   const { t, locale } = useLang();
   const {
     accounts,
     budgetCategories,
+    budgetFilters,
+    displayCurrency,
     displayCurrencySymbol: currencySymbol,
+    enabledCurrencies,
     refreshCreditCardStatementCompletions,
   } = useAppData();
+  const selectedCurrency = displayCurrency || "JPY";
+  const currencyDecimalPlaces = enabledCurrencies.find(
+    (currency) => currency.code === selectedCurrency,
+  )?.decimal_places ?? 0;
 
   const [paymentAccountId, setPaymentAccountId] = useState<string | null>(
     bulkDraft.paymentAccountId,
@@ -108,6 +123,12 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
     Array(initLen).fill(false),
   );
   const [posting, setPosting] = useState(false);
+  const [loanModalOpened, setLoanModalOpened] = useState(false);
+  const [loanEditorKey, setLoanEditorKey] = useState(0);
+  const [editingLoanRowIndex, setEditingLoanRowIndex] = useState<number | null>(null);
+  const [loanDraft, setLoanDraft] = useState<SimpleFormDraft | null>(null);
+  const loanDraftRef = useRef<SimpleFormDraft | null>(null);
+  const ignoreFirstLoanDraftChange = useRef(false);
   const [statementCompletion, setStatementCompletion] =
     useState<CompleteCreditCardStatementInput | null>(
       bulkDraft.statementCompletion,
@@ -130,6 +151,25 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
   const pendingEntries = useRef<CreateJournalInput[]>([]);
   const pendingSkipCount = useRef(0);
 
+  function submissionErrorMessage(error: unknown): string {
+    if (!(error instanceof BulkEntrySubmissionError)) return t("saveFailed");
+    const messages: Record<string, string> = {
+      bulk_payment_account_required: t("bulkExpenseNoPaymentAccount"),
+      bulk_invalid_amount: t("bulkSubmissionInvalidAmount"),
+      bulk_currency_changed: t("bulkSubmissionCurrencyChanged"),
+      bulk_loan_configuration_required: t("bulkLoanConfigurationRequired"),
+      bulk_payment_account_changed: t("bulkLoanPaymentAccountChanged"),
+      bulk_duplicate_settlement: t("bulkLoanDuplicateSettlement"),
+      bulk_invalid_date: t("bulkSubmissionInvalidDate"),
+      bulk_invalid_account: t("bulkSubmissionInvalidAccount"),
+      income_transfer_destination_required: t("bulkIncomeTransferTargetRequired"),
+    };
+    const message = messages[error.code] ?? t("saveFailed");
+    return error.rowIndex >= 0
+      ? message.replace("{n}", String(error.rowIndex + 1))
+      : message;
+  }
+
   useEffect(() => {
     setBulkDraft({
       paymentAccountId,
@@ -140,19 +180,89 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
   }, [paymentAccountId, rows, billingRows, statementCompletion]);
 
   useEffect(() => {
+    if (!paymentAccount) return;
     if (canAllocateDiscountIncome) return;
     setRows((previous) => {
       let changed = false;
       const next = previous.map((row) => {
         if (row.type !== "discount" || row.budgetCategoryId == null) {
+          if (row.type === "discount" && row.transferAccountId != null) {
+            changed = true;
+            return { ...row, transferAccountId: null };
+          }
           return row;
         }
         changed = true;
-        return { ...row, budgetCategoryId: null };
+        return {
+          ...row,
+          budgetCategoryId: null,
+          transferAccountId: null,
+          deferTransfer: undefined,
+        };
       });
       return changed ? next : previous;
     });
-  }, [canAllocateDiscountIncome]);
+  }, [paymentAccount, canAllocateDiscountIncome]);
+
+  useEffect(() => {
+    const expectedPaymentAccountId = paymentAccountId ?? "";
+    const nextRows = rows.map((row) => {
+      if (row.type !== "loan") return row;
+      if (
+        row.currency.toUpperCase() === selectedCurrency.toUpperCase() &&
+        row.paymentAccountId === expectedPaymentAccountId
+      ) return row;
+      return invalidateLoanRow(row, selectedCurrency, expectedPaymentAccountId);
+    });
+    if (nextRows.some((row, index) => row !== rows[index])) {
+      setRows(nextRows);
+      if (editingLoanRowIndex != null) {
+        const activeRow = nextRows[editingLoanRowIndex];
+        if (activeRow?.type === "loan" && activeRow !== rows[editingLoanRowIndex]) {
+          loanDraftRef.current = activeRow.draft;
+          setLoanDraft(activeRow.draft);
+          setLoanModalOpened(false);
+          setEditingLoanRowIndex(null);
+        }
+      }
+    }
+  }, [selectedCurrency, paymentAccountId]);
+
+  useEffect(() => {
+    const legacyIndex = rows.findIndex((row) => {
+      if (row.type !== "expense" || !row.expenseAccountId) return false;
+      const account = accounts.find((candidate) => candidate.id === Number(row.expenseAccountId));
+      return Boolean(account && (
+        (account.type === "liability" && (
+          isShortTermBorrowingCategory(account.category) ||
+          isLongTermBorrowingCategory(account.category)
+        )) ||
+        (account.type === "asset" && isAnyLendingCategory(account.category))
+      ));
+    });
+    if (legacyIndex < 0) return;
+    const legacyRow = rows[legacyIndex]! as BulkExpenseRow;
+    const account = accounts.find((candidate) => candidate.id === Number(legacyRow.expenseAccountId))!;
+    const draft = makeLoanDraft({
+      date: legacyRow.date,
+      description: legacyRow.itemName,
+      direction: account.type === "asset" ? "lend" : "decrease",
+      loanAccountId: account.id,
+      paymentAccountId,
+      amount: legacyRow.qty * legacyRow.price,
+    });
+    const converted: BulkLoanRow = {
+      type: "loan",
+      input: null,
+      draft,
+      currency: selectedCurrency,
+      paymentAccountId: paymentAccountId ?? "",
+    };
+    setRows((previous) => previous.map((row, index) => index === legacyIndex ? converted : row));
+    if (paymentAccountId) openLoanEditor(legacyIndex, draft);
+    // Runs only while an old draft still contains a loan account in an expense row.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, accounts, paymentAccountId, selectedCurrency]);
 
   const statementMonthLabel = statementCompletion
     ? new Intl.DateTimeFormat(locale, {
@@ -207,11 +317,180 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
     label: c.name,
   }));
 
+  function rowDate(row: BulkRow): Date {
+    if (row.type !== "loan") return row.date;
+    if (row.input?.date) return new Date(`${row.input.date}T00:00:00`);
+    const draftDate = row.draft.formValues.date;
+    return draftDate instanceof Date ? draftDate : new Date();
+  }
+
   function getNewDate(prev: BulkRow[]): Date {
     if (copyLastDate && prev.length > 0) {
-      return new Date(prev[prev.length - 1]!.date);
+      return new Date(rowDate(prev[prev.length - 1]!));
     }
     return new Date();
+  }
+
+  function makeLoanDraft(input: {
+    date: Date;
+    description: string;
+    direction: "increase" | "decrease" | "lend" | "collect";
+    loanAccountId: number | null;
+    paymentAccountId: string | null;
+    amount: number;
+  }): SimpleFormDraft {
+    return {
+      formValues: {
+        date: input.date,
+        description: input.description,
+        entryType: "loan",
+        loanDirection: input.direction,
+        loanAccountId: input.loanAccountId,
+        loanCounterAccountId: input.paymentAccountId
+          ? Number(input.paymentAccountId)
+          : null,
+        amount: input.amount,
+      },
+      budgetDist: [],
+      showZeroCategories: false,
+    };
+  }
+
+  function invalidateLoanRow(
+    row: BulkLoanRow,
+    currency: string,
+    nextPaymentAccountId: string,
+  ): BulkLoanRow {
+    return {
+      ...row,
+      input: null,
+      currency,
+      paymentAccountId: nextPaymentAccountId,
+      draft: {
+        ...row.draft,
+        formValues: {
+          ...row.draft.formValues,
+          loanCounterAccountId: nextPaymentAccountId
+            ? Number(nextPaymentAccountId)
+            : null,
+        },
+        settledEntryIds: [],
+        diffBudgetDist: [],
+        loanCounterBudgetDist: [],
+        loanFundingCategoryAmounts: {},
+      },
+    };
+  }
+
+  function openLoanEditor(index: number, draft: SimpleFormDraft) {
+    if (!paymentAccountId) {
+      showFeedback({ message: t("bulkExpenseNoPaymentAccount"), color: "yellow" });
+      return;
+    }
+    setEditingLoanRowIndex(index);
+    loanDraftRef.current = draft;
+    setLoanDraft(draft);
+    setLoanEditorKey((previous) => previous + 1);
+    ignoreFirstLoanDraftChange.current = true;
+    setLoanModalOpened(true);
+  }
+
+  function handleLoanDraftChange(draft: SimpleFormDraft) {
+    loanDraftRef.current = draft;
+    setLoanDraft(draft);
+    if (ignoreFirstLoanDraftChange.current) {
+      ignoreFirstLoanDraftChange.current = false;
+      return;
+    }
+    if (editingLoanRowIndex == null) return;
+    setRows((previous) => previous.map((row, index) => {
+      if (index !== editingLoanRowIndex || row.type !== "loan") return row;
+      return { ...row, input: null, draft };
+    }));
+  }
+
+  function addLoanRow() {
+    if (!paymentAccountId) {
+      showFeedback({ message: t("bulkExpenseNoPaymentAccount"), color: "yellow" });
+      return;
+    }
+    const date = getNewDate(rows);
+    const draft = makeLoanDraft({
+      date,
+      description: "",
+      direction: "decrease",
+      loanAccountId: null,
+      paymentAccountId,
+      amount: 0,
+    });
+    const row: BulkLoanRow = {
+      type: "loan",
+      input: null,
+      draft,
+      currency: selectedCurrency,
+      paymentAccountId,
+    };
+    const index = rows.length;
+    setRows((previous) => [...previous, row]);
+    openLoanEditor(index, draft);
+  }
+
+  function selectExpenseAccount(index: number, value: string | null) {
+    const account = accounts.find((candidate) => candidate.id === Number(value));
+    const isLoanAccount = Boolean(account && (
+      (account.type === "liability" && (
+        isShortTermBorrowingCategory(account.category) ||
+        isLongTermBorrowingCategory(account.category)
+      )) ||
+      (account.type === "asset" && isAnyLendingCategory(account.category))
+    ));
+    if (!isLoanAccount || !account) {
+      updateRow(index, { expenseAccountId: value });
+      return;
+    }
+    if (!paymentAccountId) {
+      showFeedback({ message: t("bulkExpenseNoPaymentAccount"), color: "yellow" });
+      return;
+    }
+    const oldRow = rows[index];
+    if (!oldRow || oldRow.type !== "expense") return;
+    const date = oldRow.date;
+    const direction = account.type === "asset" ? "lend" : "decrease";
+    const draft = makeLoanDraft({
+      date,
+      description: oldRow.itemName,
+      direction,
+      loanAccountId: account.id,
+      paymentAccountId,
+      amount: oldRow.qty * oldRow.price,
+    });
+    const loanRow: BulkLoanRow = {
+      type: "loan",
+      input: null,
+      draft,
+      currency: selectedCurrency,
+      paymentAccountId,
+    };
+    setRows((previous) => previous.map((row, rowIndex) => rowIndex === index ? loanRow : row));
+    openLoanEditor(index, draft);
+  }
+
+  function handleLoanSubmit(input: CreateJournalInput) {
+    if (editingLoanRowIndex == null || !paymentAccountId) return;
+    const currentDraft = loanDraftRef.current ?? loanDraft;
+    if (!currentDraft) return;
+    const loanRow: BulkLoanRow = {
+      type: "loan",
+      input,
+      draft: currentDraft,
+      currency: selectedCurrency,
+      paymentAccountId,
+    };
+    setRows((previous) => previous.map((row, index) =>
+      index === editingLoanRowIndex ? loanRow : row,
+    ));
+    setLoanModalOpened(false);
+    setEditingLoanRowIndex(null);
   }
 
   function addExpenseRow() {
@@ -238,6 +517,8 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
         amount: 0,
         incomeAccountId: null,
         budgetCategoryId: null,
+        transferAccountId: null,
+        deferTransfer: undefined,
       } satisfies BulkDiscountRow,
     ]);
   }
@@ -256,12 +537,38 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
 
   function handlePaymentAccountChange(next: string | null) {
     setPaymentAccountId(next);
-    if (canAllocateIncomeBudget(accounts.find(
-      (account) => account.id === Number(next),
-    ))) return;
-    setRows((previous) => previous.map((row) =>
-      row.type === "discount" ? { ...row, budgetCategoryId: null } : row,
-    ));
+    const nextPaymentAccount = accounts.find((account) => account.id === Number(next));
+    const canAllocateNext = canAllocateIncomeBudget(nextPaymentAccount);
+    setRows((previous) => previous.map((row) => {
+      if (row.type === "discount") {
+        return {
+          ...row,
+          budgetCategoryId: canAllocateNext ? row.budgetCategoryId : null,
+          transferAccountId: null,
+          deferTransfer: canAllocateNext ? row.deferTransfer : undefined,
+        };
+      }
+      if (row.type === "loan") {
+        return invalidateLoanRow(row, selectedCurrency, next ?? "");
+      }
+      return row;
+    }));
+  }
+
+  function getDiscountTransferNeed(row: BulkDiscountRow) {
+    if (
+      !paymentAccount ||
+      paymentAccount.type !== "asset" ||
+      paymentAccount.category !== "cash" ||
+      paymentAccount.include_in_allocatable === false ||
+      row.budgetCategoryId == null
+    ) return null;
+    return resolveIncomeTransferAccounts({
+      categoryId: Number(row.budgetCategoryId),
+      depositAccountId: paymentAccount.id,
+      categories: budgetCategories,
+      accounts,
+    });
   }
 
   const expenseTotal = rows
@@ -272,80 +579,26 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
     .filter((r): r is BulkDiscountRow => r.type === "discount")
     .reduce((s, r) => s + r.amount, 0);
 
-  const calcTotal = expenseTotal - discountTotal;
+  const loanCashFlow = rows
+    .filter((row): row is BulkLoanRow => row.type === "loan")
+    .reduce((sum, row) => {
+      if (row.input) {
+        return sum + row.input.lines
+          .filter((line) => line.account_id === Number(paymentAccountId))
+          .reduce((lineSum, line) => lineSum + line.credit - line.debit, 0);
+      }
+      const amount = Number(row.draft.formValues.amount) || 0;
+      const direction = row.draft.formValues.loanDirection;
+      return sum + (direction === "increase" || direction === "collect" ? -amount : amount);
+    }, 0);
+
+  const calcTotal = expenseTotal - discountTotal + loanCashFlow;
   const billingTotal = billingRows.reduce(
     (s, r) => s + (Number(r.amount.replace(/,/g, "")) || 0),
     0,
   );
   const hasBillingInput = billingTotal > 0;
   const diff = calcTotal - billingTotal;
-
-  function buildEntries(payAccId: number): {
-    entries: CreateJournalInput[];
-    skippedCount: number;
-  } {
-    const entries: CreateJournalInput[] = [];
-    let skippedCount = 0;
-
-    for (const row of rows) {
-      if (row.type === "expense") {
-        const r = row as BulkExpenseRow;
-        if (!r.expenseAccountId || r.price <= 0) {
-          if (r.price > 0 && !r.expenseAccountId) skippedCount++;
-          continue;
-        }
-        const expAccId = Number(r.expenseAccountId);
-        const amount = r.qty * r.price;
-        const expAcc = accounts.find((a) => a.id === expAccId);
-        const budget_allocations = buildExpenseBudgetAllocations(
-          amount,
-          expAcc?.budget_ratios ?? [],
-        );
-        entries.push({
-          date: dayjs(r.date).format("YYYY-MM-DD"),
-          description: r.itemName || t("bulkExpenseDefaultExpenseDesc"),
-          lines: [
-            { account_id: expAccId, debit: amount, credit: 0 },
-            { account_id: payAccId, debit: 0, credit: amount },
-          ],
-          budget_allocations:
-            budget_allocations.length > 0 ? budget_allocations : undefined,
-          budget_source: "simple",
-        });
-      } else {
-        const r = row as BulkDiscountRow;
-        if (!r.incomeAccountId || r.amount <= 0) {
-          if (r.amount > 0 && !r.incomeAccountId) skippedCount++;
-          continue;
-        }
-        const incAccId = Number(r.incomeAccountId);
-        const budget_allocations = r.budgetCategoryId
-          ? [
-              {
-                budget_category_id: Number(r.budgetCategoryId),
-                amount: r.amount,
-              },
-            ]
-          : [];
-        const incomeBudgetFields = buildIncomeBudgetSubmissionFields({
-          destinationAccount: accounts.find((account) => account.id === payAccId),
-          incomeBudgetAllocations:
-            budget_allocations.length > 0 ? budget_allocations : undefined,
-        });
-        entries.push({
-          date: dayjs(r.date).format("YYYY-MM-DD"),
-          description: r.discountType || t("bulkExpenseDefaultDiscountDesc"),
-          lines: [
-            { account_id: payAccId, debit: r.amount, credit: 0 },
-            { account_id: incAccId, debit: 0, credit: r.amount },
-          ],
-          ...incomeBudgetFields,
-        });
-      }
-    }
-
-    return { entries, skippedCount };
-  }
 
   function resetBulkForm() {
     const fresh: BulkExpenseRow = {
@@ -369,19 +622,82 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
     setStatementCompletion(null);
   }
 
+  function clearPostedRows(keepStatement: boolean) {
+    const fresh: BulkExpenseRow = {
+      type: "expense",
+      date: new Date(),
+      itemName: "",
+      qty: 1,
+      price: 0,
+      expenseAccountId: null,
+    };
+    const freshBilling = [{ ...DEFAULT_BILLING_ROW }];
+    setRows([fresh]);
+    setBillingRows(freshBilling);
+    setBillingChecked([false]);
+    setLoanModalOpened(false);
+    setEditingLoanRowIndex(null);
+    setLoanDraft(null);
+    loanDraftRef.current = null;
+    setBulkDraft({
+      paymentAccountId,
+      rows: [fresh],
+      billingRows: freshBilling,
+      statementCompletion: keepStatement ? statementCompletion : null,
+    });
+  }
+
   async function doPost(entries: CreateJournalInput[]) {
     setPosting(true);
     try {
       await api.journal.batchCreate({ entries });
       if (statementCompletion) {
-        await api.creditCardStatements.complete(statementCompletion);
-        await refreshCreditCardStatementCompletions();
+        clearPostedRows(true);
+        try {
+          await api.creditCardStatements.complete(statementCompletion);
+        } catch {
+          showFeedback({
+            message: t("bulkExpenseSavedButStatementPending"),
+            color: "yellow",
+          });
+          onPosted();
+          return;
+        }
+        setStatementCompletion(null);
+        setLoanDraft(null);
+        loanDraftRef.current = null;
+        setBulkDraft({
+          paymentAccountId,
+          rows: [
+            {
+              type: "expense",
+              date: new Date(),
+              itemName: "",
+              qty: 1,
+              price: 0,
+              expenseAccountId: null,
+            },
+          ],
+          billingRows: [{ ...DEFAULT_BILLING_ROW }],
+          statementCompletion: null,
+        });
+        try {
+          await refreshCreditCardStatementCompletions();
+        } catch {
+          showFeedback({
+            message: t("bulkExpenseSavedButRefreshFailed"),
+            color: "yellow",
+          });
+          onPosted();
+          return;
+        }
+      } else {
+        clearPostedRows(false);
       }
       showFeedback({ message: t("bulkExpensePosted"), color: "teal" });
-      resetBulkForm();
       onPosted();
     } catch {
-      showFeedback({ message: "記入に失敗しました", color: "red" });
+      showFeedback({ message: t("saveFailed"), color: "red" });
     } finally {
       setPosting(false);
     }
@@ -392,9 +708,18 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
     setCompletionPosting(true);
     try {
       await api.creditCardStatements.complete(statementCompletion);
-      await refreshCreditCardStatementCompletions();
       resetBulkForm();
       closeCompletionConfirm();
+      try {
+        await refreshCreditCardStatementCompletions();
+      } catch {
+        showFeedback({
+          message: t("bulkExpenseSavedButRefreshFailed"),
+          color: "yellow",
+        });
+        onPosted();
+        return;
+      }
       showFeedback({
         message: t("creditCardStatementCompleted").replace(
           "{month}",
@@ -418,8 +743,23 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
       });
       return;
     }
-    const payAccId = Number(paymentAccountId);
-    const { entries, skippedCount } = buildEntries(payAccId);
+    let built: { entries: CreateJournalInput[]; skippedCount: number };
+    try {
+      built = buildBulkJournalEntries({
+        rows,
+        paymentAccount,
+        accounts,
+        budgetCategories,
+        currency: selectedCurrency,
+        decimalPlaces: currencyDecimalPlaces,
+        defaultExpenseDescription: t("bulkExpenseDefaultExpenseDesc"),
+        defaultDiscountDescription: t("bulkExpenseDefaultDiscountDesc"),
+      });
+    } catch (error) {
+      showFeedback({ message: submissionErrorMessage(error), color: "red" });
+      return;
+    }
+    const { entries, skippedCount } = built;
 
     if (entries.length === 0) {
       showFeedback({
@@ -508,7 +848,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
           withTableBorder
           striped
           highlightOnHover
-          style={{ minWidth: 960 }}
+          style={{ minWidth: 1120 }}
         >
           <Table.Thead>
             <Table.Tr>
@@ -566,6 +906,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
                     <NumberInput
                       size="xs"
                       min={0}
+                      decimalScale={currencyDecimalPlaces}
                       prefix={currencySymbol}
                       thousandSeparator=","
                       value={row.price}
@@ -581,7 +922,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
                       data={expenseAndRepaymentOpts}
                       renderOption={renderAccountOption as never}
                       value={row.expenseAccountId}
-                      onChange={(v) => updateRow(idx, { expenseAccountId: v })}
+                      onChange={(v) => selectExpenseAccount(idx, v)}
                       searchable={false}
                       clearable
                       placeholder={t("bulkExpenseExpensePlaceholder")}
@@ -604,7 +945,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
                     </ActionIcon>
                   </Table.Td>
                 </Table.Tr>
-              ) : (
+              ) : row.type === "discount" ? (
                 <Table.Tr key={idx}>
                   <Table.Td>
                     <Badge color="orange" size="sm" variant="light">
@@ -640,6 +981,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
                     <NumberInput
                       size="xs"
                       min={0}
+                      decimalScale={currencyDecimalPlaces}
                       prefix={currencySymbol}
                       thousandSeparator=","
                       value={row.amount}
@@ -662,21 +1004,63 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
                     />
                   </Table.Td>
                   <Table.Td>
-                    {canAllocateDiscountIncome ? (
-                      <Select
-                        size="xs"
-                        data={catOpts}
-                        value={row.budgetCategoryId}
-                        onChange={(v) => updateRow(idx, { budgetCategoryId: v })}
-                        searchable={false}
-                        clearable
-                        placeholder={t("bulkExpenseBudgetPlaceholder")}
-                      />
-                    ) : (
-                      <Text size="xs" c="dimmed">
-                        —
-                      </Text>
-                    )}
+                    <Stack gap={4}>
+                      {canAllocateDiscountIncome ? (
+                        <Select
+                          size="xs"
+                          data={catOpts}
+                          value={row.budgetCategoryId}
+                          onChange={(v) => updateRow(idx, {
+                            budgetCategoryId: v,
+                            transferAccountId: null,
+                            deferTransfer: undefined,
+                          })}
+                          searchable={false}
+                          clearable
+                          placeholder={t("bulkExpenseBudgetPlaceholder")}
+                        />
+                      ) : (
+                        <Text size="xs" c="dimmed">—</Text>
+                      )}
+                      {(() => {
+                        const need = getDiscountTransferNeed(row);
+                        if (!need?.required || need.accountIds.length === 0) return null;
+                        const targetOptions = need.accountIds
+                          .map((accountId) => accounts.find((account) => account.id === accountId))
+                          .filter((account): account is NonNullable<typeof account> => !!account)
+                          .map((account) => toAccountSelectOption(account, t));
+                        return (
+                          <>
+                            <Select
+                              size="xs"
+                              label={t("incomeTransferDestination")}
+                              data={targetOptions}
+                              renderOption={renderAccountOption as never}
+                              value={
+                                row.transferAccountId ??
+                                (need.accountIds.length === 1
+                                  ? String(need.accountIds[0])
+                                  : null)
+                              }
+                              onChange={(value) => updateRow(idx, { transferAccountId: value })}
+                              searchable={false}
+                              required
+                            />
+                            <Checkbox
+                              size="xs"
+                              label={t("incomeTransferDeferLabel")}
+                              checked={row.deferTransfer === true}
+                              onChange={(event) => updateRow(idx, {
+                                deferTransfer: event.currentTarget.checked,
+                              })}
+                            />
+                            <Text size="xs" c="dimmed">
+                              {t("incomeTransferDeferHint")}
+                            </Text>
+                          </>
+                        );
+                      })()}
+                    </Stack>
                   </Table.Td>
                   <Table.Td>
                     <ActionIcon
@@ -688,6 +1072,63 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
                     >
                       <IconTrash size={14} />
                     </ActionIcon>
+                  </Table.Td>
+                </Table.Tr>
+              ) : (
+                <Table.Tr key={idx}>
+                  <Table.Td>
+                    <Badge color="grape" size="sm" variant="light">
+                      {t("bulkExpenseRowTypeLoan")}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="xs">{rowDate(row).toLocaleDateString(locale)}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="xs" lineClamp={2}>
+                      {row.input?.description || row.draft.formValues.description || t("bulkLoanUnnamed")}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td><Text size="xs" c="dimmed">—</Text></Table.Td>
+                  <Table.Td>
+                    <Text size="xs">
+                      {formatCurrency(
+                        Number(row.draft.formValues.amount) || 0,
+                        locale,
+                        selectedCurrency,
+                        currencySymbol,
+                      )}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="xs" lineClamp={2}>
+                      {accounts.find((account) => account.id === row.draft.formValues.loanAccountId)?.name ?? t("selectAccount")}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="xs" c={row.input ? "teal" : "orange"}>
+                      {row.input ? t("bulkLoanConfigured") : t("bulkLoanNeedsConfiguration")}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap={4} wrap="nowrap">
+                      <Button
+                        size="compact-xs"
+                        variant="light"
+                        onClick={() => openLoanEditor(idx, row.draft)}
+                      >
+                        {t("bulkLoanConfigure")}
+                      </Button>
+                      <ActionIcon
+                        color="red"
+                        variant="subtle"
+                        size="sm"
+                        onClick={() => removeRow(idx)}
+                        disabled={rows.length <= 1}
+                      >
+                        <IconTrash size={14} />
+                      </ActionIcon>
+                    </Group>
                   </Table.Td>
                 </Table.Tr>
               ),
@@ -714,6 +1155,16 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
         >
           {t("bulkExpenseAddDiscountRow")}
         </Button>
+        <Button
+          variant="light"
+          color="grape"
+          size="xs"
+          leftSection={<IconPlus size={14} />}
+          onClick={addLoanRow}
+          disabled={!paymentAccountId}
+        >
+          {t("bulkExpenseAddLoanRow")}
+        </Button>
         <Switch
           size="xs"
           label={t("bulkExpenseCopyLastDate")}
@@ -733,7 +1184,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
           <Group justify="space-between">
             <Text size="sm">{t("bulkExpenseCalcTotal")}</Text>
             <Text fw={700} size="sm">
-              ¥{calcTotal.toLocaleString()}
+              {formatCurrency(calcTotal, locale, selectedCurrency, currencySymbol)}
             </Text>
           </Group>
           <Divider />
@@ -769,6 +1220,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
                 <NumberInput
                   size="xs"
                   w={120}
+                  decimalScale={currencyDecimalPlaces}
                   prefix={currencySymbol}
                   thousandSeparator=","
                   value={br.amount}
@@ -835,7 +1287,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
                     {t("bulkExpenseBillingTotal")}
                   </Text>
                   <Text size="sm" c="dimmed">
-                    ¥{billingTotal.toLocaleString()}
+                    {formatCurrency(billingTotal, locale, selectedCurrency, currencySymbol)}
                   </Text>
                 </Group>
               )}
@@ -846,7 +1298,7 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
                   size="sm"
                   c={Math.abs(diff) < 1 ? "teal" : "red"}
                 >
-                  ¥{diff.toLocaleString()}
+                  {formatCurrency(diff, locale, selectedCurrency, currencySymbol)}
                 </Text>
               </Group>
             </>
@@ -864,6 +1316,35 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
           {t("bulkExpensePostAll")}
         </Button>
       </Group>
+
+      <Modal
+        opened={loanModalOpened}
+        onClose={() => {
+          setLoanModalOpened(false);
+          setEditingLoanRowIndex(null);
+        }}
+        title={t("bulkLoanEditorTitle")}
+        size="xl"
+        centered
+      >
+        {loanDraft && paymentAccountId && (
+          <SimpleEntryForm
+            key={loanEditorKey}
+            accounts={accounts}
+            budgetFilters={budgetFilters}
+            fixedEntryType="loan"
+            fixedLoanCounterAccountId={Number(paymentAccountId)}
+            initialDraft={loanDraft}
+            onDraftChange={handleLoanDraftChange}
+            onSubmit={async (input) => handleLoanSubmit(input)}
+            onCancel={() => {
+              setLoanModalOpened(false);
+              setEditingLoanRowIndex(null);
+            }}
+            submitLabel={t("bulkLoanSave")}
+          />
+        )}
+      </Modal>
 
       <ConfirmModal
         opened={completionConfirmOpened}

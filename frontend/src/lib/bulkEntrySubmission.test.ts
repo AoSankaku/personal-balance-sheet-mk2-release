@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { Account, CreateJournalInput } from "@balance-sheet/shared";
-import * as bulkComponent from "../components/BulkExpenseTab";
+import { buildBulkJournalEntries } from "./bulkEntrySubmission";
 import * as scope from "./incomeBudgetScope";
-import { buildExpenseBudgetAllocations, summarizeBudgetDistribution } from "./simpleEntryUtils";
+import { buildExpenseBudgetAllocations, getLoanSettlementDifference, summarizeBudgetDistribution } from "./simpleEntryUtils";
 
 const accounts = [
   { id: 1, name: "Bank", type: "asset", category: "cash", include_in_allocatable: true },
@@ -16,10 +16,10 @@ const accounts = [
 ].map(a => ({ ...a, created_at: "2026-01-01", balances: { JPY: 0, USD: 0 } })) as Account[];
 const categories = [{ id: 10, name: "Reserve", target_accounts: [{ account_id: 2, ratio: 100 }] }, { id: 11, name: "Other", target_accounts: [{ account_id: 2, ratio: 100 }] }];
 const date = new Date(2026, 9, 20);
-const expense = { type: "expense", date, itemName: "Purchase", qty: 1, price: 25.55, expenseAccountId: "3" };
-const discount = { type: "discount", date, discountType: "Points", amount: 5, incomeAccountId: "4", budgetCategoryId: "10", deferTransfer: true };
-type BuildResult = { entries: CreateJournalInput[]; skippedCount: number };
-const build = (rows: unknown[], extra: Record<string, unknown> = {}) => (bulkComponent as unknown as { buildBulkJournalEntries: (input: unknown) => BuildResult }).buildBulkJournalEntries({ rows, paymentAccount: accounts[0], accounts, budgetCategories: categories, currency: "USD", decimalPlaces: 2, defaultExpenseDescription: "Purchase", defaultDiscountDescription: "Discount", ...extra });
+const expense = { type: "expense", date, itemName: "Purchase", qty: 1, price: 25.55, expenseAccountId: "3" } as const;
+const discount = { type: "discount", date, discountType: "Points", amount: 5, incomeAccountId: "4", budgetCategoryId: "10", deferTransfer: true } as const;
+type BuildInput = Parameters<typeof buildBulkJournalEntries>[0];
+const build = (rows: BuildInput["rows"], extra: Partial<BuildInput> = {}) => buildBulkJournalEntries({ rows, paymentAccount: accounts[0], accounts, budgetCategories: categories, currency: "USD", decimalPlaces: 2, defaultExpenseDescription: "Purchase", defaultDiscountDescription: "Discount", ...extra });
 
 describe("bulk journal submission parity", () => {
   test("preserves selected currency and cents in journal lines and budget splits", () => {
@@ -83,16 +83,48 @@ describe("bulk journal submission parity", () => {
   });
 
   test("normal and bulk income use one transfer builder with the same explicit resume flag", () => {
-    const shared = (scope as unknown as { buildIncomeBudgetEntryFields: (input: unknown) => Pick<CreateJournalInput, "income_budget_allocations" | "income_transfer_destinations"> }).buildIncomeBudgetEntryFields;
+    const shared = scope.buildIncomeBudgetEntryFields;
     const normal = shared({ destinationAccount: accounts[0], incomeBudgetAllocations: [{ budget_category_id: 10, amount: 5 }], accounts, categories, currency: "USD", defer: false });
     const bulk = build([{ ...discount, deferTransfer: false }]).entries[0]!;
     expect(bulk.income_budget_allocations).toEqual(normal.income_budget_allocations);
     expect(bulk.income_transfer_destinations).toEqual(normal.income_transfer_destinations);
     expect(normal.income_transfer_destinations![0]!.is_deferred).toBe(false);
   });
+
+  test("counts incomplete ordinary rows while retaining the valid configured income row", () => {
+    const result = build([
+      { ...expense, price: 0 },
+      { ...expense, expenseAccountId: null },
+      { ...discount, incomeAccountId: null },
+      discount,
+    ]);
+    expect(result.skippedCount).toBe(2);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0]!.description).toBe("Points");
+  });
+
+  test("rejects amounts that cannot be represented in the selected currency", () => {
+    expect(() => build([{ ...expense, price: 1.001 }])).toThrow("bulk_invalid_amount");
+    expect(() => build([{ ...discount, amount: Number.NaN }])).toThrow("bulk_invalid_amount");
+    expect(() => build([{ ...expense, qty: 0 }])).toThrow("bulk_invalid_amount");
+  });
+
+  test("rejects an explicitly different currency in a prepared loan and retains legacy funding splits", () => {
+    expect(() => build([{ ...loanRow, input: { ...loanInput, lines: loanInput.lines.map(line => ({ ...line, currency: "JPY" })) } }])).toThrow("bulk_currency_changed");
+    const entry = build([{ ...loanRow, input: { ...loanInput, budget_funding: { kind: "repay", principal_amount: 200, allocations: [{ budget_category_id: 10, amount: 200, source_journal_entry_id: 99 }] } } }]).entries[0]!;
+    expect(entry.budget_funding!.allocations).toEqual([{ budget_category_id: 10, amount: 200, source_journal_entry_id: 99, currency: "USD" }]);
+  });
 });
 
 test("the shared normal/bulk expense allocator distributes smallest currency units", () => {
   expect(buildExpenseBudgetAllocations(25.55, [{ budget_category_id: 10, ratio: 60 }, { budget_category_id: 11, ratio: 40 }], -1, 2)).toEqual([{ budget_category_id: 10, amount: -15.33 }, { budget_category_id: 11, amount: -10.22 }]);
   expect(summarizeBudgetDistribution(25.55, [{ budget_category_id: 10, ratio: 100, amount: 25.55 }], 2).isComplete).toBe(true);
+});
+
+test("loan settlement differences retain one minor unit and ignore floating-point residue", () => {
+  expect(getLoanSettlementDifference(20.02, 20.01, 2)).toBe(0.01);
+  expect(getLoanSettlementDifference(20.01, 20.02, 2)).toBe(-0.01);
+  expect(getLoanSettlementDifference(0.3, 0.1 + 0.2, 2)).toBe(0);
+  expect(getLoanSettlementDifference(1.001, 1, 3)).toBe(0.001);
+  expect(getLoanSettlementDifference(0.00000002, 0.00000001, 8)).toBe(0.00000001);
 });
