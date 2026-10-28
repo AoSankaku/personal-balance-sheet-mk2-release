@@ -1,8 +1,56 @@
 import { describe, expect, test } from "bun:test";
+import type { Account } from "@balance-sheet/shared";
 import { buildIncomeBudgetSubmissionFields } from "../lib/incomeBudgetScope";
-import { buildLoanBudgetSubmissionFields } from "./SimpleEntryForm";
+import { calculateMultiLineBudgetFundingImpact } from "../lib/multiLineBudgetFunding";
+import {
+  buildLoanBudgetSubmissionFields,
+  tagLoanLinesWithCurrency,
+} from "./SimpleEntryForm";
 
 describe("simple-entry budget-scope payloads", () => {
+  test("tags normal USD loan lines before calculating funding impact", () => {
+    const accounts = [
+      {
+        id: 1,
+        name: "Bank",
+        type: "asset",
+        category: "cash",
+        created_at: "2026-01-01",
+        include_in_allocatable: true,
+      },
+      {
+        id: 2,
+        name: "Loan",
+        type: "liability",
+        category: "short_term_loan",
+        created_at: "2026-01-01",
+      },
+    ] as Account[];
+    const lines = tagLoanLinesWithCurrency(
+      [
+        { account_id: 1, debit: 200, credit: 0 },
+        { account_id: 2, debit: 0, credit: 200 },
+      ],
+      "USD",
+    );
+    const impact = calculateMultiLineBudgetFundingImpact({
+      lines,
+      accounts,
+      currency: "USD",
+      decimalPlaces: 2,
+    });
+
+    expect(lines.every((line) => line.currency === "USD")).toBe(true);
+    expect(impact.components).toEqual([
+      {
+        kind: "borrow",
+        principal_amount: 200,
+        applied_amount: 200,
+        component_only_amount: 0,
+      },
+    ]);
+  });
+
   test("does not submit stale income allocations after an excluded deposit is selected", () => {
     const fields = buildIncomeBudgetSubmissionFields({
       destinationAccount: {

@@ -55,6 +55,15 @@ export interface IncomeDistributionItem {
   amount: number;
 }
 
+export function getLoanSettlementDifference(
+  actualAmount: number,
+  principalAmount: number,
+  decimalPlaces = 0,
+): number {
+  const scale = 10 ** decimalPlaces;
+  return (Math.round(actualAmount * scale) - Math.round(principalAmount * scale)) / scale;
+}
+
 type DistributionRatioDirection = "exact" | "over" | "under";
 
 export function getIncomeDescriptionForSubmit(
@@ -93,34 +102,41 @@ export function distributeWithLargestRemainder(
 export function computeBudgetDistributionAmounts(
   totalAmount: number,
   distribution: BudgetDistributionAllocation[],
+  decimalPlaces = 0,
 ): Map<number, number> {
+  const scale = 10 ** decimalPlaces;
   const base = Math.max(0, Number(totalAmount) || 0);
   const items = distribution
     .filter((item) => item.ratio > 0)
     .map((item) => ({
       id: item.budget_category_id,
-      exact: (base * item.ratio) / 100,
+      exact: (Math.round(base * scale) * item.ratio) / 100,
     }));
   const pool = Math.round(items.reduce((sum, item) => sum + item.exact, 0));
 
-  return distributeWithLargestRemainder(pool, items);
+  return new Map([...distributeWithLargestRemainder(pool, items)].map(
+    ([id, units]) => [id, units / scale],
+  ));
 }
 
 export function buildExpenseBudgetAllocations(
   totalAmount: number,
   distribution: BudgetDistributionAllocation[],
   sign: 1 | -1 = -1,
+  decimalPlaces = 0,
 ): { budget_category_id: number; amount: number }[] {
+  const scale = 10 ** decimalPlaces;
   const computedAmounts = computeBudgetDistributionAmounts(
     totalAmount,
     distribution,
+    decimalPlaces,
   );
 
   return distribution
     .map((item) => {
       const amount =
         item.amount != null
-          ? Math.max(0, Math.round(Number(item.amount) || 0))
+          ? Math.max(0, Math.round((Number(item.amount) || 0) * scale) / scale)
           : (computedAmounts.get(item.budget_category_id) ?? 0);
 
       return {
@@ -134,18 +150,21 @@ export function buildExpenseBudgetAllocations(
 export function summarizeBudgetDistribution(
   totalAmount: number,
   distribution: BudgetDistributionAllocation[],
+  decimalPlaces = 0,
 ): BudgetDistributionSummary {
+  const scale = 10 ** decimalPlaces;
   const base = Math.max(0, Number(totalAmount) || 0);
   const totalRatio = distribution.reduce((sum, item) => sum + item.ratio, 0);
-  const computedAmounts = computeBudgetDistributionAmounts(base, distribution);
-  const allocatedAmount = distribution.reduce((sum, item) => {
+  const computedAmounts = computeBudgetDistributionAmounts(base, distribution, decimalPlaces);
+  const allocatedUnits = distribution.reduce((sum, item) => {
     const amount =
       item.amount != null
-        ? Math.max(0, Math.round(Number(item.amount) || 0))
+        ? Math.max(0, Math.round((Number(item.amount) || 0) * scale) / scale)
         : (computedAmounts.get(item.budget_category_id) ?? 0);
-    return sum + amount;
+    return sum + Math.round(amount * scale);
   }, 0);
-  const targetAmount = Math.round((base * totalRatio) / 100);
+  const allocatedAmount = allocatedUnits / scale;
+  const targetAmount = Math.round((base * scale * totalRatio) / 100) / scale;
   const isExactAmount = allocatedAmount === targetAmount;
   const rawDisplayRatio = base > 0 ? (allocatedAmount / base) * 100 : totalRatio;
   const ratioDirection =
@@ -165,7 +184,7 @@ export function summarizeBudgetDistribution(
     allocatedAmount,
     targetAmount,
     isExactAmount,
-    isComplete: totalRatio === 100 && allocatedAmount === base,
+    isComplete: totalRatio === 100 && allocatedUnits === Math.round(base * scale),
     isOverAllocated: totalRatio > 100 || allocatedAmount > targetAmount,
     isUnderAllocated:
       (totalRatio > 0 && totalRatio < 100) || allocatedAmount < targetAmount,
@@ -179,12 +198,14 @@ export function formatBudgetDistributionRatio(ratio: number): string {
 export function summarizeAmountDistribution(
   totalAmount: number,
   distribution: AmountDistributionItem[],
+  decimalPlaces = 0,
 ): AmountDistributionSummary {
-  const targetAmount = Math.max(0, Math.round(Number(totalAmount) || 0));
+  const scale = 10 ** decimalPlaces;
+  const targetAmount = Math.max(0, Math.round((Number(totalAmount) || 0) * scale)) / scale;
   const allocatedAmount = distribution.reduce(
-    (sum, item) => sum + Math.max(0, Math.round(Number(item.amount) || 0)),
+    (sum, item) => sum + Math.max(0, Math.round((Number(item.amount) || 0) * scale)),
     0,
-  );
+  ) / scale;
   const displayRatio =
     targetAmount > 0
       ? normalizeDistributionRatio(

@@ -28,6 +28,7 @@ import {
 import { budgetAccountDelta } from "../../../../shared/budgetScope";
 import { useLang } from "../../i18n";
 import { suggestLendingFundingSplit } from "../../lib/budgetFundingAllocation";
+import { computeBudgetDistributionAmounts, getLoanSettlementDifference } from "../../lib/simpleEntryUtils";
 import { formatCurrency } from "../../lib/numberFormat";
 import { renderAccountOption, type AccountOption } from "../../lib/accountSelect";
 import {
@@ -49,6 +50,7 @@ interface Props {
   budgetCategories: BudgetCategory[];
   locale: string;
   selectedCurrency: string;
+  currencyDecimalPlaces?: number;
   currencySymbol: string;
   unsettledEntries: UnsettledLoanEntry[];
   setUnsettledEntries: (v: UnsettledLoanEntry[]) => void;
@@ -70,6 +72,7 @@ interface Props {
   currentUnallocatedFunding: number;
   showFundingSuggestion: boolean;
   handleLoanCounterAccountChange: (v: string | null) => void;
+  fixedCounterAccountId?: number;
 }
 
 export function LoanSection({
@@ -84,6 +87,7 @@ export function LoanSection({
   budgetCategories,
   locale,
   selectedCurrency,
+  currencyDecimalPlaces = 0,
   currencySymbol,
   unsettledEntries,
   setUnsettledEntries,
@@ -99,6 +103,7 @@ export function LoanSection({
   currentUnallocatedFunding,
   showFundingSuggestion,
   handleLoanCounterAccountChange,
+  fixedCounterAccountId,
 }: Props) {
   const { t } = useLang();
   const [showZeroCategories, setShowZeroCategories] = useState(false);
@@ -213,6 +218,11 @@ export function LoanSection({
     form.values.amount,
     currentUnallocatedFunding,
   );
+  const loanCounterBudgetAmounts = computeBudgetDistributionAmounts(
+    form.values.amount,
+    loanCounterBudgetDist,
+    currencyDecimalPlaces,
+  );
 
   const counterAcctType = counterAccount?.type;
   const showLendingSuggestion =
@@ -256,11 +266,19 @@ export function LoanSection({
           value={loanDirection}
           onChange={(v) => {
             form.setFieldValue("loanDirection", v as typeof loanDirection);
-            form.setFieldValue("loanCounterAccountId", null);
+            form.setFieldValue(
+              "loanCounterAccountId",
+              fixedCounterAccountId ?? null,
+            );
             form.setFieldValue("loanAccountId", null);
             setUnsettledEntries([]);
             setSettledEntryIds([]);
             setLoanFundingCategoryAmounts({});
+            handleLoanCounterAccountChange(
+              fixedCounterAccountId != null
+                ? String(fixedCounterAccountId)
+                : null,
+            );
           }}
           style={{ minWidth: 320 }}
         />
@@ -293,6 +311,7 @@ export function LoanSection({
         data={loanCounterOptions}
         searchable={!isMobile}
         required
+        disabled={fixedCounterAccountId != null}
         value={
           form.values.loanCounterAccountId != null
             ? String(form.values.loanCounterAccountId)
@@ -345,7 +364,7 @@ export function LoanSection({
                 thousandSeparator=","
                 value={
                   form.values.amount > 0
-                    ? Math.round((form.values.amount * dist.ratio) / 100)
+                    ? loanCounterBudgetAmounts.get(dist.budget_category_id) ?? 0
                     : 0
                 }
                 onChange={(v) => {
@@ -521,8 +540,14 @@ export function LoanSection({
           const selectedTotal = unsettledEntries
             .filter((e) => settledEntryIds.includes(e.journal_entry_id))
             .reduce((s, e) => s + e.amount, 0);
-          const diff =
-            settledEntryIds.length > 0 ? form.values.amount - selectedTotal : 0;
+          const diff = settledEntryIds.length > 0
+            ? getLoanSettlementDifference(form.values.amount, selectedTotal, currencyDecimalPlaces)
+            : 0;
+          const diffBudgetAmounts = computeBudgetDistributionAmounts(
+            Math.abs(diff),
+            diffBudgetDist,
+            currencyDecimalPlaces,
+          );
           const hasDiff = settledEntryIds.length > 0 && Math.abs(diff) > 0;
           const diffIsExpense =
             (loanDirection === "decrease" && diff > 0) ||
@@ -716,9 +741,7 @@ export function LoanSection({
                                 thousandSeparator=","
                                 value={
                                   Math.abs(diff) > 0
-                                    ? Math.round(
-                                        (Math.abs(diff) * dist.ratio) / 100,
-                                      )
+                                    ? diffBudgetAmounts.get(dist.budget_category_id) ?? 0
                                     : 0
                                 }
                                 onChange={(v) => {

@@ -71,9 +71,20 @@ export interface BulkDiscountRow {
   amount: number;
   incomeAccountId: string | null;
   budgetCategoryId: string | null;
+  transferAccountId?: string | null;
+  deferTransfer?: boolean | null;
 }
 
-export type BulkRow = BulkExpenseRow | BulkDiscountRow;
+export interface BulkLoanRow {
+  type: "loan";
+  /** Prepared by SimpleEntryForm; null means it still needs configuration. */
+  input: CreateJournalInput | null;
+  draft: SimpleFormDraft;
+  currency: string;
+  paymentAccountId: string;
+}
+
+export type BulkRow = BulkExpenseRow | BulkDiscountRow | BulkLoanRow;
 
 export interface BillingRow {
   label: string;

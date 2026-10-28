@@ -1,5 +1,5 @@
 import { isBudgetAccount } from "../../../shared/budgetScope";
-import { eq, desc, sql, inArray, and, gte, lte, like } from "drizzle-orm";
+import { eq, desc, sql, inArray, and, gte, lte, like, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import type {
   BudgetFundingComponentInput,
@@ -10,6 +10,7 @@ import type {
 import { createDb, type Env } from "../db";
 import {
   accounts,
+  budgetCategories,
   journalEntries,
   journalLines,
   journalEntryBudgetAllocations,
@@ -32,7 +33,7 @@ import {
 } from "../lib/moneyValidation";
 import { resolveAsOfDate } from "../lib/appDate";
 import { serializeLoanSettlement } from "../lib/loanSettlement";
-import { calculateBudgetFundingImpact } from "../lib/budgetFundingImpact";
+import { calculateBudgetFundingImpact, splitAmountByLargestRemainder } from "../lib/budgetFundingImpact";
 import { journalBalanceError } from "../lib/journalValidation";
 import { normalizeJournalBudgetScope } from "../lib/journalBudgetScope";
 import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
@@ -370,6 +371,604 @@ function buildNewEntryRowsSql(rowCount: number, columnsPerRow: number): string {
     columnsPerRow,
   )})`;
   return Array.from({ length: rowCount }, () => row).join(", ");
+}
+
+type JournalCreateInput = {
+  date: string;
+  description: string;
+  lines: Array<{
+    account_id: number;
+    debit: number;
+    credit: number;
+    currency?: string;
+    credit_card_billing_offset_months?: number | null;
+  }>;
+  budget_allocations?: Array<{
+    budget_category_id: number;
+    amount: number;
+    currency?: string;
+    is_reference?: boolean;
+  }>;
+  budget_source?: "simple" | "multiline";
+  income_budget_allocations?: Array<{
+    budget_category_id: number;
+    amount: number;
+    currency?: string;
+    adjustment_type?: "allocation" | "reset" | "transfer";
+  }>;
+  loan_settlement_opening?: boolean;
+  loan_settlement_journal_entry_ids?: number[];
+  budget_funding?: BudgetFundingInput;
+  budget_funding_components?: BudgetFundingComponentInput[];
+  income_transfer_destinations?: Array<{
+    budget_category_id: number;
+    from_account_id: number;
+    to_account_id: number;
+    amount: number;
+    currency?: string;
+    is_deferred?: boolean | null;
+  }>;
+  is_currency_exchange?: boolean;
+};
+
+type PreparedJournalCreate = {
+  statements: D1PreparedStatement[];
+  entryStatementIndex: number;
+  lineStatementIndex: number;
+  accountIds: number[];
+};
+
+type JournalCreateResult =
+  | { ok: false; status: 400 | 409; error: string | ReturnType<typeof invalidMoneyResponse> }
+  | { ok: true; prepared: PreparedJournalCreate };
+
+/**
+ * Shared validation and SQL preparation for normal and bulk journal creation.
+ * This function never writes; callers can validate every requested entry
+ * before running one atomic, guarded D1 batch.
+ */
+async function prepareJournalCreate(
+  env: Env,
+  body: JournalCreateInput,
+  source: "manual" | "csv_import",
+  decimalPlacesByCurrency: Record<string, number>,
+): Promise<JournalCreateResult> {
+  const invalid = (error: string, status: 400 | 409 = 400): JournalCreateResult => ({
+    ok: false,
+    status,
+    error,
+  });
+
+  if (
+    !body || !body.date || !body.description || !Array.isArray(body.lines) ||
+    body.lines.length < 2
+  ) {
+    return invalid("date, description, and at least 2 lines are required");
+  }
+  const optionalArrays: Array<[string, unknown]> = [
+    ["budget_allocations", body.budget_allocations],
+    ["income_budget_allocations", body.income_budget_allocations],
+    ["loan_settlement_journal_entry_ids", body.loan_settlement_journal_entry_ids],
+    ["budget_funding_components", body.budget_funding_components],
+    ["income_transfer_destinations", body.income_transfer_destinations],
+  ];
+  const malformedArray = optionalArrays.find(([_, value]) => value != null && !Array.isArray(value));
+  if (malformedArray) return invalid(`${malformedArray[0]} must be an array`);
+  if (body.budget_funding != null && (typeof body.budget_funding !== "object" || Array.isArray(body.budget_funding))) {
+    return invalid("budget_funding must be an object");
+  }
+  if (body.budget_funding_components?.some((component) => !component || typeof component !== "object")) {
+    return invalid("budget_funding_components must contain objects");
+  }
+  if (body.loan_settlement_opening != null && typeof body.loan_settlement_opening !== "boolean") {
+    return invalid("loan_settlement_opening must be a boolean");
+  }
+  if (body.income_transfer_destinations?.some(
+    (destination) => destination.is_deferred != null &&
+      typeof destination.is_deferred !== "boolean",
+  )) {
+    return invalid("income transfer is_deferred must be a boolean");
+  }
+
+  const db = createDb(env);
+  const scaleOptions = { decimalPlacesByCurrency };
+  const invalidMoney = findInvalidMoney([
+    ...body.lines.flatMap((line, index) => [
+      {
+        path: `lines[${index}].debit`,
+        value: line.debit,
+        currency: line.currency,
+        decimalPlaces: decimalPlacesByCurrency[normalizeCurrency(line.currency)],
+      },
+      {
+        path: `lines[${index}].credit`,
+        value: line.credit,
+        currency: line.currency,
+        decimalPlaces: decimalPlacesByCurrency[normalizeCurrency(line.currency)],
+      },
+    ]),
+    ...(body.budget_allocations ?? []).map((allocation, index) => ({
+      path: `budget_allocations[${index}].amount`,
+      value: allocation.amount,
+      currency: allocation.currency ?? budgetCurrencyFromLines(body.lines),
+      decimalPlaces: decimalPlacesByCurrency[normalizeCurrency(allocation.currency ?? budgetCurrencyFromLines(body.lines))],
+    })),
+    ...(body.income_budget_allocations ?? []).map((allocation, index) => ({
+      path: `income_budget_allocations[${index}].amount`,
+      value: allocation.amount,
+      currency: allocation.currency ?? budgetCurrencyFromLines(body.lines),
+      decimalPlaces: decimalPlacesByCurrency[normalizeCurrency(allocation.currency ?? budgetCurrencyFromLines(body.lines))],
+    })),
+    ...(body.budget_funding?.allocations ?? []).map((allocation, index) => ({
+      path: `budget_funding.allocations[${index}].amount`,
+      value: allocation.amount,
+      currency: allocation.currency ?? budgetCurrencyFromLines(body.lines),
+      decimalPlaces: decimalPlacesByCurrency[normalizeCurrency(allocation.currency ?? budgetCurrencyFromLines(body.lines))],
+    })),
+    ...(body.budget_funding ? [{
+      path: "budget_funding.principal_amount",
+      value: body.budget_funding.principal_amount,
+      currency: budgetCurrencyFromLines(body.lines),
+      decimalPlaces: decimalPlacesByCurrency[budgetCurrencyFromLines(body.lines)],
+    }] : []),
+    ...normalizeBudgetFundingComponents(body).flatMap((component, index) => [
+      {
+        path: `budget_funding_components[${index}].principal_amount`,
+        value: component.principal_amount,
+        currency: budgetCurrencyFromLines(body.lines),
+        decimalPlaces: decimalPlacesByCurrency[budgetCurrencyFromLines(body.lines)],
+      },
+      {
+        path: `budget_funding_components[${index}].applied_amount`,
+        value: component.applied_amount,
+        currency: budgetCurrencyFromLines(body.lines),
+        decimalPlaces: decimalPlacesByCurrency[budgetCurrencyFromLines(body.lines)],
+      },
+      {
+        path: `budget_funding_components[${index}].component_only_amount`,
+        value: component.component_only_amount,
+        currency: budgetCurrencyFromLines(body.lines),
+        decimalPlaces: decimalPlacesByCurrency[budgetCurrencyFromLines(body.lines)],
+      },
+      ...(component.allocations ?? []).map((allocation, allocationIndex) => ({
+        path: `budget_funding_components[${index}].allocations[${allocationIndex}].amount`,
+        value: allocation.amount,
+        currency: allocation.currency ?? budgetCurrencyFromLines(body.lines),
+        decimalPlaces: decimalPlacesByCurrency[normalizeCurrency(allocation.currency ?? budgetCurrencyFromLines(body.lines))],
+      })),
+    ]),
+    ...(body.income_transfer_destinations ?? []).map((destination, index) => ({
+      path: `income_transfer_destinations[${index}].amount`,
+      value: destination.amount,
+      currency: destination.currency ?? budgetCurrencyFromLines(body.lines),
+      decimalPlaces: decimalPlacesByCurrency[normalizeCurrency(destination.currency ?? budgetCurrencyFromLines(body.lines))],
+    })),
+  ]);
+  if (invalidMoney) {
+    return {
+      ok: false,
+      status: 400,
+      error: invalidMoneyResponse(invalidMoney.path, invalidMoney.currency),
+    };
+  }
+
+  const balanceError = journalBalanceError(body.lines, body.is_currency_exchange === true, scaleOptions);
+  if (balanceError) return invalid(balanceError);
+  if (body.budget_funding && !BUDGET_FUNDING_KINDS.has(body.budget_funding.kind)) {
+    return invalid("invalid budget_funding kind");
+  }
+
+  const budgetCurrency = budgetCurrencyFromLines(body.lines);
+  const fundingValidationError = validateExplicitBudgetFunding(body.budget_funding, budgetCurrency);
+  if (fundingValidationError) return invalid(fundingValidationError);
+  const components = normalizeBudgetFundingComponents(body);
+  const componentValidationError = validateBudgetFundingComponents(components, budgetCurrency);
+  if (componentValidationError) return invalid(componentValidationError);
+  const budgetScopeError = await normalizeJournalBudgetScope(db, body, scaleOptions);
+  if (budgetScopeError) return invalid(budgetScopeError);
+
+  const settleIds = body.loan_settlement_journal_entry_ids ?? [];
+  const settlementSourceError = await validateLoanSettlementSources(db, body, settleIds, components, budgetCurrency, decimalPlacesByCurrency[budgetCurrency] ?? 0);
+  if (settlementSourceError) return invalid(settlementSourceError);
+  if (settleIds.length === 0) {
+    const componentLineValidationError = await validateBudgetFundingComponentsAgainstLines({
+      db,
+      components: body.budget_funding_components ?? (body.budget_funding ? components : undefined),
+      lines: body.lines,
+      currency: budgetCurrency,
+      decimalPlaces: decimalPlacesByCurrency[budgetCurrency] ?? 0,
+    });
+    if (componentLineValidationError) return invalid(componentLineValidationError);
+  }
+
+  for (const destination of body.income_transfer_destinations ?? []) {
+    if (
+      !Number.isInteger(destination.budget_category_id) || destination.budget_category_id <= 0 ||
+      !Number.isInteger(destination.from_account_id) || destination.from_account_id <= 0 ||
+      !Number.isInteger(destination.to_account_id) || destination.to_account_id <= 0 ||
+      destination.from_account_id === destination.to_account_id || destination.amount <= 0
+    ) return invalid("invalid income transfer destination");
+    const accountRows = await db.select({ id: accounts.id })
+      .from(accounts)
+      .where(inArray(accounts.id, [destination.from_account_id, destination.to_account_id]));
+    const [category] = await db.select({ id: budgetCategories.id })
+      .from(budgetCategories)
+      .where(eq(budgetCategories.id, destination.budget_category_id));
+    if (accountRows.length !== 2 || !category) {
+      return invalid("income transfer destination references an unknown account or budget category");
+    }
+  }
+
+  const validAllocations = (body.budget_allocations ?? []).filter((allocation) => allocation.budget_category_id && allocation.amount !== 0);
+  const validIncomeAllocs = (body.income_budget_allocations ?? []).filter((allocation) => allocation.budget_category_id && allocation.amount !== 0);
+  const statements: D1PreparedStatement[] = [];
+  if (settleIds.length > 0) statements.push(buildLoanSettlementStateGuard(env.DB, settleIds));
+  const entryStatementIndex = statements.length;
+  statements.push(env.DB.prepare(
+    `INSERT INTO journal_entries (date, description, source)
+     VALUES (?, ?, ?)
+     RETURNING id, date, description, source, created_at`,
+  ).bind(body.date, body.description, source));
+  const lineValues = body.lines.flatMap((line) => [
+    line.account_id,
+    toStorageMoneyAmount(line.debit ?? 0, line.currency, scaleOptions),
+    toStorageMoneyAmount(line.credit ?? 0, line.currency, scaleOptions),
+    normalizeCurrency(line.currency),
+    line.credit_card_billing_offset_months ?? null,
+  ]);
+  const lineStatementIndex = statements.length;
+  statements.push(env.DB.prepare(
+    `INSERT INTO journal_lines
+      (journal_entry_id, account_id, debit, credit, currency, credit_card_billing_offset_months)
+     VALUES ${buildNewEntryRowsSql(body.lines.length, 5)}
+     RETURNING id, journal_entry_id, account_id, debit, credit, currency, credit_card_billing_offset_months, created_at`,
+  ).bind(...lineValues));
+
+  if (validAllocations.length > 0) {
+    const values = validAllocations.flatMap((allocation) => [
+      allocation.budget_category_id,
+      toStorageMoneyAmount(allocation.amount, allocation.currency ?? budgetCurrency, scaleOptions),
+      normalizeCurrency(allocation.currency ?? budgetCurrency),
+      body.budget_source ?? null,
+      allocation.is_reference ? 1 : 0,
+    ]);
+    statements.push(env.DB.prepare(
+      `INSERT INTO journal_entry_budget_allocations
+        (journal_entry_id, budget_category_id, amount, currency, source, is_reference)
+       VALUES ${buildNewEntryRowsSql(validAllocations.length, 5)}`,
+    ).bind(...values));
+  }
+
+  if (validIncomeAllocs.length > 0) {
+    const values = validIncomeAllocs.flatMap((allocation) => [
+      allocation.budget_category_id,
+      toStorageMoneyAmount(allocation.amount, allocation.currency ?? budgetCurrency, scaleOptions),
+      normalizeCurrency(allocation.currency ?? budgetCurrency),
+      body.date.slice(0, 7),
+      body.date,
+      allocation.adjustment_type === "transfer" ? "transfer" : "allocation",
+    ]);
+    statements.push(env.DB.prepare(
+      `INSERT INTO budget_adjustment_logs
+        (journal_entry_id, budget_category_id, amount, currency, year_month, date, adjustment_type)
+       VALUES ${buildNewEntryRowsSql(validIncomeAllocs.length, 6)}`,
+    ).bind(...values));
+  }
+
+  if (body.loan_settlement_opening) {
+    statements.push(env.DB.prepare(
+      `INSERT OR IGNORE INTO loan_settlements (journal_entry_id, is_settled)
+       VALUES ((SELECT MAX(id) FROM journal_entries), 0)`,
+    ));
+  }
+  if (settleIds.length > 0) {
+    statements.push(env.DB.prepare(
+      `UPDATE loan_settlements
+       SET is_settled = 1,
+           settled_by_journal_entry_id = (SELECT MAX(id) FROM journal_entries),
+           settled_at = ?
+       WHERE is_settled = 0 AND journal_entry_id IN (${placeholders(settleIds.length)})`,
+    ).bind(new Date().toISOString(), ...settleIds));
+  }
+
+  const funding = body.budget_funding;
+  const componentRows = body.budget_funding_components
+    ? expandBudgetFundingComponentAllocations(body.budget_funding_components, budgetCurrency)
+    : [];
+  const explicitFundingAllocations = (funding?.allocations ?? []).filter((allocation) => allocation.amount > 0);
+  const fundingSourceIds = funding?.source_journal_entry_ids ?? [];
+  if (componentRows.length > 0) {
+    const values = componentRows.flatMap((allocation) => [
+      allocation.budget_category_id, allocation.kind,
+      toStorageMoneyAmount(allocation.amount, allocation.currency, scaleOptions),
+      allocation.currency, allocation.source_journal_entry_id, allocation.effect,
+    ]);
+    statements.push(env.DB.prepare(
+      `INSERT INTO budget_funding_allocations
+        (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
+       VALUES ${buildNewEntryRowsSql(componentRows.length, 6)}`,
+    ).bind(...values));
+  } else if (funding && fundingSourceIds.length > 0) {
+    statements.push(env.DB.prepare(
+      `INSERT INTO budget_funding_allocations
+        (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
+       SELECT (SELECT MAX(id) FROM journal_entries), budget_category_id, ?, amount, currency, journal_entry_id, effect
+       FROM budget_funding_allocations
+       WHERE journal_entry_id IN (${placeholders(fundingSourceIds.length)})
+         AND source_journal_entry_id IS NULL`,
+    ).bind(funding.kind, ...fundingSourceIds));
+  } else if (funding && explicitFundingAllocations.length > 0) {
+    const values = explicitFundingAllocations.flatMap((allocation) => [
+      allocation.budget_category_id ?? null, funding.kind,
+      toStorageMoneyAmount(allocation.amount, allocation.currency ?? budgetCurrency, scaleOptions),
+      normalizeCurrency(allocation.currency ?? budgetCurrency), null, allocation.effect ?? "apply",
+    ]);
+    statements.push(env.DB.prepare(
+      `INSERT INTO budget_funding_allocations
+        (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
+       VALUES ${buildNewEntryRowsSql(explicitFundingAllocations.length, 6)}`,
+    ).bind(...values));
+  } else if (!funding && settleIds.length > 0) {
+    statements.push(env.DB.prepare(
+      `INSERT INTO budget_funding_allocations
+        (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
+       SELECT (SELECT MAX(id) FROM journal_entries), budget_category_id,
+        CASE kind WHEN 'borrow' THEN 'repay' WHEN 'lend' THEN 'collect' ELSE kind END,
+        amount, currency, journal_entry_id, effect
+       FROM budget_funding_allocations
+       WHERE journal_entry_id IN (${placeholders(settleIds.length)})
+         AND source_journal_entry_id IS NULL`,
+    ).bind(...settleIds));
+  }
+
+  for (const destination of body.income_transfer_destinations ?? []) {
+    const currency = normalizeCurrency(destination.currency ?? budgetCurrency);
+    statements.push(env.DB.prepare(
+      `INSERT INTO income_transfer_requirements
+        (source_income_journal_entry_id, budget_category_id, budget_category_name,
+         from_account_id, to_account_id, amount, currency, is_deferred)
+       SELECT (SELECT MAX(id) FROM journal_entries), ?, name, ?, ?, ?, ?, ?
+       FROM budget_categories WHERE id = ?`,
+    ).bind(
+      destination.budget_category_id, destination.from_account_id, destination.to_account_id,
+      toStorageMoneyAmount(destination.amount, currency, scaleOptions), currency,
+      destination.is_deferred == null ? null : destination.is_deferred ? 1 : 0,
+      destination.budget_category_id,
+    ));
+  }
+
+  return {
+    ok: true,
+    prepared: {
+      statements,
+      entryStatementIndex,
+      lineStatementIndex,
+      accountIds: body.lines.map((line) => line.account_id),
+    },
+  };
+}
+
+async function validateLoanSettlementSources(
+  db: AppDb,
+  body: JournalCreateInput,
+  settleIds: number[],
+  _components: BudgetFundingComponentInput[],
+  currency: string,
+  decimalPlaces: number,
+  allowSettledByEntryId?: number,
+): Promise<string | null> {
+  if (settleIds.length === 0) return null;
+  if (settleIds.some((id) => !Number.isInteger(id) || id <= 0) || new Set(settleIds).size !== settleIds.length) {
+    return "loan settlement source entries must be unique valid IDs";
+  }
+
+  const selectedSourceIds = new Set(settleIds);
+  const declaredSourceIds = [
+    ...(body.budget_funding?.source_journal_entry_ids ?? []),
+    ...(body.budget_funding?.allocations ?? [])
+      .map((allocation) => allocation.source_journal_entry_id)
+      .filter((sourceId): sourceId is number => sourceId != null),
+    ...(body.budget_funding_components ?? []).flatMap((component) => [
+      ...(component.source_journal_entry_ids ?? []),
+      ...(component.allocations ?? [])
+        .map((allocation) => allocation.source_journal_entry_id)
+        .filter((sourceId): sourceId is number => sourceId != null),
+    ]),
+  ];
+  if (declaredSourceIds.some((sourceId) => !selectedSourceIds.has(sourceId))) {
+    return "budget funding source entries must match the selected loan settlement sources";
+  }
+
+  const sourceRows = await db.select({
+    entryId: loanSettlements.journal_entry_id,
+    isSettled: loanSettlements.is_settled,
+    settledByEntryId: loanSettlements.settled_by_journal_entry_id,
+    date: journalEntries.date,
+    accountId: journalLines.account_id,
+    debit: journalLines.debit,
+    credit: journalLines.credit,
+    currency: journalLines.currency,
+    category: accounts.category,
+  }).from(loanSettlements)
+    .innerJoin(journalEntries, eq(journalEntries.id, loanSettlements.journal_entry_id))
+    .innerJoin(journalLines, eq(journalLines.journal_entry_id, loanSettlements.journal_entry_id))
+    .innerJoin(accounts, eq(accounts.id, journalLines.account_id))
+    .where(inArray(loanSettlements.journal_entry_id, settleIds));
+  const rowsById = new Map<number, typeof sourceRows>();
+  for (const row of sourceRows) rowsById.set(row.entryId, [...(rowsById.get(row.entryId) ?? []), row]);
+  if (settleIds.some((id) => !rowsById.has(id))) return "loan settlement source entry was not found or is not an opening entry";
+
+  const loanCategories = new Set(["short_term_loan", "loan", "long_term_loan", "lending", "short_term_lending", "long_term_lending"]);
+  const sourcePrincipalById = new Map<number, number>();
+  const sourceLoanAccountIds = new Set<number>();
+  let sourcePrincipalStorageUnits = 0;
+  let expectedOpeningKind: BudgetFundingKind | null = null;
+  let openingCurrency: string | null = null;
+  for (const id of settleIds) {
+    const rows = rowsById.get(id)!;
+    if (rows.some((row) => row.isSettled !== 0 && row.settledByEntryId !== allowSettledByEntryId)) {
+      return "loan settlement source entry is already settled";
+    }
+    if (rows[0]!.date > body.date) return "loan settlement source date must not be after the settlement date";
+    const principalRows = rows.filter((row) => loanCategories.has(row.category));
+    if (principalRows.length === 0) return "loan settlement source entry has no loan or lending principal";
+    const sourceCurrencies = new Set(principalRows.map((row) => normalizeCurrency(row.currency)));
+    if (sourceCurrencies.size !== 1 || !sourceCurrencies.has(currency)) return "loan settlement source currency does not match settlement currency";
+    const net = principalRows.reduce((sum, row) => sum + row.debit - row.credit, 0);
+    const category = principalRows[0]!.category;
+    const sourceKind: BudgetFundingKind = ["lending", "short_term_lending", "long_term_lending"].includes(category)
+      ? net > 0 ? "lend" : "collect"
+      : net < 0 ? "borrow" : "repay";
+    if (principalRows.some((row) => row.category !== category)) return "loan settlement sources must use the same loan or lending account category";
+    if (expectedOpeningKind && expectedOpeningKind !== sourceKind) return "loan settlement sources must match one opening direction";
+    expectedOpeningKind = sourceKind;
+    for (const row of principalRows) sourceLoanAccountIds.add(row.accountId);
+    const principal = Math.abs(net);
+    sourcePrincipalById.set(id, principal);
+    sourcePrincipalStorageUnits += principal;
+    openingCurrency = [...sourceCurrencies][0]!;
+  }
+
+  const sourceKindForSettlement = expectedOpeningKind === "borrow" ? "repay" : expectedOpeningKind === "lend" ? "collect" : null;
+  if (!sourceKindForSettlement) return "loan settlement source does not represent an unsettled opening";
+  if (openingCurrency !== currency) return "loan settlement source currency does not match settlement currency";
+
+  const lineAccountIds = [...new Set(body.lines.map((line) => line.account_id))];
+  const lineAccounts = await db.select().from(accounts).where(inArray(accounts.id, lineAccountIds));
+  const expectedComponent = calculateBudgetFundingImpact({
+    lines: body.lines,
+    accounts: lineAccounts.map((account) => ({
+      ...account,
+      is_depreciable: account.is_depreciable === 1,
+      include_in_allocatable: account.include_in_allocatable === 1,
+      deduct_from_budget: account.deduct_from_budget === 1,
+      is_system: account.is_system === 1,
+    })),
+    currency,
+    decimalPlaces,
+  }).components.find((component) => component.kind === sourceKindForSettlement);
+  if (!expectedComponent) return "settlement lines do not match the source loan or lending direction";
+  const scale = 10 ** decimalPlaces;
+  if (Math.round(sourcePrincipalStorageUnits) !== Math.round(expectedComponent.principal_amount * scale)) {
+    return "loan settlement must settle the full principal of the selected opening entries";
+  }
+
+  const candidateLoanAccounts = lineAccounts.filter((account) => loanCategories.has(account.category));
+  const candidateLoanIds = new Set(candidateLoanAccounts.map((account) => account.id));
+  const sourceCategories = new Set(settleIds.map((id) => rowsById.get(id)!.find((row) => loanCategories.has(row.category))!.category));
+  const sourceIdsMatch = candidateLoanIds.size === sourceLoanAccountIds.size && [...sourceLoanAccountIds].every((id) => candidateLoanIds.has(id));
+  if (sourceCategories.size !== 1 || candidateLoanAccounts.length === 0 || !sourceIdsMatch) {
+    return "settlement must use the same loan or lending account category as its opening entries";
+  }
+
+  // The UI may have loaded the source allocation before it changed. Use the
+  // source's current saved split, and make any legacy remainder explicitly unallocated.
+  const savedFundingRows = await db.select({
+    id: budgetFundingAllocations.id,
+    entryId: budgetFundingAllocations.journal_entry_id,
+    categoryId: budgetFundingAllocations.budget_category_id,
+    kind: budgetFundingAllocations.kind,
+    amount: budgetFundingAllocations.amount,
+    currency: budgetFundingAllocations.currency,
+    effect: budgetFundingAllocations.effect,
+  }).from(budgetFundingAllocations)
+    .where(and(
+      inArray(budgetFundingAllocations.journal_entry_id, settleIds),
+      isNull(budgetFundingAllocations.source_journal_entry_id),
+    ))
+    .orderBy(budgetFundingAllocations.journal_entry_id, budgetFundingAllocations.id);
+  const sourceAllocationWeights: Array<{
+    entryId: number;
+    categoryId: number | null;
+    principalStorageUnits: number;
+  }> = [];
+  for (const id of settleIds) {
+    const sourceKind = expectedOpeningKind!;
+    const sourcePrincipal = sourcePrincipalById.get(id)!;
+    const categoryTotals = new Map<number | null, number>();
+    for (const row of savedFundingRows) {
+      if (row.entryId !== id || row.kind !== sourceKind) continue;
+      if (normalizeCurrency(row.currency) !== currency) return "loan settlement source funding currency does not match settlement currency";
+      categoryTotals.set(row.categoryId, (categoryTotals.get(row.categoryId) ?? 0) + row.amount);
+    }
+    const representedStorageUnits = [...categoryTotals.values()].reduce((sum, amount) => sum + amount, 0);
+    if (representedStorageUnits > sourcePrincipal) return "saved loan funding exceeds the opening principal";
+    if (sourcePrincipal > representedStorageUnits) {
+      categoryTotals.set(null, (categoryTotals.get(null) ?? 0) + sourcePrincipal - representedStorageUnits);
+    }
+    for (const [categoryId, principalStorageUnits] of categoryTotals) {
+      if (principalStorageUnits > 0) sourceAllocationWeights.push({ entryId: id, categoryId, principalStorageUnits });
+    }
+  }
+  if (sourceAllocationWeights.length === 0) return "loan settlement source has no principal to distribute";
+
+  const principalParts = splitAmountByLargestRemainder(
+    Math.round(sourcePrincipalStorageUnits),
+    sourceAllocationWeights.map((allocation, index) => ({ key: index, weight: allocation.principalStorageUnits })),
+  ).map((part) => part.amount);
+  const appliedStorageUnits = Math.round(expectedComponent.applied_amount * scale);
+  const appliedParts = splitAmountByLargestRemainder(
+    appliedStorageUnits,
+    principalParts.map((weight, index) => ({ key: index, weight })),
+  ).map((part) => part.amount);
+  const allocations: NonNullable<BudgetFundingComponentInput["allocations"]> = [];
+  let componentOnlyStorageUnits = 0;
+  for (let index = 0; index < sourceAllocationWeights.length; index += 1) {
+    const allocation = sourceAllocationWeights[index]!;
+    const principal = principalParts[index] ?? 0;
+    const applied = Math.min(principal, appliedParts[index] ?? 0);
+    const componentOnly = principal - applied;
+    if (applied > 0) allocations.push({
+      budget_category_id: allocation.categoryId,
+      amount: fromStorageMoneyAmount(applied, currency, { decimalPlacesByCurrency: { [currency]: decimalPlaces } }),
+      currency,
+      effect: "apply",
+      source_journal_entry_id: allocation.entryId,
+    });
+    if (componentOnly > 0) {
+      componentOnlyStorageUnits += componentOnly;
+      allocations.push({
+        budget_category_id: allocation.categoryId,
+        amount: fromStorageMoneyAmount(componentOnly, currency, { decimalPlacesByCurrency: { [currency]: decimalPlaces } }),
+        currency,
+        effect: "component_only",
+        source_journal_entry_id: allocation.entryId,
+      });
+    }
+  }
+
+  body.budget_funding = undefined;
+  body.budget_funding_components = [{
+    kind: sourceKindForSettlement,
+    principal_amount: sourcePrincipalStorageUnits / scale,
+    applied_amount: appliedStorageUnits / scale,
+    component_only_amount: componentOnlyStorageUnits / scale,
+    allocations,
+    source_journal_entry_ids: settleIds,
+  }];
+  return null;
+}
+/** Recheck opening state inside the same SQLite transaction as the create/edit. */
+function buildLoanSettlementStateGuard(
+  DB: D1Database,
+  settleIds: number[],
+  allowSettledByEntryId?: number,
+): D1PreparedStatement {
+  const settledPredicate = allowSettledByEntryId == null
+    ? "is_settled = 0"
+    : "(is_settled = 0 OR (is_settled = 1 AND settled_by_journal_entry_id = ?))";
+  const settledByValues = allowSettledByEntryId == null ? [] : [allowSettledByEntryId];
+  return DB.prepare(
+    `UPDATE depreciation_budget_apply_guard
+     SET expected_revision = CASE
+       WHEN (SELECT COUNT(*) FROM loan_settlements
+             WHERE journal_entry_id IN (${placeholders(settleIds.length)})
+               AND ${settledPredicate}) = ?
+       THEN (SELECT revision FROM depreciation_budget_state WHERE id = 1)
+       ELSE -1
+     END
+     WHERE id = 1`,
+  ).bind(...settleIds, ...settledByValues, settleIds.length);
 }
 
 // GET /api/journal — all journal entries with lines + account names
@@ -796,559 +1395,90 @@ router.get("/", async (c) => {
   return c.json(result);
 });
 
-// POST /api/journal — create journal entry with lines atomically
+// POST /api/journal — create a journal entry using the same preparation path as batch.
 router.post("/", async (c) => {
-  const body = await c.req.json<{
-    date: string;
-    description: string;
-    lines: Array<{
-      account_id: number;
-      debit: number;
-      credit: number;
-      currency?: string;
-      credit_card_billing_offset_months?: number | null;
-    }>;
-    budget_allocations?: Array<{
-      budget_category_id: number;
-      amount: number;
-      currency?: string;
-      is_reference?: boolean;
-    }>;
-    budget_source?: "simple" | "multiline";
-    income_budget_allocations?: Array<{
-      budget_category_id: number;
-      amount: number;
-      currency?: string;
-      adjustment_type?: "allocation" | "reset" | "transfer";
-    }>;
-    /** If true, this entry opens a new short-term loan/lending — create a loan_settlements record */
-    loan_settlement_opening?: boolean;
-    /** IDs of opening entries being settled by this repayment/collection */
-    loan_settlement_journal_entry_ids?: number[];
-    budget_funding?: BudgetFundingInput;
-    budget_funding_components?: BudgetFundingComponentInput[];
-    income_transfer_destinations?: Array<{
-      budget_category_id: number;
-      from_account_id: number;
-      to_account_id: number;
-      amount: number;
-      currency?: string;
-      is_deferred?: boolean | null;
-    }>;
-    /** Validate a two-leg exchange in distinct currencies. */
-    is_currency_exchange?: boolean;
-  }>();
-
-  if (
-    !body.date ||
-    !body.description ||
-    !Array.isArray(body.lines) ||
-    body.lines.length < 2
-  ) {
-    return c.json(
-      { error: "date, description, and at least 2 lines are required" },
-      400,
-    );
-  }
-
-  if (body.income_transfer_destinations?.some(
-    (destination) => destination.is_deferred != null &&
-      typeof destination.is_deferred !== "boolean",
-  )) {
-    return c.json({ error: "income transfer is_deferred must be a boolean" }, 400);
-  }
-
+  const body = await c.req.json<JournalCreateInput>();
   const db = createDb(c.env);
+  const mutationRevision = await readBudgetMutationRevision(c.env.DB);
   const decimalPlacesByCurrency = await loadCurrencyDecimalPlaces(db);
-  const scaleOptions = { decimalPlacesByCurrency };
+  const result = await prepareJournalCreate(c.env, body, "manual", decimalPlacesByCurrency);
+  if (!result.ok) return c.json(typeof result.error === "string" ? { error: result.error } : result.error, result.status);
 
-  const invalidMoney = findInvalidMoney([
-    ...body.lines.flatMap((line, index) => [
-      {
-        path: `lines[${index}].debit`,
-        value: line.debit,
-        currency: line.currency,
-        decimalPlaces: decimalPlacesByCurrency[normalizeCurrency(line.currency)],
-      },
-      {
-        path: `lines[${index}].credit`,
-        value: line.credit,
-        currency: line.currency,
-        decimalPlaces: decimalPlacesByCurrency[normalizeCurrency(line.currency)],
-      },
-    ]),
-    ...(body.budget_allocations ?? []).map((allocation, index) => ({
-      path: `budget_allocations[${index}].amount`,
-      value: allocation.amount,
-      currency: allocation.currency ?? budgetCurrencyFromLines(body.lines),
-      decimalPlaces:
-        decimalPlacesByCurrency[
-          normalizeCurrency(allocation.currency ?? budgetCurrencyFromLines(body.lines))
-        ],
-    })),
-    ...(body.income_budget_allocations ?? []).map((allocation, index) => ({
-      path: `income_budget_allocations[${index}].amount`,
-      value: allocation.amount,
-      currency: allocation.currency ?? budgetCurrencyFromLines(body.lines),
-      decimalPlaces:
-        decimalPlacesByCurrency[
-          normalizeCurrency(allocation.currency ?? budgetCurrencyFromLines(body.lines))
-        ],
-    })),
-    ...(body.budget_funding?.allocations ?? []).map((allocation, index) => ({
-      path: `budget_funding.allocations[${index}].amount`,
-      value: allocation.amount,
-      currency: allocation.currency ?? budgetCurrencyFromLines(body.lines),
-      decimalPlaces:
-        decimalPlacesByCurrency[
-          normalizeCurrency(
-            allocation.currency ?? budgetCurrencyFromLines(body.lines),
-          )
-        ],
-    })),
-    ...(body.budget_funding
-      ? [
-          {
-            path: "budget_funding.principal_amount",
-            value: body.budget_funding.principal_amount,
-            currency: budgetCurrencyFromLines(body.lines),
-            decimalPlaces:
-              decimalPlacesByCurrency[
-                normalizeCurrency(budgetCurrencyFromLines(body.lines))
-              ],
-          },
-        ]
-      : []),
-    ...normalizeBudgetFundingComponents(body).flatMap((component, index) => [
-      {
-        path: `budget_funding_components[${index}].principal_amount`,
-        value: component.principal_amount,
-        currency: budgetCurrencyFromLines(body.lines),
-        decimalPlaces:
-          decimalPlacesByCurrency[budgetCurrencyFromLines(body.lines)],
-      },
-      {
-        path: `budget_funding_components[${index}].applied_amount`,
-        value: component.applied_amount,
-        currency: budgetCurrencyFromLines(body.lines),
-        decimalPlaces:
-          decimalPlacesByCurrency[budgetCurrencyFromLines(body.lines)],
-      },
-      {
-        path: `budget_funding_components[${index}].component_only_amount`,
-        value: component.component_only_amount,
-        currency: budgetCurrencyFromLines(body.lines),
-        decimalPlaces:
-          decimalPlacesByCurrency[budgetCurrencyFromLines(body.lines)],
-      },
-      ...(component.allocations ?? []).map((allocation, allocationIndex) => ({
-        path: `budget_funding_components[${index}].allocations[${allocationIndex}].amount`,
-        value: allocation.amount,
-        currency: allocation.currency ?? budgetCurrencyFromLines(body.lines),
-        decimalPlaces:
-          decimalPlacesByCurrency[
-            normalizeCurrency(
-              allocation.currency ?? budgetCurrencyFromLines(body.lines),
-            )
-          ],
-      })),
-    ]),
-    ...(body.income_transfer_destinations ?? []).map((destination, index) => ({
-      path: `income_transfer_destinations[${index}].amount`,
-      value: destination.amount,
-      currency: destination.currency ?? budgetCurrencyFromLines(body.lines),
-      decimalPlaces:
-        decimalPlacesByCurrency[
-          normalizeCurrency(
-            destination.currency ?? budgetCurrencyFromLines(body.lines),
-          )
-        ],
-    })),
+  const { prepared } = result;
+  const results = await runBudgetGuardedBatch(c.env.DB, mutationRevision, [
+    ...prepared.statements,
+    ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB),
   ]);
-  if (invalidMoney) {
-    return c.json(
-      invalidMoneyResponse(invalidMoney.path, invalidMoney.currency),
-      400,
-    );
-  }
+  if (!results) return c.json({ error: "stale_journal_mutation" }, 409);
 
-  const balanceError = journalBalanceError(body.lines, body.is_currency_exchange === true, scaleOptions);
-  if (balanceError) return c.json({ error: balanceError }, 400);
-  if (
-    body.budget_funding &&
-    !BUDGET_FUNDING_KINDS.has(body.budget_funding.kind)
-  ) {
-    return c.json({ error: "invalid budget_funding kind" }, 400);
-  }
-
-  const budgetCurrency = budgetCurrencyFromLines(body.lines);
-  const fundingValidationError = validateExplicitBudgetFunding(
-    body.budget_funding,
-    budgetCurrency,
-  );
-  if (fundingValidationError) {
-    return c.json({ error: fundingValidationError }, 400);
-  }
-  const componentValidationError = validateBudgetFundingComponents(
-    normalizeBudgetFundingComponents(body),
-    budgetCurrency,
-  );
-  if (componentValidationError) {
-    return c.json({ error: componentValidationError }, 400);
-  }
-  const componentLineValidationError =
-    await validateBudgetFundingComponentsAgainstLines({
-      db,
-      components: body.budget_funding_components ?? (body.budget_funding ? normalizeBudgetFundingComponents(body) : undefined),
-      lines: body.lines,
-      currency: budgetCurrency,
-      decimalPlaces: decimalPlacesByCurrency[budgetCurrency] ?? 0,
-    });
-  if (componentLineValidationError) {
-    return c.json({ error: componentLineValidationError }, 400);
-  }
-  const budgetScopeError = await normalizeJournalBudgetScope(db, body, scaleOptions);
-  if (budgetScopeError) return c.json({ error: budgetScopeError }, 400);
-  const validAllocations = (body.budget_allocations ?? []).filter(
-    (a) => a.budget_category_id && a.amount !== 0,
-  );
-  const validIncomeAllocs = (body.income_budget_allocations ?? []).filter(
-    (a) => a.budget_category_id && a.amount !== 0,
-  );
-  const statements: D1PreparedStatement[] = [
-    c.env.DB.prepare(
-      `INSERT INTO journal_entries (date, description, source)
-       VALUES (?, ?, 'manual')
-       RETURNING id, date, description, source, created_at`,
-    ).bind(body.date, body.description),
-  ];
-
-  const lineValues = body.lines.flatMap((l) => [
-    l.account_id,
-    toStorageMoneyAmount(l.debit ?? 0, l.currency, scaleOptions),
-    toStorageMoneyAmount(l.credit ?? 0, l.currency, scaleOptions),
-    normalizeCurrency(l.currency),
-    l.credit_card_billing_offset_months ?? null,
-  ]);
-  const lineResultIndex = statements.length;
-  statements.push(
-    c.env.DB.prepare(
-      `INSERT INTO journal_lines
-        (journal_entry_id, account_id, debit, credit, currency, credit_card_billing_offset_months)
-       VALUES ${buildNewEntryRowsSql(body.lines.length, 5)}
-       RETURNING id, journal_entry_id, account_id, debit, credit, currency, credit_card_billing_offset_months, created_at`,
-    ).bind(...lineValues),
-  );
-
-  if (validAllocations.length > 0) {
-    const allocationValues = validAllocations.flatMap((a) => [
-      a.budget_category_id,
-      toStorageMoneyAmount(
-        a.amount,
-        a.currency ?? budgetCurrency,
-        scaleOptions,
-      ),
-      normalizeCurrency(a.currency ?? budgetCurrency),
-      body.budget_source ?? null,
-      a.is_reference ? 1 : 0,
-    ]);
-    statements.push(
-      c.env.DB.prepare(
-        `INSERT INTO journal_entry_budget_allocations
-          (journal_entry_id, budget_category_id, amount, currency, source, is_reference)
-         VALUES ${buildNewEntryRowsSql(validAllocations.length, 5)}`,
-      ).bind(...allocationValues),
-    );
-  }
-
-  if (validIncomeAllocs.length > 0) {
-    const incomeValues = validIncomeAllocs.flatMap((a) => [
-      a.budget_category_id,
-      toStorageMoneyAmount(
-        a.amount,
-        a.currency ?? budgetCurrency,
-        scaleOptions,
-      ),
-      normalizeCurrency(a.currency ?? budgetCurrency),
-      body.date.slice(0, 7),
-      body.date,
-      a.adjustment_type === "transfer" ? "transfer" : "allocation",
-    ]);
-    statements.push(
-      c.env.DB.prepare(
-        `INSERT INTO budget_adjustment_logs
-          (journal_entry_id, budget_category_id, amount, currency, year_month, date, adjustment_type)
-         VALUES ${buildNewEntryRowsSql(validIncomeAllocs.length, 6)}`,
-      ).bind(...incomeValues),
-    );
-  }
-
-  if (body.loan_settlement_opening) {
-    statements.push(
-      c.env.DB.prepare(
-        `INSERT OR IGNORE INTO loan_settlements (journal_entry_id, is_settled)
-         VALUES ((SELECT MAX(id) FROM journal_entries), 0)`,
-      ),
-    );
-  }
-
-  const settleIds = body.loan_settlement_journal_entry_ids ?? [];
-  if (settleIds.length > 0) {
-    statements.push(
-      c.env.DB.prepare(
-        `UPDATE loan_settlements
-         SET is_settled = 1,
-             settled_by_journal_entry_id = (SELECT MAX(id) FROM journal_entries),
-             settled_at = ?
-         WHERE journal_entry_id IN (${placeholders(settleIds.length)})`,
-      ).bind(new Date().toISOString(), ...settleIds),
-    );
-  }
-
-  const funding = body.budget_funding;
-  const componentRows = body.budget_funding_components
-    ? expandBudgetFundingComponentAllocations(
-        body.budget_funding_components,
-        budgetCurrency,
-      )
-    : [];
-  const explicitFundingAllocations = (funding?.allocations ?? []).filter(
-    (allocation) => allocation.amount > 0,
-  );
-  const fundingSourceIds = funding?.source_journal_entry_ids ?? [];
-  if (componentRows.length > 0) {
-    const values = componentRows.flatMap((allocation) => [
-      allocation.budget_category_id,
-      allocation.kind,
-      toStorageMoneyAmount(
-        allocation.amount,
-        allocation.currency,
-        scaleOptions,
-      ),
-      allocation.currency,
-      allocation.source_journal_entry_id,
-      allocation.effect,
-    ]);
-    statements.push(
-      c.env.DB.prepare(
-        `INSERT INTO budget_funding_allocations
-          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
-         VALUES ${buildNewEntryRowsSql(componentRows.length, 6)}`,
-      ).bind(...values),
-    );
-  } else if (funding && fundingSourceIds.length > 0) {
-    statements.push(
-      c.env.DB.prepare(
-        `INSERT INTO budget_funding_allocations
-          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
-         SELECT
-          (SELECT MAX(id) FROM journal_entries),
-          budget_category_id,
-          ?,
-          amount,
-          currency,
-          journal_entry_id,
-          effect
-         FROM budget_funding_allocations
-         WHERE journal_entry_id IN (${placeholders(fundingSourceIds.length)})
-           AND source_journal_entry_id IS NULL`,
-      ).bind(funding.kind, ...fundingSourceIds),
-    );
-  } else if (funding && explicitFundingAllocations.length > 0) {
-    const values = explicitFundingAllocations.flatMap((allocation) => [
-      allocation.budget_category_id ?? null,
-      funding.kind,
-      toStorageMoneyAmount(
-        allocation.amount,
-        allocation.currency ?? budgetCurrency,
-        scaleOptions,
-      ),
-      normalizeCurrency(allocation.currency ?? budgetCurrency),
-      null,
-      allocation.effect ?? "apply",
-    ]);
-    statements.push(
-      c.env.DB.prepare(
-        `INSERT INTO budget_funding_allocations
-          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
-         VALUES ${buildNewEntryRowsSql(explicitFundingAllocations.length, 6)}`,
-      ).bind(...values),
-    );
-  } else if (!funding && settleIds.length > 0) {
-    statements.push(
-      c.env.DB.prepare(
-        `INSERT INTO budget_funding_allocations
-          (journal_entry_id, budget_category_id, kind, amount, currency, source_journal_entry_id, effect)
-         SELECT
-          (SELECT MAX(id) FROM journal_entries),
-          budget_category_id,
-          CASE kind
-            WHEN 'borrow' THEN 'repay'
-            WHEN 'lend' THEN 'collect'
-            ELSE kind
-          END,
-          amount,
-          currency,
-          journal_entry_id,
-          effect
-         FROM budget_funding_allocations
-         WHERE journal_entry_id IN (${placeholders(settleIds.length)})
-           AND source_journal_entry_id IS NULL`,
-      ).bind(...settleIds),
-    );
-  }
-
-  for (const destination of body.income_transfer_destinations ?? []) {
-    if (
-      !Number.isInteger(destination.budget_category_id) ||
-      !Number.isInteger(destination.from_account_id) ||
-      !Number.isInteger(destination.to_account_id) ||
-      destination.from_account_id === destination.to_account_id ||
-      destination.amount <= 0 ||
-      (destination.is_deferred != null &&
-        typeof destination.is_deferred !== "boolean")
-    ) {
-      return c.json({ error: "invalid income transfer destination" }, 400);
-    }
-    const currency = normalizeCurrency(destination.currency ?? budgetCurrency);
-    statements.push(
-      c.env.DB.prepare(
-        `INSERT INTO income_transfer_requirements
-          (source_income_journal_entry_id, budget_category_id, budget_category_name,
-           from_account_id, to_account_id, amount, currency, is_deferred)
-         SELECT
-          (SELECT MAX(id) FROM journal_entries), ?, name, ?, ?, ?, ?, ?
-         FROM budget_categories
-         WHERE id = ?`,
-      ).bind(
-        destination.budget_category_id,
-        destination.from_account_id,
-        destination.to_account_id,
-        toStorageMoneyAmount(destination.amount, currency, scaleOptions),
-        currency,
-        destination.is_deferred == null
-          ? null
-          : destination.is_deferred
-            ? 1
-            : 0,
-        destination.budget_category_id,
-      ),
-    );
-  }
-
-  const results = await c.env.DB.batch([...statements, ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
-  const entry = (results[0] as D1QueryResult<typeof journalEntries.$inferSelect>)
-    .results?.[0];
+  const entry = (results[prepared.entryStatementIndex] as D1QueryResult<typeof journalEntries.$inferSelect>).results?.[0];
   if (!entry) throw new Error("Failed to create journal entry");
-  const rawLines =
-    (results[lineResultIndex] as D1QueryResult<typeof journalLines.$inferSelect>)
-      .results ?? [];
-  const insertedLines = rawLines.map((line) =>
-    decodeJournalLineAmount(line, scaleOptions),
-  );
-
-  await syncLongTermCompletions(
-    db,
-    body.lines.map((l) => l.account_id),
-  );
-
+  const rawLines = (results[prepared.lineStatementIndex] as D1QueryResult<typeof journalLines.$inferSelect>).results ?? [];
+  const insertedLines = rawLines.map((line) => decodeJournalLineAmount(line, { decimalPlacesByCurrency }));
+  await syncLongTermCompletions(db, prepared.accountIds);
   return c.json({ ...entry, lines: insertedLines }, 201);
 });
 
-// POST /api/journal/batch — create multiple journal entries
+// POST /api/journal/batch — validate all entries, then commit all in one guarded transaction.
 router.post("/batch", async (c) => {
-  const body = await c.req.json<{
-    entries: Array<{
-      date: string;
-      description: string;
-      lines: Array<{
-        account_id: number;
-        debit: number;
-        credit: number;
-        currency?: string;
-        credit_card_billing_offset_months?: number | null;
-      }>;
-      budget_allocations?: Array<{
-        budget_category_id: number;
-        amount: number;
-        currency?: string;
-        is_reference?: boolean;
-      }>;
-    }>;
-  }>();
-
-  if (!Array.isArray(body.entries) || body.entries.length === 0) {
-    return c.json(
-      { error: "entries array is required and must not be empty" },
-      400,
-    );
+  const body = await c.req.json<{ entries: JournalCreateInput[] }>();
+  if (!body || !Array.isArray(body.entries) || body.entries.length === 0) {
+    return c.json({ error: "entries array is required and must not be empty" }, 400);
   }
 
   const db = createDb(c.env);
+  const mutationRevision = await readBudgetMutationRevision(c.env.DB);
   const decimalPlacesByCurrency = await loadCurrencyDecimalPlaces(db);
-  const scaleOptions = { decimalPlacesByCurrency };
+  const preparedEntries: Array<{ prepared: PreparedJournalCreate; start: number }> = [];
+  const statements: D1PreparedStatement[] = [];
+  const settlementSources = new Set<number>();
+  const accountIds: number[] = [];
 
-  const invalidMoney = findInvalidMoney(
-    body.entries.flatMap((entry, entryIndex) => [
-      ...(Array.isArray(entry.lines)
-        ? entry.lines.flatMap((line, lineIndex) => [
-            {
-              path: `entries[${entryIndex}].lines[${lineIndex}].debit`,
-              value: line.debit,
-              currency: line.currency,
-              decimalPlaces:
-                decimalPlacesByCurrency[normalizeCurrency(line.currency)],
-            },
-            {
-              path: `entries[${entryIndex}].lines[${lineIndex}].credit`,
-              value: line.credit,
-              currency: line.currency,
-              decimalPlaces:
-                decimalPlacesByCurrency[normalizeCurrency(line.currency)],
-            },
-          ])
-        : []),
-      ...(entry.budget_allocations ?? []).map((allocation, allocationIndex) => ({
-        path: `entries[${entryIndex}].budget_allocations[${allocationIndex}].amount`,
-        value: allocation.amount,
-        currency: allocation.currency ?? budgetCurrencyFromLines(entry.lines),
-        decimalPlaces:
-          decimalPlacesByCurrency[
-            normalizeCurrency(allocation.currency ?? budgetCurrencyFromLines(entry.lines))
-          ],
-      })),
-    ]),
-  );
-  if (invalidMoney) {
-    return c.json(
-      invalidMoneyResponse(invalidMoney.path, invalidMoney.currency),
-      400,
-    );
+  for (let index = 0; index < body.entries.length; index += 1) {
+    const entry = body.entries[index];
+    if (!entry || typeof entry !== "object") {
+      return c.json({ error: `entries[${index}] must be a journal entry` }, 400);
+    }
+    if (entry.loan_settlement_journal_entry_ids != null && !Array.isArray(entry.loan_settlement_journal_entry_ids)) {
+      return c.json({ error: `entries[${index}].loan_settlement_journal_entry_ids must be an array` }, 400);
+    }
+    for (const sourceId of entry.loan_settlement_journal_entry_ids ?? []) {
+      if (settlementSources.has(sourceId)) {
+        return c.json({ error: "loan settlement source entries may only be used once per batch" }, 400);
+      }
+      settlementSources.add(sourceId);
+    }
+    const result = await prepareJournalCreate(c.env, entry, "csv_import", decimalPlacesByCurrency);
+    if (!result.ok) {
+      const response = typeof result.error === "string"
+        ? { error: `entries[${index}]: ${result.error}` }
+        : { ...result.error, field: `entries[${index}].${result.error.field}` };
+      return c.json(response, result.status);
+    }
+    const start = statements.length;
+    preparedEntries.push({ prepared: result.prepared, start });
+    statements.push(...result.prepared.statements);
+    accountIds.push(...result.prepared.accountIds);
   }
 
-  const validEntries = [];
-  for (const entry of body.entries) {
-    if (!entry.date || !entry.description || !Array.isArray(entry.lines) || entry.lines.length < 2) continue;
-    if (journalBalanceError(entry.lines, false, scaleOptions)) continue;
-    const scopeError = await normalizeJournalBudgetScope(db, entry, scaleOptions);
-    if (scopeError) return c.json({ error: scopeError }, 400);
-    validEntries.push(entry);
-  }
-  const created = [];
-  for (const entry of validEntries) {
-    const response = await router.request("/", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify(entry),
-    }, c.env);
-    if (!response.ok) return c.json(await response.json(), response.status as 400);
-    const saved = await response.json() as { id: number };
-    await db.update(journalEntries).set({ source: "csv_import" }).where(eq(journalEntries.id, saved.id));
-    created.push({ ...saved, source: "csv_import" });
-  }
+  const results = await runBudgetGuardedBatch(c.env.DB, mutationRevision, [
+    ...statements,
+    ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB),
+  ]);
+  if (!results) return c.json({ error: "stale_journal_mutation" }, 409);
 
+  const created = preparedEntries.map(({ prepared, start }) => {
+    const entry = (results[start + prepared.entryStatementIndex] as D1QueryResult<typeof journalEntries.$inferSelect>).results?.[0];
+    if (!entry) throw new Error("Failed to create journal entry");
+    const rawLines = (results[start + prepared.lineStatementIndex] as D1QueryResult<typeof journalLines.$inferSelect>).results ?? [];
+    return {
+      ...entry,
+      lines: rawLines.map((line) => decodeJournalLineAmount(line, { decimalPlacesByCurrency })),
+    };
+  });
+  await syncLongTermCompletions(db, accountIds);
   return c.json(created, 201);
 });
-
 // GET /api/journal/:id — fetch a single journal entry with lines + budget allocations
 router.get("/:id", async (c) => {
   const id = Number(c.req.param("id"));
@@ -1945,29 +2075,45 @@ router.put("/:id", async (c) => {
   if (componentValidationError) {
     return c.json({ error: componentValidationError }, 400);
   }
-  const componentLineValidationError =
-    await validateBudgetFundingComponentsAgainstLines({
+  const settleIds = body.loan_settlement_journal_entry_ids ?? [];
+  const settlementSourceError = await validateLoanSettlementSources(
+    db,
+    body,
+    settleIds,
+    normalizeBudgetFundingComponents(body),
+    budgetCurrency,
+    decimalPlacesByCurrency[budgetCurrency] ?? 0,
+    id,
+  );
+  if (settlementSourceError) return c.json({ error: settlementSourceError }, 400);
+  if (settleIds.length === 0) {
+    const componentLineValidationError = await validateBudgetFundingComponentsAgainstLines({
       db,
       components: body.budget_funding_components ?? (body.budget_funding ? normalizeBudgetFundingComponents(body) : undefined),
       lines: body.lines,
       currency: budgetCurrency,
       decimalPlaces: decimalPlacesByCurrency[budgetCurrency] ?? 0,
     });
-  if (componentLineValidationError) {
-    return c.json({ error: componentLineValidationError }, 400);
+    if (componentLineValidationError) {
+      return c.json({ error: componentLineValidationError }, 400);
+    }
   }
   const validIncomeAllocs = (body.income_budget_allocations ?? []).filter(
     (a) => a.budget_category_id && a.amount !== 0,
   );
 
-  const statements: D1PreparedStatement[] = [
+  const statements: D1PreparedStatement[] = [];
+  if (settleIds.length > 0) {
+    statements.push(buildLoanSettlementStateGuard(c.env.DB, settleIds, id));
+  }
+  statements.push(
     c.env.DB.prepare(
       "UPDATE journal_entries SET date = ?, description = ? WHERE id = ?",
     ).bind(body.date, body.description, id),
     c.env.DB.prepare(
       "DELETE FROM journal_lines WHERE journal_entry_id = ?",
     ).bind(id),
-  ];
+  );
   if (
     body.income_transfer_destinations !== undefined &&
     !preserveIncomeTransferRequirements
@@ -2078,7 +2224,6 @@ router.put("/:id", async (c) => {
     ).bind(id),
   );
 
-  const settleIds = body.loan_settlement_journal_entry_ids ?? [];
   if (settleIds.length > 0) {
     statements.push(
       c.env.DB.prepare(
