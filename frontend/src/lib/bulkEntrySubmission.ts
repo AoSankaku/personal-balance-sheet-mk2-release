@@ -69,7 +69,7 @@ export function buildBulkJournalEntries(input: {
       if (!entry.lines.some(line => line.account_id === payment.id)) throw new BulkEntrySubmissionError("bulk_payment_account_changed", index);
       const cardInvolved = entry.lines.some(line => input.accounts.some(account => account.id === line.account_id && account.category === "credit_card"));
       const impact = calculateMultiLineBudgetFundingImpact({ lines: entry.lines, accounts: input.accounts, currency, decimalPlaces: input.decimalPlaces });
-      if (impact.components.length === 0 || (!cardInvolved && !entry.budget_funding && !entry.budget_funding_components?.length)) {
+      if (!cardInvolved && (impact.components.length === 0 || (!entry.budget_funding && !entry.budget_funding_components?.length))) {
         throw new BulkEntrySubmissionError("bulk_loan_configuration_required", index);
       }
       const sources = new Set([
