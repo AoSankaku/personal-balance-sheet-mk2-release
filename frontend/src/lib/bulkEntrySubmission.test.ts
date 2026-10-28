@@ -75,6 +75,13 @@ describe("bulk journal submission parity", () => {
     expect(() => build([loanRow, loanRow])).toThrow();
   });
 
+  test("preserves the normal card-repayment exception without manufacturing loan funding", () => {
+    const entry = build([{ ...loanRow, input: { date: "2026-10-20", description: "Card repayment", lines: [{ account_id: 5, debit: 200, credit: 0 }, { account_id: 1, debit: 0, credit: 200 }] } }]).entries[0]!;
+    expect(entry.budget_funding).toBeUndefined();
+    expect(entry.budget_funding_components).toBeUndefined();
+    expect(entry.lines[0]!.account_id).toBe(5);
+  });
+
   test("normal and bulk income use one transfer builder with the same explicit resume flag", () => {
     const shared = (scope as unknown as { buildIncomeBudgetEntryFields: (input: unknown) => Pick<CreateJournalInput, "income_budget_allocations" | "income_transfer_destinations"> }).buildIncomeBudgetEntryFields;
     const normal = shared({ destinationAccount: accounts[0], incomeBudgetAllocations: [{ budget_category_id: 10, amount: 5 }], accounts, categories, currency: "USD", defer: false });
