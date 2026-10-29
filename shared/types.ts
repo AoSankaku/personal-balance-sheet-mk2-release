@@ -130,6 +130,16 @@ export interface JournalLine {
   credit_card_billing_offset_months?: number | null;
 }
 
+export interface ExpenseTag {
+  id: number;
+  name: string;
+}
+
+export interface TagExpenseAmount {
+  currency: string;
+  amount: number;
+}
+
 export interface JournalEntry {
   id: number;
   date: string;
@@ -141,6 +151,10 @@ export interface JournalEntry {
   source?: "manual" | "csv_import" | null;
   created_at: string;
   lines: JournalLine[];
+  expense_tags?: ExpenseTag[];
+  /** Manual amounts affect event/tag summaries only, never accounting lines. */
+  tag_expense_mode?: "auto" | "manual";
+  tag_expense_amounts?: TagExpenseAmount[];
   budget_allocations?: {
     budget_category_id: number;
     amount: number;
@@ -356,6 +370,11 @@ export interface CreateJournalLineInput {
 export interface CreateJournalInput {
   date: string;
   description: string;
+  /** Omitted during updates preserves existing tags; [] explicitly clears them. */
+  expense_tags?: string[];
+  tag_expense_mode?: "auto" | "manual";
+  /** Manual overrides are available for compound (budget_source=multiline) entries. */
+  tag_expense_amounts?: TagExpenseAmount[];
   /** Income-form preferences; omitted fields are preserved during compatible edits. */
   is_regular_income?: boolean;
   income_budget_filter_id?: number | null;

@@ -1785,3 +1785,21 @@ journalHistoryBorrow: Borrowing
 journalHistoryRepay: Repayment
 journalHistoryLend: Lending
 journalHistoryCollect: Collection
+expenseTagsLabel: Expense tags
+expenseTagsPlaceholder: Type a tag and press Enter
+expenseTagsFilter: Filter by tag
+expenseTagsFilterHint: Show entries containing any selected tag
+tagExpenseTotal: Tagged spending
+tagExpenseSummaryHint: This tag summary is separate from journal amounts. Entries with multiple tags are counted once in the total.
+tagExpenseAmount: Tagged spending amount
+tagExpenseAuto: Automatic
+tagExpenseManual: Manual
+tagExpenseAmountHint: Used only in tag summaries; journal and ledger amounts are unchanged.
+tagExpenseAmountRequired: Enter a valid amount for the tag summary.
+expenseTagsCount: "Tags ({count})"
+tagExpenseBreakdown: Spending by tag
+tagExpenseBreakdownHint: Amounts may overlap across tags. The total counts each journal entry only once.
+expenseTagsEmpty: No tags
+editExpenseTags: Edit tags
+expenseTagsSaved: Tags saved
+expenseTagsUnavailableForDepreciation: Tags can't be changed in depreciation input. Save the entry, then edit its tags from the ledger.

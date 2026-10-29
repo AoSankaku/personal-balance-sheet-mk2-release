@@ -10,7 +10,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconPencil, IconTrash } from "@tabler/icons-react";
+import { IconPencil, IconTag, IconTrash } from "@tabler/icons-react";
 import type { Account, JournalEntry } from "@balance-sheet/shared";
 import { toIntlLocale, type TranslationKey, useLang } from "../i18n";
 import { accountDisplayNameFromName } from "../lib/accountUtils";
@@ -21,6 +21,7 @@ interface Props {
   accounts: Account[];
   onDelete?: (id: number) => void;
   onEdit?: (entry: JournalEntry) => void;
+  onEditTags?: (entry: JournalEntry) => void;
   view?: "simple" | "double";
   showTimestamp?: boolean;
   displayCurrency?: string;
@@ -91,6 +92,7 @@ export function JournalTable({
   accounts,
   onDelete,
   onEdit,
+  onEditTags,
   view = "double",
   showTimestamp = false,
   displayCurrency,
@@ -397,6 +399,9 @@ export function JournalTable({
                       </Table.Td>
                       <Table.Td>
                         <Stack gap={4}>
+                          {(entry.expense_tags?.length ?? 0) > 0 && <Group gap={4} aria-label={t("expenseTagsLabel")}>
+                            {entry.expense_tags!.map(tag => <Badge key={tag.id} size="xs" variant="light" color="cyan" tt="none" style={{ maxWidth: "100%", whiteSpace: "normal", height: "auto", overflowWrap: "anywhere" }}>{tag.name}</Badge>)}
+                          </Group>}
                           {isComplex && (
                             <Badge
                               size="xs"
@@ -461,6 +466,9 @@ export function JournalTable({
                               </ActionIcon>
                             </Tooltip>
                           )}
+                          {!readOnly && onEditTags && <Tooltip label={t("editExpenseTags")}>
+                            <ActionIcon aria-label={t("editExpenseTags")} variant="subtle" size="sm" onClick={() => onEditTags(entry)}><IconTag size={14} /></ActionIcon>
+                          </Tooltip>}
                           {!readOnly && onDelete && (
                             <Tooltip label={t("deleteEntry")}>
                               <ActionIcon
@@ -538,6 +546,9 @@ export function JournalTable({
                           <Text size="sm" fw={500}>
                             {entry.description}
                           </Text>
+                          {(entry.expense_tags?.length ?? 0) > 0 && <Group gap={4} aria-label={t("expenseTagsLabel")}>
+                            {entry.expense_tags!.map(tag => <Badge key={tag.id} size="xs" variant="light" color="cyan" tt="none" style={{ maxWidth: "100%", whiteSpace: "normal", height: "auto", overflowWrap: "anywhere" }}>{tag.name}</Badge>)}
+                          </Group>}
                           {(entry.income_transfer_requirement_ids?.length ??
                             0) > 0 && (
                             <Badge size="xs" variant="outline" w="fit-content">
@@ -648,6 +659,9 @@ export function JournalTable({
                               </ActionIcon>
                             </Tooltip>
                           )}
+                          {!readOnly && onEditTags && <Tooltip label={t("editExpenseTags")}>
+                            <ActionIcon aria-label={t("editExpenseTags")} variant="subtle" size="sm" onClick={() => onEditTags(entry)}><IconTag size={14} /></ActionIcon>
+                          </Tooltip>}
                           {!readOnly && onDelete && (
                             <Tooltip label={t("deleteEntry")}>
                               <ActionIcon

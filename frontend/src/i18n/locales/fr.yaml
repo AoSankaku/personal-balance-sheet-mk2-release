@@ -1785,3 +1785,21 @@ journalHistoryBorrow: Emprunt
 journalHistoryRepay: Remboursement
 journalHistoryLend: Prêt accordé
 journalHistoryCollect: Recouvrement
+expenseTagsLabel: Tags de dépense
+expenseTagsPlaceholder: Saisissez un tag puis appuyez sur Entrée
+expenseTagsFilter: Filtrer par tag
+expenseTagsFilterHint: Afficher les écritures contenant au moins un tag sélectionné
+tagExpenseTotal: Dépenses associées aux tags
+tagExpenseSummaryHint: Ce récapitulatif est distinct des montants des écritures. Les écritures avec plusieurs tags ne sont comptées qu’une fois dans le total.
+tagExpenseAmount: Montant associé au tag
+tagExpenseAuto: Automatique
+tagExpenseManual: Manuel
+tagExpenseAmountHint: Utilisé uniquement dans les récapitulatifs par tag ; les montants du journal restent inchangés.
+tagExpenseAmountRequired: Saisissez un montant valide pour le récapitulatif par tag.
+expenseTagsCount: "Tags ({count})"
+tagExpenseBreakdown: Dépenses par tag
+tagExpenseBreakdownHint: Les montants peuvent se chevaucher entre les tags. Le total ne compte chaque écriture qu’une fois.
+expenseTagsEmpty: Aucun tag
+editExpenseTags: Modifier les tags
+expenseTagsSaved: Tags enregistrés
+expenseTagsUnavailableForDepreciation: Les tags ne peuvent pas être modifiés dans la saisie d’amortissement. Enregistrez l’écriture, puis modifiez ses tags depuis le grand livre.

@@ -1785,3 +1785,21 @@ journalHistoryBorrow: 借入
 journalHistoryRepay: 偿还
 journalHistoryLend: 借出
 journalHistoryCollect: 收回
+expenseTagsLabel: 支出标签
+expenseTagsPlaceholder: 输入标签后按 Enter
+expenseTagsFilter: 按标签筛选
+expenseTagsFilterHint: 显示包含任一所选标签的分录
+tagExpenseTotal: 标签支出金额
+tagExpenseSummaryHint: 此标签汇总与分录金额分开计算。含多个标签的分录在总额中只计一次。
+tagExpenseAmount: 标签支出金额
+tagExpenseAuto: 自动计算
+tagExpenseManual: 手动输入
+tagExpenseAmountHint: 仅用于标签汇总；不会改变分录或账簿金额。
+tagExpenseAmountRequired: 请输入有效的标签汇总金额。
+expenseTagsCount: "标签（{count}）"
+tagExpenseBreakdown: 标签支出明细
+tagExpenseBreakdownHint: 不同标签的金额可能重复。总额中每条分录只计一次。
+expenseTagsEmpty: 没有标签
+editExpenseTags: 编辑标签
+expenseTagsSaved: 标签已保存
+expenseTagsUnavailableForDepreciation: 折旧录入中无法在此编辑标签。保存分录后，请在账簿中编辑标签。

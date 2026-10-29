@@ -1,10 +1,12 @@
 import { getTableColumns, getTableName } from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
-import type { JournalDeletionCandidate, JournalEntry } from "@balance-sheet/shared";
+import type { AccountType, JournalDeletionCandidate, JournalEntry } from "@balance-sheet/shared";
+import { calculateExpenseTagAmounts } from "../../../shared/expenseTags";
 import {
   journalEntries, journalLines, journalEntryBudgetAllocations, budgetAdjustmentLogs,
   budgetFundingAllocations, loanSettlements, incomeTransferRequirements,
   depreciationSchedules, depreciationEntries, actualBalanceAdjustments,
+  journalEntryTagAmounts,
   type JournalDeletionCandidateRow,
 } from "../db/schema";
 import { fromStorageMoneyAmount } from "./moneyValidation";
@@ -50,8 +52,12 @@ const associatedSql: Record<string, string> = {
 const snapshotSql = `json_object(
   'version',1,
   'entry',${objectSql(journalEntries, "e", { income_budget_filter_name: "(SELECT name FROM budget_filters WHERE id=e.income_budget_filter_id)" })},
-  'lines',(SELECT json_group_array(${objectSql(journalLines, "l", { account_name: "a.name" })})
+  'lines',(SELECT json_group_array(${objectSql(journalLines, "l", { account_name: "a.name", account_type: "a.type" })})
     FROM journal_lines l LEFT JOIN accounts a ON a.id=l.account_id WHERE l.journal_entry_id=e.id),
+  'expense_tags',(SELECT json_group_array(json_object('id',t.id,'name',t.name))
+    FROM journal_entry_expense_tags jet JOIN expense_tags t ON t.id=jet.tag_id WHERE jet.journal_entry_id=e.id),
+  'tag_expense_amounts',(SELECT json_group_array(${objectSql(journalEntryTagAmounts, "r")})
+    FROM journal_entry_tag_amounts r WHERE r.journal_entry_id=e.id),
   'currency_decimal_places',(SELECT json_group_object(code,decimal_places) FROM enabled_currencies),
   'related',json_object(${Object.entries(associatedSql).flatMap(([key, value]) => [`'${key}'`, value]).join(",")})
 )`;
@@ -80,6 +86,8 @@ type RawRecord = Record<string, unknown>;
 type Snapshot = {
   entry: RawRecord;
   lines: RawRecord[];
+  expense_tags?: RawRecord[] | null;
+  tag_expense_amounts?: RawRecord[] | null;
   related: Record<string, RawRecord[]>;
   currency_decimal_places: Record<string, number>;
 };
@@ -97,10 +105,31 @@ export function serializeJournalHistory(row: JournalDeletionCandidateRow): Journ
     return output;
   };
   const related = Object.fromEntries(Object.entries(snapshot.related).map(([key, records]) => [key, records.map(decode)]));
+  const archivedManualAmounts = (snapshot.tag_expense_amounts ?? []).map(decode) as Array<{
+    currency: string;
+    amount: number;
+  }>;
+  const archivedLines = snapshot.lines.sort((a, b) => Number(a.id) - Number(b.id)).map(decode);
+  const archivedExpenseTags = snapshot.expense_tags ?? [];
   const entry = {
     ...snapshot.entry,
     is_regular_income: Boolean(snapshot.entry.is_regular_income),
-    lines: snapshot.lines.sort((a, b) => Number(a.id) - Number(b.id)).map(decode),
+    lines: archivedLines,
+    expense_tags: archivedExpenseTags.map((tag) => ({ id: Number(tag.id), name: String(tag.name) })),
+    tag_expense_mode: archivedManualAmounts.length > 0 ? "manual" : "auto",
+    tag_expense_amounts: archivedManualAmounts.length > 0
+      ? archivedManualAmounts
+      : calculateExpenseTagAmounts(
+          archivedLines.map((line) => ({
+            account_id: typeof line.account_id === "number" ? line.account_id : null,
+            debit: Number(line.debit ?? 0),
+            credit: Number(line.credit ?? 0),
+            currency: typeof line.currency === "string" ? line.currency : "JPY",
+          })),
+          [...new Map(archivedLines.flatMap((line) => typeof line.account_id === "number" && typeof line.account_type === "string"
+            ? [[line.account_id, { id: line.account_id, type: line.account_type as AccountType }] as const]
+            : [])).values()],
+        ),
     budget_allocations: (related.journal_entry_budget_allocations ?? []).map(record => ({ ...record, is_reference: Boolean(record.is_reference) })),
     income_budget_allocations: related.budget_adjustment_logs ?? [],
   } as unknown as JournalEntry;

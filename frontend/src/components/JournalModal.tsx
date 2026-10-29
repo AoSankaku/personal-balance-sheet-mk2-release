@@ -382,6 +382,7 @@ function buildDepreciationDraft(
       entryType: "expense",
       expensePaidFromId: paymentLine?.account_id ?? null,
     },
+    expenseTags: entry.expense_tags?.map((tag) => tag.name) ?? [],
     budgetDist: [],
     showZeroCategories: false,
     depreciation: {
@@ -455,7 +456,8 @@ export function JournalModal({
       };
     }
     const isMultilineSource =
-      editEntry.budget_allocations?.[0]?.source === "multiline";
+      editEntry.budget_allocations?.[0]?.source === "multiline" ||
+      editEntry.tag_expense_mode === "manual";
     const simpleValues = detectSimpleEntry(editEntry, accounts);
 
     if (!simpleValues) {
@@ -542,6 +544,7 @@ export function JournalModal({
     return {
       simpleInitDraft: {
         formValues: simpleValues,
+        expenseTags: editEntry.expense_tags?.map((tag) => tag.name) ?? [],
         budgetDist,
         showZeroCategories: false,
         ...incomeDraft,
@@ -598,6 +601,9 @@ export function JournalModal({
         creditCardStatementOffsetMonths:
           l.credit_card_billing_offset_months ?? 0,
       })),
+      expenseTags: editEntry.expense_tags?.map((tag) => tag.name) ?? [],
+      tagExpenseMode: editEntry.tag_expense_mode ?? "auto",
+      tagExpenseAmounts: editEntry.tag_expense_amounts ?? [],
       budgetAllocs,
       budgetFundingComponents: editEntry.budget_funding_components ?? [],
       incomeBudgetAllocations: editEntry.income_budget_allocations ?? [],
@@ -626,7 +632,8 @@ export function JournalModal({
 
     const canUseSimple =
       editEntry.depreciation_entry_kind === "source" ||
-      (editEntry.budget_allocations?.[0]?.source !== "multiline" &&
+      (editEntry.tag_expense_mode !== "manual" &&
+        editEntry.budget_allocations?.[0]?.source !== "multiline" &&
         detectSimpleEntry(editEntry, accounts) != null);
     setActiveTab(canUseSimple ? "simple" : "multi");
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Group,
+  MultiSelect,
   Paper,
   ScrollArea,
   SegmentedControl,
@@ -33,6 +34,9 @@ import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { systemAccountTranslationKey } from "../lib/accountUtils";
 import { formatCurrency } from "../lib/numberFormat";
 import { lineAmountForDisplayMode } from "../lib/displayCurrencyAmounts";
+import { matchesExpenseTags } from "../../../shared/expenseTags";
+import { expenseTagOptions } from "../lib/expenseTagSummary";
+import { ExpenseTagSummary } from "../components/ExpenseTagSummary";
 
 type ViewMode = "month" | "quarter" | "half" | "year";
 type SortField = "name" | "amount";
@@ -308,6 +312,9 @@ export default function PlPage() {
     enabledCurrencies,
   } = useAppData();
   const [includeAllCurrencies, setIncludeAllCurrencies] = useState(false);
+  const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
+  const selectedTagIds = useMemo(() => filterTagIds.map(Number), [filterTagIds]);
+  const tagOptions = useMemo(() => expenseTagOptions(journal), [journal]);
   const hasMultipleCurrencies = enabledCurrencies.length > 1;
 
   const fmt = (amount: number) =>
@@ -389,8 +396,8 @@ export default function PlPage() {
   // ── Journal filtering ──────────────────────────────────────────────────────
 
   const filteredJournal = useMemo(
-    () => journal.filter((e) => e.date >= fromStr && e.date <= toStr),
-    [journal, fromStr, toStr],
+    () => journal.filter((e) => e.date >= fromStr && e.date <= toStr && matchesExpenseTags(e, selectedTagIds)),
+    [journal, fromStr, toStr, selectedTagIds],
   );
 
   // ── Account balances ───────────────────────────────────────────────────────
@@ -581,6 +588,14 @@ export default function PlPage() {
       </Paper>
 
       {/* Summary cards */}
+      <MultiSelect
+        label={t("expenseTagsFilter")}
+        description={t("expenseTagsFilterHint")}
+        data={tagOptions} value={filterTagIds} onChange={setFilterTagIds}
+        searchable clearable
+      />
+      <ExpenseTagSummary entries={filteredJournal} selectedTagIds={selectedTagIds} includeAllCurrencies={includeAllCurrencies} />
+
       <SimpleGrid cols={{ base: 1, sm: 3 }}>
         <Paper
           withBorder

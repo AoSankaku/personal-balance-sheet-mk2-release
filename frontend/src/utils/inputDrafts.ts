@@ -24,6 +24,9 @@ export interface MultiLineDraft {
   date: Date;
   description: string;
   rows: MultiLineRow[];
+  expenseTags?: string[];
+  tagExpenseMode?: "auto" | "manual";
+  tagExpenseAmounts?: NonNullable<CreateJournalInput["tag_expense_amounts"]>;
   budgetAllocs?: Record<number, number>;
   budgetFundingComponents?: BudgetFundingComponentRecord[];
   incomeBudgetAllocations?: NonNullable<CreateJournalInput["income_budget_allocations"]>;

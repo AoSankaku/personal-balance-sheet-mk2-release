@@ -1785,3 +1785,21 @@ journalHistoryBorrow: 借入
 journalHistoryRepay: 償還
 journalHistoryLend: 借出
 journalHistoryCollect: 收回
+expenseTagsLabel: 支出標籤
+expenseTagsPlaceholder: 輸入標籤後按 Enter
+expenseTagsFilter: 依標籤篩選
+expenseTagsFilterHint: 顯示包含任一所選標籤的分錄
+tagExpenseTotal: 標籤支出金額
+tagExpenseSummaryHint: 此標籤彙總與分錄金額分開計算。含多個標籤的分錄在總額中只計一次。
+tagExpenseAmount: 標籤支出金額
+tagExpenseAuto: 自動計算
+tagExpenseManual: 手動輸入
+tagExpenseAmountHint: 僅用於標籤彙總；不會改變分錄或帳簿金額。
+tagExpenseAmountRequired: 請輸入有效的標籤彙總金額。
+expenseTagsCount: "標籤（{count}）"
+tagExpenseBreakdown: 標籤支出明細
+tagExpenseBreakdownHint: 不同標籤的金額可能重複。總額中每筆分錄只計一次。
+expenseTagsEmpty: 沒有標籤
+editExpenseTags: 編輯標籤
+expenseTagsSaved: 標籤已儲存
+expenseTagsUnavailableForDepreciation: 折舊輸入中無法在此編輯標籤。儲存分錄後，請在帳簿中編輯標籤。

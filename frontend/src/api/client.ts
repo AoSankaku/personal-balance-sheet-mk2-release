@@ -4,6 +4,7 @@ import type {
   CreateAccountInput,
   JournalEntry,
   JournalHistoryResponse,
+  ExpenseTag,
   CreateJournalInput,
   CompletePlannedExpenseWithJournalInput,
   CompletePlannedExpenseWithJournalResponse,
@@ -222,6 +223,9 @@ const BUDGET_PREFIXES = ["/budget"];
 const PLANNED_EXPENSE_PREFIXES = ["/planned-expenses", "/budget"];
 
 export const api = {
+  expenseTags: {
+    list: () => request<ExpenseTag[]>("/expense-tags"),
+  },
   taskSettings: {
     get: () => request<TaskSettings>("/task-settings"),
     update: (input: UpdateTaskSettingsInput) =>
@@ -279,6 +283,10 @@ export const api = {
       }, DERIVED_ACCOUNT_PREFIXES),
   },
   journal: {
+    updateExpenseTags: (id: number, expense_tags: string[]) =>
+      mutationRequest<Pick<JournalEntry, "expense_tags" | "tag_expense_mode" | "tag_expense_amounts">>(`/journal/${id}/expense-tags`, {
+        method: "PATCH", body: JSON.stringify({ expense_tags }),
+      }, DERIVED_JOURNAL_PREFIXES),
     list: () => request<JournalEntry[]>("/journal"),
     get: (id: number) => request<JournalEntry>(`/journal/${id}`),
     create: (input: CreateJournalInput) =>

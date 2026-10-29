@@ -77,6 +77,10 @@ import {
 import { refreshAfterBudgetAdjustment } from "../lib/budgetAdjustmentRefresh";
 import { usePrivacy } from "../context/PrivacyContext";
 import { completedDateRange } from "../lib/completedDateRange";
+import { matchesExpenseTags } from "../../../shared/expenseTags";
+import { expenseTagOptions } from "../lib/expenseTagSummary";
+import { ExpenseTagSummary } from "../components/ExpenseTagSummary";
+import { ExpenseTagsModal } from "../components/ExpenseTagsModal";
 import classes from "./LedgerPage.module.css";
 
 function normalizeCurrency(currency: string | null | undefined) {
@@ -196,6 +200,9 @@ export default function LedgerPage() {
   const [filterAmountMin, setFilterAmountMin] = useState<number | string>("");
   const [filterAmountMax, setFilterAmountMax] = useState<number | string>("");
   const [filterAccountIds, setFilterAccountIds] = useState<string[]>([]);
+  const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
+  const selectedTagIds = useMemo(() => filterTagIds.map(Number), [filterTagIds]);
+  const tagOptions = useMemo(() => expenseTagOptions(journal), [journal]);
 
   const accountFilterOptions = useMemo(() => {
     type AType = (typeof accounts)[0]["type"];
@@ -270,6 +277,7 @@ export default function LedgerPage() {
   const [editDate, setEditDate] = useState("");
   const [editNote, setEditNote] = useState("");
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
+  const [taggingEntry, setTaggingEntry] = useState<JournalEntry | null>(null);
   const [
     journalEditOpened,
     { open: openJournalEdit, close: closeJournalEdit },
@@ -487,6 +495,7 @@ export default function LedgerPage() {
     filterAmountMin !== "",
     filterAmountMax !== "",
     filterAccountIds.length > 0,
+    filterTagIds.length > 0,
     appliedFilterCreatedRange[0] !== null ||
       appliedFilterCreatedRange[1] !== null,
   ].filter(Boolean).length;
@@ -503,6 +512,7 @@ export default function LedgerPage() {
       )
         return false;
       if (filterSource && (e.source ?? "manual") !== filterSource) return false;
+      if (!matchesExpenseTags(e, selectedTagIds)) return false;
       if (filterAccountIds.length > 0) {
         const entryIds = e.lines.map((l) => String(l.account_id));
         if (!filterAccountIds.some((id) => entryIds.includes(id))) return false;
@@ -528,6 +538,7 @@ export default function LedgerPage() {
     filterDesc,
     filterSource,
     filterAccountIds,
+    selectedTagIds,
     filterAmountMin,
     filterAmountMax,
     appliedFilterCreatedRange,
@@ -551,6 +562,7 @@ export default function LedgerPage() {
       )
         return false;
       if (filterSource && (e.source ?? "manual") !== filterSource) return false;
+      if (!matchesExpenseTags(e, selectedTagIds)) return false;
       if (filterAccountIds.length > 0) {
         const entryAcctIds = e.lines.map((l) => String(l.account_id));
         if (!filterAccountIds.some((id) => entryAcctIds.includes(id)))
@@ -578,6 +590,7 @@ export default function LedgerPage() {
     filterDesc,
     filterSource,
     filterAccountIds,
+    selectedTagIds,
     filterAmountMin,
     filterAmountMax,
     appliedFilterCreatedRange,
@@ -1008,6 +1021,14 @@ export default function LedgerPage() {
                       style={{ flex: "1 1 160px" }}
                     />
                   </Group>
+                  <MultiSelect
+                    label={t("expenseTagsFilter")}
+                    description={t("expenseTagsFilterHint")}
+                    data={tagOptions}
+                    value={filterTagIds}
+                    onChange={value => { setFilterTagIds(value); setJournalPage(1); }}
+                    searchable clearable size="xs"
+                  />
                   <Group align="flex-end" gap="sm" wrap="wrap">
                     <NumberInput
                       label={t("filterAmountLabel")}
@@ -1070,6 +1091,7 @@ export default function LedgerPage() {
                           setFilterAmountMin("");
                           setFilterAmountMax("");
                           setFilterAccountIds([]);
+                          setFilterTagIds([]);
                           setFilterCreatedRange([null, null]);
                           setAppliedFilterCreatedRange([null, null]);
                           setJournalPage(1);
@@ -1083,6 +1105,8 @@ export default function LedgerPage() {
               </Accordion.Panel>
             </Accordion.Item>
           </Accordion>
+
+          <ExpenseTagSummary entries={filteredJournal} selectedTagIds={selectedTagIds} />
 
           {/* P&L summary — compact inline row */}
           <Paper withBorder px="md" py="xs" radius="md">
@@ -1155,6 +1179,7 @@ export default function LedgerPage() {
             entries={pagedJournal}
             accounts={accounts}
             onDelete={handleDeleteJournal}
+            onEditTags={privacyMode ? undefined : setTaggingEntry}
             onEdit={privacyMode ? undefined : handleEditJournal}
             readOnly={privacyMode}
             view={viewMode}
@@ -1637,6 +1662,7 @@ export default function LedgerPage() {
       </Tabs.Panel>
 
       {/* Edit journal entry modal */}
+      {taggingEntry && <ExpenseTagsModal key={taggingEntry.id} entry={taggingEntry} onClose={() => setTaggingEntry(null)} onSaved={refresh} />}
       <JournalModal
         opened={journalEditOpened}
         accounts={accounts}

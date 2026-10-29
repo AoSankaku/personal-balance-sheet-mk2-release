@@ -17,6 +17,7 @@ import {
   enabledCurrencies,
   exchangeCredentials,
   journalEntries,
+  expenseTags,
 } from "../db/schema";
 
 const router = new Hono<{ Bindings: Env }>();
@@ -178,6 +179,7 @@ router.post("/erase", async (c) => {
         ]);
         await db.delete(depreciationBudgetRevisions);
         await db.delete(journalEntries); // cascades journal_lines, journal_entry_budget_allocations, budget_adjustment_logs (with journal_entry_id)
+        await db.delete(expenseTags); // erase event names after the journal/tag associations cascade
         await db.delete(budgetAdjustmentLogs); // remaining manual adjustments
         await db.delete(budgetFilterStepAllocations); // no cascade from budget_categories
         await db.delete(budgetCategories); // cascades: budget_category_accounts, budget_allocations

@@ -132,6 +132,45 @@ export const journalLines = sqliteTable("journal_lines", {
   ),
 }));
 
+export const expenseTags = sqliteTable("expense_tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  created_at: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+export const journalEntryExpenseTags = sqliteTable("journal_entry_expense_tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  journal_entry_id: integer("journal_entry_id")
+    .notNull()
+    .references(() => journalEntries.id, { onDelete: "cascade" }),
+  tag_id: integer("tag_id")
+    .notNull()
+    .references(() => expenseTags.id, { onDelete: "restrict" }),
+}, (table) => ({
+  uniqueEntryTag: uniqueIndex("idx_journal_entry_expense_tags_entry_tag_unique")
+    .on(table.journal_entry_id, table.tag_id),
+  tagEntryIdx: index("idx_journal_entry_expense_tags_tag_entry")
+    .on(table.tag_id, table.journal_entry_id),
+}));
+
+export const journalEntryTagAmounts = sqliteTable("journal_entry_tag_amounts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  journal_entry_id: integer("journal_entry_id")
+    .notNull()
+    .references(() => journalEntries.id, { onDelete: "cascade" }),
+  currency: text("currency").notNull(),
+  amount: integer("amount").notNull(),
+}, (table) => ({
+  uniqueEntryCurrency: uniqueIndex("idx_journal_entry_tag_amounts_entry_currency_unique")
+    .on(table.journal_entry_id, table.currency),
+  amountInteger: check(
+    "chk_journal_entry_tag_amounts_integer",
+    sql`typeof(${table.amount}) = 'integer'`,
+  ),
+}));
+
 export const cryptoWallets = sqliteTable("crypto_wallets", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   account_id: integer("account_id")
@@ -1255,3 +1294,9 @@ export type JournalDeletionCandidateRow = typeof journalDeletionCandidates.$infe
 export type NewJournalDeletionCandidateRow = typeof journalDeletionCandidates.$inferInsert;
 export type JournalHistorySettingsRow = typeof journalHistorySettings.$inferSelect;
 export type NewJournalHistorySettingsRow = typeof journalHistorySettings.$inferInsert;
+export type ExpenseTagRow = typeof expenseTags.$inferSelect;
+export type NewExpenseTagRow = typeof expenseTags.$inferInsert;
+export type JournalEntryExpenseTagRow = typeof journalEntryExpenseTags.$inferSelect;
+export type NewJournalEntryExpenseTagRow = typeof journalEntryExpenseTags.$inferInsert;
+export type JournalEntryTagAmountRow = typeof journalEntryTagAmounts.$inferSelect;
+export type NewJournalEntryTagAmountRow = typeof journalEntryTagAmounts.$inferInsert;

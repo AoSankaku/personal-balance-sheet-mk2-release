@@ -10,6 +10,7 @@ import {
   Modal,
   NumberInput,
   Select,
+  SegmentedControl,
   SimpleGrid,
   Stack,
   Text,
@@ -62,7 +63,17 @@ import {
 } from "../lib/multiLineBudgetFunding";
 import { shouldUseReferenceBudgetAllocations } from "../lib/budgetConsistency";
 import { calculateJournalIncomeBudgetImpact } from "../../../shared/journalIncomeBudget";
+import { calculateExpenseTagAmounts } from "../../../shared/expenseTags";
+import {
+  buildManualTagExpenseSubmission,
+  buildTagExpenseAmounts,
+  initializeTagExpenseInputState,
+  normalizeExpenseTagNames,
+  resetTagExpenseInputState,
+  parseTagExpenseAmount,
+} from "../lib/expenseTagInput";
 import { BudgetDistributionCalculator } from "./BudgetDistributionCalculator";
+import { ExpenseTagInput } from "./ExpenseTagInput";
 import {
   resolveIncomeTransferAccounts,
   splitIncomeAllocationsAcrossSources,
@@ -255,7 +266,39 @@ export function MultiLineEntryForm({
   const [overBudgetWarnOpen, setOverBudgetWarnOpen] = useState(false);
   const [underBudgetWarnOpen, setUnderBudgetWarnOpen] = useState(false);
   const [budgetCalculatorOpen, setBudgetCalculatorOpen] = useState(false);
+  const [expenseTags, setExpenseTags] = useState<string[]>(
+    draftInitialValues?.expenseTags ?? [],
+  );
+  const initialTagExpenseState = initializeTagExpenseInputState(
+    draftInitialValues?.tagExpenseMode ?? "auto",
+    draftInitialValues?.tagExpenseAmounts ?? [],
+    selectedCurrency,
+  );
+  const [tagExpenseMode, setTagExpenseMode] = useState(initialTagExpenseState.mode);
+  const [tagExpenseAmounts, setTagExpenseAmounts] = useState(initialTagExpenseState.amounts);
+  const [manualTagExpenseInputs, setManualTagExpenseInputs] = useState(initialTagExpenseState.manualInputs);
+  const [tagExpenseCurrency, setTagExpenseCurrency] = useState(selectedCurrency);
+  const [catalogExpenseTags, setCatalogExpenseTags] = useState<string[]>([]);
   const pendingValues = useRef<MultiForm | null>(null);
+
+  useEffect(() => {
+    if (tagExpenseCurrency === selectedCurrency) return;
+    const reset = resetTagExpenseInputState();
+    setTagExpenseCurrency(selectedCurrency);
+    setTagExpenseMode(reset.mode);
+    setTagExpenseAmounts(reset.amounts);
+    setManualTagExpenseInputs(reset.manualInputs);
+  }, [tagExpenseCurrency, selectedCurrency]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.expenseTags.list().then((tags) => {
+      if (!cancelled) setCatalogExpenseTags(tags.map((tag) => tag.name));
+    }).catch(() => {
+      // Existing journal tags remain available when the catalog cannot be loaded.
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const [unsettledByAccount, setUnsettledByAccount] = useState<
     Record<number, UnsettledLoanEntry[]>
@@ -296,13 +339,16 @@ export function MultiLineEntryForm({
     if (!isControlled) {
       setMultiDraft({
         ...form.values,
+        expenseTags,
+        tagExpenseMode,
+        tagExpenseAmounts,
         budgetAllocs,
         incomeBudgetAllocs,
         incomeTransferTargets,
         deferIncomeTransfers,
       });
     }
-  }, [form.values, budgetAllocs, incomeBudgetAllocs, incomeTransferTargets, deferIncomeTransfers, isControlled]);
+  }, [form.values, expenseTags, tagExpenseMode, tagExpenseAmounts, budgetAllocs, incomeBudgetAllocs, incomeTransferTargets, deferIncomeTransfers, isControlled]);
 
   // Accounts in "settlement direction": debit of short_term_loan (repayment)
   // or credit of short_term_lending (collection)
@@ -472,6 +518,33 @@ export function MultiLineEntryForm({
       r.account_id != null &&
       accounts.find((a) => a.id === r.account_id)?.type === "expense",
   );
+  const tagExpenseStateMatchesCurrency = tagExpenseCurrency === selectedCurrency;
+  const activeTagExpenseMode = tagExpenseStateMatchesCurrency ? tagExpenseMode : "auto";
+  const activeTagExpenseAmounts = tagExpenseStateMatchesCurrency ? tagExpenseAmounts : [];
+  const activeManualTagExpenseInputs = tagExpenseStateMatchesCurrency ? manualTagExpenseInputs : {};
+  const tagExpenseCalculatedAmounts = useMemo(
+    () => calculateExpenseTagAmounts(budgetLines, accounts),
+    [
+      budgetLines.map((line) => `${line.account_id}:${line.debit}:${line.credit}:${line.currency}`).join("|"),
+      accounts,
+    ],
+  );
+  const calculatedTagExpenseAmount =
+    tagExpenseCalculatedAmounts.find((item) => item.currency === selectedCurrency)?.amount ?? 0;
+  const manualTagExpenseAmount = activeTagExpenseAmounts.find(
+    (item) => item.currency === selectedCurrency,
+  )?.amount;
+  const manualTagExpenseInput = activeManualTagExpenseInputs[selectedCurrency] ??
+    manualTagExpenseAmount ?? calculatedTagExpenseAmount;
+  const isManualTagExpenseInputValid =
+    parseTagExpenseAmount(manualTagExpenseInput) != null;
+  const expenseTagOptions = useMemo(
+    () => [...new Set([
+      ...catalogExpenseTags,
+      ...(journal ?? []).flatMap((entry) => entry.expense_tags?.map((tag) => tag.name) ?? []),
+    ])],
+    [catalogExpenseTags, journal],
+  );
   const hasIncomeRow = form.values.rows.some(
     (r) => r.account_id != null && accounts.find((a) => a.id === r.account_id)?.type === "income",
   );
@@ -577,6 +650,18 @@ export function MultiLineEntryForm({
   );
 
   async function doSubmit(values: MultiForm) {
+    const manualTagExpenseSubmission = activeTagExpenseMode === "manual" && expenseTags.length > 0
+      ? buildManualTagExpenseSubmission(
+          activeTagExpenseAmounts,
+          selectedCurrency,
+          activeManualTagExpenseInputs[selectedCurrency] ?? manualTagExpenseAmount,
+          calculatedTagExpenseAmount,
+        )
+      : undefined;
+    if (activeTagExpenseMode === "manual" && expenseTags.length > 0 && manualTagExpenseSubmission == null) {
+      showFeedback({ message: t("tagExpenseAmountRequired"), color: "red" });
+      return;
+    }
     const validLines = values.rows.filter(
       (r) => r.account_id != null && (r.debit > 0 || r.credit > 0),
     );
@@ -828,6 +913,11 @@ export function MultiLineEntryForm({
         income_transfer_destinations.length > 0 ? income_transfer_destinations :
           initialValues?.incomeTransferDestinations ? [] : undefined,
       budget_source: "multiline",
+      expense_tags: normalizeExpenseTagNames(expenseTags),
+      tag_expense_mode: expenseTags.length > 0 ? activeTagExpenseMode : "auto",
+      ...(expenseTags.length > 0 && activeTagExpenseMode === "manual"
+        ? { tag_expense_amounts: manualTagExpenseSubmission! }
+        : {}),
       loan_settlement_opening: openingAccountIds.length > 0 || undefined,
       loan_settlement_journal_entry_ids:
         allSettledIds.length > 0 ? allSettledIds : undefined,
@@ -841,12 +931,22 @@ export function MultiLineEntryForm({
       form.reset();
       setBudgetAllocs({});
       setIncomeBudgetAllocs({});
+      setExpenseTags([]);
+      const resetTagExpense = resetTagExpenseInputState();
+      setTagExpenseCurrency(selectedCurrency);
+      setTagExpenseMode(resetTagExpense.mode);
+      setTagExpenseAmounts(resetTagExpense.amounts);
+      setManualTagExpenseInputs(resetTagExpense.manualInputs);
       setSettledIdsByAccount({});
       setFundingCategoryAmounts({});
     }
   }
 
   async function handleSubmit(values: MultiForm) {
+    if (expenseTags.length > 0 && activeTagExpenseMode === "manual" && !isManualTagExpenseInputValid) {
+      showFeedback({ message: t("tagExpenseAmountRequired"), color: "red" });
+      return;
+    }
     if (budgetCategories.length > 0 && (totalBudgetPct > 100 || totalIncomeBudgetPct > 100)) {
       setOverBudgetWarnOpen(true);
       return;
@@ -1042,6 +1142,87 @@ export function MultiLineEntryForm({
               {...form.getInputProps("description")}
             />
           </SimpleGrid>
+
+          <Stack gap="xs">
+            <ExpenseTagInput
+              label={t("expenseTagsLabel")}
+              placeholder={t("expenseTagsPlaceholder")}
+              options={expenseTagOptions}
+              value={expenseTags}
+              onChange={(next) => {
+                const normalized = normalizeExpenseTagNames(next);
+                setExpenseTags(normalized);
+                if (normalized.length === 0) {
+                  const reset = resetTagExpenseInputState();
+                  setTagExpenseCurrency(selectedCurrency);
+                  setTagExpenseMode(reset.mode);
+                  setTagExpenseAmounts(reset.amounts);
+                  setManualTagExpenseInputs(reset.manualInputs);
+                }
+              }}
+            />
+            {expenseTags.length > 0 && (
+              <Stack gap={4}>
+                <SegmentedControl
+                  data-testid="tag-expense-mode"
+                  fullWidth
+                  value={activeTagExpenseMode}
+                  onChange={(value) => {
+                    const nextMode = value as "auto" | "manual";
+                    setTagExpenseMode(nextMode);
+                    if (nextMode === "auto") {
+                      const reset = resetTagExpenseInputState();
+                      setTagExpenseCurrency(selectedCurrency);
+                      setTagExpenseAmounts(reset.amounts);
+                      setManualTagExpenseInputs(reset.manualInputs);
+                    } else if (manualTagExpenseAmount == null) {
+                      setTagExpenseCurrency(selectedCurrency);
+                      setManualTagExpenseInputs((previous) => ({
+                        ...previous,
+                        [selectedCurrency]: calculatedTagExpenseAmount,
+                      }));
+                      setTagExpenseAmounts(buildTagExpenseAmounts(
+                        activeTagExpenseAmounts,
+                        selectedCurrency,
+                        calculatedTagExpenseAmount,
+                      ));
+                    }
+                  }}
+                  data={[
+                    { value: "auto", label: t("tagExpenseAuto") },
+                    { value: "manual", label: t("tagExpenseManual") },
+                  ]}
+                />
+                {activeTagExpenseMode === "manual" ? (
+                  <>
+                    <NumberInput
+                      data-testid="tag-expense-amount"
+                      label={t("tagExpenseAmount")}
+                      value={manualTagExpenseInput}
+                      error={isManualTagExpenseInputValid ? undefined : t("tagExpenseAmountRequired")}
+                      onChange={(value) => {
+                        setManualTagExpenseInputs((previous) => ({ ...previous, [selectedCurrency]: value }));
+                        setTagExpenseAmounts((previous) =>
+                          buildTagExpenseAmounts(previous, selectedCurrency, value),
+                        );
+                      }}
+                      decimalScale={currencyDecimalPlaces}
+                      thousandSeparator
+                      allowNegative
+                      leftSection={currencySymbol}
+                    />
+                    <Text size="xs" c="dimmed">{t("tagExpenseAmountHint")}</Text>
+                  </>
+                ) : (
+                  <Text size="sm" c="dimmed">
+                    <span data-testid="tag-expense-auto-value">
+                      {t("tagExpenseAuto")}: {formatCurrency(calculatedTagExpenseAmount, locale, selectedCurrency, currencySymbol)}
+                    </span>
+                  </Text>
+                )}
+              </Stack>
+            )}
+          </Stack>
 
           {form.values.rows.map((row, i) =>
             isMobile ? (

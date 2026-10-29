@@ -1785,3 +1785,21 @@ journalHistoryBorrow: Préstamo recibido
 journalHistoryRepay: Reembolso
 journalHistoryLend: Préstamo concedido
 journalHistoryCollect: Cobro
+expenseTagsLabel: Etiquetas de gasto
+expenseTagsPlaceholder: Escribe una etiqueta y pulsa Intro
+expenseTagsFilter: Filtrar por etiqueta
+expenseTagsFilterHint: Mostrar asientos que contengan cualquiera de las etiquetas seleccionadas
+tagExpenseTotal: Gastos etiquetados
+tagExpenseSummaryHint: Este resumen es independiente de los importes del asiento. Los asientos con varias etiquetas se cuentan una sola vez en el total.
+tagExpenseAmount: Importe asociado a la etiqueta
+tagExpenseAuto: Automático
+tagExpenseManual: Manual
+tagExpenseAmountHint: Solo se usa en los resúmenes por etiqueta; los importes del libro no cambian.
+tagExpenseAmountRequired: Introduce un importe válido para el resumen por etiqueta.
+expenseTagsCount: "Etiquetas ({count})"
+tagExpenseBreakdown: Gastos por etiqueta
+tagExpenseBreakdownHint: Los importes pueden solaparse entre etiquetas. El total cuenta cada asiento una sola vez.
+expenseTagsEmpty: No hay etiquetas
+editExpenseTags: Editar etiquetas
+expenseTagsSaved: Etiquetas guardadas
+expenseTagsUnavailableForDepreciation: Las etiquetas no se pueden cambiar en la entrada de depreciación. Guarda el asiento y edita sus etiquetas desde el libro.

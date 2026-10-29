@@ -72,6 +72,14 @@ function HistoryCard({ candidate }: { candidate: JournalDeletionCandidate }) {
             </Group>
             <Text fw={600}>{entry.description}</Text>
             <Text size="sm" c="dimmed">{entry.date}</Text>
+            {(entry.expense_tags?.length ?? 0) > 0 && <Stack gap={4}>
+              <Group gap={4} aria-label={t("expenseTagsLabel")}>
+                {entry.expense_tags!.map(tag => <Badge key={tag.id} color="cyan" variant="light" tt="none">{tag.name}</Badge>)}
+              </Group>
+              {(entry.tag_expense_amounts ?? []).map(value => <Text key={value.currency} size="xs" c="dimmed">
+                {t("tagExpenseTotal")}: {formatJournalHistoryAmount(value.amount, locale)} {value.currency}
+              </Text>)}
+            </Stack>}
           </Stack>
           <Text component="time" dateTime={candidate.archived_at} size="xs" c="dimmed">
             {t("journalHistoryArchivedAt")}: {dateTime.format(new Date(candidate.archived_at))}
