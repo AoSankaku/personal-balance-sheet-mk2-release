@@ -9,6 +9,7 @@ import {
   getZeroAmountStatementCompletion,
 } from "./creditCardStatementCompletion";
 import type { CreditCardStatementCompletion } from "@balance-sheet/shared";
+import { formatCreditCardPaymentLabel, getCreditCardWindowMeta } from "../components/tt/ttUtils";
 
 const settings: CreditCardSettings = {
   id: 1,
@@ -37,13 +38,13 @@ describe("credit card statement completion", () => {
       }),
     ).toEqual({
       account_id: 10,
-      payment_month: "2026-07",
+      payment_month: "2026-06",
       amount: 1_500,
       status: "confirmed",
     });
   });
 
-  test("derives the SMBC confirmed payment month from the dominant closing month", () => {
+  test("uses the dominant closing month as the SMBC trial-balance key", () => {
     expect(
       getConfirmedCsvCreditCardState({
         format: "smbc-confirmed",
@@ -56,7 +57,7 @@ describe("credit card statement completion", () => {
       }),
     ).toEqual({
       account_id: 10,
-      payment_month: "2026-07",
+      payment_month: "2026-06",
       amount: 3_300,
       status: "confirmed",
     });
@@ -70,6 +71,34 @@ describe("credit card statement completion", () => {
         settings,
       }),
     ).toBeNull();
+  });
+
+  test("an August SMBC statement appears under its actual September payment only once", () => {
+    const card = { ...settings, closing_day: 0, withdrawal_day: 27 };
+    const state = getConfirmedCsvCreditCardState({
+      format: "smbc-confirmed", settings: card,
+      transactions: [transaction("2026-08-05", "2026-08", 1000), transaction("2026-08-20", "2026-08", 2000)],
+    });
+    expect(state?.payment_month).toBe("2026-08");
+    expect(formatCreditCardPaymentLabel(state!.payment_month, card, "en")).toBe("2026-09 payment");
+    expect(getCreditCardWindowMeta("2026-10-30", state!.payment_month, card, "en").period?.end).toBe("2026-08-31");
+  });
+
+  test("uses the closing period on both sides of the SMBC closing day", () => {
+    expect(getConfirmedCsvCreditCardState({
+      format: "smbc-confirmed", settings,
+      transactions: [transaction("2026-07-16", "2026-07"), transaction("2026-08-15", "2026-08")],
+    })?.payment_month).toBe("2026-08");
+  });
+
+  test("converts Rakuten payment months back through additional billing delay and year rollover", () => {
+    const card = { ...settings, billing_offset_months: 1 };
+    const state = getConfirmedCsvCreditCardState({
+      format: "rakuten-confirmed", settings: card,
+      transactions: [transaction("2026-11-05", "2027-01", 1000)],
+    });
+    expect(state?.payment_month).toBe("2026-11");
+    expect(formatCreditCardPaymentLabel(state!.payment_month, card, "en")).toBe("2027-01 payment");
   });
 
   test("infers the usage month from an auto-detected Rakuten payment month", () => {
