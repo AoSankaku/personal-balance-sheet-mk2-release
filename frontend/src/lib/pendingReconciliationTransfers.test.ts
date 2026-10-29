@@ -112,6 +112,42 @@ describe("summarizePendingReconciliationTransfers", () => {
     expect(summary.taskCountByAccount.get(20)).toBe(1);
   });
 
+  test("keeps covered but unresolved requirements visible when no placement transfer is available", () => {
+    const unresolved = requirement({ id: 7, source_income_journal_entry_id: 7 });
+    const summary = summarizePendingReconciliationTransfers({
+      journal: [entry(7, [unresolved])],
+      plan: plan({
+        requirement_ids: [7],
+        unresolved_requirement_ids: [7],
+        pending_transfers: [group([unresolved])],
+      }),
+      currency: "JPY",
+    });
+
+    expect(summary.taskCount).toBe(1);
+    expect(summary.taskCountByAccount.get(10)).toBe(1);
+    expect(summary.taskCountByAccount.get(20)).toBe(1);
+  });
+
+  test("counts a proposed placement transfer and a distinct unresolved income task separately", () => {
+    const unresolved = requirement({ id: 8, source_income_journal_entry_id: 8 });
+    const summary = summarizePendingReconciliationTransfers({
+      journal: [entry(8, [unresolved])],
+      plan: plan({
+        transfers: [{ from_account_id: 10, to_account_id: 30, amount: 300, currency: "JPY" }],
+        requirement_ids: [8],
+        unresolved_requirement_ids: [8],
+        pending_transfers: [group([unresolved])],
+      }),
+      currency: "JPY",
+    });
+
+    expect(summary.taskCount).toBe(2);
+    expect(summary.taskCountByAccount.get(10)).toBe(2);
+    expect(summary.taskCountByAccount.get(20)).toBe(1);
+    expect(summary.taskCountByAccount.get(30)).toBe(1);
+  });
+
   test("ignores completed requirements and requirements in other currencies", () => {
     const summary = summarizePendingReconciliationTransfers({
       journal: [entry(1, [

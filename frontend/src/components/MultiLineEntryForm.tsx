@@ -20,6 +20,7 @@ import { useForm } from "@mantine/form";
 import { useMediaQuery } from "@mantine/hooks";
 import {
   IconAlertTriangle,
+  IconCalculator,
   IconInfoCircle,
   IconPlus,
   IconTrash,
@@ -61,6 +62,7 @@ import {
 } from "../lib/multiLineBudgetFunding";
 import { shouldUseReferenceBudgetAllocations } from "../lib/budgetConsistency";
 import { calculateJournalIncomeBudgetImpact } from "../../../shared/journalIncomeBudget";
+import { BudgetDistributionCalculator } from "./BudgetDistributionCalculator";
 import {
   resolveIncomeTransferAccounts,
   splitIncomeAllocationsAcrossSources,
@@ -127,6 +129,7 @@ export function MultiLineEntryForm({
   const {
     accounts,
     budgetCategories,
+    budgetFilters,
     journal,
     enabledCurrencies,
     displayCurrency,
@@ -251,6 +254,7 @@ export function MultiLineEntryForm({
   >(initialFundingCategoryAmounts);
   const [overBudgetWarnOpen, setOverBudgetWarnOpen] = useState(false);
   const [underBudgetWarnOpen, setUnderBudgetWarnOpen] = useState(false);
+  const [budgetCalculatorOpen, setBudgetCalculatorOpen] = useState(false);
   const pendingValues = useRef<MultiForm | null>(null);
 
   const [unsettledByAccount, setUnsettledByAccount] = useState<
@@ -942,6 +946,10 @@ export function MultiLineEntryForm({
     <>
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack>
+          <Group justify="flex-end">
+            <Button type="button" variant="light" leftSection={<IconCalculator size={16} />}
+              onClick={() => setBudgetCalculatorOpen(true)}>{t("budgetCalculatorTitle")}</Button>
+          </Group>
           <Accordion variant="separated" data-testid="investment-sale-assist">
             <Accordion.Item value="investment-sale">
               <Accordion.Control>{t("investmentSaleInputTitle")}</Accordion.Control>
@@ -1714,6 +1722,26 @@ export function MultiLineEntryForm({
           </Group>
         </Stack>
       </form>
+
+      <Modal opened={budgetCalculatorOpen} onClose={() => setBudgetCalculatorOpen(false)}
+        title={t("budgetCalculatorTitle")} size="lg" centered>
+        {budgetCalculatorOpen && <BudgetDistributionCalculator
+          key={selectedCurrency}
+          accounts={accounts} categories={budgetCategories} filters={budgetFilters ?? []}
+          lines={form.values.rows.filter(row => row.account_id != null || row.debit !== 0 || row.credit !== 0).map(row => ({
+            account_id: row.account_id ?? -1, debit: row.debit ?? 0, credit: row.credit ?? 0, currency: selectedCurrency,
+          }))}
+          currency={selectedCurrency} decimalPlaces={currencyDecimalPlaces} currencySymbol={currencySymbol}
+          incomeLocked={hasCompletedIncomeTransfer}
+          onClose={() => setBudgetCalculatorOpen(false)}
+          onApply={values => {
+            if (values.income !== undefined && hasCompletedIncomeTransfer) return;
+            if (values.expense !== undefined) setBudgetAllocs({ ...values.expense });
+            if (values.income !== undefined) setIncomeBudgetAllocs({ ...values.income });
+            setBudgetCalculatorOpen(false);
+          }}
+        />}
+      </Modal>
 
       <Modal
         opened={underBudgetWarnOpen}
