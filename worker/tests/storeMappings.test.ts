@@ -100,4 +100,15 @@ describe("CSV store mapping budget persistence", () => {
       expect.objectContaining({ ...input, budget_category_id: null }),
     ]);
   });
+
+  test("archiving a category stops future imports from allocating into the hidden budget", async () => {
+    const database = fixture();
+    const input = { store_name: "利息", account_id: 1001, budget_category_id: 2001 };
+    await request(database, input);
+    database.sqlite.exec("UPDATE budget_categories SET is_archived = 1 WHERE id = 2001");
+    expect(await (await request(database)).json()).toEqual([
+      expect.objectContaining({ ...input, budget_category_id: null }),
+    ]);
+    expect((await request(database, input)).status).toBe(400);
+  });
 });

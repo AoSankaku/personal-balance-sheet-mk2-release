@@ -5,17 +5,17 @@ import type { ParsedTransaction } from "../utils/csvParser";
 import { applyStoreMappingsToRows, applyStoreMappingToRows } from "./csvStoreMappings";
 
 const transactions: ParsedTransaction[] = [
-  { date: "2026-09-20", store: "利息", amount: 173, paymentMonth: "", direction: "deposit" },
-  { date: "2026-10-20", store: " 利息 ", amount: 180, paymentMonth: "", direction: "deposit" },
-  { date: "2026-10-20", store: "Other store", amount: 100, paymentMonth: "", direction: "deposit" },
-  { date: "2026-10-20", store: "利息", amount: 100, paymentMonth: "", direction: "withdrawal" },
-  { date: "2026-10-20", store: "口座振替", amount: 100, paymentMonth: "", direction: "withdrawal" },
+  { date: "2026-09-20", store: "利息", amount: 173, paymentMonth: "", direction: "deposit", rawRow: "" },
+  { date: "2026-10-20", store: " 利息 ", amount: 180, paymentMonth: "", direction: "deposit", rawRow: "" },
+  { date: "2026-10-20", store: "Other store", amount: 100, paymentMonth: "", direction: "deposit", rawRow: "" },
+  { date: "2026-10-20", store: "利息", amount: 100, paymentMonth: "", direction: "withdrawal", rawRow: "" },
+  { date: "2026-10-20", store: "口座振替", amount: 100, paymentMonth: "", direction: "withdrawal", rawRow: "" },
 ];
 
 const mapping = {
   id: 1, store_name: "利息", account_id: 1001, account_name: "Temporary income",
   budget_category_id: 2001, created_at: "2026-10-01",
-} as StoreAccountMapping;
+} satisfies StoreAccountMapping;
 
 describe("CSV store mapping application", () => {
   test("restores both income account and budget category on a later import", () => {

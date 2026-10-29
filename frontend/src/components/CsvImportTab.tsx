@@ -84,6 +84,10 @@ import {
   toAccountSelectOption,
 } from "../lib/accountUtils";
 import { renderAccountOption } from "../lib/accountSelect";
+import {
+  applyStoreMappingsToRows,
+  applyStoreMappingToRows,
+} from "../lib/csvStoreMappings";
 
 type SortCol = "date" | "store";
 type SortDir = "asc" | "desc";
@@ -152,6 +156,7 @@ export function CsvImportTab({
     storeKey: string;
     accountId: string;
     rowType: WithdrawalRowType;
+    budgetCategoryId: string | null;
     existingMapping: StoreAccountMapping;
   } | null>(null);
 
@@ -264,29 +269,6 @@ export function CsvImportTab({
     zeroAmountCandidates,
   ]);
 
-  function applyStoreMappingsToRows(
-    txs: ParsedTransaction[],
-    mappings: StoreAccountMapping[],
-  ): CsvRowState[] {
-    const mappingMap = new Map(
-      mappings.map((m) => [normalizeStore(m.store_name), m]),
-    );
-    return txs.map((tx) => {
-      const key = normalizeStore(tx.store);
-      const mapping = mappingMap.get(key);
-      return {
-        counterAccountId: mapping ? String(mapping.account_id) : null,
-        budgetCategoryId: null,
-        rowType:
-          tx.direction === "withdrawal" && tx.store.includes("口座振替")
-            ? ("liability" as const)
-            : ("expense" as const),
-        skip: false,
-        note: tx.store,
-      };
-    });
-  }
-
   async function handleFileSelect(file: File | null) {
     if (!file) return;
     try {
@@ -358,17 +340,25 @@ export function CsvImportTab({
     storeKey: string,
     accountId: string,
     rowType: WithdrawalRowType,
+    budgetCategoryId: string | null,
     force = false,
   ) {
     const normalizedKey = normalizeStore(storeKey);
     const existing = storeMappings.find(
       (m) => normalizeStore(m.store_name) === normalizedKey,
     );
-    if (existing && existing.account_id !== Number(accountId) && !force) {
+    const budgetCategory = budgetCategoryId ? Number(budgetCategoryId) : null;
+    if (
+      existing &&
+      (existing.account_id !== Number(accountId) ||
+        (existing.budget_category_id ?? null) !== budgetCategory) &&
+      !force
+    ) {
       setOverwriteTarget({
         storeKey,
         accountId,
         rowType,
+        budgetCategoryId,
         existingMapping: existing,
       });
       return;
@@ -377,6 +367,7 @@ export function CsvImportTab({
       const saved = await api.storeMappings.upsert({
         store_name: normalizedKey,
         account_id: Number(accountId),
+        budget_category_id: budgetCategory,
       });
       setStoreMappings((prev) => {
         const next = prev.filter(
@@ -385,33 +376,32 @@ export function CsvImportTab({
         return [...next, saved];
       });
       showFeedback({ message: t("storeMappingSaved"), color: "teal" });
-      applyToAllSameStore(storeKey, accountId, rowType);
+      setRowStates((prev) =>
+        applyStoreMappingToRows(
+          transactions,
+          prev,
+          storeKey,
+          accountId,
+          rowType,
+          budgetCategoryId,
+        ),
+      );
     } catch {
       showFeedback({ message: t("saveFailed"), color: "red" });
     }
   }
 
-  function applyToAllSameStore(
-    storeKey: string,
-    accountId: string | null,
-    rowType: WithdrawalRowType,
+  function storeMappingLabel(
+    accountId: number,
+    accountName: string | null | undefined,
+    budgetCategoryId: number | null,
   ) {
-    const normalizedKey = normalizeStore(storeKey);
-    setRowStates((prev) =>
-      prev.map((rs, i) => {
-        const tx = transactions[i];
-        if (!tx) return rs;
-        if (normalizeStore(tx.store) === normalizedKey) {
-          return {
-            ...rs,
-            counterAccountId: accountId,
-            rowType,
-            note: tx.store,
-          };
-        }
-        return rs;
-      }),
-    );
+    const name = accountDisplayNameFromName(accountName, t) || String(accountId);
+    if (budgetCategoryId === null) return name;
+    const categoryName = budgetCategories.find(
+      (category) => category.id === budgetCategoryId,
+    )?.name;
+    return `${name} / ${categoryName ?? budgetCategoryId}`;
   }
 
   function toggleSort(col: SortCol) {
@@ -1396,6 +1386,7 @@ export function CsvImportTab({
                                         tx.store,
                                         rs.counterAccountId!,
                                         effectiveRowType,
+                                        rs.budgetCategoryId,
                                       )
                                     }
                                   >
@@ -1720,19 +1711,23 @@ export function CsvImportTab({
                 .replace("{store}", overwriteTarget.storeKey)
                 .replace(
                   "{existing}",
-                  accountDisplayNameFromName(
+                  storeMappingLabel(
+                    overwriteTarget.existingMapping.account_id,
                     overwriteTarget.existingMapping.account_name,
-                    t,
-                  ) || String(overwriteTarget.existingMapping.account_id),
+                    overwriteTarget.existingMapping.budget_category_id ?? null,
+                  ),
                 )
                 .replace(
                   "{new}",
-                  accountDisplayNameFromName(
+                  storeMappingLabel(
+                    Number(overwriteTarget.accountId),
                     accounts.find(
                       (a) => a.id === Number(overwriteTarget.accountId),
                     )?.name,
-                    t,
-                  ) || overwriteTarget.accountId,
+                    overwriteTarget.budgetCategoryId
+                      ? Number(overwriteTarget.budgetCategoryId)
+                      : null,
+                  ),
                 )}
             </Text>
             <Group justify="flex-end">
@@ -1751,6 +1746,7 @@ export function CsvImportTab({
                     target.storeKey,
                     target.accountId,
                     target.rowType,
+                    target.budgetCategoryId,
                     true,
                   );
                 }}

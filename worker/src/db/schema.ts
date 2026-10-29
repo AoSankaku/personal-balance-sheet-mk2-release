@@ -768,6 +768,10 @@ export const storeAccountMappings = sqliteTable("store_account_mappings", {
   account_id: integer("account_id")
     .notNull()
     .references(() => accounts.id, { onDelete: "cascade" }),
+  budget_category_id: integer("budget_category_id").references(
+    () => budgetCategories.id,
+    { onDelete: "set null" },
+  ),
   created_at: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),

@@ -21,7 +21,7 @@ import { accountDisplayNameFromName } from "../lib/accountUtils";
 
 export default function CsvSettingsPage() {
   const { t } = useLang();
-  const { accounts, error } = useAppData();
+  const { accounts, budgetCategories, error } = useAppData();
   const [mappings, setMappings] = useState<StoreAccountMapping[]>([]);
   const [loadingMaps, setLoadingMaps] = useState(true);
 
@@ -106,6 +106,13 @@ export default function CsvSettingsPage() {
                     <Badge size="sm" variant="light" color="blue">
                       {accName}
                     </Badge>
+                    {m.budget_category_id != null && (
+                      <Badge size="sm" variant="light" color="teal">
+                        {budgetCategories.find(
+                          (category) => category.id === m.budget_category_id,
+                        )?.name ?? m.budget_category_id}
+                      </Badge>
+                    )}
                   </Group>
                   <ActionIcon
                     color="red"

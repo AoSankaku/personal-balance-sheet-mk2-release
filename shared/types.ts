@@ -1453,12 +1453,14 @@ export interface StoreAccountMapping {
   store_name: string;
   account_id: number;
   account_name: string | null;
+  budget_category_id: number | null;
   created_at: string;
 }
 
 export interface UpsertStoreAccountMappingInput {
   store_name: string;
   account_id: number;
+  budget_category_id?: number | null;
 }
 
 export interface EnabledCurrency {
