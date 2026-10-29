@@ -3,6 +3,7 @@ import type {
   AccountBudgetRatio,
   CreateAccountInput,
   JournalEntry,
+  JournalHistoryResponse,
   CreateJournalInput,
   CompletePlannedExpenseWithJournalInput,
   CompletePlannedExpenseWithJournalResponse,
@@ -340,6 +341,18 @@ export const api = {
         method: "POST",
         body: JSON.stringify(input),
       }, DERIVED_JOURNAL_PREFIXES),
+  },
+  journalHistory: {
+    list: (offset = 0, limit = 50) => {
+      const query = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+      return request<JournalHistoryResponse>(`/journal-history?${query.toString()}`);
+    },
+    updateSettings: (retention_limit: number) =>
+      mutationRequest<{ retention_limit: number; total: number }>(
+        "/journal-history/settings",
+        { method: "PATCH", body: JSON.stringify({ retention_limit }) },
+        [],
+      ),
   },
   incomeTransferRequirements: {
     list: (status?: "pending" | "completed") => {

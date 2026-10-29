@@ -1746,3 +1746,42 @@ bulkSubmissionInvalidAccount: "請檢查第 {n} 列科目。"
 bulkIncomeTransferTargetRequired: "請選擇第 {n} 列收入的轉入帳戶。"
 bulkExpenseSavedButStatementPending: "分錄已儲存，但帳單完成處理失敗。請稍後完成帳單。"
 bulkExpenseSavedButRefreshFailed: "分錄和帳單已儲存，但無法更新帳單畫面。請重新載入頁面。"
+journalHistoryTitle: 已刪除分錄記錄
+journalHistorySettingsDescription: 查看已刪除的分錄和編輯前的版本，並設定保留筆數。
+journalHistoryDescription: 已刪除的分錄和編輯前的版本會保留在此處，不會計入帳簿與餘額。
+journalHistoryRetentionLimit: 記錄保留上限
+journalHistoryRetentionInputHint: 1–10,000 筆
+journalHistoryRetentionHint: "目前保留 {limit} 筆。超過上限時，最早的記錄會優先永久刪除。"
+journalHistoryReduceConfirmTitle: 永久刪除較早的記錄
+journalHistoryReduceConfirmMessage: "降低上限會永久刪除較早的 {count} 筆記錄，且無法復原。"
+journalHistoryEmpty: 目前沒有分錄記錄。
+journalHistoryLoading: 正在載入分錄記錄
+journalHistoryLoadFailed: 無法載入分錄記錄。
+journalHistoryRetry: 重試
+journalHistoryDeleted: 已刪除
+journalHistoryEdited: 編輯前
+journalHistoryArchivedAt: 記錄時間
+journalHistoryEntryId: 原始分錄 ID
+journalHistoryLines: 分錄明細
+journalHistoryAccount: 科目
+journalHistoryDebit: 借方
+journalHistoryCredit: 貸方
+journalHistoryBudgetAllocations: 預算分配
+journalHistoryReference: 參考
+journalHistoryRelatedRecords: 關聯記錄
+journalHistoryCount: "{count} 筆記錄"
+journalHistoryPagination: 記錄頁面
+journalHistoryPage: "第 {page} / {pages} 頁"
+journalHistorySave: 儲存
+journalHistorySaved: 保留上限已儲存
+journalHistoryIncomeAdjustments: 預算調整
+journalHistoryBudgetFunding: 借貸預算分配
+journalHistoryAllocation: 分配
+journalHistoryReset: 重設
+journalHistoryTransfer: 轉帳
+journalHistoryManualAdjustment: 手動調整
+journalHistoryUnallocated: 未分配
+journalHistoryBorrow: 借入
+journalHistoryRepay: 償還
+journalHistoryLend: 借出
+journalHistoryCollect: 收回

@@ -47,6 +47,7 @@ const LongTermLoanDetailPage = lazy(
 );
 const LanguageSetupPage = lazy(() => import("./pages/LanguageSetupPage"));
 const BottomNotificationHistoryPage = lazy(() => import("./pages/BottomNotificationHistoryPage"));
+const JournalHistoryPage = lazy(() => import("./pages/JournalHistoryPage"));
 
 function PageFallback() {
   return (
@@ -199,6 +200,10 @@ export default function App() {
               <Route
                 path="/bottom-notification-history"
                 element={privacyMode ? <PrivacyModeBlocked /> : <BottomNotificationHistoryPage />}
+              />
+              <Route
+                path="/settings/journal-history"
+                element={privacyMode ? <PrivacyModeBlocked /> : <JournalHistoryPage />}
               />
               <Route
                 path="/settings/budget"

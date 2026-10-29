@@ -1746,3 +1746,42 @@ bulkSubmissionInvalidAccount: "Revisa la cuenta de la fila {n}."
 bulkIncomeTransferTargetRequired: "Selecciona el destino de la transferencia del ingreso de la fila {n}."
 bulkExpenseSavedButStatementPending: "Los asientos se guardaron, pero no se pudo completar el extracto. Complétalo más tarde."
 bulkExpenseSavedButRefreshFailed: "Los asientos y el extracto se guardaron, pero no se pudo actualizar la vista del extracto. Recarga la página."
+journalHistoryTitle: Historial de asientos eliminados
+journalHistorySettingsDescription: Consulta los asientos eliminados y las versiones anteriores a la edición, y configura cuántos se conservan.
+journalHistoryDescription: Aquí se conservan los asientos eliminados y las versiones anteriores a la edición. No se incluyen en el libro ni en los saldos.
+journalHistoryRetentionLimit: Límite de historial conservado
+journalHistoryRetentionInputHint: De 1 a 10.000 asientos
+journalHistoryRetentionHint: "Actualmente se conservan {limit} elementos. Al superar el límite, se eliminan definitivamente primero los más antiguos."
+journalHistoryReduceConfirmTitle: Eliminar definitivamente el historial antiguo
+journalHistoryReduceConfirmMessage: "Al reducir el límite, se eliminarán definitivamente {count} elementos antiguos. Esta acción no se puede deshacer."
+journalHistoryEmpty: No hay asientos en el historial.
+journalHistoryLoading: Cargando el historial de asientos
+journalHistoryLoadFailed: No se pudo cargar el historial de asientos.
+journalHistoryRetry: Reintentar
+journalHistoryDeleted: Eliminado
+journalHistoryEdited: Antes de editar
+journalHistoryArchivedAt: Registrado
+journalHistoryEntryId: ID original del asiento
+journalHistoryLines: Líneas del asiento
+journalHistoryAccount: Cuenta
+journalHistoryDebit: Debe
+journalHistoryCredit: Haber
+journalHistoryBudgetAllocations: Distribuciones del presupuesto
+journalHistoryReference: Referencia
+journalHistoryRelatedRecords: Registros relacionados
+journalHistoryCount: "{count} elementos en el historial"
+journalHistoryPagination: Páginas del historial
+journalHistoryPage: "Página {page} de {pages}"
+journalHistorySave: Guardar
+journalHistorySaved: Límite de conservación guardado
+journalHistoryIncomeAdjustments: Ajustes del presupuesto
+journalHistoryBudgetFunding: Distribución de préstamos
+journalHistoryAllocation: Asignación
+journalHistoryReset: Reinicio
+journalHistoryTransfer: Transferencia
+journalHistoryManualAdjustment: Ajuste manual
+journalHistoryUnallocated: Sin asignar
+journalHistoryBorrow: Préstamo recibido
+journalHistoryRepay: Reembolso
+journalHistoryLend: Préstamo concedido
+journalHistoryCollect: Cobro

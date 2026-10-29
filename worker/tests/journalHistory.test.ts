@@ -106,3 +106,70 @@ test("currency precision is fixed at archival time", async () => {
   const body = await (await request("/journal-history")).json();
   expect(body.entries[0].entry.lines[0].debit).toBe(12.34);
 });
+
+test("associated depreciation money uses its archived budget currency", async () => {
+  fixture.sqlite.exec("INSERT INTO enabled_currencies(code,decimal_places) VALUES('USD',2)");
+  seed(9100, 12345);
+  fixture.sqlite.exec(`
+    UPDATE journal_lines SET currency='USD' WHERE journal_entry_id=9100;
+    INSERT INTO depreciation_schedules(source_journal_entry_id,asset_account_id,expense_account_id,total_amount,months,start_date,budget_currency,budget_target_amount)
+      VALUES(9100,1001,1006,12345,1,'2026-10-20','USD',5000);
+  `);
+  expect((await request("/journal/9100", "DELETE")).status).toBe(200);
+  const body = await (await request("/journal-history")).json();
+  expect(body.entries[0].related_records.depreciation_schedules[0]).toMatchObject({ total_amount: 123.45, budget_target_amount: 50 });
+});
+
+test("a failed mutation rolls back eviction as well as its new candidate", async () => {
+  await request("/journal-history/settings", "PATCH", { retention_limit: 1 });
+  seed(9100); seed(9101); seed(9102);
+  expect((await request("/journal/9100", "DELETE")).status).toBe(200);
+  fixture.sqlite.exec(`
+    CREATE TRIGGER reject_another_delete BEFORE DELETE ON journal_entries WHEN OLD.id=9101
+      BEGIN SELECT RAISE(ABORT,'test delete rejection'); END;
+    CREATE TRIGGER reject_edit BEFORE UPDATE ON journal_entries WHEN OLD.id=9102
+      BEGIN SELECT RAISE(ABORT,'test edit rejection'); END;
+  `);
+  expect((await request("/journal/9101", "DELETE")).status).toBe(500);
+  expect((await request("/journal/9102", "PUT", edit(300))).status).toBe(500);
+  const body = await (await request("/journal-history")).json();
+  expect(body.total).toBe(1);
+  expect(body.entries[0].original_journal_entry_id).toBe(9100);
+  expect((await (await request("/journal/9102")).json()).description).toBe("entry 9102");
+});
+
+test("reference classification edits retain original allocation and skip no-op toggles", async () => {
+  seed(9100);
+  fixture.sqlite.exec("INSERT INTO journal_entry_budget_allocations(journal_entry_id,budget_category_id,amount,currency,is_reference) VALUES(9100,1001,250,'JPY',0)");
+  for (let index = 0; index < 2; index++) {
+    expect((await request("/journal/9100/budget-allocations/reference", "PATCH", { is_reference: true })).status).toBe(200);
+  }
+  const body = await (await request("/journal-history")).json();
+  expect(body.total).toBe(1);
+  expect(body.entries[0].entry.budget_allocations[0].is_reference).toBe(false);
+});
+
+test("retains a transfer requirement's saved category name after its category was removed", async () => {
+  seed(9100);
+  fixture.sqlite.exec(`
+    INSERT INTO income_transfer_requirements(source_income_journal_entry_id,budget_category_id,budget_category_name,from_account_id,to_account_id,amount,currency)
+      VALUES(9100,NULL,'廃止済み予算',1001,1007,250,'JPY');
+  `);
+  expect((await request("/journal/9100", "DELETE")).status).toBe(200);
+  const body = await (await request("/journal-history")).json();
+  expect(body.entries[0].related_records.income_transfer_requirements[0].budget_category_name).toBe("廃止済み予算");
+});
+
+test("a deleted USD balance confirmation retains the adjustment currency and value", async () => {
+  fixture.sqlite.exec("INSERT INTO enabled_currencies(code,decimal_places) VALUES('USD',2)");
+  const response = await request("/trial-balance/snapshots", "POST", {
+    snapshot_date: "2026-10-20", general_entries: [{ account_id: 1001, amount: 123.45, currency: "USD" }],
+  });
+  expect(response.status).toBe(201);
+  const snapshot = await response.json();
+  const adjustment = await request(`/trial-balance/snapshots/${snapshot.id}/adjustments`, "POST", {});
+  expect(adjustment.ok).toBe(true);
+  expect((await request(`/trial-balance/snapshots/${snapshot.id}`, "DELETE")).status).toBe(200);
+  const history = await (await request("/journal-history")).json();
+  expect(history.entries[0].related_records.actual_balance_adjustments[0]).toMatchObject({ amount: 123.45, currency: "USD" });
+});

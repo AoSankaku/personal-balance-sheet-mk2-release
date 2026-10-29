@@ -4,6 +4,7 @@ import { logger } from "hono/logger";
 import type { Env } from "./db";
 import { accountsRouter } from "./routes/accounts";
 import { journalRouter } from "./routes/journal";
+import { journalHistoryRouter } from "./routes/journalHistory";
 import { reportsRouter } from "./routes/reports";
 import { cryptoRouter } from "./routes/crypto";
 import { exchangeCredentialsRouter } from "./routes/exchangeCredentials";
@@ -62,6 +63,7 @@ app.use("/api/admin/*", async (c, next) => {
 
 app.route("/api/accounts", accountsRouter);
 app.route("/api/journal", journalRouter);
+app.route("/api/journal-history", journalHistoryRouter);
 app.route("/api/reports", reportsRouter);
 app.route("/api/crypto", cryptoRouter);
 app.route("/api/exchange-credentials", exchangeCredentialsRouter);

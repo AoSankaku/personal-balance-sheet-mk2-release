@@ -17,6 +17,7 @@ const EXACT_PAGE_TITLE_KEYS: Record<string, TranslationKey> = {
   "/tasks/income-transfer": "incomeTransferTasksTitle",
   "/settings": "navSettings",
   "/bottom-notification-history": "notificationHistoryTitle",
+  "/settings/journal-history": "journalHistoryTitle",
   "/settings/budget": "budgetSettingsTitle",
   "/settings/bulk_edit": "bulkEditPageTitle",
   "/settings/initial_balance": "tabInitialBalance",

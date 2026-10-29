@@ -39,6 +39,7 @@ import { normalizeJournalBudgetScope } from "../lib/journalBudgetScope";
 import { resolveJournalIncomeSelection } from "../lib/journalIncomeSelection";
 import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
 import { prepareMutation, readBudgetMutationRevision, runBudgetGuardedBatch } from "../lib/d1Mutation";
+import { buildJournalHistoryStatements } from "../lib/journalHistory";
 
 /** Categories that are considered long-term loan/lending */
 const LONG_TERM_LOAN_CATEGORIES = new Set([
@@ -1757,10 +1758,15 @@ router.patch("/:id/budget-allocations/reference", async (c) => {
       return c.json({ error: scopeError ?? "Excluded cash allocations must remain references" }, 409);
     }
   }
-  await db
-    .update(journalEntryBudgetAllocations)
-    .set({ is_reference: isReference ? 1 : 0 })
-    .where(eq(journalEntryBudgetAllocations.journal_entry_id, id));
+  if (allocations.some(allocation => Boolean(allocation.is_reference) !== isReference)) {
+    await c.env.DB.batch([
+      ...buildJournalHistoryStatements(c.env.DB, [id], "edited"),
+      prepareMutation(c.env.DB, db
+        .update(journalEntryBudgetAllocations)
+        .set({ is_reference: isReference ? 1 : 0 })
+        .where(eq(journalEntryBudgetAllocations.journal_entry_id, id))),
+    ]);
+  }
 
   return c.json({
     journal_entry_id: id,
@@ -2116,7 +2122,7 @@ router.put("/:id", async (c) => {
     (a) => a.budget_category_id && a.amount !== 0,
   );
 
-  const statements: D1PreparedStatement[] = [];
+  const statements: D1PreparedStatement[] = buildJournalHistoryStatements(c.env.DB, [id], "edited");
   if (settleIds.length > 0) {
     statements.push(buildLoanSettlementStateGuard(c.env.DB, settleIds, id));
   }
@@ -2413,7 +2419,7 @@ router.put("/:id", async (c) => {
   });
 });
 
-// DELETE /api/journal/:id — delete entry (cascades lines)
+// DELETE /api/journal/:id — retain a flagged copy, then remove from the active ledger.
 router.delete("/:id", async (c) => {
   const id = Number(c.req.param("id"));
   if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);
@@ -2433,7 +2439,9 @@ router.delete("/:id", async (c) => {
 
   const [managed] = await db.select({ id: actualBalanceAdjustments.id }).from(actualBalanceAdjustments).where(eq(actualBalanceAdjustments.journal_entry_id, id));
   if (managed) return c.json({ error: "managed_balance_adjustment", message: "Delete the balance confirmation instead" }, 409);
+  const historyStatements = buildJournalHistoryStatements(c.env.DB, [id], "deleted");
   const results = await runBudgetGuardedBatch(c.env.DB,mutationRevision,[
+    ...historyStatements,
     prepareMutation(c.env.DB, db.update(loanSettlements).set({ is_settled: 0, settled_by_journal_entry_id: null, settled_at: null }).where(eq(loanSettlements.settled_by_journal_entry_id, id))),
     prepareMutation(c.env.DB, db.delete(budgetFundingAllocations).where(eq(budgetFundingAllocations.source_journal_entry_id, id))),
     prepareMutation(c.env.DB, db.update(incomeTransferRequirements).set({ transfer_journal_entry_id: null, completion_source: null, completed_at: null }).where(eq(incomeTransferRequirements.transfer_journal_entry_id, id))),
@@ -2441,7 +2449,7 @@ router.delete("/:id", async (c) => {
     ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB),
   ]);
   if (!results) return c.json({error:"depreciation_preview_stale"},409);
-  const deleted = results[3]!.results;
+  const deleted = results[historyStatements.length + 3]!.results;
 
   if (deleted.length === 0) {
     return c.json({ error: "Not found" }, 404);
@@ -2539,7 +2547,7 @@ async function executeBulkDelete(
     const [owned] = await db.select({ id: actualBalanceAdjustments.id }).from(actualBalanceAdjustments).where(inArray(actualBalanceAdjustments.journal_entry_id, chunk)).limit(1);
     if (owned) return null;
   }
-  const mutations: D1PreparedStatement[] = [];
+  const mutations: D1PreparedStatement[] = buildJournalHistoryStatements(binding, entryIds, "deleted");
 
   const allAccountIds = new Set<number>();
   for (const chunk of chunkIds(entryIds)) {
@@ -2636,9 +2644,11 @@ router.post("/bulk-replace", async (c) => {
   const replacements = chunkIds(targetEntryIds).map((chunk) => prepareMutation(c.env.DB,
     db.update(journalLines).set({ account_id: body.to_account_id }).where(and(eq(journalLines.account_id, body.from_account_id), inArray(journalLines.journal_entry_id, chunk))).returning({ id: journalLines.id })
   ));
-  const replacementResults = await runBudgetGuardedBatch(c.env.DB,mutationRevision,[...replacements, ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
+  const matchingIds = new Set(allEntryIds);
+  const historyStatements = buildJournalHistoryStatements(c.env.DB, targetEntryIds.filter(id => matchingIds.has(id)), "edited");
+  const replacementResults = await runBudgetGuardedBatch(c.env.DB,mutationRevision,[...historyStatements, ...replacements, ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
   if (!replacementResults) return c.json({error:"depreciation_preview_stale"},409);
-  const affected_lines = replacementResults.slice(0, replacements.length).reduce((sum, result) => sum + result.results.length, 0);
+  const affected_lines = replacementResults.slice(historyStatements.length, historyStatements.length + replacements.length).reduce((sum, result) => sum + result.results.length, 0);
 
   await syncLongTermCompletions(db, [body.from_account_id, body.to_account_id]);
 

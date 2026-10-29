@@ -8,13 +8,19 @@ const localeMessages = Object.fromEntries(localeCodes.map(locale => [
   parse(readFileSync(`frontend/src/i18n/locales/${locale}.yaml`, "utf8")) as Record<string, string>,
 ]));
 const requiredKeys = [
-  "journalHistoryTitle", "journalHistoryDescription", "journalHistoryRetentionLimit",
-  "journalHistoryRetentionHint", "journalHistoryReduceConfirmTitle",
+  "journalHistoryTitle", "journalHistorySettingsDescription", "journalHistoryDescription", "journalHistoryRetentionLimit",
+  "journalHistoryRetentionInputHint", "journalHistoryRetentionHint", "journalHistoryReduceConfirmTitle",
   "journalHistoryReduceConfirmMessage", "journalHistoryEmpty", "journalHistoryLoading",
   "journalHistoryLoadFailed", "journalHistoryRetry", "journalHistoryDeleted",
   "journalHistoryEdited", "journalHistoryArchivedAt", "journalHistoryEntryId",
-  "journalHistoryLines", "journalHistoryRelatedRecords", "journalHistoryPrevious",
-  "journalHistoryNext", "journalHistoryPage", "journalHistorySave", "journalHistorySaved",
+  "journalHistoryLines", "journalHistoryRelatedRecords",
+  "journalHistoryPage", "journalHistorySave", "journalHistorySaved", "journalHistoryAccount",
+  "journalHistoryDebit", "journalHistoryCredit", "journalHistoryBudgetAllocations",
+  "journalHistoryReference", "journalHistoryCount", "journalHistoryPagination",
+  "journalHistoryIncomeAdjustments", "journalHistoryBudgetFunding", "journalHistoryAllocation",
+  "journalHistoryReset", "journalHistoryTransfer", "journalHistoryManualAdjustment",
+  "journalHistoryUnallocated", "journalHistoryBorrow", "journalHistoryRepay",
+  "journalHistoryLend", "journalHistoryCollect",
 ];
 
 describe("journal deletion history settings UI contract", () => {

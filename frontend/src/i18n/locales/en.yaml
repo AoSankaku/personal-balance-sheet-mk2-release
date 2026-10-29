@@ -1746,3 +1746,42 @@ bulkSubmissionInvalidAccount: "Check the account in row {n}."
 bulkIncomeTransferTargetRequired: "Select a transfer destination for the income in row {n}."
 bulkExpenseSavedButStatementPending: "The journal entries were saved, but statement completion failed. Complete the statement later."
 bulkExpenseSavedButRefreshFailed: "The journal entries and statement were saved, but the statement view could not be refreshed. Reload the page."
+journalHistoryTitle: Journal deletion history
+journalHistorySettingsDescription: Review deleted and pre-edit journal entries, and set how many history items to retain.
+journalHistoryDescription: Deleted and pre-edit journal entries are kept here. They are excluded from the ledger and balance totals.
+journalHistoryRetentionLimit: Retained history limit
+journalHistoryRetentionInputHint: 1–10,000 entries
+journalHistoryRetentionHint: "{limit} entries are currently retained. When the limit is exceeded, the oldest archived entries are permanently deleted first."
+journalHistoryReduceConfirmTitle: Permanently delete older history
+journalHistoryReduceConfirmMessage: "Lowering the limit will permanently delete {count} older history entries. This cannot be undone."
+journalHistoryEmpty: There are no journal history entries.
+journalHistoryLoading: Loading journal history
+journalHistoryLoadFailed: Journal history could not be loaded.
+journalHistoryRetry: Retry
+journalHistoryDeleted: Deleted
+journalHistoryEdited: Before edit
+journalHistoryArchivedAt: Recorded
+journalHistoryEntryId: Original entry ID
+journalHistoryLines: Journal lines
+journalHistoryAccount: Account
+journalHistoryDebit: Debit
+journalHistoryCredit: Credit
+journalHistoryBudgetAllocations: Budget allocations
+journalHistoryReference: Reference
+journalHistoryRelatedRecords: Related records
+journalHistoryCount: "{count} history entries"
+journalHistoryPagination: History pages
+journalHistoryPage: "Page {page} of {pages}"
+journalHistorySave: Save
+journalHistorySaved: Retention limit saved
+journalHistoryIncomeAdjustments: Budget adjustments
+journalHistoryBudgetFunding: Loan and lending budget split
+journalHistoryAllocation: Allocation
+journalHistoryReset: Reset
+journalHistoryTransfer: Transfer
+journalHistoryManualAdjustment: Manual adjustment
+journalHistoryUnallocated: Unallocated
+journalHistoryBorrow: Borrowing
+journalHistoryRepay: Repayment
+journalHistoryLend: Lending
+journalHistoryCollect: Collection

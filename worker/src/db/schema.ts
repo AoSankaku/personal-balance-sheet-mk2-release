@@ -79,6 +79,21 @@ export const journalEntries = sqliteTable("journal_entries", {
   dateIdIdx: index("idx_journal_entries_date_id").on(table.date, table.id),
 }));
 
+export const journalHistorySettings = sqliteTable("journal_history_settings", {
+  id: integer("id").primaryKey(),
+  retention_limit: integer("retention_limit").notNull().default(100),
+});
+
+/** Independent immutable snapshots; deliberately no references to live records. */
+export const journalDeletionCandidates = sqliteTable("journal_deletion_candidates", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  original_journal_entry_id: integer("original_journal_entry_id").notNull(),
+  is_deleted: integer("is_deleted", { mode: "boolean" }).notNull().default(true),
+  reason: text("reason", { enum: ["deleted", "edited"] }).notNull(),
+  archived_at: text("archived_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+  snapshot: text("snapshot").notNull(),
+});
+
 export const journalLines = sqliteTable("journal_lines", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   journal_entry_id: integer("journal_entry_id")
@@ -1236,3 +1251,7 @@ export type LongTermLoanPlan = typeof longTermLoanPlans.$inferSelect;
 export type NewLongTermLoanPlan = typeof longTermLoanPlans.$inferInsert;
 export type LongTermLoanPlanRow = typeof longTermLoanPlanRows.$inferSelect;
 export type NewLongTermLoanPlanRow = typeof longTermLoanPlanRows.$inferInsert;
+export type JournalDeletionCandidateRow = typeof journalDeletionCandidates.$inferSelect;
+export type NewJournalDeletionCandidateRow = typeof journalDeletionCandidates.$inferInsert;
+export type JournalHistorySettingsRow = typeof journalHistorySettings.$inferSelect;
+export type NewJournalHistorySettingsRow = typeof journalHistorySettings.$inferInsert;

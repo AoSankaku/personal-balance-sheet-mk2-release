@@ -177,6 +177,25 @@ export interface JournalEntry {
   income_transfer_requirement_ids?: number[];
 }
 
+export interface JournalDeletionCandidate {
+  id: number;
+  original_journal_entry_id: number;
+  is_deleted: true;
+  reason: "deleted" | "edited";
+  archived_at: string;
+  entry: JournalEntry;
+  /** Independent copies of associated records, with monetary amounts decoded. */
+  related_records: Record<string, Record<string, unknown>[]>;
+}
+
+export interface JournalHistoryResponse {
+  retention_limit: number;
+  total: number;
+  offset: number;
+  limit: number;
+  entries: JournalDeletionCandidate[];
+}
+
 export type BudgetFundingKind = "borrow" | "repay" | "lend" | "collect";
 export type BudgetFundingEffect = "apply" | "component_only";
 

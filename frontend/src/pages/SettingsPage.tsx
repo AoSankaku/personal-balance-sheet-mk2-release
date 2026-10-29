@@ -303,6 +303,13 @@ export default function SettingsPage() {
       color: "blue",
     },
     {
+      to: "/settings/journal-history",
+      Icon: IconHistory,
+      label: t("journalHistoryTitle"),
+      desc: t("journalHistorySettingsDescription"),
+      color: "orange",
+    },
+    {
       to: "/settings/initial_balance",
       Icon: IconDatabaseImport,
       label: t("tabInitialBalance"),

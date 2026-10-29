@@ -1746,3 +1746,42 @@ bulkSubmissionInvalidAccount: "请检查第 {n} 行科目。"
 bulkIncomeTransferTargetRequired: "请选择第 {n} 行收入的转入账户。"
 bulkExpenseSavedButStatementPending: "分录已保存，但账单完成处理失败。请稍后完成账单。"
 bulkExpenseSavedButRefreshFailed: "分录和账单已保存，但无法刷新账单视图。请重新加载页面。"
+journalHistoryTitle: 已删除分录历史
+journalHistorySettingsDescription: 查看已删除的分录和编辑前的版本，并设置保留条数。
+journalHistoryDescription: 已删除的分录和编辑前的版本会保存在此处，不计入账簿和余额。
+journalHistoryRetentionLimit: 历史保留上限
+journalHistoryRetentionInputHint: 1–10,000 条
+journalHistoryRetentionHint: "当前保留 {limit} 条。超出上限时，最早记录会优先被永久删除。"
+journalHistoryReduceConfirmTitle: 永久删除较早的历史记录
+journalHistoryReduceConfirmMessage: "降低上限将永久删除较早的 {count} 条历史记录，且无法撤销。"
+journalHistoryEmpty: 暂无分录历史记录。
+journalHistoryLoading: 正在加载分录历史
+journalHistoryLoadFailed: 无法加载分录历史。
+journalHistoryRetry: 重试
+journalHistoryDeleted: 已删除
+journalHistoryEdited: 编辑前
+journalHistoryArchivedAt: 记录时间
+journalHistoryEntryId: 原分录 ID
+journalHistoryLines: 分录明细
+journalHistoryAccount: 科目
+journalHistoryDebit: 借方
+journalHistoryCredit: 贷方
+journalHistoryBudgetAllocations: 预算分配
+journalHistoryReference: 参考
+journalHistoryRelatedRecords: 关联记录
+journalHistoryCount: "{count} 条历史记录"
+journalHistoryPagination: 历史分页
+journalHistoryPage: "第 {page} / {pages} 页"
+journalHistorySave: 保存
+journalHistorySaved: 已保存保留上限
+journalHistoryIncomeAdjustments: 预算调整
+journalHistoryBudgetFunding: 借贷预算分配
+journalHistoryAllocation: 分配
+journalHistoryReset: 重置
+journalHistoryTransfer: 转账
+journalHistoryManualAdjustment: 手动调整
+journalHistoryUnallocated: 未分配
+journalHistoryBorrow: 借入
+journalHistoryRepay: 偿还
+journalHistoryLend: 借出
+journalHistoryCollect: 收回

@@ -1746,3 +1746,42 @@ bulkSubmissionInvalidAccount: "Vérifiez le compte de la ligne {n}."
 bulkIncomeTransferTargetRequired: "Sélectionnez le compte de destination du revenu à la ligne {n}."
 bulkExpenseSavedButStatementPending: "Les écritures ont été enregistrées, mais la validation du relevé a échoué. Validez le relevé plus tard."
 bulkExpenseSavedButRefreshFailed: "Les écritures et le relevé ont été enregistrés, mais l’affichage du relevé n’a pas pu être actualisé. Rechargez la page."
+journalHistoryTitle: Historique des écritures supprimées
+journalHistorySettingsDescription: Consultez les écritures supprimées et les versions avant modification, puis définissez la limite conservée.
+journalHistoryDescription: Les écritures supprimées et les versions avant modification sont conservées ici. Elles ne figurent pas dans le journal ni les soldes.
+journalHistoryRetentionLimit: Nombre maximal d’éléments conservés
+journalHistoryRetentionInputHint: De 1 à 10 000 écritures
+journalHistoryRetentionHint: "{limit} éléments sont conservés actuellement. Au-delà de la limite, les plus anciens sont supprimés définitivement en premier."
+journalHistoryReduceConfirmTitle: Supprimer définitivement les anciennes versions
+journalHistoryReduceConfirmMessage: "En réduisant la limite, {count} anciennes versions seront supprimées définitivement. Cette action est irréversible."
+journalHistoryEmpty: Aucune écriture supprimée n’est à afficher.
+journalHistoryLoading: Chargement de l’historique
+journalHistoryLoadFailed: L’historique des écritures n’a pas pu être chargé.
+journalHistoryRetry: Réessayer
+journalHistoryDeleted: Supprimée
+journalHistoryEdited: Avant modification
+journalHistoryArchivedAt: Enregistrée le
+journalHistoryEntryId: Identifiant d’origine
+journalHistoryLines: Lignes d’écriture
+journalHistoryAccount: Compte
+journalHistoryDebit: Débit
+journalHistoryCredit: Crédit
+journalHistoryBudgetAllocations: Répartitions de budget
+journalHistoryReference: Référence
+journalHistoryRelatedRecords: Éléments associés
+journalHistoryCount: "{count} éléments dans l’historique"
+journalHistoryPagination: Pages de l’historique
+journalHistoryPage: "Page {page} sur {pages}"
+journalHistorySave: Enregistrer
+journalHistorySaved: Limite de conservation enregistrée
+journalHistoryIncomeAdjustments: Ajustements de budget
+journalHistoryBudgetFunding: Répartition du prêt ou de l’avance
+journalHistoryAllocation: Répartition
+journalHistoryReset: Réinitialisation
+journalHistoryTransfer: Virement
+journalHistoryManualAdjustment: Ajustement manuel
+journalHistoryUnallocated: Non affecté
+journalHistoryBorrow: Emprunt
+journalHistoryRepay: Remboursement
+journalHistoryLend: Prêt accordé
+journalHistoryCollect: Recouvrement
