@@ -1213,6 +1213,7 @@ export interface CreditCardStateEntry {
   id: number;
   account_id: number;
   account_name: string;
+  /** Legacy name: statement/closing month; the actual withdrawal month is derived from settings. */
   payment_month: string;
   status: CreditCardSnapshotStatus;
   amount: number;
@@ -1222,6 +1223,7 @@ export interface CreditCardStateEntry {
 export interface SaveCreditCardStateInput {
   entries: {
     account_id: number;
+    /** Legacy name: statement/closing month, consistent with CreditCardStateEntry. */
     payment_month: string;
     amount: number;
     status: CreditCardSnapshotStatus;
@@ -1249,6 +1251,7 @@ export type UpdateTaskSettingsInput = Partial<
 
 export interface UpsertCreditCardStateInput {
   account_id: number;
+  /** Legacy name: statement/closing month, not the actual withdrawal month. */
   payment_month: string;
   amount: number;
   status: CreditCardSnapshotStatus;

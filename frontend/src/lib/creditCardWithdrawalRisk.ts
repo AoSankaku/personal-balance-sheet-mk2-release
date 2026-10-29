@@ -1,4 +1,4 @@
-import { resolveCreditCardMonthDay } from "@balance-sheet/shared";
+import { creditCardBillingOffsetMonths, resolveCreditCardMonthDay, shiftCreditCardMonth } from "@balance-sheet/shared";
 import type {
   Account,
   CreditCardSettings,
@@ -102,7 +102,11 @@ export function computeCreditCardWithdrawalRiskTasks({
         continue;
       }
 
-      const state = enabledStates.get(`${setting.account_id}:${paymentMonth}`);
+      const statementMonth = shiftCreditCardMonth(
+        paymentMonth,
+        -creditCardBillingOffsetMonths(setting),
+      );
+      const state = enabledStates.get(`${setting.account_id}:${statementMonth}`);
       if (!state) continue;
 
       upcoming.push({

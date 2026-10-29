@@ -11,7 +11,8 @@ export interface ParsedTransaction {
   date: string; // YYYY-MM-DD
   store: string;
   amount: number; // JPY integer (absolute value)
-  paymentMonth: string; // YYYY-MM (when charged to card)
+  // CSV payment month when supplied; SMBC confirmed files use transaction month as a fallback.
+  paymentMonth: string;
   direction?: "withdrawal" | "deposit";
   foreignAmount?: number;
   foreignCurrency?: string;
@@ -184,7 +185,8 @@ function parseSmbcConfirmed(lines: string[]): {
       description = `${store} [${payMethod}]`;
     }
 
-    // Payment month = same as date month (confirmed statement = this month's charge)
+    // No payment-month column is provided here. Resolve the statement period
+    // later using the selected card's closing day, not this fallback value.
     const paymentMonth = date.slice(0, 7);
 
     transactions.push({
