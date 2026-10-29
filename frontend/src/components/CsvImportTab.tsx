@@ -39,7 +39,7 @@ import { buildExpenseBudgetAllocations } from "../lib/simpleEntryUtils";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { type SimpleFormDraft } from "./SimpleEntryForm";
-import { showFeedback } from "../lib/feedback";
+import { captureFeedbackContext, showFeedback } from "../lib/feedback";
 import {
   parseCSVFile,
   isBankFormat,
@@ -644,6 +644,12 @@ export function CsvImportTab({
 
   async function executeImport(decisions: Record<number, "skip" | "import">) {
     if (!accountId) return;
+    const dates = transactions.map(transaction => transaction.date).sort();
+    const context = captureFeedbackContext({ action: [
+      t("tabCsvImport"),
+      accountDisplayNameFromName(accounts.find(account => account.id === accountId)?.name, t),
+      dates.length ? `${dates[0]} – ${dates.at(-1)}` : "",
+    ].filter(Boolean).join(" / ") });
     setImporting(true);
     try {
       const entries: CreateJournalInput[] = [];
@@ -734,6 +740,7 @@ export function CsvImportTab({
         showFeedback({
           message: "インポートする取引がありません",
           color: "yellow",
+          context,
         });
         return;
       }
@@ -789,17 +796,20 @@ export function CsvImportTab({
               : "importSalarySwitched",
           ),
           color: "blue",
+          context,
         });
         onSwitchToSimple();
       } else if (amazonRows.length > 0) {
-        showFeedback({ message: t("importAmazonSwitched"), color: "blue" });
+        showFeedback({ message: t("importAmazonSwitched"), color: "blue", context });
         onSwitchToBulk();
       } else {
-        showFeedback({ message: t("importSuccess"), color: "teal" });
+        showFeedback({ message: t("importSuccess"), color: "teal", context });
         onImportDone();
       }
-    } catch {
-      showFeedback({ message: "インポートに失敗しました", color: "red" });
+    } catch (error) {
+      showFeedback({ message: "インポートに失敗しました", color: "red", context: {
+        ...context, details: error instanceof Error ? error.message : String(error),
+      } });
     } finally {
       setImporting(false);
     }

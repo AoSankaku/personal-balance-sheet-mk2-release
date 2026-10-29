@@ -31,6 +31,7 @@ import {
   IconFileDownload,
   IconFileSpreadsheet,
   IconHelp,
+  IconHistory,
   IconKey,
   IconListCheck,
   IconSettings,
@@ -294,6 +295,13 @@ export default function SettingsPage() {
   }
 
   const settingsNavItems = [
+    {
+      to: "/bottom-notification-history",
+      Icon: IconHistory,
+      label: t("notificationHistoryTitle"),
+      desc: t("notificationHistorySettingsDescription"),
+      color: "blue",
+    },
     {
       to: "/settings/initial_balance",
       Icon: IconDatabaseImport,

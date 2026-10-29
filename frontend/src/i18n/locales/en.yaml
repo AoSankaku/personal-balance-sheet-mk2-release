@@ -75,6 +75,20 @@ transactionAdded: Transaction added
 transactionDeleted: Transaction deleted
 statusLabel: Status
 statusDismiss: OK
+notificationHistoryTitle: "Notification history"
+notificationHistorySettingsDescription: "Review the latest 50 notifications"
+notificationHistoryDescription: "The latest {limit} notifications shown in this browser are saved and listed newest first."
+notificationHistoryEmpty: "No notifications have been recorded yet."
+notificationHistoryCount: "{count} notifications"
+notificationHistoryScreen: "Screen at the time"
+notificationHistoryAction: "Action performed"
+notificationHistoryDetails: "Details"
+notificationHistorySuccess: "Success"
+notificationHistoryWarning: "Warning"
+notificationHistoryError: "Error"
+notificationHistoryInfo: "Information"
+notificationActionCreditCardMonth: "Change the payment month for {account} to {month}"
+notificationDuplicateCardMonth: "Duplicate payment months are not allowed"
 pwaInstallButton: Install as PWA
 total: "Total:"
 thAccount: Account

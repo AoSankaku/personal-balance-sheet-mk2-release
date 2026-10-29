@@ -75,6 +75,20 @@ transactionAdded: 交易已新增
 transactionDeleted: 交易已刪除
 statusLabel: 狀態
 statusDismiss: 確定
+notificationHistoryTitle: "通知記錄"
+notificationHistorySettingsDescription: "查看最近50則通知"
+notificationHistoryDescription: "儲存並由新到舊顯示此瀏覽器中最近{limit}則通知。"
+notificationHistoryEmpty: "尚未記錄任何通知。"
+notificationHistoryCount: "{count}則通知"
+notificationHistoryScreen: "通知發生時的畫面"
+notificationHistoryAction: "執行的操作"
+notificationHistoryDetails: "詳細資訊"
+notificationHistorySuccess: "成功"
+notificationHistoryWarning: "警告"
+notificationHistoryError: "錯誤"
+notificationHistoryInfo: "提示"
+notificationActionCreditCardMonth: "將{account}的付款月份變更為{month}"
+notificationDuplicateCardMonth: "不能重複輸入相同的付款月份"
 pwaInstallButton: 安裝為 PWA
 total: 合計：
 thAccount: 帳戶
