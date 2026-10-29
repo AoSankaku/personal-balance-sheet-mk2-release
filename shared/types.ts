@@ -134,6 +134,9 @@ export interface JournalEntry {
   id: number;
   date: string;
   description: string;
+  /** Saved income-form mode and filter selection; absent on older entries. */
+  is_regular_income?: boolean;
+  income_budget_filter_id?: number | null;
   /** Origin of this entry: 'manual' (direct input) or 'csv_import' (batch CSV import). Null for legacy entries. */
   source?: "manual" | "csv_import" | null;
   created_at: string;
@@ -334,6 +337,9 @@ export interface CreateJournalLineInput {
 export interface CreateJournalInput {
   date: string;
   description: string;
+  /** Income-form preferences; omitted fields are preserved during compatible edits. */
+  is_regular_income?: boolean;
+  income_budget_filter_id?: number | null;
   lines: CreateJournalLineInput[];
   /** Per-entry budget allocations for expense tracking (stored in journal_entry_budget_allocations) */
   budget_allocations?: {

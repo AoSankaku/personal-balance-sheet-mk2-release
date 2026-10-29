@@ -22,6 +22,7 @@ import {
   isLongTermBorrowingCategory,
 } from "@balance-sheet/shared";
 import { useLang } from "../i18n";
+import { buildIncomeBudgetDraft } from "../lib/incomeBudgetDraft";
 import { useAppData } from "../context/AppDataContext";
 import { useDepreciationBudget } from "../context/DepreciationBudgetContext";
 import { usePrivacy } from "../context/PrivacyContext";
@@ -518,23 +519,9 @@ export function JournalModal({
       }
     }
 
-    let incomeDist: {
-      budget_category_id: number;
-      name: string;
-      amount: number;
-    }[] = [];
-    if (simpleValues.entryType === "income") {
-      incomeDist = (editEntry.income_budget_allocations ?? []).map((alloc) => {
-        const cat = budgetCategories.find(
-          (c) => c.id === alloc.budget_category_id,
-        );
-        return {
-          budget_category_id: alloc.budget_category_id,
-          name: cat?.name ?? `#${alloc.budget_category_id}`,
-          amount: alloc.amount,
-        };
-      });
-    }
+    const incomeDraft = simpleValues.entryType === "income"
+      ? buildIncomeBudgetDraft(editEntry, budgetCategories, budgetFilters, simpleValues.amount ?? 0)
+      : {};
 
     if (simpleValues.entryType === "transfer") {
       const transferBudgetAllocs = (
@@ -557,7 +544,7 @@ export function JournalModal({
         formValues: simpleValues,
         budgetDist,
         showZeroCategories: false,
-        incomeDist,
+        ...incomeDraft,
         deferIncomeTransfers: getIncomeTransferDeferralState(editEntry.income_transfer_requirements ?? []),
         incomeTransferDestinations: Object.fromEntries(
           (editEntry.income_transfer_requirements ?? [])
@@ -590,6 +577,7 @@ export function JournalModal({
     editEntry,
     accounts,
     budgetCategories,
+    budgetFilters,
     budgetSettings,
     depreciationSchedule,
   ]);

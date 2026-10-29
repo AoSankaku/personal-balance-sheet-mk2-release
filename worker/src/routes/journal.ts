@@ -36,6 +36,7 @@ import { serializeLoanSettlement } from "../lib/loanSettlement";
 import { calculateBudgetFundingImpact, splitAmountByLargestRemainder } from "../lib/budgetFundingImpact";
 import { journalBalanceError } from "../lib/journalValidation";
 import { normalizeJournalBudgetScope } from "../lib/journalBudgetScope";
+import { resolveJournalIncomeSelection } from "../lib/journalIncomeSelection";
 import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
 import { prepareMutation, readBudgetMutationRevision, runBudgetGuardedBatch } from "../lib/d1Mutation";
 
@@ -376,6 +377,8 @@ function buildNewEntryRowsSql(rowCount: number, columnsPerRow: number): string {
 type JournalCreateInput = {
   date: string;
   description: string;
+  is_regular_income?: boolean;
+  income_budget_filter_id?: number | null;
   lines: Array<{
     account_id: number;
     debit: number;
@@ -566,6 +569,8 @@ async function prepareJournalCreate(
   if (componentValidationError) return invalid(componentValidationError);
   const budgetScopeError = await normalizeJournalBudgetScope(db, body, scaleOptions);
   if (budgetScopeError) return invalid(budgetScopeError);
+  const incomeSelection = await resolveJournalIncomeSelection(db, body, budgetCurrency);
+  if ("error" in incomeSelection) return invalid(incomeSelection.error);
 
   const settleIds = body.loan_settlement_journal_entry_ids ?? [];
   const settlementSourceError = await validateLoanSettlementSources(db, body, settleIds, components, budgetCurrency, decimalPlacesByCurrency[budgetCurrency] ?? 0);
@@ -605,10 +610,14 @@ async function prepareJournalCreate(
   if (settleIds.length > 0) statements.push(buildLoanSettlementStateGuard(env.DB, settleIds));
   const entryStatementIndex = statements.length;
   statements.push(env.DB.prepare(
-    `INSERT INTO journal_entries (date, description, source)
-     VALUES (?, ?, ?)
-     RETURNING id, date, description, source, created_at`,
-  ).bind(body.date, body.description, source));
+    `INSERT INTO journal_entries (date, description, source, is_regular_income, income_budget_filter_id)
+     VALUES (?, ?, ?, ?, ?)
+     RETURNING id, date, description, source, is_regular_income, income_budget_filter_id, created_at`,
+  ).bind(
+    body.date, body.description, source,
+    incomeSelection.settings.is_regular_income ? 1 : 0,
+    incomeSelection.settings.income_budget_filter_id,
+  ));
   const lineValues = body.lines.flatMap((line) => [
     line.account_id,
     toStorageMoneyAmount(line.debit ?? 0, line.currency, scaleOptions),
@@ -1416,7 +1425,7 @@ router.post("/", async (c) => {
   const rawLines = (results[prepared.lineStatementIndex] as D1QueryResult<typeof journalLines.$inferSelect>).results ?? [];
   const insertedLines = rawLines.map((line) => decodeJournalLineAmount(line, { decimalPlacesByCurrency }));
   await syncLongTermCompletions(db, prepared.accountIds);
-  return c.json({ ...entry, lines: insertedLines }, 201);
+  return c.json({ ...entry, is_regular_income: Boolean(entry.is_regular_income), lines: insertedLines }, 201);
 });
 
 // POST /api/journal/batch — validate all entries, then commit all in one guarded transaction.
@@ -1473,6 +1482,7 @@ router.post("/batch", async (c) => {
     const rawLines = (results[start + prepared.lineStatementIndex] as D1QueryResult<typeof journalLines.$inferSelect>).results ?? [];
     return {
       ...entry,
+      is_regular_income: Boolean(entry.is_regular_income),
       lines: rawLines.map((line) => decodeJournalLineAmount(line, { decimalPlacesByCurrency })),
     };
   });
@@ -1768,6 +1778,8 @@ router.put("/:id", async (c) => {
   const body = await c.req.json<{
     date: string;
     description: string;
+    is_regular_income?: boolean;
+    income_budget_filter_id?: number | null;
     lines: Array<{
       account_id: number;
       debit: number;
@@ -2061,6 +2073,8 @@ router.put("/:id", async (c) => {
     (a) => a.budget_category_id && a.amount !== 0,
   );
   const budgetCurrency = budgetCurrencyFromLines(body.lines);
+  const incomeSelection = await resolveJournalIncomeSelection(db, body, budgetCurrency, existing[0]);
+  if ("error" in incomeSelection) return c.json({ error: incomeSelection.error }, 400);
   const fundingValidationError = validateExplicitBudgetFunding(
     body.budget_funding,
     budgetCurrency,
@@ -2108,8 +2122,12 @@ router.put("/:id", async (c) => {
   }
   statements.push(
     c.env.DB.prepare(
-      "UPDATE journal_entries SET date = ?, description = ? WHERE id = ?",
-    ).bind(body.date, body.description, id),
+      "UPDATE journal_entries SET date = ?, description = ?, is_regular_income = ?, income_budget_filter_id = ? WHERE id = ?",
+    ).bind(
+      body.date, body.description,
+      incomeSelection.settings.is_regular_income ? 1 : 0,
+      incomeSelection.settings.income_budget_filter_id, id,
+    ),
     c.env.DB.prepare(
       "DELETE FROM journal_lines WHERE journal_entry_id = ?",
     ).bind(id),
@@ -2390,6 +2408,7 @@ router.put("/:id", async (c) => {
     id,
     date: body.date,
     description: body.description,
+    ...incomeSelection.settings,
     lines: newLines.map((line) => decodeJournalLineAmount(line, scaleOptions)),
   });
 });

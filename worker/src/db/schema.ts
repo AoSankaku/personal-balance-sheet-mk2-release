@@ -63,6 +63,13 @@ export const journalEntries = sqliteTable("journal_entries", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   date: text("date").notNull(),
   description: text("description").notNull(),
+  is_regular_income: integer("is_regular_income", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  income_budget_filter_id: integer("income_budget_filter_id").references(
+    () => budgetFilters.id,
+    { onDelete: "set null" },
+  ),
   /** Origin of this entry: 'manual' (direct input) or 'csv_import' (batch CSV import) */
   source: text("source", { enum: ["manual", "csv_import"] }),
   created_at: text("created_at")

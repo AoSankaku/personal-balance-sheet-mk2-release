@@ -5,7 +5,7 @@ import { buildIncomeBudgetDraft, getIncomeDistributionDirtyIds } from "./incomeB
 const categories = [{ id: 1, name: "Living costs" }, { id: 2, name: "Savings" }] as BudgetCategory[];
 const filters = [{ id: 10, name: "Salary", currency: "JPY", is_active: true, steps: [
   { id: 20, step_order: 1, step_type: "remainder", allocations: [
-    { budget_category_id: 1, ratio: 50 }, { budget_category_id: 2, ratio: 50 },
+    { budget_category_id: 1, ratio: 0.5 }, { budget_category_id: 2, ratio: 0.5 },
   ] },
 ] }] as BudgetFilter[];
 const entry = {
@@ -51,5 +51,12 @@ describe("income edit draft", () => {
     expect(draft.selectedFilterId).toBeNull();
     expect(draft.filterStepPreview).toEqual([]);
     expect(draft.incomeDist[0]?.amount).toBe(750);
+  });
+
+  test("preserves the total when multiple saved allocations target the same category", () => {
+    const draft = buildIncomeBudgetDraft({ ...entry, income_budget_allocations: [
+      { budget_category_id: 1, amount: 300 }, { budget_category_id: 1, amount: 450 },
+    ] }, categories, filters, 1000);
+    expect(draft.incomeDist.find(row => row.budget_category_id === 1)?.amount).toBe(750);
   });
 });

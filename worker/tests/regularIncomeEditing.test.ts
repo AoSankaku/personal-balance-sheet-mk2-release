@@ -85,8 +85,8 @@ describe("regular income editing", () => {
     const response = await request(database, "POST", "/batch", { entries: [manual, income()] });
     expect(response.status).toBe(201);
     const created = await response.json();
-    expect(created.entries[0]).toMatchObject({ is_regular_income: false, income_budget_filter_id: null });
-    expect(created.entries[1]).toMatchObject({ is_regular_income: true, income_budget_filter_id: 2001 });
+    expect(created[0]).toMatchObject({ is_regular_income: false, income_budget_filter_id: null });
+    expect(created[1]).toMatchObject({ is_regular_income: true, income_budget_filter_id: 2001 });
   });
 
   test("validates mode, filter references, and currency in create and update", async () => {
@@ -100,6 +100,14 @@ describe("regular income editing", () => {
       { income_budget_filter_id: 0 },
       { income_budget_filter_id: 9999 },
       { income_budget_filter_id: 2002 },
+      { is_regular_income: false },
+      {
+        lines: [
+          { account_id: 1006, debit: 1000, credit: 0 },
+          { account_id: 1001, debit: 0, credit: 1000 },
+        ],
+        income_budget_allocations: [],
+      },
     ]) {
       expect((await request(database, "POST", "/", income(change))).status, JSON.stringify(change)).toBe(400);
       expect((await request(database, "PUT", `/${created.id}`, income(change))).status, JSON.stringify(change)).toBe(400);
@@ -113,6 +121,29 @@ describe("regular income editing", () => {
     expect(await (await request(database, "GET", `/${created.id}`)).json()).toMatchObject({
       is_regular_income: true, income_budget_filter_id: null,
       income_budget_allocations: [expect.objectContaining({ amount: 750 })],
+    });
+  });
+
+  test("regular mode can remain on without a selected filter", async () => {
+    const database = fixture();
+    const response = await request(database, "POST", "/", income({ income_budget_filter_id: null }));
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({ is_regular_income: true, income_budget_filter_id: null });
+  });
+
+  test("older clients can convert income to an expense without retaining regular-income metadata", async () => {
+    const database = fixture();
+    const created = await (await request(database, "POST", "/", income())).json() as { id: number };
+    const response = await request(database, "PUT", `/${created.id}`, {
+      date: "2026-10-21", description: "Converted expense",
+      lines: [
+        { account_id: 1006, debit: 1000, credit: 0 },
+        { account_id: 1001, debit: 0, credit: 1000 },
+      ],
+    });
+    expect(response.status).toBe(200);
+    expect(await (await request(database, "GET", `/${created.id}`)).json()).toMatchObject({
+      is_regular_income: false, income_budget_filter_id: null,
     });
   });
 });

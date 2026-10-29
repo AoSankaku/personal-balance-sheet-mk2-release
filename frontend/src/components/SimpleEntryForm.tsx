@@ -14,6 +14,7 @@ import {
 } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { DateInput } from "@mantine/dates";
+import { getIncomeDistributionDirtyIds } from "../lib/incomeBudgetDraft";
 import { useForm } from "@mantine/form";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMediaQuery } from "@mantine/hooks";
@@ -320,7 +321,9 @@ export function SimpleEntryForm({
   ] = useState<Record<number, number | null>>(
     initialDraft?.incomeTransferDestinations ?? {},
   );
-  const dirtyIncomeDistCategoryIds = useRef<Set<number>>(new Set());
+  const dirtyIncomeDistCategoryIds = useRef<Set<number>>(
+    getIncomeDistributionDirtyIds(initialDraft),
+  );
   // Frozen step-by-step pipeline snapshot — restore from draft to avoid re-capture on mount
   const [filterStepPreview, setFilterStepPreview] = useState<StepPreview[]>(
     initialDraft?.filterStepPreview ?? [],
@@ -403,7 +406,9 @@ export function SimpleEntryForm({
   const preferredFilterItems = preferredFilterIds
     .map((id) =>
       budgetFilters.find(
-        (f) => f.id === id && f.is_active && f.currency === selectedCurrency,
+        (f) => f.id === id &&
+          (f.is_active || (isEditing && String(f.id) === selectedFilterId)) &&
+          f.currency === selectedCurrency,
       ),
     )
     .filter(Boolean)
@@ -412,7 +417,7 @@ export function SimpleEntryForm({
   const remainingFilterItems = budgetFilters
     .filter(
       (f) =>
-        f.is_active &&
+        (f.is_active || (isEditing && String(f.id) === selectedFilterId)) &&
         f.currency === selectedCurrency &&
         !preferredFilterIdSet.has(String(f.id)),
     )
@@ -1582,6 +1587,11 @@ export function SimpleEntryForm({
       budget_allocations: markReference(budget_allocations),
       budget_source: "simple",
       ...incomeBudgetFields,
+      is_regular_income: values.entryType === "income" && canAllocateIncome && isRegularIncome,
+      income_budget_filter_id:
+        values.entryType === "income" && canAllocateIncome && isRegularIncome && selectedFilterId
+          ? Number(selectedFilterId)
+          : null,
     });
     if (!isEditing) {
       dirtyIncomeDistCategoryIds.current.clear();
