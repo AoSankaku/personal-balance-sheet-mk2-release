@@ -44,7 +44,7 @@ import { resolveIncomeTransferAccounts } from "../lib/incomeTransferAccounts";
 import { formatCurrency } from "../lib/numberFormat";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
-import { showFeedback } from "../lib/feedback";
+import { captureFeedbackContext, showFeedback } from "../lib/feedback";
 import { ConfirmModal } from "./ConfirmModal";
 import {
   buildGroupedAssetOptions,
@@ -55,6 +55,7 @@ import {
 import {
   isUserSelectableAccount,
   toAccountSelectOption,
+  accountDisplayNameFromName,
 } from "../lib/accountUtils";
 import { renderAccountOption } from "../lib/accountSelect";
 import {
@@ -648,6 +649,11 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
   }
 
   async function doPost(entries: CreateJournalInput[]) {
+    const context = captureFeedbackContext({
+      action: [t("tabBulkExpense"), accountDisplayNameFromName(paymentAccount?.name, t),
+        statementCompletion ? `${t("creditCardStatementCompleteAction")} / ${statementMonthLabel}` : "",
+      ].filter(Boolean).join(" / "),
+    });
     setPosting(true);
     try {
       await api.journal.batchCreate({ entries });
@@ -655,10 +661,11 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
         clearPostedRows(true);
         try {
           await api.creditCardStatements.complete(statementCompletion);
-        } catch {
+        } catch (error) {
           showFeedback({
             message: t("bulkExpenseSavedButStatementPending"),
             color: "yellow",
+            context: { ...context, details: error instanceof Error ? error.message : String(error) },
           });
           onPosted();
           return;
@@ -683,10 +690,11 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
         });
         try {
           await refreshCreditCardStatementCompletions();
-        } catch {
+        } catch (error) {
           showFeedback({
             message: t("bulkExpenseSavedButRefreshFailed"),
             color: "yellow",
+            context: { ...context, details: error instanceof Error ? error.message : String(error) },
           });
           onPosted();
           return;
@@ -694,10 +702,12 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
       } else {
         clearPostedRows(false);
       }
-      showFeedback({ message: t("bulkExpensePosted"), color: "teal" });
+      showFeedback({ message: t("bulkExpensePosted"), color: "teal", context });
       onPosted();
-    } catch {
-      showFeedback({ message: t("saveFailed"), color: "red" });
+    } catch (error) {
+      showFeedback({ message: t("saveFailed"), color: "red", context: {
+        ...context, details: error instanceof Error ? error.message : String(error),
+      } });
     } finally {
       setPosting(false);
     }
@@ -705,6 +715,9 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
 
   async function completeStatementWithoutPosting() {
     if (!statementCompletion) return;
+    const context = captureFeedbackContext({ action: [
+      t("creditCardStatementCompleteAction"), accountDisplayNameFromName(paymentAccount?.name, t), statementMonthLabel,
+    ].filter(Boolean).join(" / ") });
     setCompletionPosting(true);
     try {
       await api.creditCardStatements.complete(statementCompletion);
@@ -712,10 +725,11 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
       closeCompletionConfirm();
       try {
         await refreshCreditCardStatementCompletions();
-      } catch {
+      } catch (error) {
         showFeedback({
           message: t("bulkExpenseSavedButRefreshFailed"),
           color: "yellow",
+          context: { ...context, details: error instanceof Error ? error.message : String(error) },
         });
         onPosted();
         return;
@@ -726,10 +740,13 @@ export function BulkExpenseTab({ onPosted }: { onPosted: () => void }) {
           statementMonthLabel,
         ),
         color: "teal",
+        context,
       });
       onPosted();
-    } catch {
-      showFeedback({ message: t("saveFailed"), color: "red" });
+    } catch (error) {
+      showFeedback({ message: t("saveFailed"), color: "red", context: {
+        ...context, details: error instanceof Error ? error.message : String(error),
+      } });
     } finally {
       setCompletionPosting(false);
     }

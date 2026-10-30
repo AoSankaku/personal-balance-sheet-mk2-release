@@ -14,6 +14,7 @@ import {
 } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { DateInput } from "@mantine/dates";
+import { getIncomeDistributionDirtyIds } from "../lib/incomeBudgetDraft";
 import { useForm } from "@mantine/form";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMediaQuery } from "@mantine/hooks";
@@ -76,6 +77,7 @@ import {
 import { ExpenseSection } from "./entry/ExpenseSection";
 import { IncomeSection } from "./entry/IncomeSection";
 import { LoanSection } from "./entry/LoanSection";
+import { ExpenseTagInput } from "./ExpenseTagInput";
 import { formatCurrency } from "../lib/numberFormat";
 import {
   buildFundingComponentInput,
@@ -88,6 +90,7 @@ import {
   canAllocateIncomeBudget,
 } from "../lib/incomeBudgetScope";
 import { resolveIncomeTransferAccounts } from "../lib/incomeTransferAccounts";
+import { buildSimpleExpenseTagFields } from "../lib/expenseTagInput";
 
 type EntryType =
   | "expense"
@@ -185,6 +188,7 @@ export interface BudgetDistributionItem {
 
 export interface SimpleFormDraft {
   formValues: Partial<HouseholdForm>;
+  expenseTags?: string[];
   budgetDist: BudgetDistributionItem[];
   showZeroCategories: boolean;
   incomeDist?: { budget_category_id: number; name: string; amount: number }[];
@@ -266,6 +270,26 @@ export function SimpleEntryForm({
   } = useAppData();
   const isMobile = useMediaQuery("(max-width: 48em)");
   const selectedCurrency = displayCurrency || "JPY";
+  const [expenseTags, setExpenseTags] = useState<string[]>(
+    initialDraft?.expenseTags ?? [],
+  );
+  const [catalogExpenseTags, setCatalogExpenseTags] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void api.expenseTags.list().then((tags) => {
+      if (!cancelled) setCatalogExpenseTags(tags.map((tag) => tag.name));
+    }).catch(() => {
+      // Existing journal tags remain available when the catalog cannot be loaded.
+    });
+    return () => { cancelled = true; };
+  }, []);
+  const expenseTagOptions = useMemo(
+    () => [...new Set([
+      ...catalogExpenseTags,
+      ...(journal ?? []).flatMap((entry) => entry.expense_tags?.map((tag) => tag.name) ?? []),
+    ])],
+    [catalogExpenseTags, journal],
+  );
   const currencyDecimalPlaces =
     enabledCurrencies.find((currency) => currency.code === selectedCurrency)
       ?.decimal_places ?? 0;
@@ -320,7 +344,9 @@ export function SimpleEntryForm({
   ] = useState<Record<number, number | null>>(
     initialDraft?.incomeTransferDestinations ?? {},
   );
-  const dirtyIncomeDistCategoryIds = useRef<Set<number>>(new Set());
+  const dirtyIncomeDistCategoryIds = useRef<Set<number>>(
+    getIncomeDistributionDirtyIds(initialDraft),
+  );
   // Frozen step-by-step pipeline snapshot — restore from draft to avoid re-capture on mount
   const [filterStepPreview, setFilterStepPreview] = useState<StepPreview[]>(
     initialDraft?.filterStepPreview ?? [],
@@ -403,7 +429,9 @@ export function SimpleEntryForm({
   const preferredFilterItems = preferredFilterIds
     .map((id) =>
       budgetFilters.find(
-        (f) => f.id === id && f.is_active && f.currency === selectedCurrency,
+        (f) => f.id === id &&
+          (f.is_active || (isEditing && String(f.id) === selectedFilterId)) &&
+          f.currency === selectedCurrency,
       ),
     )
     .filter(Boolean)
@@ -412,7 +440,7 @@ export function SimpleEntryForm({
   const remainingFilterItems = budgetFilters
     .filter(
       (f) =>
-        f.is_active &&
+        (f.is_active || (isEditing && String(f.id) === selectedFilterId)) &&
         f.currency === selectedCurrency &&
         !preferredFilterIdSet.has(String(f.id)),
     )
@@ -755,6 +783,7 @@ export function SimpleEntryForm({
   useEffect(() => {
     onDraftChangeRef.current?.({
       formValues: form.values,
+      expenseTags,
       budgetDist,
       showZeroCategories,
       incomeDist,
@@ -781,6 +810,7 @@ export function SimpleEntryForm({
     });
   }, [
     form.values,
+    expenseTags,
     budgetDist,
     showZeroCategories,
     incomeDist,
@@ -933,6 +963,7 @@ export function SimpleEntryForm({
         ...allocation,
         is_reference: usesReferenceBudgetAllocations,
       }));
+    const expenseTagFields = buildSimpleExpenseTagFields(expenseTags);
     // ── Depreciation path ──────────────────────────────────────────────
     if (values.entryType === "expense" && depreciationEnabled) {
       if (
@@ -995,6 +1026,7 @@ export function SimpleEntryForm({
         );
       }
       if (!isEditing) {
+        setExpenseTags([]);
         setDepreciationEnabled(false);
         setDepreciationAssetAccountId(null);
         setDepreciationExpenseAccountId(null);
@@ -1092,6 +1124,7 @@ export function SimpleEntryForm({
             ? markReference(budget_allocations)
             : undefined,
           budget_source: "simple",
+          ...expenseTagFields,
         });
       } else if (businessAmount >= totalAmount) {
         // 100% business — simple 2-line entry to advance account
@@ -1118,6 +1151,7 @@ export function SimpleEntryForm({
               ])
             : undefined,
           budget_source: "simple",
+          ...expenseTagFields,
         });
       } else {
         // personalAmount >= totalAmount (ratio = 0%) — treat as normal expense
@@ -1143,9 +1177,11 @@ export function SimpleEntryForm({
           ],
           budget_allocations: markReference(budget_allocations),
           budget_source: "simple",
+          ...expenseTagFields,
         });
       }
       if (!isEditing) {
+        setExpenseTags([]);
         setDepreciationEnabled(false);
         setDepreciationAssetAccountId(null);
         setDepreciationExpenseAccountId(null);
@@ -1489,10 +1525,12 @@ export function SimpleEntryForm({
         budget_allocations:
           combinedBudgetAllocs.length > 0 ? combinedBudgetAllocs : undefined,
         budget_source: "simple",
+        ...expenseTagFields,
         ...loanBudgetMetadata,
       });
 
       if (!isEditing) {
+        setExpenseTags([]);
         setUnsettledEntries([]);
         setSettledEntryIds([]);
         setDiffBudgetDist([]);
@@ -1581,7 +1619,13 @@ export function SimpleEntryForm({
       ],
       budget_allocations: markReference(budget_allocations),
       budget_source: "simple",
+      ...expenseTagFields,
       ...incomeBudgetFields,
+      is_regular_income: values.entryType === "income" && canAllocateIncome && isRegularIncome,
+      income_budget_filter_id:
+        values.entryType === "income" && canAllocateIncome && isRegularIncome && selectedFilterId
+          ? Number(selectedFilterId)
+          : null,
     });
     if (!isEditing) {
       dirtyIncomeDistCategoryIds.current.clear();
@@ -1592,6 +1636,7 @@ export function SimpleEntryForm({
       setFilterStepPreview([]);
       setIsRegularIncome(false);
       setBudgetDist([]);
+      setExpenseTags([]);
       form.reset();
       // Re-apply default payment source after reset
       if (defaultPaymentAccount) {
@@ -2281,6 +2326,11 @@ export function SimpleEntryForm({
               handleRatioChange={handleRatioChange}
               handleBudgetAmountChange={handleBudgetAmountChange}
             />
+            {depreciationEnabled && (
+              <Alert color="blue" variant="light" icon={<IconInfoCircle size={18} />}>
+                {t("expenseTagsUnavailableForDepreciation")}
+              </Alert>
+            )}
             {usesReferenceBudgetAllocations && budgetDist.length > 0 && (
               <Alert
                 color="blue"
@@ -2290,6 +2340,15 @@ export function SimpleEntryForm({
               >
                 {t("budgetReferenceAllocationHint")}
               </Alert>
+            )}
+            {!depreciationEnabled && (entryType === "expense" || expenseTags.length > 0) && (
+              <ExpenseTagInput
+                label={t("expenseTagsLabel")}
+                placeholder={t("expenseTagsPlaceholder")}
+                options={expenseTagOptions}
+                value={expenseTags}
+                onChange={setExpenseTags}
+              />
             )}
           </>
         )}
@@ -2532,7 +2591,14 @@ export function SimpleEntryForm({
         <Group justify="space-between">
           <Group>
             {onReset && (
-              <Button variant="light" color="gray" onClick={onReset}>
+              <Button
+                variant="light"
+                color="gray"
+                onClick={() => {
+                  setExpenseTags([]);
+                  onReset();
+                }}
+              >
                 {t("reset")}
               </Button>
             )}

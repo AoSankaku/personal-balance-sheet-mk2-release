@@ -63,6 +63,13 @@ export const journalEntries = sqliteTable("journal_entries", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   date: text("date").notNull(),
   description: text("description").notNull(),
+  is_regular_income: integer("is_regular_income", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  income_budget_filter_id: integer("income_budget_filter_id").references(
+    () => budgetFilters.id,
+    { onDelete: "set null" },
+  ),
   /** Origin of this entry: 'manual' (direct input) or 'csv_import' (batch CSV import) */
   source: text("source", { enum: ["manual", "csv_import"] }),
   created_at: text("created_at")
@@ -71,6 +78,21 @@ export const journalEntries = sqliteTable("journal_entries", {
 }, (table) => ({
   dateIdIdx: index("idx_journal_entries_date_id").on(table.date, table.id),
 }));
+
+export const journalHistorySettings = sqliteTable("journal_history_settings", {
+  id: integer("id").primaryKey(),
+  retention_limit: integer("retention_limit").notNull().default(100),
+});
+
+/** Independent immutable snapshots; deliberately no references to live records. */
+export const journalDeletionCandidates = sqliteTable("journal_deletion_candidates", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  original_journal_entry_id: integer("original_journal_entry_id").notNull(),
+  is_deleted: integer("is_deleted", { mode: "boolean" }).notNull().default(true),
+  reason: text("reason", { enum: ["deleted", "edited"] }).notNull(),
+  archived_at: text("archived_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+  snapshot: text("snapshot").notNull(),
+});
 
 export const journalLines = sqliteTable("journal_lines", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -107,6 +129,45 @@ export const journalLines = sqliteTable("journal_lines", {
   creditInteger: check(
     "chk_journal_lines_credit_integer",
     sql`typeof(${table.credit}) = 'integer'`,
+  ),
+}));
+
+export const expenseTags = sqliteTable("expense_tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  created_at: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+export const journalEntryExpenseTags = sqliteTable("journal_entry_expense_tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  journal_entry_id: integer("journal_entry_id")
+    .notNull()
+    .references(() => journalEntries.id, { onDelete: "cascade" }),
+  tag_id: integer("tag_id")
+    .notNull()
+    .references(() => expenseTags.id, { onDelete: "restrict" }),
+}, (table) => ({
+  uniqueEntryTag: uniqueIndex("idx_journal_entry_expense_tags_entry_tag_unique")
+    .on(table.journal_entry_id, table.tag_id),
+  tagEntryIdx: index("idx_journal_entry_expense_tags_tag_entry")
+    .on(table.tag_id, table.journal_entry_id),
+}));
+
+export const journalEntryTagAmounts = sqliteTable("journal_entry_tag_amounts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  journal_entry_id: integer("journal_entry_id")
+    .notNull()
+    .references(() => journalEntries.id, { onDelete: "cascade" }),
+  currency: text("currency").notNull(),
+  amount: integer("amount").notNull(),
+}, (table) => ({
+  uniqueEntryCurrency: uniqueIndex("idx_journal_entry_tag_amounts_entry_currency_unique")
+    .on(table.journal_entry_id, table.currency),
+  amountInteger: check(
+    "chk_journal_entry_tag_amounts_integer",
+    sql`typeof(${table.amount}) = 'integer'`,
   ),
 }));
 
@@ -768,6 +829,10 @@ export const storeAccountMappings = sqliteTable("store_account_mappings", {
   account_id: integer("account_id")
     .notNull()
     .references(() => accounts.id, { onDelete: "cascade" }),
+  budget_category_id: integer("budget_category_id").references(
+    () => budgetCategories.id,
+    { onDelete: "set null" },
+  ),
   created_at: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
@@ -1225,3 +1290,13 @@ export type LongTermLoanPlan = typeof longTermLoanPlans.$inferSelect;
 export type NewLongTermLoanPlan = typeof longTermLoanPlans.$inferInsert;
 export type LongTermLoanPlanRow = typeof longTermLoanPlanRows.$inferSelect;
 export type NewLongTermLoanPlanRow = typeof longTermLoanPlanRows.$inferInsert;
+export type JournalDeletionCandidateRow = typeof journalDeletionCandidates.$inferSelect;
+export type NewJournalDeletionCandidateRow = typeof journalDeletionCandidates.$inferInsert;
+export type JournalHistorySettingsRow = typeof journalHistorySettings.$inferSelect;
+export type NewJournalHistorySettingsRow = typeof journalHistorySettings.$inferInsert;
+export type ExpenseTagRow = typeof expenseTags.$inferSelect;
+export type NewExpenseTagRow = typeof expenseTags.$inferInsert;
+export type JournalEntryExpenseTagRow = typeof journalEntryExpenseTags.$inferSelect;
+export type NewJournalEntryExpenseTagRow = typeof journalEntryExpenseTags.$inferInsert;
+export type JournalEntryTagAmountRow = typeof journalEntryTagAmounts.$inferSelect;
+export type NewJournalEntryTagAmountRow = typeof journalEntryTagAmounts.$inferInsert;

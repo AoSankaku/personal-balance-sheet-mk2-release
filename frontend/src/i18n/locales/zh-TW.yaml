@@ -75,6 +75,42 @@ transactionAdded: 交易已新增
 transactionDeleted: 交易已刪除
 statusLabel: 狀態
 statusDismiss: 確定
+budgetCalculatorTitle: "預算分配計算機"
+budgetCalculatorScratchHint: "試算內容不會儲存。「套用到預算欄」會以試算結果取代草稿中對應的預算欄。請使用一般新增或儲存按鈕記錄分錄。"
+budgetCalculatorAccountMode: "依金額與科目試算"
+budgetCalculatorJournalMode: "依目前分錄自動計算"
+budgetCalculatorSide: "借方或貸方"
+budgetCalculatorRemainderCategory: "未分配金額的目標類別"
+budgetCalculatorRemainderHint: "接收科目比例或篩選器未分配完的金額。選擇類別前不會自動分配。"
+budgetCalculatorInvalid: "請檢查科目、金額及貨幣的小數位數。"
+budgetCalculatorUnbalanced: "借貸金額平衡後即可自動計算。"
+budgetCalculatorUnsupported: "僅憑科目無法確定此分錄對預算的影響。請依金額與科目試算，再逐項確認預算欄。"
+budgetCalculatorAmbiguous: "涉及預算帳戶與排除帳戶的收入及費用，請依資金來源分別輸入。"
+budgetCalculatorFundingHint: "請在分錄的資金分配欄檢查借貸本金。本計算機不會變更本金分配。"
+budgetCalculatorInvalidFilter: "請檢查預算篩選器的貨幣與設定。"
+budgetCalculatorInvalidCategory: "請選擇目前可用的預算類別。"
+budgetCalculatorOverallocated: "設定的比例或篩選器分配超過所需金額，請檢查設定。"
+budgetCalculatorExpenseTotal: "費用與退款的預算金額"
+budgetCalculatorIncomeTotal: "收入與收回資金的預算金額"
+budgetCalculatorReferenceSplit: "影響預算餘額：{active} / 僅供參考：{reference}"
+budgetCalculatorSignHint: "增加預算餘額的金額顯示為正，減少的金額顯示為負。"
+budgetCalculatorUnassigned: "未分配：費用/退款 {expense}，收入/收回資金 {income}。請選擇分配類別。"
+budgetCalculatorApply: "套用到預算欄"
+ttPlacementPendingCurrentHint: "這裡顯示目前尚未完成的預算配置轉帳，不會改變所選餘額核對記錄及其差額。"
+notificationHistoryTitle: "通知記錄"
+notificationHistorySettingsDescription: "查看最近50則通知"
+notificationHistoryDescription: "儲存並由新到舊顯示此瀏覽器中最近{limit}則通知。"
+notificationHistoryEmpty: "尚未記錄任何通知。"
+notificationHistoryCount: "{count}則通知"
+notificationHistoryScreen: "通知發生時的畫面"
+notificationHistoryAction: "執行的操作"
+notificationHistoryDetails: "詳細資訊"
+notificationHistorySuccess: "成功"
+notificationHistoryWarning: "警告"
+notificationHistoryError: "錯誤"
+notificationHistoryInfo: "提示"
+notificationActionCreditCardMonth: "將{account}的付款月份變更為{month}"
+notificationDuplicateCardMonth: "不能重複輸入相同的付款月份"
 pwaInstallButton: 安裝為 PWA
 total: 合計：
 thAccount: 帳戶
@@ -1710,3 +1746,60 @@ bulkSubmissionInvalidAccount: "請檢查第 {n} 列科目。"
 bulkIncomeTransferTargetRequired: "請選擇第 {n} 列收入的轉入帳戶。"
 bulkExpenseSavedButStatementPending: "分錄已儲存，但帳單完成處理失敗。請稍後完成帳單。"
 bulkExpenseSavedButRefreshFailed: "分錄和帳單已儲存，但無法更新帳單畫面。請重新載入頁面。"
+journalHistoryTitle: 已刪除分錄記錄
+journalHistorySettingsDescription: 查看已刪除的分錄和編輯前的版本，並設定保留筆數。
+journalHistoryDescription: 已刪除的分錄和編輯前的版本會保留在此處，不會計入帳簿與餘額。
+journalHistoryRetentionLimit: 記錄保留上限
+journalHistoryRetentionInputHint: 1–10,000 筆
+journalHistoryRetentionHint: "目前保留 {limit} 筆。超過上限時，最早的記錄會優先永久刪除。"
+journalHistoryReduceConfirmTitle: 永久刪除較早的記錄
+journalHistoryReduceConfirmMessage: "降低上限會永久刪除較早的 {count} 筆記錄，且無法復原。"
+journalHistoryEmpty: 目前沒有分錄記錄。
+journalHistoryLoading: 正在載入分錄記錄
+journalHistoryLoadFailed: 無法載入分錄記錄。
+journalHistoryRetry: 重試
+journalHistoryDeleted: 已刪除
+journalHistoryEdited: 編輯前
+journalHistoryArchivedAt: 記錄時間
+journalHistoryEntryId: 原始分錄 ID
+journalHistoryLines: 分錄明細
+journalHistoryAccount: 科目
+journalHistoryDebit: 借方
+journalHistoryCredit: 貸方
+journalHistoryBudgetAllocations: 預算分配
+journalHistoryReference: 參考
+journalHistoryRelatedRecords: 關聯記錄
+journalHistoryCount: "{count} 筆記錄"
+journalHistoryPagination: 記錄頁面
+journalHistoryPage: "第 {page} / {pages} 頁"
+journalHistorySave: 儲存
+journalHistorySaved: 保留上限已儲存
+journalHistoryIncomeAdjustments: 預算調整
+journalHistoryBudgetFunding: 借貸預算分配
+journalHistoryAllocation: 分配
+journalHistoryReset: 重設
+journalHistoryTransfer: 轉帳
+journalHistoryManualAdjustment: 手動調整
+journalHistoryUnallocated: 未分配
+journalHistoryBorrow: 借入
+journalHistoryRepay: 償還
+journalHistoryLend: 借出
+journalHistoryCollect: 收回
+expenseTagsLabel: 支出標籤
+expenseTagsPlaceholder: 輸入標籤後按 Enter
+expenseTagsFilter: 依標籤篩選
+expenseTagsFilterHint: 顯示包含任一所選標籤的分錄
+tagExpenseTotal: 標籤支出金額
+tagExpenseSummaryHint: 此標籤彙總與分錄金額分開計算。含多個標籤的分錄在總額中只計一次。
+tagExpenseAmount: 標籤支出金額
+tagExpenseAuto: 自動計算
+tagExpenseManual: 手動輸入
+tagExpenseAmountHint: 僅用於標籤彙總；不會改變分錄或帳簿金額。
+tagExpenseAmountRequired: 請輸入有效的標籤彙總金額。
+expenseTagsCount: "標籤（{count}）"
+tagExpenseBreakdown: 標籤支出明細
+tagExpenseBreakdownHint: 不同標籤的金額可能重複。總額中每筆分錄只計一次。
+expenseTagsEmpty: 沒有標籤
+editExpenseTags: 編輯標籤
+expenseTagsSaved: 標籤已儲存
+expenseTagsUnavailableForDepreciation: 折舊輸入中無法在此編輯標籤。儲存分錄後，請在帳簿中編輯標籤。

@@ -130,14 +130,31 @@ export interface JournalLine {
   credit_card_billing_offset_months?: number | null;
 }
 
+export interface ExpenseTag {
+  id: number;
+  name: string;
+}
+
+export interface TagExpenseAmount {
+  currency: string;
+  amount: number;
+}
+
 export interface JournalEntry {
   id: number;
   date: string;
   description: string;
+  /** Saved income-form mode and filter selection; absent on older entries. */
+  is_regular_income?: boolean;
+  income_budget_filter_id?: number | null;
   /** Origin of this entry: 'manual' (direct input) or 'csv_import' (batch CSV import). Null for legacy entries. */
   source?: "manual" | "csv_import" | null;
   created_at: string;
   lines: JournalLine[];
+  expense_tags?: ExpenseTag[];
+  /** Manual amounts affect event/tag summaries only, never accounting lines. */
+  tag_expense_mode?: "auto" | "manual";
+  tag_expense_amounts?: TagExpenseAmount[];
   budget_allocations?: {
     budget_category_id: number;
     amount: number;
@@ -172,6 +189,25 @@ export interface JournalEntry {
   income_transfer_source_journal_entry_id?: number | null;
   /** Requirement IDs completed by this transfer entry. */
   income_transfer_requirement_ids?: number[];
+}
+
+export interface JournalDeletionCandidate {
+  id: number;
+  original_journal_entry_id: number;
+  is_deleted: true;
+  reason: "deleted" | "edited";
+  archived_at: string;
+  entry: JournalEntry;
+  /** Independent copies of associated records, with monetary amounts decoded. */
+  related_records: Record<string, Record<string, unknown>[]>;
+}
+
+export interface JournalHistoryResponse {
+  retention_limit: number;
+  total: number;
+  offset: number;
+  limit: number;
+  entries: JournalDeletionCandidate[];
 }
 
 export type BudgetFundingKind = "borrow" | "repay" | "lend" | "collect";
@@ -334,6 +370,14 @@ export interface CreateJournalLineInput {
 export interface CreateJournalInput {
   date: string;
   description: string;
+  /** Omitted during updates preserves existing tags; [] explicitly clears them. */
+  expense_tags?: string[];
+  tag_expense_mode?: "auto" | "manual";
+  /** Manual overrides are available for compound (budget_source=multiline) entries. */
+  tag_expense_amounts?: TagExpenseAmount[];
+  /** Income-form preferences; omitted fields are preserved during compatible edits. */
+  is_regular_income?: boolean;
+  income_budget_filter_id?: number | null;
   lines: CreateJournalLineInput[];
   /** Per-entry budget allocations for expense tracking (stored in journal_entry_budget_allocations) */
   budget_allocations?: {
@@ -1207,6 +1251,7 @@ export interface CreditCardStateEntry {
   id: number;
   account_id: number;
   account_name: string;
+  /** Legacy name: statement/closing month; the actual withdrawal month is derived from settings. */
   payment_month: string;
   status: CreditCardSnapshotStatus;
   amount: number;
@@ -1216,6 +1261,7 @@ export interface CreditCardStateEntry {
 export interface SaveCreditCardStateInput {
   entries: {
     account_id: number;
+    /** Legacy name: statement/closing month, consistent with CreditCardStateEntry. */
     payment_month: string;
     amount: number;
     status: CreditCardSnapshotStatus;
@@ -1243,6 +1289,7 @@ export type UpdateTaskSettingsInput = Partial<
 
 export interface UpsertCreditCardStateInput {
   account_id: number;
+  /** Legacy name: statement/closing month, not the actual withdrawal month. */
   payment_month: string;
   amount: number;
   status: CreditCardSnapshotStatus;
@@ -1453,12 +1500,14 @@ export interface StoreAccountMapping {
   store_name: string;
   account_id: number;
   account_name: string | null;
+  budget_category_id: number | null;
   created_at: string;
 }
 
 export interface UpsertStoreAccountMappingInput {
   store_name: string;
   account_id: number;
+  budget_category_id?: number | null;
 }
 
 export interface EnabledCurrency {

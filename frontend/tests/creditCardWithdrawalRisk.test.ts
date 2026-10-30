@@ -56,6 +56,27 @@ const baseSettings: CreditCardSettings[] = [
 ];
 
 describe("computeCreditCardWithdrawalRiskNotifications", () => {
+  test("does not use next month's statement for this month's withdrawal", () => {
+    expect(computeCreditCardWithdrawalRiskNotifications({
+      today: new Date("2026-05-12T00:00:00"), accounts,
+      creditCardSettings: [baseSettings[0]!],
+      creditCardState: [{ id: 1, account_id: 2, account_name: "Card A", payment_month: "2026-05", status: "confirmed", amount: 60000, last_updated_at: "2026-05-12T00:00:00" }],
+    })).toEqual([]);
+  });
+
+  test("uses each card's billing delay when grouping the same upcoming withdrawal date", () => {
+    const tasks = computeCreditCardWithdrawalRiskNotifications({
+      today: new Date("2027-01-20T00:00:00"), accounts,
+      creditCardSettings: [baseSettings[0]!, { ...baseSettings[1]!, billing_offset_months: 1 }],
+      creditCardState: [
+        { id: 1, account_id: 2, account_name: "Card A", payment_month: "2026-12", status: "confirmed", amount: 30000, last_updated_at: "2027-01-20T00:00:00" },
+        { id: 2, account_id: 3, account_name: "Card B", payment_month: "2026-11", status: "confirmed", amount: 30000, last_updated_at: "2027-01-20T00:00:00" },
+      ],
+    });
+    expect(tasks).toHaveLength(2);
+    expect(tasks[0]).toMatchObject({ paymentMonth: "2027-01", withdrawalDate: "2027-01-26", combinedAmount: 60000, combinedProjectedBalance: -10000 });
+  });
+
   test("warns when one linked card would make its withdrawal account negative within fourteen days", () => {
     const notifications = computeCreditCardWithdrawalRiskNotifications({
       today: new Date("2026-05-12T00:00:00"),
@@ -66,7 +87,7 @@ describe("computeCreditCardWithdrawalRiskNotifications", () => {
           id: 1,
           account_id: 2,
           account_name: "Card A",
-          payment_month: "2026-05",
+          payment_month: "2026-04",
           status: "confirmed",
           amount: 60_000,
           last_updated_at: "2026-05-01T00:00:00.000Z",
@@ -94,7 +115,7 @@ describe("computeCreditCardWithdrawalRiskNotifications", () => {
           id: 1,
           account_id: 2,
           account_name: "Card A",
-          payment_month: "2026-05",
+          payment_month: "2026-04",
           status: "confirmed",
           amount: 30_000,
           last_updated_at: "2026-05-01T00:00:00.000Z",
@@ -103,7 +124,7 @@ describe("computeCreditCardWithdrawalRiskNotifications", () => {
           id: 2,
           account_id: 3,
           account_name: "Card B",
-          payment_month: "2026-05",
+          payment_month: "2026-04",
           status: "confirmed",
           amount: 30_000,
           last_updated_at: "2026-05-01T00:00:00.000Z",
@@ -129,7 +150,7 @@ describe("computeCreditCardWithdrawalRiskNotifications", () => {
           id: 1,
           account_id: 2,
           account_name: "Card A",
-          payment_month: "2026-05",
+          payment_month: "2026-04",
           status: "confirmed",
           amount: 60_000,
           last_updated_at: "2026-05-01T00:00:00.000Z",
@@ -150,7 +171,7 @@ describe("computeCreditCardWithdrawalRiskNotifications", () => {
           id: 1,
           account_id: 2,
           account_name: "Card A",
-          payment_month: "2026-05",
+          payment_month: "2026-04",
           status: "paid",
           amount: 60_000,
           last_updated_at: "2026-05-01T00:00:00.000Z",

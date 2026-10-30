@@ -44,29 +44,27 @@ export function getConfirmedCsvCreditCardState({
     return null;
   }
 
-  const paymentMonth =
+  // The legacy state field `payment_month` is keyed by the statement/closing
+  // month. Reconciliation derives the actual payment month from that key.
+  const statementMonth =
     format === "rakuten-confirmed"
       ? mostFrequentMonth(
-          transactions.map((transaction) => transaction.paymentMonth),
+          transactions.map((transaction) => shiftCreditCardMonth(
+            transaction.paymentMonth,
+            -creditCardBillingOffsetMonths(settings),
+          )),
         )
-      : (() => {
-          const statementMonth = mostFrequentMonth(
-            transactions.map((transaction) =>
-              statementMonthForTransactionDate(
-                transaction.date,
-                settings.closing_day,
-              ),
-            ),
-          );
-          return statementMonth
-            ? paymentMonthForStatementMonth(statementMonth, settings)
-            : null;
-        })();
-  if (!paymentMonth) return null;
+      : mostFrequentMonth(
+          transactions.map((transaction) => statementMonthForTransactionDate(
+            transaction.date,
+            settings.closing_day,
+          )),
+        );
+  if (!statementMonth) return null;
 
   return {
     account_id: settings.account_id,
-    payment_month: paymentMonth,
+    payment_month: statementMonth,
     amount: transactions.reduce(
       (sum, transaction) =>
         sum +

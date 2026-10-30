@@ -75,6 +75,42 @@ transactionAdded: Transaction added
 transactionDeleted: Transaction deleted
 statusLabel: Status
 statusDismiss: OK
+budgetCalculatorTitle: "Budget distribution calculator"
+budgetCalculatorScratchHint: "Estimates are not saved. Apply to budget fields replaces the relevant draft fields with these results. Use the normal Add or Save button to record the journal entry."
+budgetCalculatorAccountMode: "Amount and account"
+budgetCalculatorJournalMode: "Calculate from current entry"
+budgetCalculatorSide: "Debit or credit"
+budgetCalculatorRemainderCategory: "Category for the unassigned amount"
+budgetCalculatorRemainderHint: "Receives amounts left over by account ratios or the filter. No remainder is assigned until you select a category."
+budgetCalculatorInvalid: "Check the account, amount and currency precision."
+budgetCalculatorUnbalanced: "Balance the debit and credit amounts to calculate this entry."
+budgetCalculatorUnsupported: "The accounts alone do not determine the budget effect of this entry. Estimate by amount and account, then review the budget fields individually."
+budgetCalculatorAmbiguous: "Separate income and expenses involving both budget and excluded accounts by their funding sources."
+budgetCalculatorFundingHint: "Review loan and lending principal in the entry's funding fields. This calculator does not change principal allocations."
+budgetCalculatorInvalidFilter: "Check the budget filter's currency and settings."
+budgetCalculatorInvalidCategory: "Select a currently available budget category."
+budgetCalculatorOverallocated: "The configured ratios or filter exceed the required amount. Review the settings."
+budgetCalculatorExpenseTotal: "Expense and refund budget"
+budgetCalculatorIncomeTotal: "Income and returned-funds budget"
+budgetCalculatorReferenceSplit: "Affects budget balance: {active} / Reference only: {reference}"
+budgetCalculatorSignHint: "Amounts that increase budget balances are positive; reductions are negative."
+budgetCalculatorUnassigned: "Unassigned: expense/refund {expense}, income/returned funds {income}. Select a destination category."
+budgetCalculatorApply: "Apply to budget fields"
+ttPlacementPendingCurrentHint: "These are current outstanding placement transfers. The selected reconciliation snapshot and its differences are unchanged."
+notificationHistoryTitle: "Notification history"
+notificationHistorySettingsDescription: "Review the latest 50 notifications"
+notificationHistoryDescription: "The latest {limit} notifications shown in this browser are saved and listed newest first."
+notificationHistoryEmpty: "No notifications have been recorded yet."
+notificationHistoryCount: "{count} notifications"
+notificationHistoryScreen: "Screen at the time"
+notificationHistoryAction: "Action performed"
+notificationHistoryDetails: "Details"
+notificationHistorySuccess: "Success"
+notificationHistoryWarning: "Warning"
+notificationHistoryError: "Error"
+notificationHistoryInfo: "Information"
+notificationActionCreditCardMonth: "Change the payment month for {account} to {month}"
+notificationDuplicateCardMonth: "Duplicate payment months are not allowed"
 pwaInstallButton: Install as PWA
 total: "Total:"
 thAccount: Account
@@ -1710,3 +1746,60 @@ bulkSubmissionInvalidAccount: "Check the account in row {n}."
 bulkIncomeTransferTargetRequired: "Select a transfer destination for the income in row {n}."
 bulkExpenseSavedButStatementPending: "The journal entries were saved, but statement completion failed. Complete the statement later."
 bulkExpenseSavedButRefreshFailed: "The journal entries and statement were saved, but the statement view could not be refreshed. Reload the page."
+journalHistoryTitle: Journal deletion history
+journalHistorySettingsDescription: Review deleted and pre-edit journal entries, and set how many history items to retain.
+journalHistoryDescription: Deleted and pre-edit journal entries are kept here. They are excluded from the ledger and balance totals.
+journalHistoryRetentionLimit: Retained history limit
+journalHistoryRetentionInputHint: 1–10,000 entries
+journalHistoryRetentionHint: "{limit} entries are currently retained. When the limit is exceeded, the oldest archived entries are permanently deleted first."
+journalHistoryReduceConfirmTitle: Permanently delete older history
+journalHistoryReduceConfirmMessage: "Lowering the limit will permanently delete {count} older history entries. This cannot be undone."
+journalHistoryEmpty: There are no journal history entries.
+journalHistoryLoading: Loading journal history
+journalHistoryLoadFailed: Journal history could not be loaded.
+journalHistoryRetry: Retry
+journalHistoryDeleted: Deleted
+journalHistoryEdited: Before edit
+journalHistoryArchivedAt: Recorded
+journalHistoryEntryId: Original entry ID
+journalHistoryLines: Journal lines
+journalHistoryAccount: Account
+journalHistoryDebit: Debit
+journalHistoryCredit: Credit
+journalHistoryBudgetAllocations: Budget allocations
+journalHistoryReference: Reference
+journalHistoryRelatedRecords: Related records
+journalHistoryCount: "{count} history entries"
+journalHistoryPagination: History pages
+journalHistoryPage: "Page {page} of {pages}"
+journalHistorySave: Save
+journalHistorySaved: Retention limit saved
+journalHistoryIncomeAdjustments: Budget adjustments
+journalHistoryBudgetFunding: Loan and lending budget split
+journalHistoryAllocation: Allocation
+journalHistoryReset: Reset
+journalHistoryTransfer: Transfer
+journalHistoryManualAdjustment: Manual adjustment
+journalHistoryUnallocated: Unallocated
+journalHistoryBorrow: Borrowing
+journalHistoryRepay: Repayment
+journalHistoryLend: Lending
+journalHistoryCollect: Collection
+expenseTagsLabel: Expense tags
+expenseTagsPlaceholder: Type a tag and press Enter
+expenseTagsFilter: Filter by tag
+expenseTagsFilterHint: Show entries containing any selected tag
+tagExpenseTotal: Tagged spending
+tagExpenseSummaryHint: This tag summary is separate from journal amounts. Entries with multiple tags are counted once in the total.
+tagExpenseAmount: Tagged spending amount
+tagExpenseAuto: Automatic
+tagExpenseManual: Manual
+tagExpenseAmountHint: Used only in tag summaries; journal and ledger amounts are unchanged.
+tagExpenseAmountRequired: Enter a valid amount for the tag summary.
+expenseTagsCount: "Tags ({count})"
+tagExpenseBreakdown: Spending by tag
+tagExpenseBreakdownHint: Amounts may overlap across tags. The total counts each journal entry only once.
+expenseTagsEmpty: No tags
+editExpenseTags: Edit tags
+expenseTagsSaved: Tags saved
+expenseTagsUnavailableForDepreciation: Tags can't be changed in depreciation input. Save the entry, then edit its tags from the ledger.

@@ -75,6 +75,42 @@ transactionAdded: "Transacción agregada"
 transactionDeleted: "Transacción eliminada"
 statusLabel: "Estado"
 statusDismiss: "OK"
+budgetCalculatorTitle: "Calculadora de distribución presupuestaria"
+budgetCalculatorScratchHint: "Las simulaciones no se guardan. Aplicar a los campos sustituye los campos presupuestarios correspondientes del borrador. Use Añadir o Guardar para registrar el asiento."
+budgetCalculatorAccountMode: "Importe y cuenta"
+budgetCalculatorJournalMode: "Calcular desde el asiento"
+budgetCalculatorSide: "Debe o haber"
+budgetCalculatorRemainderCategory: "Categoría del importe sin asignar"
+budgetCalculatorRemainderHint: "Recibe el resto que dejen los porcentajes de la cuenta o el filtro. No se asigna sin que elija una categoría."
+budgetCalculatorInvalid: "Revise la cuenta, el importe y los decimales de la moneda."
+budgetCalculatorUnbalanced: "Equilibre el debe y el haber para calcular este asiento."
+budgetCalculatorUnsupported: "Las cuentas por sí solas no determinan el efecto presupuestario. Simule por importe y cuenta, y revise cada campo."
+budgetCalculatorAmbiguous: "Separe los ingresos y gastos que mezclen cuentas presupuestarias y excluidas según su origen."
+budgetCalculatorFundingHint: "Revise el principal de préstamos en los campos de financiación del asiento. Esta calculadora no cambia su distribución."
+budgetCalculatorInvalidFilter: "Revise la moneda y la configuración del filtro presupuestario."
+budgetCalculatorInvalidCategory: "Seleccione una categoría presupuestaria disponible."
+budgetCalculatorOverallocated: "Los porcentajes o el filtro superan el importe necesario. Revise la configuración."
+budgetCalculatorExpenseTotal: "Presupuesto de gastos y devoluciones"
+budgetCalculatorIncomeTotal: "Presupuesto de ingresos y fondos recuperados"
+budgetCalculatorReferenceSplit: "Afecta al presupuesto: {active} / Solo referencia: {reference}"
+budgetCalculatorSignHint: "Los aumentos del saldo presupuestario son positivos; las reducciones son negativas."
+budgetCalculatorUnassigned: "Sin asignar: gastos/devoluciones {expense}, ingresos/fondos recuperados {income}. Elija una categoría."
+budgetCalculatorApply: "Aplicar a los campos de presupuesto"
+ttPlacementPendingCurrentHint: "Estos son los traspasos de distribución pendientes actuales. No cambian el registro de conciliación seleccionado ni sus diferencias."
+notificationHistoryTitle: "Historial de notificaciones"
+notificationHistorySettingsDescription: "Consultar las últimas 50 notificaciones"
+notificationHistoryDescription: "Se guardan las últimas {limit} notificaciones mostradas en este navegador, de la más reciente a la más antigua."
+notificationHistoryEmpty: "Todavía no se han registrado notificaciones."
+notificationHistoryCount: "{count} notificaciones"
+notificationHistoryScreen: "Pantalla en ese momento"
+notificationHistoryAction: "Acción realizada"
+notificationHistoryDetails: "Detalles"
+notificationHistorySuccess: "Correcto"
+notificationHistoryWarning: "Advertencia"
+notificationHistoryError: "Error"
+notificationHistoryInfo: "Información"
+notificationActionCreditCardMonth: "Cambiar el mes de pago de {account} a {month}"
+notificationDuplicateCardMonth: "No se puede introducir el mismo mes de pago dos veces"
 pwaInstallButton: "Instalar como PWA"
 total: "Total:"
 thAccount: "Cuenta"
@@ -1710,3 +1746,60 @@ bulkSubmissionInvalidAccount: "Revisa la cuenta de la fila {n}."
 bulkIncomeTransferTargetRequired: "Selecciona el destino de la transferencia del ingreso de la fila {n}."
 bulkExpenseSavedButStatementPending: "Los asientos se guardaron, pero no se pudo completar el extracto. Complétalo más tarde."
 bulkExpenseSavedButRefreshFailed: "Los asientos y el extracto se guardaron, pero no se pudo actualizar la vista del extracto. Recarga la página."
+journalHistoryTitle: Historial de asientos eliminados
+journalHistorySettingsDescription: Consulta los asientos eliminados y las versiones anteriores a la edición, y configura cuántos se conservan.
+journalHistoryDescription: Aquí se conservan los asientos eliminados y las versiones anteriores a la edición. No se incluyen en el libro ni en los saldos.
+journalHistoryRetentionLimit: Límite de historial conservado
+journalHistoryRetentionInputHint: De 1 a 10.000 asientos
+journalHistoryRetentionHint: "Actualmente se conservan {limit} elementos. Al superar el límite, se eliminan definitivamente primero los más antiguos."
+journalHistoryReduceConfirmTitle: Eliminar definitivamente el historial antiguo
+journalHistoryReduceConfirmMessage: "Al reducir el límite, se eliminarán definitivamente {count} elementos antiguos. Esta acción no se puede deshacer."
+journalHistoryEmpty: No hay asientos en el historial.
+journalHistoryLoading: Cargando el historial de asientos
+journalHistoryLoadFailed: No se pudo cargar el historial de asientos.
+journalHistoryRetry: Reintentar
+journalHistoryDeleted: Eliminado
+journalHistoryEdited: Antes de editar
+journalHistoryArchivedAt: Registrado
+journalHistoryEntryId: ID original del asiento
+journalHistoryLines: Líneas del asiento
+journalHistoryAccount: Cuenta
+journalHistoryDebit: Debe
+journalHistoryCredit: Haber
+journalHistoryBudgetAllocations: Distribuciones del presupuesto
+journalHistoryReference: Referencia
+journalHistoryRelatedRecords: Registros relacionados
+journalHistoryCount: "{count} elementos en el historial"
+journalHistoryPagination: Páginas del historial
+journalHistoryPage: "Página {page} de {pages}"
+journalHistorySave: Guardar
+journalHistorySaved: Límite de conservación guardado
+journalHistoryIncomeAdjustments: Ajustes del presupuesto
+journalHistoryBudgetFunding: Distribución de préstamos
+journalHistoryAllocation: Asignación
+journalHistoryReset: Reinicio
+journalHistoryTransfer: Transferencia
+journalHistoryManualAdjustment: Ajuste manual
+journalHistoryUnallocated: Sin asignar
+journalHistoryBorrow: Préstamo recibido
+journalHistoryRepay: Reembolso
+journalHistoryLend: Préstamo concedido
+journalHistoryCollect: Cobro
+expenseTagsLabel: Etiquetas de gasto
+expenseTagsPlaceholder: Escribe una etiqueta y pulsa Intro
+expenseTagsFilter: Filtrar por etiqueta
+expenseTagsFilterHint: Mostrar asientos que contengan cualquiera de las etiquetas seleccionadas
+tagExpenseTotal: Gastos etiquetados
+tagExpenseSummaryHint: Este resumen es independiente de los importes del asiento. Los asientos con varias etiquetas se cuentan una sola vez en el total.
+tagExpenseAmount: Importe asociado a la etiqueta
+tagExpenseAuto: Automático
+tagExpenseManual: Manual
+tagExpenseAmountHint: Solo se usa en los resúmenes por etiqueta; los importes del libro no cambian.
+tagExpenseAmountRequired: Introduce un importe válido para el resumen por etiqueta.
+expenseTagsCount: "Etiquetas ({count})"
+tagExpenseBreakdown: Gastos por etiqueta
+tagExpenseBreakdownHint: Los importes pueden solaparse entre etiquetas. El total cuenta cada asiento una sola vez.
+expenseTagsEmpty: No hay etiquetas
+editExpenseTags: Editar etiquetas
+expenseTagsSaved: Etiquetas guardadas
+expenseTagsUnavailableForDepreciation: Las etiquetas no se pueden cambiar en la entrada de depreciación. Guarda el asiento y edita sus etiquetas desde el libro.

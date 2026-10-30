@@ -110,6 +110,19 @@ not_found_handling = "single-page-application"
 run_worker_first = ["/api/*"]
 ```
 
+### Keep multiple Cloudflare logins
+
+The project's Wrangler version supports [named authentication profiles](https://developers.cloudflare.com/workers/wrangler/commands/general/#auth-create). From the repository root, create a profile and bind it to this project:
+
+```sh
+bunx wrangler auth create personal
+bunx wrangler auth activate personal
+bunx wrangler whoami
+bunx wrangler auth list
+```
+
+Choose the intended Cloudflare login in the browser. Creating a named profile preserves the existing `default` login. Directory bindings apply to subdirectories, including `worker/`. Use `bunx wrangler auth activate <name>` to switch this project's profile, or `--profile <name>` on a remote operation to select a profile for that command. Profiles and bindings stay local; CI continues to use its configured API token.
+
 ### Create the D1 database
 
 If a new D1 database is required:

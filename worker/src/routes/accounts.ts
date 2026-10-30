@@ -17,6 +17,7 @@ import { fromStorageMoneyAmount } from "../lib/moneyValidation";
 import { isBudgetAccount } from "../../../shared/budgetScope";
 import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
 import { prepareMutation } from "../lib/d1Mutation";
+import { buildJournalHistoryStatements } from "../lib/journalHistory";
 
 const router = new Hono<{ Bindings: Env }>();
 
@@ -466,8 +467,18 @@ router.post("/:id/replace", async (c) => {
   const [confirmation] = await db.select({ id: actualBalanceEntries.id }).from(actualBalanceEntries).where(eq(actualBalanceEntries.account_id, id)).limit(1);
   if (confirmation) return c.json({ error: "account_has_balance_confirmations" }, 409);
 
+  const affectedEntries = await db
+    .selectDistinct({ journal_entry_id: journalLines.journal_entry_id })
+    .from(journalLines)
+    .where(eq(journalLines.account_id, id));
+
   // Execute as D1 batch (atomic)
   await c.env.DB.batch([
+    ...buildJournalHistoryStatements(
+      c.env.DB,
+      affectedEntries.map((entry) => entry.journal_entry_id),
+      "edited",
+    ),
     prepareMutation(c.env.DB, db
       .update(journalLines)
       .set({ account_id: replaceWithId })

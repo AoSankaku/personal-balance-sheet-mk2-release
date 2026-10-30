@@ -25,6 +25,7 @@ import {
 import { chunkForD1InClause } from "../lib/d1Query";
 import { completeBudgetPlacement, previewBudgetPlacement } from "../lib/budgetPlacementReconciliation";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
+import { buildJournalHistoryStatements } from "../lib/journalHistory";
 import {
   connectedTargetAccounts,
   groupIncomeTransferRequirements,
@@ -868,10 +869,17 @@ router.post("/:id/cancel", async (c) => {
   const undoStatements = chunkForD1InClause(ids).map((idChunk) => c.env.DB.prepare(
     `UPDATE income_transfer_requirements SET transfer_journal_entry_id = NULL, completion_source = NULL, completed_at = NULL WHERE id IN (${placeholders(idChunk.length)})`
   ).bind(...idChunk));
+  const archivedTransfer = anchor.completion_source === "created" && anchor.transfer_journal_entry_id != null;
   if (anchor.completion_source === "created" && anchor.transfer_journal_entry_id != null) {
     undoStatements.push(c.env.DB.prepare("DELETE FROM journal_entries WHERE id = ?").bind(anchor.transfer_journal_entry_id));
   }
-  await c.env.DB.batch([...(undoStatements), ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
+  await c.env.DB.batch([
+    ...(archivedTransfer
+      ? buildJournalHistoryStatements(c.env.DB, [anchor.transfer_journal_entry_id!], "deleted")
+      : []),
+    ...undoStatements,
+    ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB),
+  ]);
 
   return c.json({
     requirement_ids: ids,

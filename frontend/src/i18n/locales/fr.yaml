@@ -75,6 +75,42 @@ transactionAdded: "Transaction ajoutée"
 transactionDeleted: "Opération supprimée"
 statusLabel: "Statut"
 statusDismiss: "OK"
+budgetCalculatorTitle: "Calculatrice de répartition budgétaire"
+budgetCalculatorScratchHint: "Les simulations ne sont pas enregistrées. Appliquer aux champs remplace les champs budgétaires concernés du brouillon. Utilisez Ajouter ou Enregistrer pour comptabiliser l’écriture."
+budgetCalculatorAccountMode: "Montant et compte"
+budgetCalculatorJournalMode: "Calculer depuis l’écriture"
+budgetCalculatorSide: "Débit ou crédit"
+budgetCalculatorRemainderCategory: "Catégorie du montant non réparti"
+budgetCalculatorRemainderHint: "Reçoit le solde laissé par les ratios du compte ou le filtre. Aucun solde n’est affecté sans votre choix."
+budgetCalculatorInvalid: "Vérifiez le compte, le montant et la précision de la devise."
+budgetCalculatorUnbalanced: "Équilibrez les débits et crédits pour calculer cette écriture."
+budgetCalculatorUnsupported: "Les comptes seuls ne permettent pas de déterminer l’effet budgétaire. Simulez un montant et un compte, puis vérifiez les champs individuellement."
+budgetCalculatorAmbiguous: "Séparez les revenus et dépenses mêlant comptes budgétaires et exclus selon leur source de financement."
+budgetCalculatorFundingHint: "Vérifiez le capital des prêts et emprunts dans les champs de financement. Cette calculatrice ne modifie pas sa répartition."
+budgetCalculatorInvalidFilter: "Vérifiez la devise et les paramètres du filtre budgétaire."
+budgetCalculatorInvalidCategory: "Sélectionnez une catégorie budgétaire disponible."
+budgetCalculatorOverallocated: "Les ratios ou le filtre dépassent le montant requis. Vérifiez les paramètres."
+budgetCalculatorExpenseTotal: "Budget des dépenses et remboursements"
+budgetCalculatorIncomeTotal: "Budget des revenus et fonds récupérés"
+budgetCalculatorReferenceSplit: "Effet sur le budget : {active} / Référence seulement : {reference}"
+budgetCalculatorSignHint: "Les augmentations du solde budgétaire sont positives ; les diminutions sont négatives."
+budgetCalculatorUnassigned: "Non réparti : dépenses/remboursements {expense}, revenus/fonds récupérés {income}. Choisissez une catégorie."
+budgetCalculatorApply: "Appliquer aux champs budgétaires"
+ttPlacementPendingCurrentHint: "Il s’agit des virements de placement actuellement en attente. Le relevé de rapprochement sélectionné et ses écarts restent inchangés."
+notificationHistoryTitle: "Historique des notifications"
+notificationHistorySettingsDescription: "Consulter les 50 dernières notifications"
+notificationHistoryDescription: "Les {limit} dernières notifications affichées dans ce navigateur sont enregistrées et présentées de la plus récente à la plus ancienne."
+notificationHistoryEmpty: "Aucune notification n’a encore été enregistrée."
+notificationHistoryCount: "{count} notifications"
+notificationHistoryScreen: "Écran au moment de la notification"
+notificationHistoryAction: "Action effectuée"
+notificationHistoryDetails: "Détails"
+notificationHistorySuccess: "Succès"
+notificationHistoryWarning: "Avertissement"
+notificationHistoryError: "Erreur"
+notificationHistoryInfo: "Information"
+notificationActionCreditCardMonth: "Modifier le mois de paiement de {account} en {month}"
+notificationDuplicateCardMonth: "Un même mois de paiement ne peut pas être saisi deux fois"
 pwaInstallButton: "Installer en tant que PWA"
 total: "Total:"
 thAccount: "Compte"
@@ -1710,3 +1746,60 @@ bulkSubmissionInvalidAccount: "Vérifiez le compte de la ligne {n}."
 bulkIncomeTransferTargetRequired: "Sélectionnez le compte de destination du revenu à la ligne {n}."
 bulkExpenseSavedButStatementPending: "Les écritures ont été enregistrées, mais la validation du relevé a échoué. Validez le relevé plus tard."
 bulkExpenseSavedButRefreshFailed: "Les écritures et le relevé ont été enregistrés, mais l’affichage du relevé n’a pas pu être actualisé. Rechargez la page."
+journalHistoryTitle: Historique des écritures supprimées
+journalHistorySettingsDescription: Consultez les écritures supprimées et les versions avant modification, puis définissez la limite conservée.
+journalHistoryDescription: Les écritures supprimées et les versions avant modification sont conservées ici. Elles ne figurent pas dans le journal ni les soldes.
+journalHistoryRetentionLimit: Nombre maximal d’éléments conservés
+journalHistoryRetentionInputHint: De 1 à 10 000 écritures
+journalHistoryRetentionHint: "{limit} éléments sont conservés actuellement. Au-delà de la limite, les plus anciens sont supprimés définitivement en premier."
+journalHistoryReduceConfirmTitle: Supprimer définitivement les anciennes versions
+journalHistoryReduceConfirmMessage: "En réduisant la limite, {count} anciennes versions seront supprimées définitivement. Cette action est irréversible."
+journalHistoryEmpty: Aucune écriture supprimée n’est à afficher.
+journalHistoryLoading: Chargement de l’historique
+journalHistoryLoadFailed: L’historique des écritures n’a pas pu être chargé.
+journalHistoryRetry: Réessayer
+journalHistoryDeleted: Supprimée
+journalHistoryEdited: Avant modification
+journalHistoryArchivedAt: Enregistrée le
+journalHistoryEntryId: Identifiant d’origine
+journalHistoryLines: Lignes d’écriture
+journalHistoryAccount: Compte
+journalHistoryDebit: Débit
+journalHistoryCredit: Crédit
+journalHistoryBudgetAllocations: Répartitions de budget
+journalHistoryReference: Référence
+journalHistoryRelatedRecords: Éléments associés
+journalHistoryCount: "{count} éléments dans l’historique"
+journalHistoryPagination: Pages de l’historique
+journalHistoryPage: "Page {page} sur {pages}"
+journalHistorySave: Enregistrer
+journalHistorySaved: Limite de conservation enregistrée
+journalHistoryIncomeAdjustments: Ajustements de budget
+journalHistoryBudgetFunding: Répartition du prêt ou de l’avance
+journalHistoryAllocation: Répartition
+journalHistoryReset: Réinitialisation
+journalHistoryTransfer: Virement
+journalHistoryManualAdjustment: Ajustement manuel
+journalHistoryUnallocated: Non affecté
+journalHistoryBorrow: Emprunt
+journalHistoryRepay: Remboursement
+journalHistoryLend: Prêt accordé
+journalHistoryCollect: Recouvrement
+expenseTagsLabel: Tags de dépense
+expenseTagsPlaceholder: Saisissez un tag puis appuyez sur Entrée
+expenseTagsFilter: Filtrer par tag
+expenseTagsFilterHint: Afficher les écritures contenant au moins un tag sélectionné
+tagExpenseTotal: Dépenses associées aux tags
+tagExpenseSummaryHint: Ce récapitulatif est distinct des montants des écritures. Les écritures avec plusieurs tags ne sont comptées qu’une fois dans le total.
+tagExpenseAmount: Montant associé au tag
+tagExpenseAuto: Automatique
+tagExpenseManual: Manuel
+tagExpenseAmountHint: Utilisé uniquement dans les récapitulatifs par tag ; les montants du journal restent inchangés.
+tagExpenseAmountRequired: Saisissez un montant valide pour le récapitulatif par tag.
+expenseTagsCount: "Tags ({count})"
+tagExpenseBreakdown: Dépenses par tag
+tagExpenseBreakdownHint: Les montants peuvent se chevaucher entre les tags. Le total ne compte chaque écriture qu’une fois.
+expenseTagsEmpty: Aucun tag
+editExpenseTags: Modifier les tags
+expenseTagsSaved: Tags enregistrés
+expenseTagsUnavailableForDepreciation: Les tags ne peuvent pas être modifiés dans la saisie d’amortissement. Enregistrez l’écriture, puis modifiez ses tags depuis le grand livre.

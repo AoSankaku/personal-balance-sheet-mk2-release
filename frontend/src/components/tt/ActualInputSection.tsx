@@ -519,27 +519,23 @@ export function ActualInputSection({
     rowId: string,
     patch: Partial<CreditCardDraftRow>,
   ) {
+    const rows = creditCardValues[accountId] ?? [];
+    const targetRow = rows.find(row => row.id === rowId);
+    const nextMonth = patch.payment_month;
+    if (targetRow && nextMonth && rows.some(row => row.id !== rowId && row.payment_month === nextMonth)) {
+      const account = accounts.find(candidate => candidate.id === accountId);
+      showFeedback({
+        message: t("notificationDuplicateCardMonth"),
+        color: "red",
+        context: { action: t("notificationActionCreditCardMonth")
+          .replace("{account}", account ? getDisplayName(account.name) : String(accountId))
+          .replace("{month}", formatStatementMonth(nextMonth)),
+        },
+      });
+      return;
+    }
     setCreditCardValues((prev) => {
       const currentRows = prev[accountId] ?? [];
-      const targetRow = currentRows.find((row) => row.id === rowId);
-      const nextMonth = patch.payment_month;
-      if (
-        targetRow &&
-        nextMonth &&
-        currentRows.some(
-          (row) => row.id !== rowId && row.payment_month === nextMonth,
-        )
-      ) {
-        showFeedback({
-          message:
-            locale === "ja"
-              ? "同じ年月は重複して入力できません"
-              : "Duplicate payment months are not allowed",
-          color: "red",
-        });
-        return prev;
-      }
-
       return {
         ...prev,
         [accountId]: normalizeCreditCardRows(

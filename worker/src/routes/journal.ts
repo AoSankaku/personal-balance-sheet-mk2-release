@@ -6,6 +6,7 @@ import type {
   BudgetFundingEffect,
   BudgetFundingInput,
   BudgetFundingKind,
+  TagExpenseAmount,
 } from "@balance-sheet/shared";
 import { createDb, type Env } from "../db";
 import {
@@ -36,8 +37,17 @@ import { serializeLoanSettlement } from "../lib/loanSettlement";
 import { calculateBudgetFundingImpact, splitAmountByLargestRemainder } from "../lib/budgetFundingImpact";
 import { journalBalanceError } from "../lib/journalValidation";
 import { normalizeJournalBudgetScope } from "../lib/journalBudgetScope";
+import { resolveJournalIncomeSelection } from "../lib/journalIncomeSelection";
 import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
 import { prepareMutation, readBudgetMutationRevision, runBudgetGuardedBatch } from "../lib/d1Mutation";
+import { buildJournalHistoryStatements } from "../lib/journalHistory";
+import {
+  buildExpenseTagUpdateStatements,
+  buildNewExpenseTagStatements,
+  loadExpenseTagMetadata,
+  parseExpenseTagNames,
+  parseTagExpenseAmounts,
+} from "../lib/expenseTags";
 
 /** Categories that are considered long-term loan/lending */
 const LONG_TERM_LOAN_CATEGORIES = new Set([
@@ -376,6 +386,8 @@ function buildNewEntryRowsSql(rowCount: number, columnsPerRow: number): string {
 type JournalCreateInput = {
   date: string;
   description: string;
+  is_regular_income?: boolean;
+  income_budget_filter_id?: number | null;
   lines: Array<{
     account_id: number;
     debit: number;
@@ -409,6 +421,9 @@ type JournalCreateInput = {
     is_deferred?: boolean | null;
   }>;
   is_currency_exchange?: boolean;
+  expense_tags?: unknown;
+  tag_expense_mode?: unknown;
+  tag_expense_amounts?: unknown;
 };
 
 type PreparedJournalCreate = {
@@ -421,6 +436,65 @@ type PreparedJournalCreate = {
 type JournalCreateResult =
   | { ok: false; status: 400 | 409; error: string | ReturnType<typeof invalidMoneyResponse> }
   | { ok: true; prepared: PreparedJournalCreate };
+
+type ParsedExpenseTagFields = {
+  names: string[];
+  mode: "auto" | "manual";
+  amounts: TagExpenseAmount[];
+};
+
+function validateExpenseTagFields(
+  body: JournalCreateInput,
+  decimalPlacesByCurrency: Record<string, number>,
+  operation: "create" | "update",
+  preserved?: { expense_tags: { name: string }[]; tag_expense_mode: "auto" | "manual"; tag_expense_amounts: TagExpenseAmount[] },
+): { ok: true; fields: ParsedExpenseTagFields } | { ok: false; error: string } {
+  let names = preserved?.expense_tags.map((tag) => tag.name) ?? [];
+  if (body.expense_tags !== undefined) {
+    const parsedNames = parseExpenseTagNames(body.expense_tags);
+    if (!parsedNames.ok) return parsedNames;
+    names = parsedNames.value;
+  }
+
+  if (body.tag_expense_mode !== undefined && body.tag_expense_mode !== "auto" && body.tag_expense_mode !== "manual") {
+    return { ok: false, error: "tag_expense_mode must be auto or manual" };
+  }
+  const mode = (body.tag_expense_mode as "auto" | "manual" | undefined) ??
+    (body.expense_tags !== undefined && names.length === 0 ? "auto" : preserved?.tag_expense_mode ?? "auto");
+  const hasAmounts = body.tag_expense_amounts !== undefined;
+  let amounts: TagExpenseAmount[] = [];
+  if (hasAmounts) {
+    if (Array.isArray(body.tag_expense_amounts) && body.tag_expense_amounts.length === 0 && mode === "auto") {
+      amounts = [];
+    } else {
+      const parsedAmounts = parseTagExpenseAmounts(
+        body.tag_expense_amounts,
+        body.lines.map((line) => typeof line.currency === "string" ? line.currency.toUpperCase() : line.currency == null ? "JPY" : ""),
+        decimalPlacesByCurrency,
+      );
+      if (!parsedAmounts.ok) return parsedAmounts;
+      amounts = parsedAmounts.value;
+    }
+  } else if (mode === "manual" && preserved?.tag_expense_mode === "manual" && operation === "update") {
+    amounts = preserved.tag_expense_amounts;
+  }
+
+  if (mode === "manual") {
+    if (body.budget_source !== "multiline" && (body.tag_expense_mode === "manual" || hasAmounts || operation === "create")) {
+      return { ok: false, error: "manual tag amounts require budget_source=multiline" };
+    }
+    if (names.length === 0) return { ok: false, error: "manual tag amounts require at least one expense tag" };
+    if (amounts.length === 0) return { ok: false, error: "manual tag amounts must not be empty" };
+    const lineCurrencies = new Set(body.lines.map((line) => typeof line.currency === "string" ? line.currency.toUpperCase() : line.currency == null ? "JPY" : ""));
+    if (amounts.some((amount) => !lineCurrencies.has(amount.currency))) {
+      return { ok: false, error: "manual tag amount currencies must be represented by a journal line" };
+    }
+  } else if (hasAmounts && amounts.length > 0) {
+    return { ok: false, error: "tag_expense_amounts require tag_expense_mode=manual" };
+  }
+
+  return { ok: true, fields: { names, mode, amounts } };
+}
 
 /**
  * Shared validation and SQL preparation for normal and bulk journal creation.
@@ -445,6 +519,10 @@ async function prepareJournalCreate(
   ) {
     return invalid("date, description, and at least 2 lines are required");
   }
+
+  const parsedTagFields = validateExpenseTagFields(body, decimalPlacesByCurrency, "create");
+  if (!parsedTagFields.ok) return invalid(parsedTagFields.error);
+  const tagFields = parsedTagFields.fields;
   const optionalArrays: Array<[string, unknown]> = [
     ["budget_allocations", body.budget_allocations],
     ["income_budget_allocations", body.income_budget_allocations],
@@ -566,6 +644,8 @@ async function prepareJournalCreate(
   if (componentValidationError) return invalid(componentValidationError);
   const budgetScopeError = await normalizeJournalBudgetScope(db, body, scaleOptions);
   if (budgetScopeError) return invalid(budgetScopeError);
+  const incomeSelection = await resolveJournalIncomeSelection(db, body, budgetCurrency);
+  if ("error" in incomeSelection) return invalid(incomeSelection.error);
 
   const settleIds = body.loan_settlement_journal_entry_ids ?? [];
   const settlementSourceError = await validateLoanSettlementSources(db, body, settleIds, components, budgetCurrency, decimalPlacesByCurrency[budgetCurrency] ?? 0);
@@ -605,10 +685,14 @@ async function prepareJournalCreate(
   if (settleIds.length > 0) statements.push(buildLoanSettlementStateGuard(env.DB, settleIds));
   const entryStatementIndex = statements.length;
   statements.push(env.DB.prepare(
-    `INSERT INTO journal_entries (date, description, source)
-     VALUES (?, ?, ?)
-     RETURNING id, date, description, source, created_at`,
-  ).bind(body.date, body.description, source));
+    `INSERT INTO journal_entries (date, description, source, is_regular_income, income_budget_filter_id)
+     VALUES (?, ?, ?, ?, ?)
+     RETURNING id, date, description, source, is_regular_income, income_budget_filter_id, created_at`,
+  ).bind(
+    body.date, body.description, source,
+    incomeSelection.settings.is_regular_income ? 1 : 0,
+    incomeSelection.settings.income_budget_filter_id,
+  ));
   const lineValues = body.lines.flatMap((line) => [
     line.account_id,
     toStorageMoneyAmount(line.debit ?? 0, line.currency, scaleOptions),
@@ -736,6 +820,14 @@ async function prepareJournalCreate(
       destination.budget_category_id,
     ));
   }
+
+  statements.push(...buildNewExpenseTagStatements(
+    env.DB,
+    tagFields.names,
+    tagFields.mode,
+    tagFields.amounts,
+    scaleOptions,
+  ));
 
   return {
     ok: true,
@@ -1014,6 +1106,7 @@ router.get("/", async (c) => {
     ),
   );
   const lines = lineChunks.flat();
+  const tagMetadata = await loadExpenseTagMetadata(c.env.DB, entryIds, decimalPlacesByCurrency);
 
   const linesMap = new Map<number, typeof lines>();
   for (const line of lines) {
@@ -1349,6 +1442,7 @@ router.get("/", async (c) => {
 
   const result = entries.map((entry) => ({
     ...entry,
+    ...tagMetadata.get(entry.id),
     lines: (linesMap.get(entry.id) ?? []).map((l) => ({
       ...decodeJournalLineAmount(l, scaleOptions),
       account_name: l.account_name ?? "Unknown",
@@ -1415,8 +1509,9 @@ router.post("/", async (c) => {
   if (!entry) throw new Error("Failed to create journal entry");
   const rawLines = (results[prepared.lineStatementIndex] as D1QueryResult<typeof journalLines.$inferSelect>).results ?? [];
   const insertedLines = rawLines.map((line) => decodeJournalLineAmount(line, { decimalPlacesByCurrency }));
+  const tagMetadata = (await loadExpenseTagMetadata(c.env.DB, [entry.id], decimalPlacesByCurrency)).get(entry.id)!;
   await syncLongTermCompletions(db, prepared.accountIds);
-  return c.json({ ...entry, lines: insertedLines }, 201);
+  return c.json({ ...entry, ...tagMetadata, is_regular_income: Boolean(entry.is_regular_income), lines: insertedLines }, 201);
 });
 
 // POST /api/journal/batch — validate all entries, then commit all in one guarded transaction.
@@ -1473,11 +1568,17 @@ router.post("/batch", async (c) => {
     const rawLines = (results[start + prepared.lineStatementIndex] as D1QueryResult<typeof journalLines.$inferSelect>).results ?? [];
     return {
       ...entry,
+      is_regular_income: Boolean(entry.is_regular_income),
       lines: rawLines.map((line) => decodeJournalLineAmount(line, { decimalPlacesByCurrency })),
     };
   });
+  const tagMetadata = await loadExpenseTagMetadata(
+    c.env.DB,
+    created.map((entry) => entry.id),
+    decimalPlacesByCurrency,
+  );
   await syncLongTermCompletions(db, accountIds);
-  return c.json(created, 201);
+  return c.json(created.map((entry) => ({ ...entry, ...tagMetadata.get(entry.id) })), 201);
 });
 // GET /api/journal/:id — fetch a single journal entry with lines + budget allocations
 router.get("/:id", async (c) => {
@@ -1510,6 +1611,8 @@ router.get("/:id", async (c) => {
     .from(journalLines)
     .leftJoin(accounts, eq(journalLines.account_id, accounts.id))
     .where(eq(journalLines.journal_entry_id, id));
+
+  const tagMetadata = (await loadExpenseTagMetadata(c.env.DB, [id], decimalPlacesByCurrency)).get(id)!;
 
   const allocations = await db
     .select()
@@ -1574,6 +1677,7 @@ router.get("/:id", async (c) => {
 
   return c.json({
     ...entry,
+    ...tagMetadata,
     lines: lines.map((l) => ({
       ...decodeJournalLineAmount(l, scaleOptions),
       account_name: l.account_name ?? "Unknown",
@@ -1694,6 +1798,44 @@ router.get("/:id", async (c) => {
   });
 });
 
+// PATCH /api/journal/:id/expense-tags — update tag metadata without editing accounting lines.
+router.patch("/:id/expense-tags", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isSafeInteger(id) || id <= 0) return c.json({ error: "Invalid id" }, 400);
+  const body = await c.req.json<{ expense_tags?: unknown }>();
+  const parsedNames = parseExpenseTagNames(body?.expense_tags);
+  if (!parsedNames.ok) return c.json({ error: parsedNames.error }, 400);
+
+  const db = createDb(c.env);
+  const [entry] = await db.select({ id: journalEntries.id })
+    .from(journalEntries).where(eq(journalEntries.id, id));
+  if (!entry) return c.json({ error: "Not found" }, 404);
+  const decimalPlacesByCurrency = await loadCurrencyDecimalPlaces(db);
+  const current = (await loadExpenseTagMetadata(c.env.DB, [id], decimalPlacesByCurrency)).get(id)!;
+  const currentNames = current.expense_tags.map((tag) => tag.name).sort();
+  const requestedNames = [...parsedNames.value].sort();
+  if (currentNames.length === requestedNames.length && currentNames.every((name, index) => name === requestedNames[index])) {
+    return c.json(current);
+  }
+
+  const mutationRevision = await readBudgetMutationRevision(c.env.DB);
+  const statements = [
+    ...buildJournalHistoryStatements(c.env.DB, [id], "edited"),
+    ...buildExpenseTagUpdateStatements(
+      c.env.DB,
+      id,
+      parsedNames.value,
+      undefined,
+      undefined,
+      { decimalPlacesByCurrency },
+    ),
+  ];
+  const result = await runBudgetGuardedBatch(c.env.DB, mutationRevision, statements);
+  if (!result) return c.json({ error: "stale_journal_mutation" }, 409);
+  const updated = (await loadExpenseTagMetadata(c.env.DB, [id], decimalPlacesByCurrency)).get(id)!;
+  return c.json(updated);
+});
+
 // PUT /api/journal/:id — replace header + lines + budget allocations
 async function hasConfiguredDepreciationEntry(db: ReturnType<typeof createDb>, entryIds: number[]) {
   for (const chunk of chunkIds(entryIds)) {
@@ -1747,10 +1889,15 @@ router.patch("/:id/budget-allocations/reference", async (c) => {
       return c.json({ error: scopeError ?? "Excluded cash allocations must remain references" }, 409);
     }
   }
-  await db
-    .update(journalEntryBudgetAllocations)
-    .set({ is_reference: isReference ? 1 : 0 })
-    .where(eq(journalEntryBudgetAllocations.journal_entry_id, id));
+  if (allocations.some(allocation => Boolean(allocation.is_reference) !== isReference)) {
+    await c.env.DB.batch([
+      ...buildJournalHistoryStatements(c.env.DB, [id], "edited"),
+      prepareMutation(c.env.DB, db
+        .update(journalEntryBudgetAllocations)
+        .set({ is_reference: isReference ? 1 : 0 })
+        .where(eq(journalEntryBudgetAllocations.journal_entry_id, id))),
+    ]);
+  }
 
   return c.json({
     journal_entry_id: id,
@@ -1768,6 +1915,8 @@ router.put("/:id", async (c) => {
   const body = await c.req.json<{
     date: string;
     description: string;
+    is_regular_income?: boolean;
+    income_budget_filter_id?: number | null;
     lines: Array<{
       account_id: number;
       debit: number;
@@ -1801,6 +1950,9 @@ router.put("/:id", async (c) => {
       is_deferred?: boolean | null;
     }>;
     is_currency_exchange?: boolean;
+    expense_tags?: unknown;
+    tag_expense_mode?: unknown;
+    tag_expense_amounts?: unknown;
   }>();
 
   if (
@@ -1949,6 +2101,10 @@ router.put("/:id", async (c) => {
     .from(journalEntries)
     .where(eq(journalEntries.id, id));
   if (existing.length === 0) return c.json({ error: "Not found" }, 404);
+  const currentTagMetadata = (await loadExpenseTagMetadata(c.env.DB, [id], decimalPlacesByCurrency)).get(id)!;
+  const parsedTagFields = validateExpenseTagFields(body, decimalPlacesByCurrency, "update", currentTagMetadata);
+  if (!parsedTagFields.ok) return c.json({ error: parsedTagFields.error }, 400);
+  const tagFields = parsedTagFields.fields;
   const [managed] = await db.select({ id: actualBalanceAdjustments.id }).from(actualBalanceAdjustments).where(eq(actualBalanceAdjustments.journal_entry_id, id));
   if (managed) return c.json({ error: "managed_balance_adjustment", message: "Edit or delete the balance confirmation instead" }, 409);
   let preserveIncomeTransferRequirements = false;
@@ -2061,6 +2217,8 @@ router.put("/:id", async (c) => {
     (a) => a.budget_category_id && a.amount !== 0,
   );
   const budgetCurrency = budgetCurrencyFromLines(body.lines);
+  const incomeSelection = await resolveJournalIncomeSelection(db, body, budgetCurrency, existing[0]);
+  if ("error" in incomeSelection) return c.json({ error: incomeSelection.error }, 400);
   const fundingValidationError = validateExplicitBudgetFunding(
     body.budget_funding,
     budgetCurrency,
@@ -2102,14 +2260,18 @@ router.put("/:id", async (c) => {
     (a) => a.budget_category_id && a.amount !== 0,
   );
 
-  const statements: D1PreparedStatement[] = [];
+  const statements: D1PreparedStatement[] = buildJournalHistoryStatements(c.env.DB, [id], "edited");
   if (settleIds.length > 0) {
     statements.push(buildLoanSettlementStateGuard(c.env.DB, settleIds, id));
   }
   statements.push(
     c.env.DB.prepare(
-      "UPDATE journal_entries SET date = ?, description = ? WHERE id = ?",
-    ).bind(body.date, body.description, id),
+      "UPDATE journal_entries SET date = ?, description = ?, is_regular_income = ?, income_budget_filter_id = ? WHERE id = ?",
+    ).bind(
+      body.date, body.description,
+      incomeSelection.settings.is_regular_income ? 1 : 0,
+      incomeSelection.settings.income_budget_filter_id, id,
+    ),
     c.env.DB.prepare(
       "DELETE FROM journal_lines WHERE journal_entry_id = ?",
     ).bind(id),
@@ -2374,6 +2536,25 @@ router.put("/:id", async (c) => {
     );
   }
 
+  const tagModeToPersist = body.tag_expense_mode !== undefined
+    ? tagFields.mode
+    : (body.expense_tags !== undefined && tagFields.mode === "manual") || body.tag_expense_amounts !== undefined
+      ? tagFields.mode
+      : undefined;
+  const tagAmountsToPersist = body.tag_expense_amounts !== undefined
+    ? tagFields.amounts
+    : tagModeToPersist === "manual" && currentTagMetadata.tag_expense_mode === "manual"
+      ? currentTagMetadata.tag_expense_amounts
+      : undefined;
+  statements.push(...buildExpenseTagUpdateStatements(
+    c.env.DB,
+    id,
+    body.expense_tags === undefined ? undefined : tagFields.names,
+    tagModeToPersist,
+    tagAmountsToPersist,
+    scaleOptions,
+  ));
+
   const results = await runBudgetGuardedBatch(c.env.DB,mutationRevision,[...statements, ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
   if (!results) return c.json({error:"depreciation_preview_stale"},409);
   const newLines =
@@ -2386,15 +2567,19 @@ router.put("/:id", async (c) => {
     body.lines.map((line) => line.account_id),
   );
 
+  const updatedTagMetadata = (await loadExpenseTagMetadata(c.env.DB, [id], decimalPlacesByCurrency)).get(id)!;
+
   return c.json({
     id,
     date: body.date,
     description: body.description,
+    ...incomeSelection.settings,
+    ...updatedTagMetadata,
     lines: newLines.map((line) => decodeJournalLineAmount(line, scaleOptions)),
   });
 });
 
-// DELETE /api/journal/:id — delete entry (cascades lines)
+// DELETE /api/journal/:id — retain a flagged copy, then remove from the active ledger.
 router.delete("/:id", async (c) => {
   const id = Number(c.req.param("id"));
   if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);
@@ -2414,7 +2599,9 @@ router.delete("/:id", async (c) => {
 
   const [managed] = await db.select({ id: actualBalanceAdjustments.id }).from(actualBalanceAdjustments).where(eq(actualBalanceAdjustments.journal_entry_id, id));
   if (managed) return c.json({ error: "managed_balance_adjustment", message: "Delete the balance confirmation instead" }, 409);
+  const historyStatements = buildJournalHistoryStatements(c.env.DB, [id], "deleted");
   const results = await runBudgetGuardedBatch(c.env.DB,mutationRevision,[
+    ...historyStatements,
     prepareMutation(c.env.DB, db.update(loanSettlements).set({ is_settled: 0, settled_by_journal_entry_id: null, settled_at: null }).where(eq(loanSettlements.settled_by_journal_entry_id, id))),
     prepareMutation(c.env.DB, db.delete(budgetFundingAllocations).where(eq(budgetFundingAllocations.source_journal_entry_id, id))),
     prepareMutation(c.env.DB, db.update(incomeTransferRequirements).set({ transfer_journal_entry_id: null, completion_source: null, completed_at: null }).where(eq(incomeTransferRequirements.transfer_journal_entry_id, id))),
@@ -2422,7 +2609,7 @@ router.delete("/:id", async (c) => {
     ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB),
   ]);
   if (!results) return c.json({error:"depreciation_preview_stale"},409);
-  const deleted = results[3]!.results;
+  const deleted = results[historyStatements.length + 3]!.results;
 
   if (deleted.length === 0) {
     return c.json({ error: "Not found" }, 404);
@@ -2442,6 +2629,7 @@ router.delete("/:id", async (c) => {
 async function fetchEntriesWithLines(
   db: ReturnType<typeof createDb>,
   entryIds: number[],
+  DB: D1Database,
 ) {
   if (entryIds.length === 0) return [];
   const decimalPlacesByCurrency = await loadCurrencyDecimalPlaces(db);
@@ -2488,6 +2676,7 @@ async function fetchEntriesWithLines(
     ),
   );
   const allLines = lineChunks.flat();
+  const tagMetadata = await loadExpenseTagMetadata(DB, entryIds, decimalPlacesByCurrency);
 
   const linesMap = new Map<number, typeof allLines>();
   for (const line of allLines) {
@@ -2498,6 +2687,7 @@ async function fetchEntriesWithLines(
 
   return allEntries.map((e) => ({
     ...e,
+    ...tagMetadata.get(e.id),
     lines: (linesMap.get(e.id) ?? []).map((line) => ({
       ...decodeJournalLineAmount(line, scaleOptions),
       account_name: line.account_name ?? "Unknown",
@@ -2520,7 +2710,7 @@ async function executeBulkDelete(
     const [owned] = await db.select({ id: actualBalanceAdjustments.id }).from(actualBalanceAdjustments).where(inArray(actualBalanceAdjustments.journal_entry_id, chunk)).limit(1);
     if (owned) return null;
   }
-  const mutations: D1PreparedStatement[] = [];
+  const mutations: D1PreparedStatement[] = buildJournalHistoryStatements(binding, entryIds, "deleted");
 
   const allAccountIds = new Set<number>();
   for (const chunk of chunkIds(entryIds)) {
@@ -2586,7 +2776,7 @@ router.post("/bulk-replace", async (c) => {
   const allEntryIds = matchingLines.map((l) => l.entry_id);
 
   if (body.dry_run) {
-    const entries = await fetchEntriesWithLines(db, allEntryIds);
+    const entries = await fetchEntriesWithLines(db, allEntryIds, c.env.DB);
     // Count only the lines that will be replaced (account = from_id)
     const affected_lines = entries.reduce(
       (n, e) =>
@@ -2617,9 +2807,11 @@ router.post("/bulk-replace", async (c) => {
   const replacements = chunkIds(targetEntryIds).map((chunk) => prepareMutation(c.env.DB,
     db.update(journalLines).set({ account_id: body.to_account_id }).where(and(eq(journalLines.account_id, body.from_account_id), inArray(journalLines.journal_entry_id, chunk))).returning({ id: journalLines.id })
   ));
-  const replacementResults = await runBudgetGuardedBatch(c.env.DB,mutationRevision,[...replacements, ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
+  const matchingIds = new Set(allEntryIds);
+  const historyStatements = buildJournalHistoryStatements(c.env.DB, targetEntryIds.filter(id => matchingIds.has(id)), "edited");
+  const replacementResults = await runBudgetGuardedBatch(c.env.DB,mutationRevision,[...historyStatements, ...replacements, ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
   if (!replacementResults) return c.json({error:"depreciation_preview_stale"},409);
-  const affected_lines = replacementResults.slice(0, replacements.length).reduce((sum, result) => sum + result.results.length, 0);
+  const affected_lines = replacementResults.slice(historyStatements.length, historyStatements.length + replacements.length).reduce((sum, result) => sum + result.results.length, 0);
 
   await syncLongTermCompletions(db, [body.from_account_id, body.to_account_id]);
 
@@ -2714,7 +2906,7 @@ router.post("/bulk-delete", async (c) => {
   }
 
   if (body.dry_run) {
-    const entries = await fetchEntriesWithLines(db, [...entryIdSet]);
+    const entries = await fetchEntriesWithLines(db, [...entryIdSet], c.env.DB);
     return c.json({ entries, deleted_entries: entryIdSet.size, dry_run: true });
   }
 

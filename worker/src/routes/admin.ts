@@ -4,6 +4,7 @@ import { createDb, type Env } from "../db";
 import { exportD1ToSQLite } from "../lib/exportSqlite";
 import { prepareMutation } from "../lib/d1Mutation";
 import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
+import { buildJournalHistoryStatements } from "../lib/journalHistory";
 import {
   accounts,
   budgetAdjustmentLogs,
@@ -16,6 +17,7 @@ import {
   enabledCurrencies,
   exchangeCredentials,
   journalEntries,
+  expenseTags,
 } from "../db/schema";
 
 const router = new Hono<{ Bindings: Env }>();
@@ -90,8 +92,11 @@ router.post("/erase", async (c) => {
 
     switch (scope) {
       case "ledger_this_month": {
+        const entryIds = await db.select({ id: journalEntries.id }).from(journalEntries)
+          .where(like(journalEntries.date, `${yearMonth}-%`));
         // Delete budget runtime data for this month first
         await c.env.DB.batch([
+        ...buildJournalHistoryStatements(c.env.DB, entryIds.map((entry) => entry.id), "deleted"),
         prepareMutation(c.env.DB, db
           .delete(budgetAdjustmentLogs)
           .where(sql`${budgetAdjustmentLogs.year_month} = ${yearMonth}`)),
@@ -107,7 +112,10 @@ router.post("/erase", async (c) => {
         break;
       }
       case "ledger_this_year": {
+        const entryIds = await db.select({ id: journalEntries.id }).from(journalEntries)
+          .where(like(journalEntries.date, `${year}-%`));
         await c.env.DB.batch([
+        ...buildJournalHistoryStatements(c.env.DB, entryIds.map((entry) => entry.id), "deleted"),
         prepareMutation(c.env.DB, db
           .delete(budgetAdjustmentLogs)
           .where(like(budgetAdjustmentLogs.year_month, `${year}-%`))),
@@ -122,9 +130,13 @@ router.post("/erase", async (c) => {
         break;
       }
       case "ledger_all": {
-        await db.delete(budgetAdjustmentLogs);
-        await db.delete(budgetAllocations);
-        await db.delete(journalEntries); // cascades lines + journal_entry_budget_allocations
+        const entryIds = await db.select({ id: journalEntries.id }).from(journalEntries);
+        await c.env.DB.batch([
+          ...buildJournalHistoryStatements(c.env.DB, entryIds.map((entry) => entry.id), "deleted"),
+          prepareMutation(c.env.DB, db.delete(budgetAdjustmentLogs)),
+          prepareMutation(c.env.DB, db.delete(budgetAllocations)),
+          prepareMutation(c.env.DB, db.delete(journalEntries)),
+        ]);
         break;
       }
       case "accounts_all": {
@@ -133,9 +145,12 @@ router.post("/erase", async (c) => {
           "business_advance_account_id",
           "business_loss_account_id",
         ]);
-        // journal_lines.account_id has no onDelete cascade, so delete entries first
-        await db.delete(journalEntries); // cascades journal_lines + budget allocations
-        await db.delete(accounts).where(eq(accounts.is_system, 0)); // cascades: budget_category_accounts, crypto_wallets, credit_card_settings; preserve system accounts
+        // This explicit account wipe also discards history that would retain deleted account names.
+        await c.env.DB.batch([
+          c.env.DB.prepare("DELETE FROM journal_deletion_candidates"),
+          prepareMutation(c.env.DB, db.delete(journalEntries)),
+          prepareMutation(c.env.DB, db.delete(accounts).where(eq(accounts.is_system, 0))),
+        ]);
         break;
       }
       case "budget_categories_all": {
@@ -158,8 +173,13 @@ router.post("/erase", async (c) => {
         ]);
         // Order: children before parents for tables without cascade
         // Ordinary plan deletion retains its audit; an explicit erase-all must not.
+        await c.env.DB.batch([
+          c.env.DB.prepare("DELETE FROM journal_deletion_candidates"),
+          c.env.DB.prepare("UPDATE journal_history_settings SET retention_limit = 100 WHERE id = 1"),
+        ]);
         await db.delete(depreciationBudgetRevisions);
         await db.delete(journalEntries); // cascades journal_lines, journal_entry_budget_allocations, budget_adjustment_logs (with journal_entry_id)
+        await db.delete(expenseTags); // erase event names after the journal/tag associations cascade
         await db.delete(budgetAdjustmentLogs); // remaining manual adjustments
         await db.delete(budgetFilterStepAllocations); // no cascade from budget_categories
         await db.delete(budgetCategories); // cascades: budget_category_accounts, budget_allocations

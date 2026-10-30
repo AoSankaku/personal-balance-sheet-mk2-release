@@ -110,6 +110,19 @@ not_found_handling = "single-page-application"
 run_worker_first = ["/api/*"]
 ```
 
+### 複数のCloudflareログインの保持
+
+プロジェクトのWranglerは[名前付き認証プロファイル](https://developers.cloudflare.com/workers/wrangler/commands/general/#auth-create)に対応しています。リポジトリルートでプロファイルを作成し、このプロジェクトへ紐付けます。
+
+```sh
+bunx wrangler auth create personal
+bunx wrangler auth activate personal
+bunx wrangler whoami
+bunx wrangler auth list
+```
+
+ブラウザーで使用するCloudflareログインを選択してください。名前付きプロファイルを作成しても、既存の`default`の認証は保持されます。ディレクトリの紐付けは`worker/`などの子ディレクトリにも適用されます。`bunx wrangler auth activate <名前>`でこのプロジェクトのプロファイルを切り替えられます。リモート操作に`--profile <名前>`を付けると、そのコマンドだけで使用するプロファイルを選べます。認証と紐付けはローカルに保持され、CIは設定済みのAPIトークンを引き続き使用します。
+
 ### D1データベースの作成
 
 新しいD1データベースが必要な場合:

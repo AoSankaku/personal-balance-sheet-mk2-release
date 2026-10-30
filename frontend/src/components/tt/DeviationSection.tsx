@@ -46,8 +46,9 @@ import { formatCurrency, formatJPY } from "../../lib/numberFormat";
 import { toDateStr } from "../../lib/dateUtils";
 import { hasMaterialBalanceDifference } from "../../lib/balanceReconciliation";
 import { getRecentCsvImportLastRecordedDates } from "../../lib/csvImportHistory";
-import { summarizePendingIncomeTransfers } from "../../lib/pendingIncomeTransferSummary";
+import { summarizePendingReconciliationTransfers } from "../../lib/pendingReconciliationTransfers";
 import { toAccountSelectOption } from "../../lib/accountUtils";
+import { useBudgetPlacementReconciliation } from "../../hooks/useBudgetPlacementReconciliation";
 import {
   buildTrialBalanceCarryForward,
   type TrialBalanceCarryForwardDraft,
@@ -80,6 +81,7 @@ export function DeviationSection({
     accounts,
     journal,
     budgetSettings,
+    loading: appDataLoading,
     refresh,
     displayCurrency,
     displayCurrencySymbol,
@@ -87,6 +89,7 @@ export function DeviationSection({
     enabledCurrencies,
   } = useAppData();
   const navigate = useNavigate();
+  const placementPreview = useBudgetPlacementReconciliation();
   const getDisplayName = useAccountDisplayName();
   const accountMap = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
@@ -97,8 +100,23 @@ export function DeviationSection({
     [journal],
   );
   const pendingIncomeTransfers = useMemo(
-    () => summarizePendingIncomeTransfers(journal, budgetSettings?.income_transfer_settings),
-    [journal, budgetSettings?.income_transfer_settings],
+    () => summarizePendingReconciliationTransfers({
+      journal,
+      plan: placementPreview.plan,
+      settings: budgetSettings?.income_transfer_settings,
+      currency: displayCurrency,
+      loading: appDataLoading || placementPreview.loading,
+      error: placementPreview.error,
+    }),
+    [
+      journal,
+      placementPreview.plan,
+      placementPreview.loading,
+      placementPreview.error,
+      budgetSettings?.income_transfer_settings,
+      displayCurrency,
+      appDataLoading,
+    ],
   );
   const normalizeCurrency = (currency: string | null | undefined) =>
     (currency || "JPY").toUpperCase();
@@ -664,11 +682,64 @@ export function DeviationSection({
     }
   }
 
+  const pendingTransferNotice = (pendingIncomeTransfers.taskCount > 0 ||
+    pendingIncomeTransfers.previewStatus !== "ready") ? (
+    <Stack gap="sm">
+      {pendingIncomeTransfers.taskCount > 0 && (
+        <Alert
+          color={pendingIncomeTransfers.actionableTaskCount > 0 ? "orange" : "blue"}
+          variant="light"
+          icon={<IconAlertTriangle size={18} aria-hidden="true" />}
+          title={pendingIncomeTransfers.actionableTaskCount > 0 ? t("ttIncomeTransferWarningTitle") : t("incomeTransferDeferredTitle").replace("{count}", String(pendingIncomeTransfers.deferredTaskCount))}
+        >
+          <Stack gap="sm" align="flex-start">
+            <Text size="sm">{t(pendingIncomeTransfers.actionableTaskCount > 0 ? "ttIncomeTransferWarningHint" : "incomeTransferDeferredHint")}</Text>
+            <Text size="sm" c="dimmed">{t("ttPlacementPendingCurrentHint")}</Text>
+            <Button
+              size="xs"
+              color="orange"
+              variant="light"
+              onClick={() => navigate("/tasks/income-transfer")}
+            >
+              {t("incomeTransferOpenTasksPage").replace(
+                "{count}",
+                String(pendingIncomeTransfers.taskCount),
+              )}
+            </Button>
+          </Stack>
+        </Alert>
+      )}
+      {pendingIncomeTransfers.previewStatus === "loading" && (
+        <Alert color="gray" variant="light" title={t("budgetPlacementPlanLoading")}>
+          <Text size="sm">{t("ttPlacementPendingCurrentHint")}</Text>
+        </Alert>
+      )}
+      {pendingIncomeTransfers.previewStatus === "unavailable" && (
+        <Alert color="yellow" variant="light" title={t("budgetPlacementPlanUnavailable")}>
+          <Stack gap="sm" align="flex-start">
+            <Text size="sm">{t("budgetPlacementPlanUnavailableHint")}</Text>
+            <Text size="sm" c="dimmed">{t("ttPlacementPendingCurrentHint")}</Text>
+            <Button
+              size="xs"
+              variant="light"
+              onClick={() => void placementPreview.refresh().catch(() => undefined)}
+            >
+              {t("reload")}
+            </Button>
+          </Stack>
+        </Alert>
+      )}
+    </Stack>
+  ) : null;
+
   if (snapshots.length === 0 && creditCardRows.length === 0) {
     return (
-      <Text c="dimmed" size="sm">
-        {t("ttDeviationNoSnapshot")}
-      </Text>
+      <Stack gap="sm">
+        <Text c="dimmed" size="sm">
+          {t("ttDeviationNoSnapshot")}
+        </Text>
+        {pendingTransferNotice}
+      </Stack>
     );
   }
 
@@ -718,29 +789,7 @@ export function DeviationSection({
         )}
       </Group>
 
-      {pendingIncomeTransfers.taskCount > 0 && (
-        <Alert
-          color={pendingIncomeTransfers.actionableTaskCount > 0 ? "orange" : "blue"}
-          variant="light"
-          icon={<IconAlertTriangle size={18} aria-hidden="true" />}
-          title={pendingIncomeTransfers.actionableTaskCount > 0 ? t("ttIncomeTransferWarningTitle") : t("incomeTransferDeferredTitle").replace("{count}", String(pendingIncomeTransfers.deferredTaskCount))}
-        >
-          <Stack gap="sm" align="flex-start">
-            <Text size="sm">{t(pendingIncomeTransfers.actionableTaskCount > 0 ? "ttIncomeTransferWarningHint" : "incomeTransferDeferredHint")}</Text>
-            <Button
-              size="xs"
-              color="orange"
-              variant="light"
-              onClick={() => navigate("/tasks/income-transfer")}
-            >
-              {t("incomeTransferOpenTasksPage").replace(
-                "{count}",
-                String(pendingIncomeTransfers.taskCount),
-              )}
-            </Button>
-          </Stack>
-        </Alert>
-      )}
+      {pendingTransferNotice}
 
       {(snapshot || creditCardRows.length > 0) && (
         <Paper withBorder p="md" radius="md">

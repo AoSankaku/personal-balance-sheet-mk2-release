@@ -8,6 +8,7 @@ import { createDb, type Env } from "../db";
 import {
   accounts,
   actualBalanceCreditCardState,
+  actualBalanceAdjustments,
   actualBalanceEntries,
   actualBalanceSnapshots,
   creditCardSettings,
@@ -28,6 +29,7 @@ import {
 } from "../lib/actualBalanceAmounts";
 import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
+import { buildJournalHistoryStatements } from "../lib/journalHistory";
 
 const router = new Hono<{ Bindings: Env }>();
 
@@ -682,6 +684,7 @@ router.post("/unknown-funds/:entryId/resolve", async (c) => {
   }
 
   await c.env.DB.batch([
+    ...buildJournalHistoryStatements(c.env.DB, [entryId], "edited"),
     c.env.DB.prepare(
       `UPDATE journal_lines
        SET account_id = CASE WHEN debit > 0 THEN ? ELSE ? END
@@ -710,7 +713,18 @@ router.delete("/snapshots/:id", async (c) => {
     .limit(1);
   if (!snapshot) return c.json({ error: "Not found" }, 404);
 
+  const adjustmentJournalEntries = await db
+    .selectDistinct({ journal_entry_id: actualBalanceAdjustments.journal_entry_id })
+    .from(actualBalanceAdjustments)
+    .innerJoin(actualBalanceEntries, eq(actualBalanceAdjustments.actual_balance_entry_id, actualBalanceEntries.id))
+    .where(eq(actualBalanceEntries.snapshot_id, id));
+
   await c.env.DB.batch([
+    ...buildJournalHistoryStatements(
+      c.env.DB,
+      adjustmentJournalEntries.map((entry) => entry.journal_entry_id),
+      "deleted",
+    ),
     c.env.DB.prepare(
       `DELETE FROM journal_entries
        WHERE id IN (

@@ -14,7 +14,9 @@ import { budgetAccountDelta, isBudgetAccount } from "../../../shared/budgetScope
 import { computeBudgetSummaryForDate } from "./budget";
 import { toLocalDateString } from "../lib/appDate";
 import { chunkForD1InClause } from "../lib/d1Query";
+import { buildJournalHistoryStatements } from "../lib/journalHistory";
 import { createRequestScopedD1ReadMemo } from "../lib/d1ReadMemo";
+import { prepareMutation, readBudgetMutationRevision, runBudgetGuardedBatch } from "../lib/d1Mutation";
 import { journalBalanceError } from "../lib/journalValidation";
 import {
   accounts,
@@ -157,6 +159,29 @@ function buildBudgetReservations(
     amount: -allocation.amount,
     currency: "JPY",
   }));
+}
+
+function buildMonthlyExpenseTagCopyStatements(
+  DB: D1Database,
+  monthPairs: { sourceJournalId: number; replacementJournalId: number }[],
+): D1PreparedStatement[] {
+  if (monthPairs.length === 0) return [];
+  const serializedPairs = JSON.stringify(monthPairs.map((pair) => ({
+    source_journal_id: pair.sourceJournalId,
+    replacement_journal_id: pair.replacementJournalId,
+  })));
+  return [
+    DB.prepare(`INSERT INTO journal_entry_expense_tags(journal_entry_id,tag_id)
+      SELECT CAST(json_extract(pair.value,'$.replacement_journal_id') AS INTEGER),jet.tag_id
+      FROM json_each(?) pair JOIN journal_entry_expense_tags jet
+        ON jet.journal_entry_id=CAST(json_extract(pair.value,'$.source_journal_id') AS INTEGER)`)
+      .bind(serializedPairs),
+    DB.prepare(`INSERT INTO journal_entry_tag_amounts(journal_entry_id,currency,amount)
+      SELECT CAST(json_extract(pair.value,'$.replacement_journal_id') AS INTEGER),manual.currency,manual.amount
+      FROM json_each(?) pair JOIN journal_entry_tag_amounts manual
+        ON manual.journal_entry_id=CAST(json_extract(pair.value,'$.source_journal_id') AS INTEGER)`)
+      .bind(serializedPairs),
+  ];
 }
 
 async function insertDepreciationEntriesChunked(
@@ -1128,6 +1153,7 @@ async function updateConfiguredDepreciation(
   const [purchaseHeader] = await db.select({ created_at: journalEntries.created_at })
     .from(journalEntries).where(eq(journalEntries.id, schedule.source_journal_entry_id));
   const oldMonthAnchors = await db.select({
+    journal_entry_id: depreciationEntries.journal_entry_id,
     month_number: depreciationEntries.month_number,
     date: journalEntries.date,
     created_at: journalEntries.created_at,
@@ -1176,6 +1202,19 @@ async function updateConfiguredDepreciation(
   const linesChanged = normalizedReplacementLines != null;
   const firstMonthJournalId = await nextJournalEntryId(c.env.DB);
   const monthJournalEntryIds = amounts.map((_, index) => firstMonthJournalId + index);
+  const oldMonthJournalIds = (await db.select({ journal_entry_id: depreciationEntries.journal_entry_id })
+    .from(depreciationEntries).where(eq(depreciationEntries.schedule_id, schedule.id)))
+    .map((row) => row.journal_entry_id);
+  const monthlyJournalRows = amounts.map((_, index) => ({
+    id: monthJournalEntryIds[index]!,
+    date: dates[index]!,
+    description: `${newDescription} 予算分割振替（減価償却） (${index + 1}/${newMonths}ヶ月)`,
+    created_at: monthCreatedAts[index]!,
+  }));
+  const monthlyTagCopyPairs = monthJournalEntryIds.flatMap((replacementJournalId, index) => {
+    const sourceJournalId = oldAnchorByMonth.get(index + 1)?.journal_entry_id;
+    return sourceJournalId == null ? [] : [{ sourceJournalId, replacementJournalId }];
+  });
   const persistedExpectedRows = expectedRows.map((row) => {
     const month = /^monthly:(\d+)(?::(?:category:\d+|unallocated))?$/.exec(row.depreciation_event_key);
     return {
@@ -1187,6 +1226,13 @@ async function updateConfiguredDepreciation(
   });
   const statements: D1PreparedStatement[] = [
     ...buildDepreciationBudgetRevisionGuard(c.env.DB, sourceRevision),
+    ...buildJournalHistoryStatements(c.env.DB, oldMonthJournalIds, "deleted"),
+    ...buildJournalHistoryStatements(c.env.DB, [schedule.source_journal_entry_id], "edited"),
+    c.env.DB.prepare(`INSERT INTO journal_entries(id,date,description,created_at)
+      SELECT CAST(json_extract(value,'$.id') AS INTEGER),json_extract(value,'$.date'),
+        json_extract(value,'$.description'),json_extract(value,'$.created_at') FROM json_each(?)`)
+      .bind(JSON.stringify(monthlyJournalRows)),
+    ...buildMonthlyExpenseTagCopyStatements(c.env.DB, monthlyTagCopyPairs),
     c.env.DB.prepare("DELETE FROM journal_entries WHERE id IN (SELECT journal_entry_id FROM depreciation_entries WHERE schedule_id=?)").bind(schedule.id),
     c.env.DB.prepare("DELETE FROM budget_adjustment_logs WHERE depreciation_schedule_id=?").bind(schedule.id),
     c.env.DB.prepare("DELETE FROM depreciation_budget_reservations WHERE schedule_id=?").bind(schedule.id),
@@ -1217,16 +1263,6 @@ async function updateConfiguredDepreciation(
   statements.push(c.env.DB.prepare(`UPDATE depreciation_schedules SET start_date=?,description=?,total_amount=?,months=?,
     asset_account_id=?,expense_account_id=?,budget_target_amount=?,budget_revision=budget_revision+1 WHERE id=?`)
     .bind(newPurchaseDate, newDescription, totalAmount, newMonths, newAssetAccountId, newExpenseAccountId, targetAmount, schedule.id));
-  const monthlyJournalRows = amounts.map((_, index) => ({
-    id: monthJournalEntryIds[index]!,
-    date: dates[index]!,
-    description: `${newDescription} 予算分割振替（減価償却） (${index + 1}/${newMonths}ヶ月)`,
-    created_at: monthCreatedAts[index]!,
-  }));
-  statements.push(c.env.DB.prepare(`INSERT INTO journal_entries(id,date,description,created_at)
-    SELECT CAST(json_extract(value,'$.id') AS INTEGER),json_extract(value,'$.date'),
-      json_extract(value,'$.description'),json_extract(value,'$.created_at') FROM json_each(?)`)
-    .bind(JSON.stringify(monthlyJournalRows)));
   statements.push(c.env.DB.prepare(`INSERT INTO depreciation_entries(schedule_id,journal_entry_id,month_number)
     SELECT ?,CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),
       CAST(json_extract(value,'$.month_number') AS INTEGER) FROM json_each(?)`)
@@ -1636,70 +1672,36 @@ router.patch("/:id", async (c) => {
   const newAssetAccountId = body.asset_account_id ?? schedule.asset_account_id;
   const newExpenseAccountId =
     body.expense_account_id ?? schedule.expense_account_id;
-
-  // Update purchase journal entry
-  await db
-    .update(journalEntries)
-    .set({ date: newPurchaseDate, description: newDescription })
-    .where(eq(journalEntries.id, schedule.source_journal_entry_id));
-
-  // Update purchase journal lines amount if total changed
-  if (
-    body.asset_account_id !== undefined ||
-    body.total_amount !== undefined ||
-    body.payment_account_id !== undefined
-  ) {
-    // Determine payment account from the existing credit line before replacing it.
-    let paymentAccountId = body.payment_account_id;
-    if (!paymentAccountId) {
-      const existingLines = await db
-        .select()
-        .from(journalLines)
-        .where(
-          eq(journalLines.journal_entry_id, schedule.source_journal_entry_id),
-        );
-      paymentAccountId = existingLines.find((l) => l.credit > 0)?.account_id;
-    }
-
-    // Delete and recreate purchase lines
-    await db
-      .delete(journalLines)
-      .where(
-        eq(journalLines.journal_entry_id, schedule.source_journal_entry_id),
-      );
-
-    if (paymentAccountId) {
-      await db.insert(journalLines).values([
-        {
-          journal_entry_id: schedule.source_journal_entry_id,
-          account_id: newAssetAccountId,
-          debit: newTotalAmount,
-          credit: 0,
-        },
-        {
-          journal_entry_id: schedule.source_journal_entry_id,
-          account_id: paymentAccountId,
-          debit: 0,
-          credit: newTotalAmount,
-        },
-      ]);
-    }
+  const existingPurchaseLines = await db.select().from(journalLines)
+    .where(eq(journalLines.journal_entry_id, schedule.source_journal_entry_id));
+  const shouldReplacePurchaseLines = body.asset_account_id !== undefined ||
+    body.total_amount !== undefined || body.payment_account_id !== undefined;
+  let paymentAccountId = body.payment_account_id;
+  if (shouldReplacePurchaseLines && paymentAccountId == null) {
+    paymentAccountId = existingPurchaseLines.find((line) => line.credit > 0)?.account_id;
+  }
+  const purchaseLinesChanged = shouldReplacePurchaseLines && (
+    existingPurchaseLines.length !== 2 ||
+    existingPurchaseLines.find((line) => line.debit > 0)?.account_id !== newAssetAccountId ||
+    existingPurchaseLines.find((line) => line.debit > 0)?.debit !== newTotalAmount ||
+    existingPurchaseLines.find((line) => line.credit > 0)?.account_id !== paymentAccountId ||
+    existingPurchaseLines.find((line) => line.credit > 0)?.credit !== newTotalAmount
+  );
+  const scheduleChanged = newPurchaseDate !== schedule.start_date ||
+    newDescription !== schedule.description || newTotalAmount !== schedule.total_amount ||
+    newMonths !== schedule.months || newAssetAccountId !== schedule.asset_account_id ||
+    newExpenseAccountId !== schedule.expense_account_id || purchaseLinesChanged;
+  if (!scheduleChanged) {
+    const monthlyAmounts = computeMonthlyAmounts(newTotalAmount, newMonths, newPurchaseDate);
+    return c.json({
+      schedule_id: schedule.id,
+      monthly_amounts: monthlyAmounts,
+      entry_dates: monthlyAmounts.map((_, index) => index === 0 ? newPurchaseDate : firstOfMonth(newPurchaseDate, index)),
+    });
   }
 
-  // Delete existing monthly entries via cascade: delete depreciationEntries → delete journal entries
-  const existingDepEntries = await db
-    .select()
-    .from(depreciationEntries)
-    .where(eq(depreciationEntries.schedule_id, id));
-
-  const oldJournalIds = existingDepEntries.map((e) => e.journal_entry_id);
-  if (oldJournalIds.length > 0) {
-    await db
-      .delete(journalEntries)
-      .where(inArray(journalEntries.id, oldJournalIds));
-  }
-
-  // Recreate monthly entries
+  // Prepare the complete legacy schedule replacement before writing so the
+  // purchase edit, old-row snapshots, and regenerated monthly rows are atomic.
   const newAmounts = computeMonthlyAmounts(
     newTotalAmount,
     newMonths,
@@ -1712,85 +1714,96 @@ router.patch("/:id", async (c) => {
     );
   }
 
-  // Fetch budget ratios for the expense account
   const patchBudgetRatios = await db
     .select()
     .from(budgetCategoryAccounts)
     .where(eq(budgetCategoryAccounts.account_id, newExpenseAccountId));
-
-  await db
-    .delete(depreciationBudgetReservations)
-    .where(eq(depreciationBudgetReservations.schedule_id, id));
   const reservationRows = buildBudgetReservations(
     id,
     newTotalAmount,
     patchBudgetRatios,
   );
-  if (reservationRows.length > 0) {
-    await db.insert(depreciationBudgetReservations).values(reservationRows);
-  }
-
-  const newMonthlyJournalIds: number[] = [];
-  for (let i = 0; i < newMonths; i++) {
-    const amt = newAmounts[i] ?? 0;
-    const entryDesc = `${newDescription} 予算分割振替（減価償却） (${i + 1}/${newMonths}ヶ月)`;
-    const [entry] = await db
-      .insert(journalEntries)
-      .values({ date: entryDates[i]!, description: entryDesc })
-      .returning();
-    if (!entry) continue;
-    await db.insert(journalLines).values([
-      {
-        journal_entry_id: entry.id,
-        account_id: newExpenseAccountId,
-        debit: amt,
-        credit: 0,
-      },
-      {
-        journal_entry_id: entry.id,
-        account_id: newAssetAccountId,
-        debit: 0,
-        credit: amt,
-      },
-    ]);
-    if (patchBudgetRatios.length > 0) {
-      const allocRows = buildBudgetAllocations(
-        entry.id,
-        amt,
-        patchBudgetRatios,
-      );
-      if (allocRows.length > 0) {
-        await db.insert(journalEntryBudgetAllocations).values(
-          allocRows.map((row) => ({ ...row, source: "depreciation" })),
-        );
-      }
+  const existingDepEntries = await db.select()
+    .from(depreciationEntries).where(eq(depreciationEntries.schedule_id, id));
+  const oldJournalIds = existingDepEntries.map((entry) => entry.journal_entry_id);
+  const firstMonthJournalId = await nextJournalEntryId(c.env.DB);
+  const newMonthlyJournalIds = newAmounts.map((_, index) => firstMonthJournalId + index);
+  const newJournalEntries = newAmounts.map((_, index) => ({
+    id: newMonthlyJournalIds[index]!,
+    date: entryDates[index]!,
+    description: `${newDescription} 予算分割振替（減価償却） (${index + 1}/${newMonths}ヶ月)`,
+  }));
+  const oldMonthlyJournalIdByMonth = new Map(existingDepEntries.map((entry) => [entry.month_number, entry.journal_entry_id]));
+  const monthlyTagCopyPairs = newMonthlyJournalIds.flatMap((replacementJournalId, index) => {
+    const sourceJournalId = oldMonthlyJournalIdByMonth.get(index + 1);
+    return sourceJournalId == null ? [] : [{ sourceJournalId, replacementJournalId }];
+  });
+  const newMonthlyJournalLines = newAmounts.flatMap((amount, index) => [
+    { journal_entry_id: newMonthlyJournalIds[index]!, account_id: newExpenseAccountId, debit: amount, credit: 0 },
+    { journal_entry_id: newMonthlyJournalIds[index]!, account_id: newAssetAccountId, debit: 0, credit: amount },
+  ]);
+  const newBudgetAllocations = newAmounts.flatMap((amount, index) =>
+    buildBudgetAllocations(newMonthlyJournalIds[index]!, amount, patchBudgetRatios)
+      .map((row) => ({ ...row, source: "depreciation" })),
+  );
+  const statements: D1PreparedStatement[] = [
+    ...buildJournalHistoryStatements(c.env.DB, [schedule.source_journal_entry_id], "edited"),
+    ...buildJournalHistoryStatements(c.env.DB, oldJournalIds, "deleted"),
+    c.env.DB.prepare(`INSERT INTO journal_entries(id,date,description)
+      SELECT CAST(json_extract(value,'$.id') AS INTEGER),json_extract(value,'$.date'),json_extract(value,'$.description')
+      FROM json_each(?)`).bind(JSON.stringify(newJournalEntries)),
+    ...buildMonthlyExpenseTagCopyStatements(c.env.DB, monthlyTagCopyPairs),
+    prepareMutation(c.env.DB, db.update(journalEntries)
+      .set({ date: newPurchaseDate, description: newDescription })
+      .where(eq(journalEntries.id, schedule.source_journal_entry_id))),
+  ];
+  if (purchaseLinesChanged) {
+    statements.push(prepareMutation(c.env.DB, db.delete(journalLines)
+      .where(eq(journalLines.journal_entry_id, schedule.source_journal_entry_id))));
+    if (paymentAccountId != null) {
+      statements.push(prepareMutation(c.env.DB, db.insert(journalLines).values([
+        { journal_entry_id: schedule.source_journal_entry_id, account_id: newAssetAccountId, debit: newTotalAmount, credit: 0 },
+        { journal_entry_id: schedule.source_journal_entry_id, account_id: paymentAccountId, debit: 0, credit: newTotalAmount },
+      ])));
     }
-    newMonthlyJournalIds.push(entry.id);
+  }
+  for (const ids of chunkForD1InClause(oldJournalIds)) {
+    statements.push(prepareMutation(c.env.DB, db.delete(journalEntries).where(inArray(journalEntries.id, ids))));
+  }
+  statements.push(prepareMutation(c.env.DB, db.delete(depreciationBudgetReservations)
+    .where(eq(depreciationBudgetReservations.schedule_id, id))));
+  if (reservationRows.length > 0) {
+    statements.push(prepareMutation(c.env.DB, db.insert(depreciationBudgetReservations).values(reservationRows)));
+  }
+  for (const rows of chunkForD1InClause(newMonthlyJournalLines, 200)) {
+    statements.push(c.env.DB.prepare(`INSERT INTO journal_lines(journal_entry_id,account_id,debit,credit)
+      SELECT CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),CAST(json_extract(value,'$.account_id') AS INTEGER),
+      CAST(json_extract(value,'$.debit') AS INTEGER),CAST(json_extract(value,'$.credit') AS INTEGER) FROM json_each(?)`)
+      .bind(JSON.stringify(rows)));
+  }
+  for (const rows of chunkForD1InClause(newMonthlyJournalIds.map((journal_entry_id, index) => ({ journal_entry_id, month_number: index + 1 })), 200)) {
+    statements.push(c.env.DB.prepare(`INSERT INTO depreciation_entries(schedule_id,journal_entry_id,month_number)
+      SELECT ?,CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),CAST(json_extract(value,'$.month_number') AS INTEGER)
+      FROM json_each(?)`).bind(id, JSON.stringify(rows)));
+  }
+  for (const rows of chunkForD1InClause(newBudgetAllocations, 200)) {
+    statements.push(c.env.DB.prepare(`INSERT INTO journal_entry_budget_allocations(journal_entry_id,budget_category_id,amount,source)
+      SELECT CAST(json_extract(value,'$.journal_entry_id') AS INTEGER),CAST(json_extract(value,'$.budget_category_id') AS INTEGER),
+      CAST(json_extract(value,'$.amount') AS INTEGER),json_extract(value,'$.source') FROM json_each(?)`)
+      .bind(JSON.stringify(rows)));
   }
 
-  if (newMonthlyJournalIds.length > 0) {
-    await insertDepreciationEntriesChunked(
-      db,
-      newMonthlyJournalIds.map((jid, i) => ({
-        schedule_id: id,
-        journal_entry_id: jid,
-        month_number: i + 1,
-      })),
-    );
-  }
-
-  // Update schedule record
-  await db
-    .update(depreciationSchedules)
-    .set({
+  statements.push(prepareMutation(c.env.DB, db.update(depreciationSchedules).set({
       start_date: newPurchaseDate,
       description: newDescription,
       total_amount: newTotalAmount,
       months: newMonths,
       asset_account_id: newAssetAccountId,
       expense_account_id: newExpenseAccountId,
-    })
-    .where(eq(depreciationSchedules.id, id));
+  }).where(eq(depreciationSchedules.id, id))));
+  const mutationRevision = await readBudgetMutationRevision(c.env.DB);
+  const batchResult = await runBudgetGuardedBatch(c.env.DB, mutationRevision, statements);
+  if (!batchResult) return c.json({ error: "stale_schedule" }, 409);
 
   return c.json({
     schedule_id: id,
@@ -1808,9 +1821,13 @@ router.delete("/:id", async (c) => {
   const [schedule] = await db.select().from(depreciationSchedules).where(eq(depreciationSchedules.id, id));
   if (!schedule) return c.json({ error: "not_found" }, 404);
   const ownedEvents = await getOwnedBudgetRows(db, id);
+  const scheduledJournalIds = (await db.select({ journal_entry_id: depreciationEntries.journal_entry_id })
+    .from(depreciationEntries).where(eq(depreciationEntries.schedule_id, id)))
+    .map((row) => row.journal_entry_id);
   const createdAt = new Date().toISOString().replace("T", " ").slice(0, 19);
   const statements: D1PreparedStatement[] = [
     ...buildDepreciationBudgetRevisionGuard(c.env.DB, expectedRevision),
+    ...buildJournalHistoryStatements(c.env.DB, [...scheduledJournalIds, schedule.source_journal_entry_id], "deleted"),
   ];
   statements.push(c.env.DB.prepare(`DELETE FROM journal_entries WHERE id IN
     (SELECT journal_entry_id FROM depreciation_entries WHERE schedule_id=?)`).bind(id));

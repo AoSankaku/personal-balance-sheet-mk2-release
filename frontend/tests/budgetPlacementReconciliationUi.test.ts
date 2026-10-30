@@ -81,13 +81,18 @@ describe("budget placement reconciliation UI", () => {
       "budgetPlacementUnresolvedIncomeTransferHint",
       "budgetPlacementDeferredTitle",
       "budgetPlacementDeferredHint",
+      "ttPlacementPendingCurrentHint",
     ];
     const typedKeys = source("src/i18n/translationKeys.ts");
+    const localeTranslations = new Map(
+      ["en", "ja", "fr", "es", "zh-CN", "zh-TW"].map(locale => [
+        locale, parse(source(`src/i18n/locales/${locale}.yaml`)),
+      ]),
+    );
 
     for (const key of keys) {
       expect(typedKeys).toContain(`"${key}"`);
-      for (const locale of ["en", "ja", "fr", "es", "zh-CN", "zh-TW"]) {
-        const translations = parse(source(`src/i18n/locales/${locale}.yaml`));
+      for (const [locale, translations] of localeTranslations) {
         expect(translations[key], `${locale}.${key}`).toBeTruthy();
       }
     }

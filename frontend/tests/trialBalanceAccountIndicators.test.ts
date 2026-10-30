@@ -92,5 +92,21 @@ describe("trial-balance account indicators", () => {
     expect(source).toContain('t("ttIncomeTransferPendingChip")');
     expect(source).toContain('t("ttIncomeTransferWarningTitle")');
     expect(source).toContain('navigate("/tasks/income-transfer")');
+    expect(source).toContain("useBudgetPlacementReconciliation");
+    expect(source).toContain('t("ttPlacementPendingCurrentHint")');
+    expect(source).toContain('t("budgetPlacementPlanLoading")');
+    expect(source).toContain('t("budgetPlacementPlanUnavailable")');
+    expect(source).toContain('t("budgetPlacementPlanUnavailableHint")');
+    expect(source).toContain('t("reload")');
+  });
+
+  test("keeps the pending-transfer notice visible without a saved reconciliation snapshot", () => {
+    const source = readFileSync(
+      new URL("../src/components/tt/DeviationSection.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(source).toContain("{pendingTransferNotice}");
+    expect(source).toContain("snapshots.length === 0 && creditCardRows.length === 0");
   });
 });
