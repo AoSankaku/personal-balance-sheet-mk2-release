@@ -66,7 +66,7 @@ describe("Kotora bank-import description review", () => {
   });
 
   test("requires explicit opt-in to remember automatic masking", () => {
-    for (const stored of [null, "", "false", '"true"', "garbled", "{}", "1"]) {
+    for (const stored of [undefined, null, "", "false", '"true"', "garbled", "{}", "1"]) {
       expect(parseKotoraAutoMaskPreference(stored)).toBe(false);
     }
     expect(parseKotoraAutoMaskPreference("true")).toBe(true);

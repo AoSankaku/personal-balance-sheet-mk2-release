@@ -789,6 +789,17 @@ importSalaryAndAmazonSwitched: "Las filas de salario se movieron a Entrada simpl
 importEmptyRowsWarning: "Las filas {count} no tienen ninguna cuenta seleccionada y no se importarán. ¿Continuar?"
 importEmptyRowsWarningTitle: "Filas sin cuenta"
 importContinue: "Continuar"
+importKotoraWarningTitle: Revisar las descripciones de transferencias Kotora
+importKotoraWarningMessage: El nombre y el número de la transferencia Kotora siguen incluidos. ¿Continuar?
+importKotoraRewriteHint: Recomendamos reescribir la descripción para reconocerla más adelante. Si continúa sin seleccionar ninguna opción, se guardarán el nombre y el número sin cambios.
+importKotoraMaskNumber: Ocultar automáticamente el número de transferencia
+importKotoraMaskFuture: Ocultar automáticamente los números en futuras importaciones
+importKotoraFutureHint: Se aplica a los CSV bancarios importados en este navegador. Conserva el nombre y sustituye solo el número final por ****. Puede desactivarlo en la configuración CSV.
+importKotoraEditDescription: Editar descripciones
+importKotoraAffectedCount: "Filas afectadas: {count}"
+importKotoraReviewHint: Algunas filas contienen un nombre y un número de transferencia Kotora. Edite las descripciones si es necesario. Se pedirá confirmación antes de importar.
+importKotoraMaskedPreview: "Descripción guardada: {description}"
+importKotoraSettingsTitle: Descripciones de transferencias Kotora
 deleteJournalConfirm: "Eliminar entrada"
 deleteJournalConfirmMsg: "¿Estás seguro de que deseas eliminar esta entrada? Esto no se puede deshacer."
 suppressDeleteWarning5min: "No mostrar esta advertencia durante 5 minutos."

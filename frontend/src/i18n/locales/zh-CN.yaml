@@ -789,6 +789,17 @@ importSalaryAndAmazonSwitched: 工资行移至简单输入，Amazon 行移至批
 importEmptyRowsWarning: "{count} 行未选择账户，将不会被导入。继续吗？"
 importEmptyRowsWarningTitle: 未选择账户的行
 importContinue: 继续
+importKotoraWarningTitle: 请确认ことら转账摘要
+importKotoraWarningMessage: ことら转账的姓名和转账编号仍完整保留。是否继续？
+importKotoraRewriteHint: 建议将摘要改写为便于日后辨认的内容。不选择任何选项而继续时，将原样保存姓名和转账编号。
+importKotoraMaskNumber: 自动遮蔽转账编号
+importKotoraMaskFuture: 今后也自动遮蔽转账编号
+importKotoraFutureHint: 适用于此浏览器中的银行CSV导入。保留姓名，仅将末尾的转账编号替换为“****”。可在CSV设置中关闭。
+importKotoraEditDescription: 编辑摘要
+importKotoraAffectedCount: "涉及行数：{count}"
+importKotoraReviewHint: 部分行含有ことら转账的姓名和转账编号。请按需改写摘要，导入前将再次确认。
+importKotoraMaskedPreview: "将保存的摘要：{description}"
+importKotoraSettingsTitle: ことら转账摘要
 deleteJournalConfirm: 删除分录
 deleteJournalConfirmMsg: 确定要删除此分录吗？此操作不可撤销。
 suppressDeleteWarning5min: 5 分钟内不再显示此警告

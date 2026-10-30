@@ -4,6 +4,7 @@ import {
   Badge,
   Box,
   Button,
+  Checkbox,
   Divider,
   Group,
   Modal,
@@ -88,6 +89,11 @@ import {
   applyStoreMappingsToRows,
   applyStoreMappingToRows,
 } from "../lib/csvStoreMappings";
+import { useKotoraAutoMask } from "../hooks/useKotoraAutoMask";
+import {
+  getCsvImportDescription,
+  reviewKotoraTransferDescriptions,
+} from "../lib/csvTransferPrivacy";
 
 type SortCol = "date" | "store";
 type SortDir = "asc" | "desc";
@@ -149,6 +155,13 @@ export function CsvImportTab({
   const [pendingDecisions, setPendingDecisions] = useState<
     Record<number, "skip" | "import">
   >({});
+  const [autoMaskKotoraNumbers, setAutoMaskKotoraNumbers] = useKotoraAutoMask();
+  const [pendingKotoraImport, setPendingKotoraImport] = useState<{
+    decisions: Record<number, "skip" | "import">;
+    count: number;
+  } | null>(null);
+  const [maskKotoraNumbers, setMaskKotoraNumbers] = useState(false);
+  const [rememberKotoraMask, setRememberKotoraMask] = useState(false);
 
   // Store mappings
   const [storeMappings, setStoreMappings] = useState<StoreAccountMapping[]>([]);
@@ -212,6 +225,15 @@ export function CsvImportTab({
   const effectiveFormat: CsvFormat =
     manualFormat ?? parseResult?.format ?? "unknown";
   const isBankImport = isBankFormat(effectiveFormat);
+  const kotoraDescriptionReview = useMemo(
+    () => reviewKotoraTransferDescriptions(
+      effectiveFormat,
+      transactions.map((tx, i) => getCsvImportDescription(tx.store, rowStates[i]?.note)),
+      autoMaskKotoraNumbers,
+    ),
+    [effectiveFormat, transactions, rowStates, autoMaskKotoraNumbers],
+  );
+  const kotoraWarningIndices = new Set(kotoraDescriptionReview.warningIndices);
   const zeroAmountSettings = creditCardSettings.find(
     (settings) => String(settings.account_id) === zeroAmountAccountId,
   );
@@ -640,9 +662,13 @@ export function CsvImportTab({
     importableCount,
     amazonCount,
     salaryHoldCount,
+    autoMaskKotoraNumbers,
   ]);
 
-  async function executeImport(decisions: Record<number, "skip" | "import">) {
+  async function executeImport(
+    decisions: Record<number, "skip" | "import">,
+    privacyChoice?: { maskNumbers: boolean },
+  ) {
     if (!accountId) return;
     const dates = transactions.map(transaction => transaction.date).sort();
     const context = captureFeedbackContext({ action: [
@@ -696,7 +722,7 @@ export function CsvImportTab({
             : undefined;
         entries.push({
           date: tx.date,
-          description: rs.note.trim() === "" ? tx.store : rs.note,
+          description: getCsvImportDescription(tx.store, rs.note),
           lines: isDeposit
             ? [
                 { account_id: accountId, debit: tx.amount, credit: 0 },
@@ -714,6 +740,30 @@ export function CsvImportTab({
           budget_source: "simple",
         });
       });
+
+      // All import paths pass this gate, after duplicate decisions and before writes.
+      // Review salary handoffs as well: their descriptions continue in simple input.
+      const privacyReview = reviewKotoraTransferDescriptions(
+        effectiveFormat,
+        [
+          ...entries.map((entry) => entry.description),
+          ...salaryRows.map(({ tx, rowState }) => getCsvImportDescription(tx.store, rowState.note)),
+        ],
+        privacyChoice?.maskNumbers ?? autoMaskKotoraNumbers,
+      );
+      if (!privacyChoice && privacyReview.warningIndices.length > 0) {
+        setMaskKotoraNumbers(false);
+        setRememberKotoraMask(false);
+        setPendingKotoraImport({ decisions: { ...decisions }, count: privacyReview.warningIndices.length });
+        return;
+      }
+      entries.forEach((entry, index) => {
+        entry.description = privacyReview.descriptions[index]!;
+      });
+      const reviewedSalaryRows = salaryRows.map((row, index) => ({
+        ...row,
+        rowState: { ...row.rowState, note: privacyReview.descriptions[entries.length + index]! },
+      }));
 
       const automaticCompletion = getAutomaticStatementCompletion({
         today: new Date(),
@@ -785,7 +835,7 @@ export function CsvImportTab({
         });
       }
 
-      const salaryDraft = buildSalarySimpleDraft(salaryRows);
+      const salaryDraft = buildSalarySimpleDraft(reviewedSalaryRows);
 
       if (salaryDraft) {
         setSimpleDraft(salaryDraft);
@@ -1062,6 +1112,17 @@ export function CsvImportTab({
           <Stack gap="md">
             <Title order={5}>{t("importReviewTitle")}</Title>
 
+            {kotoraDescriptionReview.warningIndices.length > 0 && (
+              <Alert color="yellow" title={t("importKotoraWarningTitle")}>
+                {t("importKotoraReviewHint")}
+              </Alert>
+            )}
+            {kotoraDescriptionReview.maskedCount > 0 && (
+              <Alert color="blue" title={t("importKotoraMaskFuture")}>
+                {t("importKotoraFutureHint")}
+              </Alert>
+            )}
+
             {showAmazonHint && (
               <Alert color="blue" title={t("importAmazonHint")}>
                 <Anchor
@@ -1274,6 +1335,7 @@ export function CsvImportTab({
                             >
                               <TextInput
                                 size="xs"
+                                aria-label={`${t("importStoreCol")} ${i + 1}`}
                                 value={rs?.note ?? tx.store}
                                 onChange={(e) =>
                                   setRowNote(i, e.currentTarget.value)
@@ -1298,6 +1360,17 @@ export function CsvImportTab({
                                 リセット
                               </Button>
                             </Group>
+                            {kotoraWarningIndices.has(i) && (
+                              <Text size="xs" c="yellow.7" mt={4}>
+                                {t("importKotoraWarningTitle")}
+                              </Text>
+                            )}
+                            {autoMaskKotoraNumbers &&
+                              kotoraDescriptionReview.descriptions[i] !== getCsvImportDescription(tx.store, rs?.note) && (
+                                <Text size="xs" c="dimmed" mt={4}>
+                                  {t("importKotoraMaskedPreview").replace("{description}", kotoraDescriptionReview.descriptions[i]!)}
+                                </Text>
+                              )}
                           </Table.Td>
                           {isBankImport && (
                             <Table.Td style={{ width: 120, minWidth: 120 }}>
@@ -1587,6 +1660,54 @@ export function CsvImportTab({
               onClick={() => void completeZeroAmountStatement()}
             >
               {t("confirm") as string}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={pendingKotoraImport !== null}
+        onClose={() => setPendingKotoraImport(null)}
+        title={t("importKotoraWarningTitle")}
+        size="md"
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm">{t("importKotoraWarningMessage")}</Text>
+          <Text size="sm" c="dimmed">{t("importKotoraRewriteHint")}</Text>
+          <Text size="sm">{t("importKotoraAffectedCount").replace("{count}", String(pendingKotoraImport?.count ?? 0))}</Text>
+          <Checkbox
+            label={t("importKotoraMaskNumber")}
+            checked={maskKotoraNumbers}
+            onChange={(event) => {
+              setMaskKotoraNumbers(event.currentTarget.checked);
+              if (!event.currentTarget.checked) setRememberKotoraMask(false);
+            }}
+          />
+          <Checkbox
+            label={t("importKotoraMaskFuture")}
+            description={t("importKotoraFutureHint")}
+            checked={rememberKotoraMask}
+            onChange={(event) => {
+              setRememberKotoraMask(event.currentTarget.checked);
+              if (event.currentTarget.checked) setMaskKotoraNumbers(true);
+            }}
+          />
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setPendingKotoraImport(null)}>
+              {t("importKotoraEditDescription")}
+            </Button>
+            <Button
+              loading={importing}
+              onClick={() => {
+                if (!pendingKotoraImport) return;
+                const decisions = pendingKotoraImport.decisions;
+                if (maskKotoraNumbers && rememberKotoraMask) setAutoMaskKotoraNumbers(true);
+                setPendingKotoraImport(null);
+                void executeImport(decisions, { maskNumbers: maskKotoraNumbers });
+              }}
+            >
+              {t("importContinue")}
             </Button>
           </Group>
         </Stack>

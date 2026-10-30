@@ -789,6 +789,17 @@ importSalaryAndAmazonSwitched: Salary row(s) moved to Simple input and Amazon ro
 importEmptyRowsWarning: "{count} row(s) have no account selected and will not be imported. Continue?"
 importEmptyRowsWarningTitle: Rows without account
 importContinue: Continue
+importKotoraWarningTitle: Review Kotora transfer descriptions
+importKotoraWarningMessage: The Kotora transfer name and transfer number are still included. Continue?
+importKotoraRewriteHint: We recommend rewriting the description so you can recognize it later. Continuing without selecting an option saves the name and transfer number unchanged.
+importKotoraMaskNumber: Automatically mask the transfer number
+importKotoraMaskFuture: Automatically mask transfer numbers in future imports
+importKotoraFutureHint: Applies to bank CSV imports in this browser. Keeps the name and replaces only the trailing transfer number with ****. You can turn this off in CSV settings.
+importKotoraEditDescription: Edit descriptions
+importKotoraAffectedCount: "Affected rows: {count}"
+importKotoraReviewHint: Some rows contain a Kotora transfer name and transfer number. Rewrite descriptions if needed. You will be asked to confirm before importing.
+importKotoraMaskedPreview: "Saved description: {description}"
+importKotoraSettingsTitle: Kotora transfer descriptions
 deleteJournalConfirm: Delete Entry
 deleteJournalConfirmMsg: Are you sure you want to delete this entry? This cannot be undone.
 suppressDeleteWarning5min: Don't show this warning for 5 minutes

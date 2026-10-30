@@ -789,6 +789,17 @@ importSalaryAndAmazonSwitched: "Ligne(s) de salaire déplacée(s) vers Saisie si
 importEmptyRowsWarning: "Les lignes {count} n'ont aucun compte sélectionné et ne seront pas importées. Continuer?"
 importEmptyRowsWarningTitle: "Lignes sans compte"
 importContinue: "Continuer"
+importKotoraWarningTitle: Vérifier les libellés des virements Kotora
+importKotoraWarningMessage: Le nom et le numéro du virement Kotora sont toujours présents. Continuer ?
+importKotoraRewriteHint: Nous vous conseillons de réécrire le libellé pour le reconnaître plus tard. Si vous continuez sans sélectionner une option, le nom et le numéro seront conservés tels quels.
+importKotoraMaskNumber: Masquer automatiquement le numéro du virement
+importKotoraMaskFuture: Masquer automatiquement les numéros lors des prochains imports
+importKotoraFutureHint: S’applique aux imports CSV bancaires dans ce navigateur. Conserve le nom et remplace uniquement le numéro final par ****. Désactivable dans les paramètres CSV.
+importKotoraEditDescription: Modifier les libellés
+importKotoraAffectedCount: "Lignes concernées : {count}"
+importKotoraReviewHint: Certaines lignes contiennent un nom et un numéro de virement Kotora. Modifiez les libellés si nécessaire. Une confirmation sera demandée avant l’import.
+importKotoraMaskedPreview: "Libellé enregistré : {description}"
+importKotoraSettingsTitle: Libellés des virements Kotora
 deleteJournalConfirm: "Supprimer l'entrée"
 deleteJournalConfirmMsg: "Etes-vous sûr de vouloir supprimer cette entrée? Cela ne peut pas être annulé."
 suppressDeleteWarning5min: "Ne pas afficher cet avertissement pendant 5 minutes"

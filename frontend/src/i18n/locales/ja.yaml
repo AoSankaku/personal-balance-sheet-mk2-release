@@ -789,6 +789,17 @@ importSalaryAndAmazonSwitched: 給与行をシンプル入力へ、Amazon行を�
 importEmptyRowsWarning: "{count}件の行に勘定科目が未選択のため、インポートされません。続行しますか？"
 importEmptyRowsWarningTitle: 科目未選択の行があります
 importContinue: 続行
+importKotoraWarningTitle: ことら送金の摘要を確認してください
+importKotoraWarningMessage: ことら送金の名前と送金番号がそのまま含まれています。続行しますか？
+importKotoraRewriteHint: 摘要を後からわかる内容へ書き換えることをおすすめします。何も選ばずに続行すると、名前と送金番号はそのまま保存されます。
+importKotoraMaskNumber: 自動で送金番号をマスクする
+importKotoraMaskFuture: 今後も自動で送金番号をマスクする
+importKotoraFutureHint: このブラウザーの銀行CSV取り込みで適用します。氏名は残し、末尾の送金番号のみ「****」へ置き換えます。CSV設定から解除できます。
+importKotoraEditDescription: 摘要を編集する
+importKotoraAffectedCount: "対象: {count}件"
+importKotoraReviewHint: ことら送金の名前と送金番号を含む行があります。必要に応じて摘要を書き換えてください。取り込み前に確認します。
+importKotoraMaskedPreview: "保存する摘要: {description}"
+importKotoraSettingsTitle: ことら送金の摘要
 deleteJournalConfirm: 仕訳を削除
 deleteJournalConfirmMsg: この仕訳を削除しますか？この操作は元に戻せません。
 suppressDeleteWarning5min: 5分間この警告を表示しない
