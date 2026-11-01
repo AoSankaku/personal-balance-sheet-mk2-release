@@ -14,7 +14,7 @@ describe("budget placement reconciliation UI", () => {
 
     expect(client).toContain("/income-transfer-requirements/placement-preview?currency=");
     expect(client).toContain("/income-transfer-requirements/placement-complete");
-    expect(hook).toContain("api.incomeTransferRequirements.placementPreview(currency)");
+    expect(hook).toContain("api.incomeTransferRequirements.placementPreview(currency, { force })");
     expect(hook).toContain("setPlan(null)");
     expect(panel).toContain("placementComplete({");
     expect(panel).toContain("token: snapshot.token");

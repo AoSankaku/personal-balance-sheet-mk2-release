@@ -58,15 +58,25 @@ describe("placement preview request sharing", () => {
     expect(count).toBe(2);
   });
 
-  test("keeps currency and local-day scopes separate", async () => {
+  test("notification-only settings do not trigger a placement recalculation", async () => {
+    let count = 0;
+    globalThis.fetch = (async (_input, init) => init?.method === "PATCH"
+      ? Response.json({ configured: true }) : preview(`token-${++count}`)) as typeof fetch;
+    await api.incomeTransferRequirements.placementPreview("JPY");
+    await api.taskSettings.update({ payday_enabled: false });
+    expect((await api.incomeTransferRequirements.placementPreview("JPY")).token).toBe("token-1");
+    expect(count).toBe(1);
+  });
+
+  test("keeps currency and the application JST-day scopes separate", async () => {
     let count = 0;
     globalThis.fetch = (async () => preview(`token-${++count}`)) as typeof fetch;
-    setSystemTime(new Date(2026, 10, 2, 23, 59, 59));
+    setSystemTime(new Date("2026-11-02T14:59:59Z"));
     await api.incomeTransferRequirements.placementPreview("jpy");
     await api.incomeTransferRequirements.placementPreview("JPY");
     await api.incomeTransferRequirements.placementPreview("USD");
     expect(count).toBe(2);
-    setSystemTime(new Date(2026, 10, 3, 0, 0, 1));
+    setSystemTime(new Date("2026-11-02T15:00:01Z"));
     await api.incomeTransferRequirements.placementPreview("JPY");
     expect(count).toBe(3);
   });

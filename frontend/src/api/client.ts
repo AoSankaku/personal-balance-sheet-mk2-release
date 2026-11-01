@@ -77,6 +77,8 @@ import type {
   BudgetPlacementReconciliation,
 } from "@balance-sheet/shared";
 import { createInFlightRequestDeduper } from "./inFlightRequest";
+import { createExpiringRequestCache } from "./expiringRequestCache";
+import { getPlacementPreviewDay } from "./placementPreviewScope";
 import {
   isLikelyCloudflareAccessResponse,
 } from "../lib/appVersion";
@@ -86,6 +88,11 @@ const BASE = "/api";
 const dedupeBudgetSummaryRequest = createInFlightRequestDeduper();
 const dedupeCachedRequest = createInFlightRequestDeduper();
 const sessionResponseCache = new Map<string, unknown>();
+const placementPreviewCache = createExpiringRequestCache<BudgetPlacementReconciliation>({ ttlMs: 30_000 });
+
+function placementPreviewKey(currency: string) {
+  return `${getPlacementPreviewDay()}|${currency.toUpperCase()}`;
+}
 const NETWORK_OFFLINE_ERROR = "network_offline";
 const CLOUDFLARE_ACCESS_SESSION_ERROR = "cloudflare_access_session_expired";
 
@@ -141,6 +148,22 @@ async function apiFetch(input: RequestInfo | URL, init?: RequestInit) {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const isMutation = !["GET", "HEAD"].includes((init?.method ?? "GET").toUpperCase());
+  // Cover raw request mutations as well as mutationRequest: deferral, card
+  // state, depreciation and admin operations can all affect the preview.
+  // Task notification preferences do not change placement inputs.
+  const invalidatesPlacement = isMutation && path !== "/task-settings";
+  if (invalidatesPlacement) placementPreviewCache.invalidate();
+  try {
+    return await requestJson<T>(path, init);
+  } finally {
+    // Invalidate even after an uncertain/failed write, and prevent reads made
+    // during a write from being reused after it has finished.
+    if (invalidatesPlacement) placementPreviewCache.invalidate();
+  }
+}
+
+async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await apiFetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...init,
@@ -378,10 +401,15 @@ export const api = {
       request<IncomeTransferSquashPreview>(
         "/income-transfer-requirements/squash-preview",
       ),
-    placementPreview: (currency: string) =>
-      request<BudgetPlacementReconciliation>(
-        `/income-transfer-requirements/placement-preview?currency=${encodeURIComponent(currency)}`,
-      ),
+    cachedPlacementPreview: (currency: string) => isBrowserOffline()
+      ? null : placementPreviewCache.peek(placementPreviewKey(currency)),
+    placementPreview: (currency: string, options: { force?: boolean } = {}) => {
+      if (isBrowserOffline()) return Promise.reject(createOfflineApiError());
+      return placementPreviewCache.get(placementPreviewKey(currency), () =>
+        request<BudgetPlacementReconciliation>(
+          `/income-transfer-requirements/placement-preview?currency=${encodeURIComponent(currency.toUpperCase())}`,
+        ), options.force);
+    },
     placementComplete: (input: { currency: string; token: string; description: string }) =>
       mutationRequest<{
         transfer_journal_entry: JournalEntry | null;
@@ -1031,6 +1059,6 @@ export const api = {
       }, ["/currencies"]),
   },
   __testing: {
-    clearSessionCache: () => invalidateSessionCache(),
+    clearSessionCache: () => { invalidateSessionCache(); placementPreviewCache.invalidate(); },
   },
 };

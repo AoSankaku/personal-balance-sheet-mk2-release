@@ -34,7 +34,7 @@ test("groups eligible expense evidence once while preserving eligibility, order,
     ],
     lines: [
       line(10, 2, 1234, 0), line(10, 1, 0, 1234),
-      line(20, 2, 300, 0), line(20, 4, 0, 0), line(20, 1, 0, 300),
+      line(20, 2, 300, 0), line(20, 1, 0, 300),
       line(30, 2, 50, 0), line(30, 4, 1, 0), line(30, 1, 0, 50),
       line(40, 2, 75, 0), line(40, 3, 0, 75),
       line(50, 2, 100, 0), line(50, 1, 0, 100),
