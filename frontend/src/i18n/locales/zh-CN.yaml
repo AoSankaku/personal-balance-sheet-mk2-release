@@ -868,7 +868,13 @@ budgetReferenceAllocationTitle: 参考预算记录
 budgetReferenceAllocationHint: 付款来源不属于预算资金，但该计划支出会减少预算余额和可分配金额，并在一致性检查中单独显示。
 budgetMarkReferenceAction: 设为参考记录
 budgetMarkReferenceSuccess: 已将预算明细改为参考记录
-budgetReferenceSpentLabel: 其中参考支出
+budgetReferenceSpentLabel: 参考记录（不计入使用额）
+budgetUsageLabel: 预算使用额
+budgetBeforeUsageLabel: 使用前预算
+budgetSpendingUsageLabel: 支出使用额
+budgetMonthlyFundingOutLabel: 每月补充所用预算
+budgetMonthlyFundingInLabel: 收到的每月补充
+budgetUsageIncludesFundingHint: 预算使用额包含折旧每月补充的转出额。收到的补充不计入使用额，也不会再次从余额中扣除。
 budgetDepreciationRecognizedLabel: "本月确认的分期转账额"
 budgetDepreciationReserveLabel: "剩余购买预留额"
 budgetDepreciationOverviewTitle: "分期转账预算"

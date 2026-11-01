@@ -7,6 +7,18 @@ export interface BudgetAdjustmentLogForPeriod {
   created_at?: string | null;
 }
 
+export interface ManagedMonthlyDepreciationFundingLogForPeriod
+  extends BudgetAdjustmentLogForPeriod {
+  depreciation_schedule_id?: number | null;
+  depreciation_event_key?: string | null;
+  depreciation_event_side?: string | null;
+}
+
+export interface MonthlyDepreciationFundingAmounts {
+  out: number;
+  in: number;
+}
+
 export interface DateRange {
   start: string;
   end: string;
@@ -110,6 +122,65 @@ export function sumBudgetAdjustmentLogsAfterResetsByPeriod(
   }
 
   return sums;
+}
+
+export function sumManagedMonthlyDepreciationFundingAfterResetsByPeriod(
+  rows: ManagedMonthlyDepreciationFundingLogForPeriod[],
+  dateRangesByYearMonth: Map<string, DateRange>,
+): Map<string, MonthlyDepreciationFundingAmounts> {
+  const sums = new Map<string, MonthlyDepreciationFundingAmounts>();
+  const resetPointByKey = new Map<string, BudgetResetPoint | null>();
+
+  for (const row of rows) {
+    const range = dateRangesByYearMonth.get(row.year_month);
+    if (!range || row.date < range.start || row.date > range.end) continue;
+    if (
+      !Number.isInteger(row.depreciation_schedule_id) ||
+      (row.depreciation_schedule_id ?? 0) <= 0 ||
+      row.adjustment_type !== "transfer" ||
+      !isManagedMonthlyDepreciationEventKey(row.depreciation_event_key)
+    ) {
+      continue;
+    }
+
+    const direction =
+      row.depreciation_event_side === "source" && row.amount < 0
+        ? "out"
+        : row.depreciation_event_side === "destination" && row.amount > 0
+          ? "in"
+          : null;
+    if (!direction) continue;
+
+    const key = `${row.budget_category_id}:${row.year_month}`;
+    if (!resetPointByKey.has(key)) {
+      resetPointByKey.set(
+        key,
+        findLatestResetPointForPeriod(
+          rows,
+          row.budget_category_id,
+          range,
+        ),
+      );
+    }
+    if (!isAfterBudgetResetPoint(row, resetPointByKey.get(key) ?? null)) {
+      continue;
+    }
+
+    const totals = sums.get(key) ?? { out: 0, in: 0 };
+    totals[direction] += direction === "out" ? -row.amount : row.amount;
+    sums.set(key, totals);
+  }
+
+  return sums;
+}
+
+function isManagedMonthlyDepreciationEventKey(
+  eventKey: string | null | undefined,
+): boolean {
+  return (
+    typeof eventKey === "string" &&
+    /^monthly:\d+(?::(?:category:\d+|unallocated))?$/.test(eventKey)
+  );
 }
 
 export interface CarryoverInput {

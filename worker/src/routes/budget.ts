@@ -42,6 +42,7 @@ import {
   isAfterBudgetResetPoint,
   shouldShowCarryoverForPeriod,
   sumBudgetAdjustmentLogsAfterResetsByPeriod,
+  sumManagedMonthlyDepreciationFundingAfterResetsByPeriod,
   type DateRange,
 } from "../lib/budgetSummary";
 import { sumBudgetFundingAfterResetsByPeriod } from "../lib/budgetFunding";
@@ -1655,6 +1656,9 @@ export async function computeBudgetSummaries(
             date: budgetAdjustmentLogs.date,
             adjustment_type: budgetAdjustmentLogs.adjustment_type,
             created_at: budgetAdjustmentLogs.created_at,
+            depreciation_schedule_id: budgetAdjustmentLogs.depreciation_schedule_id,
+            depreciation_event_key: budgetAdjustmentLogs.depreciation_event_key,
+            depreciation_event_side: budgetAdjustmentLogs.depreciation_event_side,
           })
           .from(budgetAdjustmentLogs)
           .where(
@@ -1832,6 +1836,11 @@ export async function computeBudgetSummaries(
       decodedAdhocLogRows,
       monthDateRangeMap,
     );
+    const depreciationFundingSumMap =
+      sumManagedMonthlyDepreciationFundingAfterResetsByPeriod(
+        decodedAdhocLogRows,
+        monthDateRangeMap,
+      );
     const fundingSumMap = sumBudgetFundingAfterResetsByPeriod(
       decodedFundingRows,
       decodedAdhocLogRows,
@@ -1904,6 +1913,9 @@ export async function computeBudgetSummaries(
       const currentFunding = fundingFor(cat.id, ym);
       const ownBudgetBase = adhocFor(cat.id, ym);
       const budgetBase = ownBudgetBase + currentFunding.net;
+      const depreciationFunding = depreciationFundingSumMap.get(
+        `${cat.id}:${ym}`,
+      ) ?? { out: 0, in: 0 };
       const referenceSpent = calculateReferenceSpentFromBudgetAllocations(
         cat.id,
         entryAllocsForMonth(ym).filter((entryAlloc) =>
@@ -2023,6 +2035,8 @@ export async function computeBudgetSummaries(
         total_budget: totalBudget,
         spent,
         reference_spent: referenceSpent,
+        depreciation_funding_out: depreciationFunding.out,
+        depreciation_funding_in: depreciationFunding.in,
         reference_reserve: 0,
         depreciation_spent: currentSpending.recognized_depreciation,
         depreciation_reserve: currentSpending.reservation_remaining,

@@ -868,7 +868,13 @@ budgetReferenceAllocationTitle: 参考予算記録
 budgetReferenceAllocationHint: 支払元は予算原資に含まれませんが、将来の予算消費として残高と割り当て可能額を減らし、整合性画面では参考値として区分表示します。
 budgetMarkReferenceAction: 参考記録にする
 budgetMarkReferenceSuccess: 予算内訳を参考記録に変更しました
-budgetReferenceSpentLabel: うち参考支出
+budgetReferenceSpentLabel: 参考記録（使用額の外）
+budgetUsageLabel: 予算使用額
+budgetBeforeUsageLabel: 使用前予算
+budgetSpendingUsageLabel: 支出による使用
+budgetMonthlyFundingOutLabel: 月次補填への使用
+budgetMonthlyFundingInLabel: 月次補填の受入
+budgetUsageIncludesFundingHint: 予算使用額には減価償却の月次補填の出額を含みます。受入額は使用額に加えず、残高からも重ねて差し引きません。
 budgetDepreciationRecognizedLabel: "当月の費用振替額"
 budgetDepreciationReserveLabel: "購入時予約の残額"
 budgetDepreciationOverviewTitle: "毎月の費用振替予算"

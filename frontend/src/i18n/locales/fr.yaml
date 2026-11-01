@@ -868,7 +868,13 @@ budgetReferenceAllocationTitle: Écriture budgétaire de référence
 budgetReferenceAllocationHint: La source de paiement est hors des fonds budgétaires, mais cette dépense prévue réduit le solde et le montant allouable et reste séparée dans le rapprochement.
 budgetMarkReferenceAction: Rendre indicative
 budgetMarkReferenceSuccess: La ventilation budgétaire est désormais une écriture de référence
-budgetReferenceSpentLabel: Dont dépenses indicatives
+budgetReferenceSpentLabel: Écritures indicatives (hors utilisation)
+budgetUsageLabel: Budget utilisé
+budgetBeforeUsageLabel: Budget avant utilisation
+budgetSpendingUsageLabel: Utilisé pour les dépenses
+budgetMonthlyFundingOutLabel: Utilisé pour le financement mensuel
+budgetMonthlyFundingInLabel: Financement mensuel reçu
+budgetUsageIncludesFundingHint: L’utilisation comprend le financement mensuel sortant lié à l’amortissement. Les montants reçus ne sont pas comptés comme utilisation et le solde n’est pas déduit une seconde fois.
 budgetDepreciationRecognizedLabel: "Charge enregistrée ce mois-ci"
 budgetDepreciationReserveLabel: "Réservation d’achat restante"
 budgetDepreciationOverviewTitle: "Budget des transferts mensuels"

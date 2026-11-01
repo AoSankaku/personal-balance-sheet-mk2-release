@@ -868,7 +868,13 @@ budgetReferenceAllocationTitle: Registro presupuestario de referencia
 budgetReferenceAllocationHint: La fuente de pago está fuera de los fondos presupuestarios, pero este gasto previsto reduce el saldo y el importe asignable y se muestra por separado en la conciliación.
 budgetMarkReferenceAction: Marcar referencia
 budgetMarkReferenceSuccess: El desglose presupuestario se cambió a un registro de referencia
-budgetReferenceSpentLabel: Del cual gasto de referencia
+budgetReferenceSpentLabel: Registros de referencia (fuera del uso)
+budgetUsageLabel: Presupuesto utilizado
+budgetBeforeUsageLabel: Presupuesto antes del uso
+budgetSpendingUsageLabel: Utilizado en gastos
+budgetMonthlyFundingOutLabel: Utilizado en financiación mensual
+budgetMonthlyFundingInLabel: Financiación mensual recibida
+budgetUsageIncludesFundingHint: El uso incluye la financiación mensual saliente de depreciación. Los importes recibidos no se cuentan como uso y el saldo no se descuenta de nuevo.
 budgetDepreciationRecognizedLabel: "Gasto registrado este mes"
 budgetDepreciationReserveLabel: "Reserva de compra restante"
 budgetDepreciationOverviewTitle: "Presupuesto de transferencias mensuales"

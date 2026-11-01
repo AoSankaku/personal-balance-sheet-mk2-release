@@ -8,6 +8,7 @@ import type { BudgetUsagePresentation } from "../lib/budgetUsagePresentation";
 
 const ja = parse(readFileSync(new URL("../i18n/locales/ja.yaml", import.meta.url), "utf8"));
 mock.module(import.meta.resolve("../i18n/LangContext.tsx"), () => ({
+  LangProvider: ({ children }: { children: unknown }) => children,
   useLang: () => ({ t: (key: string) => ja[key] ?? key, locale: "ja" }),
 }));
 const { BudgetUsageDetails } = await import("./BudgetUsageDetails");

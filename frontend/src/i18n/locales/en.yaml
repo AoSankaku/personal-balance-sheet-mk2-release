@@ -868,7 +868,13 @@ budgetReferenceAllocationTitle: Reference budget record
 budgetReferenceAllocationHint: The payment source is outside budget funds, but this planned spending reduces both the budget balance and allocatable money and is shown separately in reconciliation.
 budgetMarkReferenceAction: Make reference
 budgetMarkReferenceSuccess: Changed the budget breakdown to a reference record
-budgetReferenceSpentLabel: Of which reference spending
+budgetReferenceSpentLabel: Reference records (outside usage)
+budgetUsageLabel: Budget used
+budgetBeforeUsageLabel: Budget before usage
+budgetSpendingUsageLabel: Used for spending
+budgetMonthlyFundingOutLabel: Used for monthly funding
+budgetMonthlyFundingInLabel: Monthly funding received
+budgetUsageIncludesFundingHint: Budget usage includes outgoing monthly depreciation funding. Received funding is not counted as usage, and the balance is not reduced a second time.
 budgetDepreciationRecognizedLabel: "Monthly expense recorded this month"
 budgetDepreciationReserveLabel: "Remaining purchase reservation"
 budgetDepreciationOverviewTitle: "Monthly expense transfer budget"
