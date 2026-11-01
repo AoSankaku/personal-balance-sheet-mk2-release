@@ -36,11 +36,9 @@ import {
   calculateDepreciationBudgetMonth,
   calculateReferenceSpentFromBudgetAllocations,
   calculateNextCarryover,
-  findLatestResetDateForPeriod,
-  findLatestResetPointForPeriod,
-  groupBudgetEntryAllocationsByMonth,
+  createBudgetResetPointLookup,
+  groupBudgetEventsByCategoryAndMonth,
   isAfterBudgetResetPoint,
-  shouldShowCarryoverForPeriod,
   sumBudgetAdjustmentLogsAfterResetsByPeriod,
   sumManagedMonthlyDepreciationFundingAfterResetsByPeriod,
   type DateRange,
@@ -1764,6 +1762,11 @@ export async function computeBudgetSummaries(
       amount: fromStorageMoneyAmount(row.amount, currency, scaleOptions),
     }),
   );
+  const depreciationReservationsByMonthAndCategory =
+    groupBudgetEventsByCategoryAndMonth(
+      decodedDepreciationReservationRows,
+      fullMonthDateRangeMap,
+    );
 
   const incomeAccountRows = await db
     .select({ id: accounts.id })
@@ -1810,12 +1813,20 @@ export async function computeBudgetSummaries(
           scaleOptions,
         )
       : [];
-  const entryAllocsByMonth = groupBudgetEntryAllocationsByMonth(
-    entryAllocsForRange.filter(row =>
-      row.depreciation_schedule_id !== overrides.excludeLegacyScheduleId &&
-      !overrides.excludeAllocationIds?.includes(row.allocation_id) && isVisible(row)),
+  const visibleEntryAllocs = entryAllocsForRange.filter(row =>
+    row.depreciation_schedule_id !== overrides.excludeLegacyScheduleId &&
+    !overrides.excludeAllocationIds?.includes(row.allocation_id) && isVisible(row));
+  const entryAllocsByMonthAndCategory = groupBudgetEventsByCategoryAndMonth(
+    visibleEntryAllocs,
     fullMonthDateRangeMap,
   );
+  const linksByCategory = new Map<number, number[]>();
+  for (const link of links) {
+    const accountIds = linksByCategory.get(link.budget_category_id) ?? [];
+    accountIds.push(link.account_id);
+    linksByCategory.set(link.budget_category_id, accountIds);
+  }
+  const resetPointLookup = createBudgetResetPointLookup(decodedAdhocLogRows);
 
   return targets.map((target) => {
     const ym = target.yearMonth;
@@ -1835,16 +1846,19 @@ export async function computeBudgetSummaries(
     const adhocSumMap = sumBudgetAdjustmentLogsAfterResetsByPeriod(
       decodedAdhocLogRows,
       monthDateRangeMap,
+      resetPointLookup,
     );
     const depreciationFundingSumMap =
       sumManagedMonthlyDepreciationFundingAfterResetsByPeriod(
         decodedAdhocLogRows,
         monthDateRangeMap,
+        resetPointLookup,
       );
     const fundingSumMap = sumBudgetFundingAfterResetsByPeriod(
       decodedFundingRows,
       decodedAdhocLogRows,
       monthDateRangeMap,
+      resetPointLookup,
     );
 
     function adhocFor(catId: number, yearMonthKey: string): number {
@@ -1868,24 +1882,27 @@ export async function computeBudgetSummaries(
     function resetPointFor(catId: number, yearMonthKey: string) {
       const range = monthDateRangeMap.get(yearMonthKey);
       if (!range) return null;
-      return findLatestResetPointForPeriod(decodedAdhocLogRows, catId, range);
+      return resetPointLookup(catId, range);
     }
 
-    function entryAllocsForMonth(yearMonthKey: string) {
+    function eventsForCategoryMonth<T extends { date: string }>(
+      grouped: Map<string, Map<number, T[]>>,
+      categoryId: number,
+      yearMonthKey: string,
+    ): T[] {
       const range = monthDateRangeMap.get(yearMonthKey);
       if (!range) return [];
-      return (entryAllocsByMonth.get(yearMonthKey) ?? []).filter(
-        (entryAlloc) =>
-          entryAlloc.date >= range.start && entryAlloc.date <= range.end,
-      );
+      return (grouped.get(yearMonthKey)?.get(categoryId) ?? []).filter(row =>
+        row.date >= range.start && row.date <= range.end);
     }
 
-    function depreciationReservationsForMonth(yearMonthKey: string) {
+    function depreciationReservationsForMonth(categoryId: number, yearMonthKey: string) {
       const range = monthDateRangeMap.get(yearMonthKey);
       if (!range) return [];
-      return decodedDepreciationReservationRows.filter(
-        (reservation) =>
-          reservation.date >= range.start && reservation.date <= range.end,
+      return eventsForCategoryMonth(
+        depreciationReservationsByMonthAndCategory,
+        categoryId,
+        yearMonthKey,
       );
     }
 
@@ -1905,10 +1922,7 @@ export async function computeBudgetSummaries(
 
     const categorySummaries: BudgetCategorySummary[] = [];
     for (const cat of cats) {
-      const accountIds = links
-        .filter((link) => link.budget_category_id === cat.id)
-        .map((link) => link.account_id);
-      const currentRange = monthDateRangeMap.get(ym)!;
+      const accountIds = linksByCategory.get(cat.id) ?? [];
       const currentResetPoint = resetPointFor(cat.id, ym);
       const currentFunding = fundingFor(cat.id, ym);
       const ownBudgetBase = adhocFor(cat.id, ym);
@@ -1918,7 +1932,7 @@ export async function computeBudgetSummaries(
       ) ?? { out: 0, in: 0 };
       const referenceSpent = calculateReferenceSpentFromBudgetAllocations(
         cat.id,
-        entryAllocsForMonth(ym).filter((entryAlloc) =>
+        eventsForCategoryMonth(entryAllocsByMonthAndCategory, cat.id, ym).filter((entryAlloc) =>
           isAfterBudgetResetPoint(entryAlloc, currentResetPoint),
         ),
       );
@@ -1935,8 +1949,12 @@ export async function computeBudgetSummaries(
         return calculateDepreciationBudgetMonth({
           budgetCategoryId: cat.id,
           resetPoint,
-          reservations: depreciationReservationsForMonth(monthKey),
-          allocations: entryAllocsForMonth(monthKey),
+          reservations: depreciationReservationsForMonth(cat.id, monthKey),
+          allocations: eventsForCategoryMonth(
+            entryAllocsByMonthAndCategory,
+            cat.id,
+            monthKey,
+          ),
           activeReservations: activeDepreciationReservations,
         });
       }
@@ -2022,16 +2040,8 @@ export async function computeBudgetSummaries(
         },
         budget_base: budgetBase,
         carryover: visibleCarryover,
-        show_carryover: shouldShowCarryoverForPeriod(
-          decodedAdhocLogRows,
-          cat.id,
-          currentRange,
-        ),
-        reset_date: findLatestResetDateForPeriod(
-          decodedAdhocLogRows,
-          cat.id,
-          currentRange,
-        ),
+        show_carryover: currentResetPoint === null,
+        reset_date: currentResetPoint?.date ?? null,
         total_budget: totalBudget,
         spent,
         reference_spent: referenceSpent,

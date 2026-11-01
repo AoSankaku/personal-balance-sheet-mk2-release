@@ -76,7 +76,10 @@ import type {
   IncomeTransferSquashPreview,
   BudgetPlacementReconciliation,
 } from "@balance-sheet/shared";
-import { createInFlightRequestDeduper } from "./inFlightRequest";
+import {
+  createInFlightRequestDeduper,
+  createInvalidatableInFlightRequestDeduper,
+} from "./inFlightRequest";
 import { createExpiringRequestCache } from "./expiringRequestCache";
 import { getPlacementPreviewDay } from "./placementPreviewScope";
 import {
@@ -87,6 +90,7 @@ import { showReloadPrompt } from "../lib/reloadPrompt";
 const BASE = "/api";
 const dedupeBudgetSummaryRequest = createInFlightRequestDeduper();
 const dedupeCachedRequest = createInFlightRequestDeduper();
+const dedupeTrialBalanceReads = createInvalidatableInFlightRequestDeduper();
 const sessionResponseCache = new Map<string, unknown>();
 const placementPreviewCache = createExpiringRequestCache<BudgetPlacementReconciliation>({ ttlMs: 30_000 });
 
@@ -154,12 +158,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // Task notification preferences do not change placement inputs.
   const invalidatesPlacement = isMutation && path !== "/task-settings";
   if (invalidatesPlacement) placementPreviewCache.invalidate();
+  if (isMutation) dedupeTrialBalanceReads.invalidate();
   try {
     return await requestJson<T>(path, init);
   } finally {
     // Invalidate even after an uncertain/failed write, and prevent reads made
     // during a write from being reused after it has finished.
     if (invalidatesPlacement) placementPreviewCache.invalidate();
+    if (isMutation) dedupeTrialBalanceReads.invalidate();
   }
 }
 
@@ -851,7 +857,9 @@ export const api = {
         "/trial-balance/latest-snapshot",
       ),
     listSnapshots: () =>
-      request<ActualBalanceSnapshot[]>("/trial-balance/snapshots"),
+      dedupeTrialBalanceReads.dedupe("snapshots", () =>
+        request<ActualBalanceSnapshot[]>("/trial-balance/snapshots"),
+      ),
     createSnapshot: (input: CreateActualBalanceSnapshotInput) =>
       request<ActualBalanceSnapshot>("/trial-balance/snapshots", {
         method: "POST",
@@ -862,7 +870,9 @@ export const api = {
         method: "DELETE",
       }),
     getCreditCardState: () =>
-      request<CreditCardStateEntry[]>("/trial-balance/credit-card-state"),
+      dedupeTrialBalanceReads.dedupe("credit-card-state", () =>
+        request<CreditCardStateEntry[]>("/trial-balance/credit-card-state"),
+      ),
     saveCreditCardState: (input: SaveCreditCardStateInput) =>
       request<CreditCardStateEntry[]>("/trial-balance/credit-card-state", {
         method: "POST",
@@ -1059,6 +1069,6 @@ export const api = {
       }, ["/currencies"]),
   },
   __testing: {
-    clearSessionCache: () => { invalidateSessionCache(); placementPreviewCache.invalidate(); },
+    clearSessionCache: () => { invalidateSessionCache(); placementPreviewCache.invalidate(); dedupeTrialBalanceReads.invalidate(); },
   },
 };

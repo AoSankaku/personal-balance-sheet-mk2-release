@@ -7,12 +7,9 @@ import {
   Stack,
   Title,
 } from "@mantine/core";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
-import type {
-  ActualBalanceSnapshot,
-  CreditCardStateEntry,
-} from "@balance-sheet/shared";
+import type { ActualBalanceSnapshot } from "@balance-sheet/shared";
 import { api } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
@@ -36,7 +33,7 @@ function getSegmentParam(searchParams: URLSearchParams): Segment {
 
 export default function TtPage() {
   const { t } = useLang();
-  const { loading, error, refreshLatestTrialBalanceDate } = useAppData();
+  const { loading, error, creditCardState, applyCreditCardState, refreshLatestTrialBalanceDate } = useAppData();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const segment = getSegmentParam(searchParams);
@@ -44,8 +41,9 @@ export default function TtPage() {
     null,
   );
   const [snapshotsLoading, setSnapshotsLoading] = useState(false);
-  const [snapshotsLoaded, setSnapshotsLoaded] = useState(false);
-  const [ccState, setCcState] = useState<CreditCardStateEntry[]>([]);
+  const snapshotsLoadedRef = useRef(false);
+  const snapshotRequestRef = useRef(0);
+  const pendingSnapshotLoadRef = useRef<Promise<void> | null>(null);
   const [carryForwardDraft, setCarryForwardDraft] =
     useState<TrialBalanceCarryForwardDraft | null>(null);
   const legacyBudgetParams = new URLSearchParams(searchParams);
@@ -55,41 +53,37 @@ export default function TtPage() {
     ? `?${legacyBudgetParamsString}`
     : "";
 
-  useEffect(() => {
-    api.trialBalance
-      .getCreditCardState()
-      .then(setCcState)
-      .catch(() => {});
-  }, []);
-
-  async function loadSnapshots() {
-    if (snapshotsLoaded) return;
+  async function loadSnapshots(force = false) {
+    if (snapshotsLoadedRef.current && !force) return;
+    if (pendingSnapshotLoadRef.current && !force) return pendingSnapshotLoadRef.current;
+    const requestId = ++snapshotRequestRef.current;
     setSnapshotsLoading(true);
-    try {
-      const data = await api.trialBalance.listSnapshots();
-      setSnapshots(data);
-      void refreshLatestTrialBalanceDate();
-    } catch {
-      setSnapshots([]);
-    } finally {
-      setSnapshotsLoading(false);
-      setSnapshotsLoaded(true);
-    }
+    const request = (async () => {
+      try {
+        const data = await api.trialBalance.listSnapshots();
+        if (requestId !== snapshotRequestRef.current) return;
+        setSnapshots(data);
+        snapshotsLoadedRef.current = true;
+        void refreshLatestTrialBalanceDate();
+      } catch {
+        if (requestId !== snapshotRequestRef.current) return;
+        if (!force) setSnapshots([]);
+        snapshotsLoadedRef.current = true;
+      } finally {
+        if (requestId === snapshotRequestRef.current) {
+          pendingSnapshotLoadRef.current = null;
+          setSnapshotsLoading(false);
+        }
+      }
+    })();
+    pendingSnapshotLoadRef.current = request;
+    return request;
   }
 
   async function reloadSnapshots() {
-    setSnapshotsLoaded(false);
-    setSnapshotsLoading(true);
-    try {
-      const data = await api.trialBalance.listSnapshots();
-      setSnapshots(data);
-      void refreshLatestTrialBalanceDate();
-    } catch {
-      // keep existing
-    } finally {
-      setSnapshotsLoading(false);
-      setSnapshotsLoaded(true);
-    }
+    snapshotsLoadedRef.current = false;
+    pendingSnapshotLoadRef.current = null;
+    await loadSnapshots(true);
   }
 
   function updateSegment(seg: Segment) {
@@ -110,14 +104,14 @@ export default function TtPage() {
   function handleSegmentChange(val: string) {
     const seg = val as Segment;
     updateSegment(seg);
-    if (seg === "deviation" || seg === "unknown") {
-      loadSnapshots();
-    }
   }
 
   function handleSnapshotSaved(snapshot: ActualBalanceSnapshot) {
+    snapshotRequestRef.current += 1;
+    pendingSnapshotLoadRef.current = null;
     setSnapshots((prev) => (prev ? [snapshot, ...prev] : [snapshot]));
-    setSnapshotsLoaded(true);
+    snapshotsLoadedRef.current = true;
+    setSnapshotsLoading(false);
     updateSegment("deviation");
   }
 
@@ -173,7 +167,7 @@ export default function TtPage() {
       {segment === "actual" && (
         <ActualInputSection
           onSaved={handleSnapshotSaved}
-          onCreditCardStateSaved={setCcState}
+          onCreditCardStateSaved={applyCreditCardState}
           initialCarryForwardDraft={carryForwardDraft}
           onCarryForwardApplied={handleCarryForwardApplied}
         />
@@ -186,7 +180,7 @@ export default function TtPage() {
           ) : (
             <DeviationSection
               snapshots={snapshots ?? []}
-              ccState={ccState}
+              ccState={creditCardState}
               onJournalCreated={reloadSnapshots}
               onCreateFromSnapshot={handleCreateFromSnapshot}
             />

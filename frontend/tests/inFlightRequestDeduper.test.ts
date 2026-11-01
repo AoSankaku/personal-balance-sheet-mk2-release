@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
 import { api } from "../src/api/client";
-import { createInFlightRequestDeduper } from "../src/api/inFlightRequest";
+import {
+  createInFlightRequestDeduper,
+  createInvalidatableInFlightRequestDeduper,
+} from "../src/api/inFlightRequest";
 
 describe("createInFlightRequestDeduper", () => {
   test("shares one request between concurrent callers with the same key", async () => {
@@ -33,6 +36,32 @@ describe("createInFlightRequestDeduper", () => {
 
     await expect(dedupe("key", request)).resolves.toBe(1);
     await expect(dedupe("key", request)).resolves.toBe(2);
+  });
+});
+
+describe("createInvalidatableInFlightRequestDeduper", () => {
+  test("shares pending reads, detaches old reads at a write, and preserves the newer read", async () => {
+    const { dedupe, invalidate } = createInvalidatableInFlightRequestDeduper();
+    let resolveOld!: (value: number) => void;
+    let count = 0;
+    const oldPending = new Promise<number>((resolve) => { resolveOld = resolve; });
+    const old = dedupe("snapshots", () => { count++; return oldPending; });
+    expect(dedupe("snapshots", async () => { count++; return -1; })).toBe(old);
+    invalidate();
+    const fresh = dedupe("snapshots", async () => { count++; return 2; });
+    await expect(fresh).resolves.toBe(2);
+    resolveOld(1);
+    await expect(old).resolves.toBe(1);
+    await expect(dedupe("snapshots", async () => { count++; return 3; })).resolves.toBe(3);
+    expect(count).toBe(3);
+  });
+
+  test("removes failed pending reads so callers can retry", async () => {
+    const { dedupe } = createInvalidatableInFlightRequestDeduper();
+    let count = 0;
+    await expect(dedupe("state", async () => { count++; throw new Error("offline"); })).rejects.toThrow("offline");
+    await expect(dedupe("state", async () => { count++; return []; })).resolves.toEqual([]);
+    expect(count).toBe(2);
   });
 });
 

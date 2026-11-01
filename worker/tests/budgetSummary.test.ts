@@ -6,7 +6,10 @@ import {
   calculateNextCarryover,
   calculateReferenceSpentFromBudgetAllocations,
   calculateSpentFromBudgetAllocations,
+  createBudgetResetPointLookup,
   findLatestResetDateForPeriod,
+  findLatestResetPointForPeriod,
+  groupBudgetEventsByCategoryAndMonth,
   groupBudgetEntryAllocationsByMonth,
   isAfterBudgetResetPoint,
   sumBudgetAdjustmentLogsAfterResetsByPeriod,
@@ -148,6 +151,24 @@ describe("groupBudgetEntryAllocationsByMonth", () => {
     );
 
     expect(grouped.get("2026-05")).toEqual([]);
+  });
+});
+
+describe("groupBudgetEventsByCategoryAndMonth", () => {
+  test("preserves source order while applying actual date ranges and partial cutoffs", () => {
+    const rows = [
+      { budget_category_id: 2, date: "2026-05-02", id: 1 },
+      { budget_category_id: 1, date: "2026-05-03", id: 2 },
+      { budget_category_id: 2, date: "2026-05-03", id: 3 },
+      { budget_category_id: 2, date: "2026-04-30", id: 4 },
+    ];
+    const grouped = groupBudgetEventsByCategoryAndMonth(rows, new Map([
+      ["2026-05", { start: "2026-05-01", end: "2026-05-02" }],
+      ["2026-04", { start: "2026-04-01", end: "2026-04-30" }],
+    ]));
+    expect(grouped.get("2026-05")?.get(2)).toEqual([rows[0]]);
+    expect(grouped.get("2026-05")?.get(1)).toBeUndefined();
+    expect(grouped.get("2026-04")?.get(2)).toEqual([rows[3]]);
   });
 });
 
@@ -509,5 +530,101 @@ describe("findLatestResetDateForPeriod", () => {
         { start: "2026-05-01", end: "2026-05-14" },
       ),
     ).toBeNull();
+  });
+});
+
+describe("createBudgetResetPointLookup", () => {
+  test("matches the range scan across same-day times, null timestamps, and date bounds", () => {
+    const rows = [
+      { budget_category_id: 1, year_month: "2026-04", amount: 0, date: "2026-05-02", created_at: null, adjustment_type: "reset" },
+      { budget_category_id: 1, year_month: "2026-07", amount: 0, date: "2026-05-15", created_at: "2026-05-15 09:00:00", adjustment_type: "reset" },
+      { budget_category_id: 1, year_month: "2026-07", amount: 0, date: "2026-05-15", created_at: "2026-05-15 11:00:00", adjustment_type: "reset" },
+      { budget_category_id: 1, year_month: "2026-05", amount: 0, date: "2026-06-01", created_at: null, adjustment_type: "reset" },
+      { budget_category_id: 2, year_month: "2026-05", amount: 0, date: "2026-05-15", created_at: "2026-05-15 12:00:00", adjustment_type: "reset" },
+    ];
+    const lookup = createBudgetResetPointLookup(rows);
+    expect(lookup(1, { start: "2026-05-01", end: "2026-05-31" })).toEqual({
+      date: "2026-05-15", created_at: "2026-05-15 11:00:00",
+    });
+    expect(lookup(1, { start: "2026-05-16", end: "2026-05-31" })).toBeNull();
+    expect(lookup(2, { start: "2026-05-01", end: "2026-05-31" })).toEqual({
+      date: "2026-05-15", created_at: "2026-05-15 12:00:00",
+    });
+  });
+
+  test("reuses the built index without rescanning source rows for repeated periods", () => {
+    let reads = 0;
+    const rows = Array.from({ length: 128 }, (_, index) => {
+      const categoryId = index + 1;
+      return {
+        get budget_category_id() { reads++; return categoryId; },
+        year_month: "2026-05", amount: 0,
+        get date() { reads++; return "2026-05-15"; },
+        created_at: "2026-05-15 12:00:00", adjustment_type: "reset",
+      };
+    });
+    const lookup = createBudgetResetPointLookup(rows);
+    const readsAfterIndexing = reads;
+    for (let pass = 0; pass < 100; pass++) {
+      expect(lookup(pass + 1, { start: "2026-05-01", end: "2026-05-31" })?.date)
+        .toBe("2026-05-15");
+    }
+    expect(reads).toBe(readsAfterIndexing);
+  });
+
+  test("keeps funding cutoff semantics for null and tied creation timestamps", () => {
+    const rows = [
+      { budget_category_id: 1, year_month: "2026-05", amount: 0, date: "2026-05-01", created_at: "2026-05-01 09:00:00", adjustment_type: "reset" },
+      { budget_category_id: 1, year_month: "2026-05", amount: 0, date: "2026-05-15", created_at: null, adjustment_type: "reset" },
+      { budget_category_id: 1, year_month: "2026-05", amount: 0, date: "2026-05-15", created_at: "2026-05-15 12:00:00", adjustment_type: "reset" },
+      { budget_category_id: 1, year_month: "2026-05", amount: 0, date: "2026-05-15", created_at: "2026-05-15 13:00:00", adjustment_type: "reset" },
+      { budget_category_id: 2, year_month: "2026-05", amount: 0, date: "2026-05-15", created_at: "2026-05-15 14:00:00", adjustment_type: "reset" },
+    ];
+    const lookup = createBudgetResetPointLookup(rows);
+    for (const event of [
+      { date: "2026-05-15", created_at: null },
+      { date: "2026-05-15", created_at: "2026-05-15 12:00:00" },
+      { date: "2026-05-15", created_at: "2026-05-15 12:30:00" },
+      { date: "2026-05-15", created_at: "2026-05-15 15:00:00" },
+      { date: "2026-05-16", created_at: null },
+    ]) {
+      const expected = rows.filter(row => row.budget_category_id === 1 &&
+        row.adjustment_type === "reset" && isAfterBudgetResetPoint(event, row))
+        .map(row => ({ date: row.date, created_at: row.created_at ?? null }))
+        .sort((a, b) => a.date.localeCompare(b.date) || (a.created_at ?? "").localeCompare(b.created_at ?? ""))
+        .at(-1) ?? null;
+      expect(lookup.beforeEvent(1, event)).toEqual(expected);
+    }
+  });
+
+  test("scales repeated period lookup with indexed resets instead of rescanning all rows", () => {
+    const makeRows = (read: () => void) => Array.from({ length: 128 }, (_, index) => {
+      const categoryId = index + 1;
+      return {
+        get budget_category_id() { read(); return categoryId; },
+        year_month: "2026-05", amount: 0,
+        get date() { read(); return "2026-05-15"; },
+        get created_at() { read(); return "2026-05-15 12:00:00"; },
+        get adjustment_type() { read(); return "reset"; },
+      };
+    });
+    let indexedReads = 0;
+    const indexedRows = makeRows(() => indexedReads++);
+    const lookup = createBudgetResetPointLookup(indexedRows);
+    const buildReads = indexedReads;
+    for (let pass = 0; pass < 100; pass++) {
+      expect(lookup(pass + 1, { start: "2026-05-01", end: "2026-05-31" })?.date)
+        .toBe("2026-05-15");
+    }
+    expect(indexedReads).toBe(buildReads);
+
+    let scanReads = 0;
+    const scannedRows = makeRows(() => scanReads++);
+    for (let pass = 0; pass < 100; pass++) {
+      findLatestResetPointForPeriod(scannedRows, pass + 1, {
+        start: "2026-05-01", end: "2026-05-31",
+      });
+    }
+    expect(scanReads).toBeGreaterThan(indexedReads * 20);
   });
 });

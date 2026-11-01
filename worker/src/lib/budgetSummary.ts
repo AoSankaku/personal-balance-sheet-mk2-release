@@ -47,6 +47,17 @@ export interface BudgetResetPoint {
   created_at?: string | null;
 }
 
+export interface BudgetResetPointLookup {
+  (
+  budgetCategoryId: number,
+  dateRange: DateRange,
+  ): BudgetResetPoint | null;
+  beforeEvent(
+    budgetCategoryId: number,
+    event: BudgetTimelineEvent,
+  ): BudgetResetPoint | null;
+}
+
 export interface BudgetTimelineEvent {
   date: string;
   created_at?: string | null;
@@ -89,12 +100,80 @@ export function findLatestResetPointForPeriod(
   return resetPoints.at(-1) ?? null;
 }
 
+/** Builds a request-local, category-indexed reset lookup for repeated periods. */
+export function createBudgetResetPointLookup(
+  rows: BudgetAdjustmentLogForPeriod[],
+): BudgetResetPointLookup {
+  const resetsByCategory = new Map<number, BudgetResetPoint[]>();
+  for (const row of rows) {
+    if (row.adjustment_type !== "reset") continue;
+    let resets = resetsByCategory.get(row.budget_category_id);
+    if (!resets) {
+      resets = [];
+      resetsByCategory.set(row.budget_category_id, resets);
+    }
+    resets.push({ date: row.date, created_at: row.created_at ?? null });
+  }
+
+  for (const resets of resetsByCategory.values()) {
+    resets.sort((a, b) => compareDateAndCreation(a, b));
+  }
+
+  const lookup: BudgetResetPointLookup = (budgetCategoryId, dateRange) => {
+    const resets = resetsByCategory.get(budgetCategoryId);
+    if (!resets) return null;
+
+    // Find the last reset at or before the range end.
+    let low = 0;
+    let high = resets.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (resets[middle]!.date <= dateRange.end) low = middle + 1;
+      else high = middle;
+    }
+    const candidate = resets[low - 1];
+    return candidate && candidate.date >= dateRange.start ? candidate : null;
+  };
+  lookup.beforeEvent = (budgetCategoryId, event) => {
+    const resets = resetsByCategory.get(budgetCategoryId);
+    if (!resets) return null;
+    let firstSameDay = 0;
+    let afterEarlierDates = resets.length;
+    while (firstSameDay < afterEarlierDates) {
+      const middle = (firstSameDay + afterEarlierDates) >>> 1;
+      if (resets[middle]!.date < event.date) firstSameDay = middle + 1;
+      else afterEarlierDates = middle;
+    }
+    const earlier = resets[firstSameDay - 1];
+    if (!event.created_at) return earlier ?? null;
+    let latestSameDay: BudgetResetPoint | null = null;
+    for (let index = firstSameDay; index < resets.length; index++) {
+      const reset = resets[index]!;
+      if (reset.date !== event.date) break;
+      if (!reset.created_at || !(event.created_at > reset.created_at)) continue;
+      if (
+        !latestSameDay ||
+        reset.created_at.localeCompare(latestSameDay.created_at ?? "") >= 0
+      ) latestSameDay = reset;
+    }
+    return latestSameDay ?? earlier ?? null;
+  };
+  return lookup;
+}
+
+function compareDateAndCreation(a: BudgetResetPoint, b: BudgetResetPoint) {
+  return (
+    a.date.localeCompare(b.date) ||
+    (a.created_at ?? "").localeCompare(b.created_at ?? "")
+  );
+}
+
 export function sumBudgetAdjustmentLogsAfterResetsByPeriod(
   rows: BudgetAdjustmentLogForPeriod[],
   dateRangesByYearMonth: Map<string, DateRange>,
+  resetPointFor: BudgetResetPointLookup = createBudgetResetPointLookup(rows),
 ): Map<string, number> {
   const sums = new Map<string, number>();
-  const resetPointByKey = new Map<string, BudgetResetPoint | null>();
 
   for (const row of rows) {
     const range = dateRangesByYearMonth.get(row.year_month);
@@ -102,19 +181,10 @@ export function sumBudgetAdjustmentLogsAfterResetsByPeriod(
     if (row.date < range.start || row.date > range.end) continue;
 
     const key = `${row.budget_category_id}:${row.year_month}`;
-    if (!resetPointByKey.has(key)) {
-      resetPointByKey.set(
-        key,
-        findLatestResetPointForPeriod(
-          rows,
-          row.budget_category_id,
-          range,
-        ),
-      );
-    }
+    const resetPoint = resetPointFor(row.budget_category_id, range);
 
     if (row.adjustment_type === "reset") continue;
-    if (!isAfterBudgetResetPoint(row, resetPointByKey.get(key) ?? null)) {
+    if (!isAfterBudgetResetPoint(row, resetPoint)) {
       continue;
     }
 
@@ -127,9 +197,9 @@ export function sumBudgetAdjustmentLogsAfterResetsByPeriod(
 export function sumManagedMonthlyDepreciationFundingAfterResetsByPeriod(
   rows: ManagedMonthlyDepreciationFundingLogForPeriod[],
   dateRangesByYearMonth: Map<string, DateRange>,
+  resetPointFor: BudgetResetPointLookup = createBudgetResetPointLookup(rows),
 ): Map<string, MonthlyDepreciationFundingAmounts> {
   const sums = new Map<string, MonthlyDepreciationFundingAmounts>();
-  const resetPointByKey = new Map<string, BudgetResetPoint | null>();
 
   for (const row of rows) {
     const range = dateRangesByYearMonth.get(row.year_month);
@@ -152,17 +222,8 @@ export function sumManagedMonthlyDepreciationFundingAfterResetsByPeriod(
     if (!direction) continue;
 
     const key = `${row.budget_category_id}:${row.year_month}`;
-    if (!resetPointByKey.has(key)) {
-      resetPointByKey.set(
-        key,
-        findLatestResetPointForPeriod(
-          rows,
-          row.budget_category_id,
-          range,
-        ),
-      );
-    }
-    if (!isAfterBudgetResetPoint(row, resetPointByKey.get(key) ?? null)) {
+    const resetPoint = resetPointFor(row.budget_category_id, range);
+    if (!isAfterBudgetResetPoint(row, resetPoint)) {
       continue;
     }
 
@@ -220,6 +281,33 @@ export function groupBudgetEntryAllocationsByMonth<
     grouped.get(yearMonth)?.push(row);
   }
 
+  return grouped;
+}
+
+/** Indexes period events once, retaining input order within each bucket. */
+export function groupBudgetEventsByCategoryAndMonth<
+  T extends { budget_category_id: number; date: string },
+>(
+  rows: T[],
+  dateRangesByYearMonth: Map<string, DateRange>,
+): Map<string, Map<number, T[]>> {
+  const grouped = new Map<string, Map<number, T[]>>();
+  for (const row of rows) {
+    const yearMonth = row.date.slice(0, 7);
+    const range = dateRangesByYearMonth.get(yearMonth);
+    if (!range || row.date < range.start || row.date > range.end) continue;
+    let byCategory = grouped.get(yearMonth);
+    if (!byCategory) {
+      byCategory = new Map();
+      grouped.set(yearMonth, byCategory);
+    }
+    let events = byCategory.get(row.budget_category_id);
+    if (!events) {
+      events = [];
+      byCategory.set(row.budget_category_id, events);
+    }
+    events.push(row);
+  }
   return grouped;
 }
 
