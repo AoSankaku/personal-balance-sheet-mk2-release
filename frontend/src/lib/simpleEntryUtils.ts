@@ -2,6 +2,7 @@ import type {
   Account,
   BudgetFilterStep,
   BudgetFilterStepType,
+  CreateJournalInput,
 } from "@balance-sheet/shared";
 
 interface StepAllocationPreview {
@@ -53,6 +54,33 @@ export interface IncomeDistributionItem {
   budget_category_id: number;
   name: string;
   amount: number;
+}
+
+export function buildSimpleEntryLines({
+  debitAccountId,
+  creditAccountId,
+  amount,
+  accounts,
+  creditCardStatementOffsetMonths,
+}: {
+  debitAccountId: number;
+  creditAccountId: number;
+  amount: number;
+  accounts: Account[];
+  creditCardStatementOffsetMonths: number;
+}): CreateJournalInput["lines"] {
+  const creditAccount = accounts.find(account => account.id === creditAccountId);
+  return [
+    { account_id: debitAccountId, debit: amount, credit: 0 },
+    {
+      account_id: creditAccountId,
+      debit: 0,
+      credit: amount,
+      ...(creditAccount?.category === "credit_card"
+        ? { credit_card_billing_offset_months: creditCardStatementOffsetMonths }
+        : {}),
+    },
+  ];
 }
 
 export function getLoanSettlementDifference(

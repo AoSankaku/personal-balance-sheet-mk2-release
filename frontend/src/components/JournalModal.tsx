@@ -28,6 +28,7 @@ import { useDepreciationBudget } from "../context/DepreciationBudgetContext";
 import { usePrivacy } from "../context/PrivacyContext";
 import { api } from "../api/client";
 import { getIncomeTransferDeferralState } from "../lib/incomeTransferScheduling";
+import { isBudgetAsset } from "../../../shared/budgetScope";
 import {
   SimpleEntryForm,
   type HouseholdForm,
@@ -55,10 +56,14 @@ interface Props {
 function detectBusinessAdvanceEntry(
   entry: JournalEntry,
   accounts: Account[],
+  configuredAdvanceAccountId?: number | null,
 ): Partial<HouseholdForm> | null {
   const advanceLine = entry.lines.find((l) => {
     const acct = accounts.find((a) => a.id === l.account_id);
-    return acct && isBusinessAdvanceCategory(acct.category) && l.debit > 0;
+    return acct?.type === "asset" &&
+      (isBusinessAdvanceCategory(acct.category) ||
+        (acct.id === configuredAdvanceAccountId && !isBudgetAsset(acct))) &&
+      l.debit > 0;
   });
   if (!advanceLine) return null;
 
@@ -77,6 +82,8 @@ function detectBusinessAdvanceEntry(
       entryType: "business_advance",
       amount: advanceLine.debit,
       businessAdvanceAccountId: advanceAcct.id,
+      businessAdvanceBudgetCategoryId:
+        entry.budget_allocations?.find(allocation => allocation.amount < 0)?.budget_category_id ?? null,
       expensePaidFromId: paymentLine.account_id,
       businessRatio: 100,
       creditCardStatementOffsetMonths:
@@ -116,11 +123,28 @@ function detectBusinessAdvanceEntry(
   return null;
 }
 
-function detectSimpleEntry(
+export function detectSimpleEntry(
   entry: JournalEntry,
   accounts: Account[],
+  configuredAdvanceAccountId?: number | null,
+  availableBusinessBudgetCategoryIds?: ReadonlySet<number>,
 ): Partial<HouseholdForm> | null {
-  const baResult = detectBusinessAdvanceEntry(entry, accounts);
+  const baResult = detectBusinessAdvanceEntry(entry, accounts, configuredAdvanceAccountId);
+  // Mixed entries do not store separate provenance for their business and
+  // personal allocations. The compound editor preserves the exact saved split.
+  if (baResult && entry.lines.length > 2) return null;
+  if (baResult?.businessAdvanceBudgetCategoryId != null &&
+    availableBusinessBudgetCategoryIds &&
+    !availableBusinessBudgetCategoryIds.has(baResult.businessAdvanceBudgetCategoryId)) return null;
+  if (baResult && entry.lines.length === 2) {
+    const allocations = entry.budget_allocations ?? [];
+    // A single source selector cannot faithfully resave an arbitrary split or
+    // partial budget allocation. Preserve those entries in the compound editor.
+    if (new Set(allocations.map(allocation => allocation.budget_category_id)).size > 1 ||
+      (allocations.length > 0 && Math.abs(
+        allocations.reduce((sum, allocation) => sum + allocation.amount, 0) + (baResult.amount ?? 0),
+      ) > 1e-9)) return null;
+  }
   if (baResult) return baResult;
 
   // 3-line entries (non-business-advance) always open in multi-line tab to prevent data loss
@@ -247,7 +271,11 @@ function detectSimpleEntry(
       incomeTypeId: creditAcct.id,
     };
   }
-  if (debitAcct.type === "asset" && creditAcct.type === "asset") {
+  if (
+    debitAcct.type === "asset" &&
+    (creditAcct.type === "asset" ||
+      (creditAcct.type === "liability" && creditAcct.category === "credit_card"))
+  ) {
     // lend: DR lending-account / CR cash-account
     if (isAnyLendingCategory(debitAcct.category)) {
       return {
@@ -273,6 +301,8 @@ function detectSimpleEntry(
       entryType: "transfer",
       transferToId: debitAcct.id,
       transferFromId: creditAcct.id,
+      creditCardStatementOffsetMonths:
+        creditLine.credit_card_billing_offset_months ?? 0,
     };
   }
   // Loan "decrease" (repay): DR non-cc-liability-main / CR asset counter
@@ -458,7 +488,8 @@ export function JournalModal({
     const isMultilineSource =
       editEntry.budget_allocations?.[0]?.source === "multiline" ||
       editEntry.tag_expense_mode === "manual";
-    const simpleValues = detectSimpleEntry(editEntry, accounts);
+    const simpleValues = detectSimpleEntry(editEntry, accounts, budgetSettings?.business_advance_account_id,
+      new Set(budgetCategories.filter(category => !category.is_archived).map(category => category.id)));
 
     if (!simpleValues) {
       return {
@@ -634,7 +665,8 @@ export function JournalModal({
       editEntry.depreciation_entry_kind === "source" ||
       (editEntry.tag_expense_mode !== "manual" &&
         editEntry.budget_allocations?.[0]?.source !== "multiline" &&
-        detectSimpleEntry(editEntry, accounts) != null);
+        detectSimpleEntry(editEntry, accounts, budgetSettings?.business_advance_account_id,
+          new Set(budgetCategories.filter(category => !category.is_archived).map(category => category.id))) != null);
     setActiveTab(canUseSimple ? "simple" : "multi");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, editEntry?.id]);

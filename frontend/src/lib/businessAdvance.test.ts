@@ -4,6 +4,7 @@ import {
   buildBusinessAdvanceJournalPayload,
   requiresExpenseAccountForSimpleEntry,
   splitBusinessExpenseAmount,
+  sumCurrencyBalance,
 } from "./businessAdvance";
 
 const accounts = [
@@ -45,6 +46,20 @@ describe("business advance entries", () => {
       businessAmount: 99.99,
       personalAmount: 0,
     });
+  });
+
+  test("keeps nine-decimal currency amounts at their configured precision", () => {
+    expect(splitBusinessExpenseAmount(1.000000001, 50, 9)).toEqual({
+      businessAmount: 0.500000001,
+      personalAmount: 0.5,
+    });
+  });
+
+  test("sums debit and credit values in currency minor units", () => {
+    expect(sumCurrencyBalance([
+      { debit: 0.3, credit: 0 },
+      { debit: 0, credit: 0.2 },
+    ], 2)).toBe(0.1);
   });
 
   test("deducts a selected budget once when sending tracked funds to the business", () => {
@@ -111,5 +126,26 @@ describe("business advance entries", () => {
       { account_id: 3, debit: 0, credit: 125.75, currency: "USD" },
     ]);
     expect(result.budget_allocations).toBeUndefined();
+  });
+
+  test("rejects a budget-tracked advance asset and identical source and destination", () => {
+    const trackedAdvance = {
+      ...accounts[0]!,
+      id: 11,
+      category: "cash",
+      include_in_allocatable: true,
+    } as Account;
+    expect(() => buildBusinessAdvanceJournalPayload({
+      ...base,
+      kind: "send",
+      advanceAccount: trackedAdvance,
+      otherAccount: accounts[0]!,
+    })).toThrow();
+
+    expect(() => buildBusinessAdvanceJournalPayload({
+      ...base,
+      kind: "send",
+      otherAccount: base.advanceAccount,
+    })).toThrow();
   });
 });

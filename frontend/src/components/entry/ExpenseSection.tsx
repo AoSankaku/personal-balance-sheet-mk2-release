@@ -26,9 +26,10 @@ import type {
 } from "@balance-sheet/shared";
 import { useLang } from "../../i18n";
 import { useAppData } from "../../context/AppDataContext";
+import { formatCurrency } from "../../lib/numberFormat";
 import { renderAccountOption, type AccountOption } from "../../lib/accountSelect";
 import { getEffectiveSymbol } from "../../lib/currencyUtils";
-import { formatCurrency } from "../../lib/numberFormat";
+import { requiresExpenseAccountForSimpleEntry } from "../../lib/businessAdvance";
 import {
   computeBudgetDistributionAmounts,
   formatBudgetDistributionRatio,
@@ -48,10 +49,11 @@ interface Props {
   expenseOptions: SelectData[];
   expenseOnlyOptions: AccountOption[];
   paidFromOptions: SelectData[];
-  assetOptions: AccountOption[];
+  businessAdvanceAccountOptions: AccountOption[];
   depreciableAssetOptions: AccountOption[];
   selectedPaymentAccount: Account | undefined;
   budgetSettings: BudgetSettings | null;
+  businessBudgetOptions: { value: string; label: string }[];
   budgetDist: BudgetDistributionItem[];
   showZeroCategories: boolean;
   setShowZeroCategories: React.Dispatch<React.SetStateAction<boolean>>;
@@ -111,10 +113,11 @@ export function ExpenseSection({
   expenseOptions,
   expenseOnlyOptions,
   paidFromOptions,
-  assetOptions,
+  businessAdvanceAccountOptions,
   depreciableAssetOptions,
   selectedPaymentAccount,
   budgetSettings,
+  businessBudgetOptions,
   budgetDist,
   showZeroCategories,
   setShowZeroCategories,
@@ -152,13 +155,29 @@ export function ExpenseSection({
   handleBudgetAmountChange,
 }: Props) {
   const { t, locale } = useLang();
-  const { displayCurrencySymbol: currencySymbol, enabledCurrencies } =
-    useAppData();
+  const {
+    displayCurrency,
+    displayCurrencySymbol: currencySymbol,
+    enabledCurrencies,
+  } = useAppData();
+  const entryCurrency = displayCurrency || "JPY";
+  const currencyDecimalPlaces =
+    enabledCurrencies.find((currency) => currency.code === entryCurrency)
+      ?.decimal_places ?? 0;
   const depreciationCurrencySymbol = getEffectiveSymbol(
     depreciationCurrency,
     enabledCurrencies,
   );
+  const expenseAccountRequired = requiresExpenseAccountForSimpleEntry(
+    form.values.entryType,
+    form.values.businessRatio ?? 100,
+    depreciationEnabled &&
+      (form.values.entryType !== "business_advance" || personalAmount > 0),
+  );
   const entryType = form.values.entryType;
+  const effectiveDepreciationEnabled =
+    depreciationEnabled &&
+    (entryType !== "business_advance" || personalAmount > 0);
 
   const purchaseAmountInput = (
     <NumberInput
@@ -168,6 +187,7 @@ export function ExpenseSection({
       min={0}
       prefix={currencySymbol}
       thousandSeparator=","
+      decimalScale={currencyDecimalPlaces}
       {...form.getInputProps("amount")}
     />
   );
@@ -260,6 +280,7 @@ export function ExpenseSection({
               min={0}
               max={form.values.amount}
               prefix={currencySymbol}
+              decimalScale={currencyDecimalPlaces}
               thousandSeparator=","
               hideControls
               value={businessAmount}
@@ -296,7 +317,13 @@ export function ExpenseSection({
               {personalRatio}%
             </Text>
             <Text size="xs" fw={600} c="dimmed" w={110} ta="right">
-              ¥{personalAmount.toLocaleString()}
+              {formatCurrency(
+                personalAmount,
+                locale,
+                entryCurrency,
+                currencySymbol,
+                currencyDecimalPlaces,
+              )}
             </Text>
           </Group>
         </Stack>
@@ -304,7 +331,9 @@ export function ExpenseSection({
       <Select
         label={t("businessAdvanceAccountLabel")}
         placeholder={t("selectAccount")}
-        data={assetOptions}
+        data={businessAdvanceAccountOptions.filter(
+          (option) => option.value !== String(form.values.expensePaidFromId),
+        )}
         searchable={!isMobile}
         required
         value={
@@ -317,6 +346,25 @@ export function ExpenseSection({
         }
         error={form.errors.businessAdvanceAccountId}
         renderOption={renderAccountOption as any}
+      />
+      <Select
+        label={t("businessAdvanceBudgetSourceLabel")}
+        description={t("businessAdvanceBudgetSourceHint")}
+        placeholder={t("businessAdvanceBudgetUnallocated")}
+        data={businessBudgetOptions}
+        searchable={!isMobile}
+        clearable
+        value={
+          form.values.businessAdvanceBudgetCategoryId != null
+            ? String(form.values.businessAdvanceBudgetCategoryId)
+            : null
+        }
+        onChange={(value) =>
+          form.setFieldValue(
+            "businessAdvanceBudgetCategoryId",
+            value ? Number(value) : null,
+          )
+        }
       />
     </>
   ) : null;
@@ -492,12 +540,13 @@ export function ExpenseSection({
       {onDepreciationSubmit && (
         <Switch
           label={t("depreciationLabel")}
-          checked={depreciationEnabled}
+          checked={effectiveDepreciationEnabled}
+          disabled={entryType === "business_advance" && personalAmount <= 0}
           onChange={(e) => setDepreciationEnabled(e.currentTarget.checked)}
         />
       )}
 
-          {!depreciationEnabled && (
+          {expenseAccountRequired && (
             <Select
               label={t("categoryLabel")}
               placeholder={t("selectAccount")}
@@ -515,7 +564,7 @@ export function ExpenseSection({
             />
           )}
 
-          {depreciationEnabled ? (
+          {effectiveDepreciationEnabled ? (
             installmentFields
           ) : (
             <>

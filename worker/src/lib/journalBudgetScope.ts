@@ -1,10 +1,11 @@
-import { inArray } from "drizzle-orm";
+import { getTableColumns, inArray, sql } from "drizzle-orm";
 import { isBudgetAccount, isBudgetAsset } from "../../../shared/budgetScope";
 import { calculateJournalIncomeBudgetImpact } from "../../../shared/journalIncomeBudget";
 import { createDb } from "../db";
 import { accounts } from "../db/schema";
 import { splitAmountByLargestRemainder } from "./budgetFundingImpact";
 import { fromStorageMoneyAmount, moneyScale, toStorageMoneyAmount, type MoneyScaleOptions } from "./moneyValidation";
+import { normalizeBusinessAdvanceBudgetAllocations } from "./businessAdvanceBudgetScope";
 
 interface Allocation { budget_category_id: number; amount: number; currency?: string; is_reference?: boolean }
 interface BudgetEntryInput {
@@ -19,7 +20,16 @@ interface BudgetEntryInput {
 export async function normalizeJournalBudgetScope(
   db: ReturnType<typeof createDb>, body: BudgetEntryInput, scale: MoneyScaleOptions,
 ): Promise<string | null> {
-  const rows = await db.select().from(accounts).where(inArray(accounts.id, [...new Set(body.lines.map((line) => line.account_id))]));
+  const accountRows = await db.select({
+    ...getTableColumns(accounts),
+    is_configured_advance: sql<number>`${accounts.id} = (SELECT business_advance_account_id FROM budget_settings WHERE id = 1)`,
+  }).from(accounts).where(inArray(accounts.id, [...new Set(body.lines.map((line) => line.account_id))]));
+  // Existing settings allow legacy non-budget asset categories. Normalize only
+  // their calculation role so excluded cash and investment logic stay separate.
+  const rows = accountRows.map(account => account.type === "asset" &&
+    account.is_configured_advance && !isBudgetAsset(account)
+    ? { ...account, category: "business_advance" as const }
+    : account);
   const byId = new Map(rows.map((account) => [account.id, account]));
   if (body.is_currency_exchange && rows.some((account) => account.type !== "asset" && account.type !== "liability")) {
     return "Currency exchange accounts must be assets or liabilities";
@@ -106,6 +116,14 @@ export async function normalizeJournalBudgetScope(
       }
     }
     if (!allocations.length) continue;
+    const businessScope = normalizeBusinessAdvanceBudgetAllocations({
+      lines, accounts: rows, allocations, currency, scale,
+    });
+    if (businessScope) {
+      if (businessScope.error) return businessScope.error;
+      normalized.push(...businessScope.allocations);
+      continue;
+    }
     const active = allocations.filter((allocation) => !allocation.is_reference);
     const references = allocations.filter((allocation) => allocation.is_reference);
     // For one-sided expenses/refunds, explicit allocations apply up to the tracked

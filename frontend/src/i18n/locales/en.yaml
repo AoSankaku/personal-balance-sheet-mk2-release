@@ -814,14 +814,21 @@ depreciationSettingsTitle: "Budget installment transfers (depreciation) settings
 depreciationSettingsHint: "Choose the expense account used for monthly expense entries."
 depreciationAccountNone: "No account selected"
 businessOwnerSettingsTitle: Business Owner Advance Settings
-businessOwnerSettingsHint: Configure accounts for recording business expense advances as a sole proprietor.
+businessOwnerSettingsHint: Configure the asset account used to track business advances. Budget-eligible cash accounts cannot be used for this account.
 isBusinessOwner: I am a sole proprietor (個人事業主)
 businessAdvanceAccountLabel: Business advance account (事業立替金科目)
-businessAdvanceAccountDesc: Asset account that records amounts owed to you by the business.
+businessAdvanceAccountDesc: Asset account that records amounts owed to you by the business. Choose an asset account excluded from budgets.
+businessAdvanceAccountBudgetWarningTitle: Check the business advance account
+businessAdvanceAccountBudgetWarning: The configured account is included in budget cash. Change it to a dedicated asset account excluded from budgets.
 businessLossAccountLabel: Loss disposal account
 businessLossAccountDesc: Expense account used when writing off an advance as irrecoverable.
 businessAdvanceBudgetCategoryLabel: Budget source for advances
 businessAdvanceBudgetCategoryDesc: Budget category from which the business portion is deducted.
+businessAdvanceBudgetSourceLabel: Budget source for business transfers
+businessAdvanceBudgetSourceHint: Selecting a category deducts the transfer from that budget. Leave it blank to keep the transfer unallocated.
+businessAdvanceBudgetUnallocated: Unallocated
+businessAdvanceUntrackedSourceHint: This source is excluded from budget cash, so the category is recorded for reference without a balance deduction.
+businessAdvanceRecoveryBudgetHint: Returned cash stays unallocated and does not restore the former budget.
 transactionTypeBusinessAdvance: Business Advance
 businessRatioLabel: Business use ratio
 businessRatioDesc: Portion of this expense that is a business cost.
@@ -829,6 +836,10 @@ businessAdvanceSplitBusiness: "Business:"
 businessAdvanceSplitPersonal: "Personal:"
 personalPortionLabel: Personal portion
 tabBusinessAdvanceProcess: Advance Processing
+businessAdvanceSendMode: Send to business
+businessAdvanceSendFromLabel: Send from account
+businessAdvanceSendDesc: Transfer to business
+businessAdvanceAmountExceedsBalance: The amount exceeds the advance balance on this date.
 businessAdvanceModeTransfer: Transfer (reimburse)
 businessAdvanceModeDispose: Dispose as loss
 businessAdvanceTransferDesc: Business advance reimbursement

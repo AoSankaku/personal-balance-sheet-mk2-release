@@ -35,6 +35,7 @@ import {
 import { isBudgetAccount, isBudgetAsset } from "../../../shared/budgetScope";
 import {
   buildExpenseBudgetAllocations,
+  buildSimpleEntryLines,
   computeBudgetDistributionAmounts,
   type StepPreview,
   computeFilterSteps,
@@ -91,6 +92,10 @@ import {
 } from "../lib/incomeBudgetScope";
 import { resolveIncomeTransferAccounts } from "../lib/incomeTransferAccounts";
 import { buildSimpleExpenseTagFields } from "../lib/expenseTagInput";
+import {
+  requiresExpenseAccountForSimpleEntry,
+  splitBusinessExpenseAmount,
+} from "../lib/businessAdvance";
 
 type EntryType =
   | "expense"
@@ -122,6 +127,7 @@ interface HouseholdForm {
   amount: number;
   // business_advance fields
   businessAdvanceAccountId: number | null;
+  businessAdvanceBudgetCategoryId: number | null;
   businessRatio: number; // 0–100 (%) of the amount that is a business expense
   creditCardStatementOffsetMonths: number;
 }
@@ -419,7 +425,6 @@ export function SimpleEntryForm({
         createDepreciationIdempotencyKey(),
     );
   const depreciationEnabledRef = useRef(false);
-  depreciationEnabledRef.current = depreciationEnabled;
 
   // (business_advance has no extra local state — ratio fields are in the form)
 
@@ -498,9 +503,24 @@ export function SimpleEntryForm({
   const assetOptions = [...accounts.filter((a) => a.type === "asset")]
     .sort(sortCmp)
     .map(toOpt);
-  // Transfer "from" also allows opening_balance equity accounts (for 元入金 editing)
+  const businessAdvanceAccountOptions = accounts
+    .filter(
+      (account) =>
+        account.type === "asset" &&
+        !isBudgetAsset(account),
+    )
+    .sort(sortCmp)
+    .map(toOpt);
+  const businessBudgetOptions = budgetCategories
+    .filter((category) => !category.is_archived)
+    .map((category) => ({ value: String(category.id), label: category.name }));
+  // Card-funded charges and opening balances can also fund an asset transfer.
   const transferFromOptions = [
     ...assetOptions,
+    ...accounts
+      .filter((a) => a.type === "liability" && a.category === "credit_card")
+      .sort(sortCmp)
+      .map(toOpt),
     ...[
       ...accounts.filter(
         (a) => a.type === "equity" && a.category === "opening_balance",
@@ -702,6 +722,15 @@ export function SimpleEntryForm({
       amount: 0,
       businessAdvanceAccountId:
         budgetSettings?.business_advance_account_id ?? null,
+      businessAdvanceBudgetCategoryId:
+        budgetSettings?.business_advance_budget_category_id != null &&
+        budgetCategories.some(
+          (category) =>
+            category.id === budgetSettings.business_advance_budget_category_id &&
+            !category.is_archived,
+        )
+          ? budgetSettings.business_advance_budget_category_id
+          : null,
       businessRatio: 100,
       creditCardStatementOffsetMonths: 0,
       ...initialDraft?.formValues,
@@ -722,10 +751,11 @@ export function SimpleEntryForm({
           : null;
       },
       expenseCategoryId: (v, vals) =>
-        (vals.entryType === "expense" ||
-          vals.entryType === "business_advance") &&
-        !depreciationEnabledRef.current &&
-        v == null
+        requiresExpenseAccountForSimpleEntry(
+          vals.entryType,
+          vals.businessRatio ?? 100,
+          depreciationEnabledRef.current,
+        ) && v == null
           ? t("selectAccount")
           : null,
       expensePaidFromId: (v, vals) =>
@@ -747,14 +777,34 @@ export function SimpleEntryForm({
       loanCounterAccountId: (v, vals) =>
         vals.entryType === "loan" && v == null ? t("selectAccount") : null,
       businessAdvanceAccountId: (v, vals) =>
-        vals.entryType === "business_advance" && v == null
+        vals.entryType === "business_advance" &&
+        (v == null ||
+          v === vals.expensePaidFromId ||
+          !accounts.some(
+            (account) =>
+              account.id === v &&
+              account.type === "asset" &&
+              !isBudgetAsset(account),
+          ))
           ? t("selectAccount")
           : null,
       amount: (v) => (v <= 0 ? t("amountMustBePositive") : null),
     },
   });
+  const formBusinessSplit = splitBusinessExpenseAmount(
+    form.values.amount,
+    form.values.businessRatio ?? 100,
+    currencyDecimalPlaces,
+  );
+  depreciationEnabledRef.current =
+    depreciationEnabled &&
+    (form.values.entryType !== "business_advance" ||
+      formBusinessSplit.personalAmount > 0);
   const selectedPaymentAccount = accounts.find(
     (account) => account.id === form.values.expensePaidFromId,
+  );
+  const selectedTransferFromAccount = accounts.find(
+    (account) => account.id === form.values.transferFromId,
   );
   const usesReferenceBudgetAllocations = Boolean(
     selectedPaymentAccount?.type === "asset" &&
@@ -879,6 +929,11 @@ export function SimpleEntryForm({
   ]);
 
   async function doSubmit(values: HouseholdForm) {
+    const businessSplit = splitBusinessExpenseAmount(
+      values.amount,
+      values.businessRatio ?? 100,
+      currencyDecimalPlaces,
+    );
     const submittedDepreciationSettings = depreciationBudgetSettings?.method
       ? snapshotDepreciationMonthlySourceSettings(
           depreciationBudgetSettings,
@@ -891,11 +946,7 @@ export function SimpleEntryForm({
       depreciationEnabled &&
       (values.entryType === "expense" ||
         (values.entryType === "business_advance" &&
-          values.amount -
-            Math.round(
-              (values.amount * (values.businessRatio ?? 100)) / 100,
-            ) >
-            0));
+          businessSplit.personalAmount > 0));
     if (createsDepreciationSchedule) {
       if (!submittedDepreciationSettings?.method) {
         throw new Error(t("depreciationBudgetMethodRequired"));
@@ -962,6 +1013,16 @@ export function SimpleEntryForm({
       allocations?.map((allocation) => ({
         ...allocation,
         is_reference: usesReferenceBudgetAllocations,
+      }));
+    const markBusinessAdvanceReference = <
+      T extends { budget_category_id: number; amount: number },
+    >(
+      allocations: T[] | undefined,
+    ) =>
+      allocations?.map((allocation) => ({
+        ...allocation,
+        is_reference:
+          usesReferenceBudgetAllocations || !isBudgetAccount(paymentAccount),
       }));
     const expenseTagFields = buildSimpleExpenseTagFields(expenseTags);
     // ── Depreciation path ──────────────────────────────────────────────
@@ -1045,12 +1106,18 @@ export function SimpleEntryForm({
     // ── Business advance path ───────────────────────────────────────────
     if (values.entryType === "business_advance") {
       const totalAmount = values.amount;
-      const businessAmount = Math.round(
-        (totalAmount * (values.businessRatio ?? 100)) / 100,
-      );
-      const personalAmount = totalAmount - businessAmount;
+      const { businessAmount, personalAmount } = businessSplit;
       const advanceAccountId = values.businessAdvanceAccountId!;
       const paymentAccountId = values.expensePaidFromId!;
+      const advanceAccount = accounts.find((account) => account.id === advanceAccountId);
+      if (
+        !advanceAccount ||
+        advanceAccount.type !== "asset" ||
+        isBudgetAsset(advanceAccount) ||
+        advanceAccountId === paymentAccountId
+      ) {
+        return;
+      }
       const date = transactionDate;
 
       // ── Depreciation + business advance ──────────────────────────────
@@ -1086,8 +1153,13 @@ export function SimpleEntryForm({
         } satisfies CreateDepreciationInput);
       } else if (businessAmount > 0 && personalAmount > 0) {
         // Split entry: DR advance + DR expense / CR payment
-        const advanceBudgetCatId =
-          budgetSettings?.business_advance_budget_category_id ?? null;
+        const advanceBudgetCatId = budgetCategories.some(
+          (category) =>
+            category.id === values.businessAdvanceBudgetCategoryId &&
+            !category.is_archived,
+        )
+          ? values.businessAdvanceBudgetCategoryId
+          : null;
         const personalBudgetAllocs =
           budgetDist.length > 0 && personalAmount > 0
             ? buildExpenseBudgetAllocations(personalAmount, budgetDist, -1, currencyDecimalPlaces)
@@ -1101,7 +1173,7 @@ export function SimpleEntryForm({
                 },
               ]
             : []),
-          ...personalBudgetAllocs,
+          ...(markBusinessAdvanceReference(personalBudgetAllocs) ?? []),
         ];
         await onSubmit({
           date,
@@ -1121,15 +1193,20 @@ export function SimpleEntryForm({
             },
           ],
           budget_allocations: budget_allocations.length
-            ? markReference(budget_allocations)
+            ? markBusinessAdvanceReference(budget_allocations)
             : undefined,
           budget_source: "simple",
           ...expenseTagFields,
         });
       } else if (businessAmount >= totalAmount) {
         // 100% business — simple 2-line entry to advance account
-        const advanceBudgetCatId =
-          budgetSettings?.business_advance_budget_category_id ?? null;
+        const advanceBudgetCatId = budgetCategories.some(
+          (category) =>
+            category.id === values.businessAdvanceBudgetCategoryId &&
+            !category.is_archived,
+        )
+          ? values.businessAdvanceBudgetCategoryId
+          : null;
         await onSubmit({
           date,
           description: values.description,
@@ -1143,7 +1220,7 @@ export function SimpleEntryForm({
             },
           ],
           budget_allocations: advanceBudgetCatId
-            ? markReference([
+            ? markBusinessAdvanceReference([
                 {
                   budget_category_id: advanceBudgetCatId,
                   amount: -totalAmount,
@@ -1175,7 +1252,7 @@ export function SimpleEntryForm({
               ...paymentOffset,
             },
           ],
-          budget_allocations: markReference(budget_allocations),
+          budget_allocations: markBusinessAdvanceReference(budget_allocations),
           budget_source: "simple",
           ...expenseTagFields,
         });
@@ -1601,22 +1678,13 @@ export function SimpleEntryForm({
     await onSubmit({
       date: transactionDate,
       description: submitDescription,
-      lines: [
-        { account_id: debitId, debit: values.amount, credit: 0 },
-        {
-          account_id: creditId,
-          debit: 0,
-          credit: values.amount,
-          ...(values.entryType === "expense" &&
-          accounts.find((account) => account.id === creditId)?.category ===
-            "credit_card"
-            ? {
-                credit_card_billing_offset_months:
-                  values.creditCardStatementOffsetMonths,
-              }
-            : {}),
-        },
-      ],
+      lines: buildSimpleEntryLines({
+        debitAccountId: debitId,
+        creditAccountId: creditId,
+        amount: values.amount,
+        accounts,
+        creditCardStatementOffsetMonths: values.creditCardStatementOffsetMonths,
+      }),
       budget_allocations: markReference(budget_allocations),
       budget_source: "simple",
       ...expenseTagFields,
@@ -1964,11 +2032,14 @@ export function SimpleEntryForm({
     100,
     Math.max(0, form.values.businessRatio ?? 0),
   );
-  const businessAmount =
-    form.values.amount > 0
-      ? Math.round((form.values.amount * businessRatio) / 100)
-      : 0;
-  const personalAmount = Math.max(0, form.values.amount - businessAmount);
+  const { businessAmount, personalAmount } = splitBusinessExpenseAmount(
+    form.values.amount,
+    businessRatio,
+    currencyDecimalPlaces,
+  );
+  const effectiveDepreciationEnabled =
+    depreciationEnabled &&
+    (entryType !== "business_advance" || personalAmount > 0);
   const depreciationTotalAmount =
     entryType === "business_advance" ? personalAmount : form.values.amount;
   const depreciationMonthsForPreview =
@@ -2238,7 +2309,7 @@ export function SimpleEntryForm({
     <form
       onSubmit={form.onSubmit(handleSubmit)}
       style={
-        depreciationEnabled &&
+        effectiveDepreciationEnabled &&
         (entryType === "expense" || entryType === "business_advance")
           ? { maxWidth: 1040, marginInline: "auto" }
           : undefined
@@ -2286,10 +2357,11 @@ export function SimpleEntryForm({
               expenseOptions={expenseOptions}
               expenseOnlyOptions={expenseOnlyOptions}
               paidFromOptions={paidFromOptions}
-              assetOptions={assetOptions}
+              businessAdvanceAccountOptions={businessAdvanceAccountOptions}
               depreciableAssetOptions={depreciableAssetOptions}
               selectedPaymentAccount={selectedPaymentAccount}
               budgetSettings={budgetSettings}
+              businessBudgetOptions={businessBudgetOptions}
               budgetDist={budgetDist}
               showZeroCategories={showZeroCategories}
               setShowZeroCategories={setShowZeroCategories}
@@ -2326,7 +2398,7 @@ export function SimpleEntryForm({
               handleRatioChange={handleRatioChange}
               handleBudgetAmountChange={handleBudgetAmountChange}
             />
-            {depreciationEnabled && (
+            {effectiveDepreciationEnabled && (
               <Alert color="blue" variant="light" icon={<IconInfoCircle size={18} />}>
                 {t("expenseTagsUnavailableForDepreciation")}
               </Alert>
@@ -2341,7 +2413,7 @@ export function SimpleEntryForm({
                 {t("budgetReferenceAllocationHint")}
               </Alert>
             )}
-            {!depreciationEnabled && (entryType === "expense" || expenseTags.length > 0) && (
+            {!effectiveDepreciationEnabled && (entryType === "expense" || expenseTags.length > 0) && (
               <ExpenseTagInput
                 label={t("expenseTagsLabel")}
                 placeholder={t("expenseTagsPlaceholder")}
@@ -2478,11 +2550,28 @@ export function SimpleEntryForm({
                 form.setValues({
                   transferFromId: v ? Number(v) : null,
                   transferBudgetSourceCategoryId: null,
+                  creditCardStatementOffsetMonths: 0,
                 })
               }
               error={form.errors.transferFromId}
               renderOption={renderAccountOption as any}
             />
+            {selectedTransferFromAccount?.category === "credit_card" && (
+              <NumberInput
+                label={t("creditCardStatementOffsetLabel")}
+                description={t("creditCardStatementOffsetHint")}
+                min={0}
+                max={12}
+                allowDecimal={false}
+                value={form.values.creditCardStatementOffsetMonths}
+                onChange={(v) =>
+                  form.setFieldValue(
+                    "creditCardStatementOffsetMonths",
+                    Number(v) || 0,
+                  )
+                }
+              />
+            )}
             <Select
               label={t("toAccountLabel")}
               placeholder={t("selectAccount")}
@@ -2612,7 +2701,7 @@ export function SimpleEntryForm({
             <Button
               type="submit"
               disabled={
-                depreciationEnabled &&
+                effectiveDepreciationEnabled &&
                 (entryType === "expense" || entryType === "business_advance") &&
                 depreciableAssetOptions.length === 0
               }
