@@ -188,4 +188,13 @@ describe("simple credit card transfers", () => {
     ];
     expect(detectSimpleEntry(saved, accounts)).toBeNull();
   });
+
+  test("keeps an unavailable historical business budget in the compound editor", () => {
+    const saved = entry(3, 8);
+    saved.budget_allocations = [{ budget_category_id: 42, amount: -3000 }];
+    expect(detectSimpleEntry(saved, accounts, null, new Set<number>())).toBeNull();
+    expect(detectSimpleEntry(saved, accounts, null, new Set([42]))).toMatchObject({
+      businessAdvanceBudgetCategoryId: 42,
+    });
+  });
 });
