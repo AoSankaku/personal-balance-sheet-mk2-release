@@ -132,6 +132,18 @@ describe("business advance budget boundaries", () => {
     expect(database.sqlite.query("SELECT * FROM journal_lines WHERE journal_entry_id=?").all(saved.id)).toEqual(before);
   });
 
+  test("sums large USD funding sources in storage units without floating precision errors", async () => {
+    const database = fixture();
+    database.sqlite.exec("INSERT INTO accounts(id,name,type,category,include_in_allocatable) VALUES(1009,'Second bank','asset','cash',1)");
+    const body = send(1001, 1_000_000.09, "USD");
+    body.lines[1]!.credit = 1_000_000.03;
+    body.lines.push({ account_id: 1009, debit: 0, credit: 0.06, currency: "USD" });
+    expect((await request(database, body)).status).toBe(201);
+    expect(database.sqlite.query("SELECT amount,is_reference FROM journal_entry_budget_allocations").all()).toEqual([
+      { amount: -100000009, is_reference: 0 },
+    ]);
+  });
+
   test("returns a recovery to unallocated money without restoring a reset budget", async () => {
     const database = fixture();
     expect((await request(database, send())).status).toBe(201);

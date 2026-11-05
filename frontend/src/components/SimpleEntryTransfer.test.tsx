@@ -176,4 +176,16 @@ describe("simple credit card transfers", () => {
     ];
     expect(detectSimpleEntry(saved, accounts)).toBeNull();
   });
+
+  test("keeps a mixed business entry in the compound editor to preserve budget provenance and amounts", () => {
+    const saved = entry(3, 8);
+    saved.lines[0]!.debit = 1234;
+    saved.lines.push({ id: 13, journal_entry_id: 10, account_id: 6,
+      account_name: "Transport", debit: 1766, credit: 0, currency: "JPY" });
+    saved.budget_allocations = [
+      { budget_category_id: 41, amount: -1234 },
+      { budget_category_id: 42, amount: -1766 },
+    ];
+    expect(detectSimpleEntry(saved, accounts)).toBeNull();
+  });
 });
