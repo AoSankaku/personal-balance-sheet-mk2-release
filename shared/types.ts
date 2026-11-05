@@ -588,8 +588,12 @@ export interface BudgetCategorySummary {
   reset_date?: string | null;
   total_budget: number;
   spent: number;
-  /** Reference-classified portion of spent for the selected month. */
+  /** Reference allocations reported separately and excluded from consumption in the selected month. */
   reference_spent?: number;
+  /** Managed monthly depreciation top-ups transferred out since the latest category reset this month. */
+  depreciation_funding_out?: number;
+  /** Managed monthly depreciation top-ups transferred in since the latest category reset this month. */
+  depreciation_funding_in?: number;
   /** Reference spending since the latest category reset, reserved from allocatable money. */
   reference_reserve?: number;
   /** Depreciation recognized in the selected month. */
@@ -632,7 +636,7 @@ export interface BudgetSummary {
   categories: BudgetCategorySummary[];
   total_budget: number;
   total_spent: number;
-  /** Reference-classified portion of total_spent for the selected month. */
+  /** Reference allocations reported separately and excluded from consumption in the selected month. */
   total_reference_spent?: number;
   /** Reference spending reserved from allocatable money after category resets. */
   total_reference_reserve?: number;

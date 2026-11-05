@@ -25,7 +25,6 @@ import type {
   Account,
   ActualBalanceSnapshot,
   CompleteCreditCardStatementInput,
-  CreditCardSettings,
   CreditCardStatementCompletion,
   CreditCardStateEntry,
 } from "@balance-sheet/shared";
@@ -37,6 +36,7 @@ import { CATEGORY_TRANSLATION_KEY } from "../../lib/accountUtils";
 import { getEffectiveSymbol } from "../../lib/currencyUtils";
 import { formatCurrency } from "../../lib/numberFormat";
 import { getSelectableZeroAmountCompletions } from "../../lib/creditCardStatementCompletion";
+import { mergeCreditCardDraftRows } from "../../lib/creditCardDraftSeeding";
 import type { TrialBalanceCarryForwardDraft } from "../../lib/trialBalanceCarryForward";
 import { CryptoWatchModal } from "../CryptoWatchModal";
 import {
@@ -83,6 +83,9 @@ export function ActualInputSection({
     creditCardStatementCompletions,
     refreshCreditCardStatementCompletions,
     refreshLatestTrialBalanceDate,
+    creditCardState: ccState,
+    creditCardStateLoaded: ccStateLoaded,
+    creditCardSettings: ccSettings,
   } = useAppData();
   const getDisplayName = useAccountDisplayName();
 
@@ -92,9 +95,8 @@ export function ActualInputSection({
     {},
   );
   const [saving, setSaving] = useState(false);
-  const [ccSettings, setCcSettings] = useState<CreditCardSettings[]>([]);
-  const [ccState, setCcState] = useState<CreditCardStateEntry[]>([]);
-  const [ccStateLoaded, setCcStateLoaded] = useState(false);
+  const seededCreditCardAccountsRef = useRef(new Set<number>());
+  const suppressedCreditCardMonthsRef = useRef(new Map<number, Set<string>>());
   const [mode, setMode] = useState<"general" | "credit_card">("general");
   const [carryForwardSourceDate, setCarryForwardSourceDate] = useState<
     string | null
@@ -130,22 +132,6 @@ export function ActualInputSection({
     setFetchedCryptoBalances(new Map());
     manuallyEditedGeneralAccountIds.current = new Set();
   }, [selectedCurrency]);
-
-  useEffect(() => {
-    api.creditCardSettings
-      .list()
-      .then(setCcSettings)
-      .catch(() => {});
-    api.trialBalance
-      .getCreditCardState()
-      .then((data) => {
-        setCcState(data);
-        setCcStateLoaded(true);
-      })
-      .catch(() => {
-        setCcStateLoaded(true);
-      });
-  }, []);
 
   useEffect(() => {
     if (!initialCarryForwardDraft) return;
@@ -301,38 +287,37 @@ export function ActualInputSection({
     return map;
   }, [journal, ccSettingsMap]);
 
-  // Seed form from DB once ccState has loaded. Runs only once; user edits are preserved.
+  // Seed saved values once per account, then merge new months without replacing edits.
   useEffect(() => {
     if (!ccStateLoaded) return;
     const currentMonth = monthKeyFromDate(todayStr);
-    setCreditCardValues(() => {
-      const next: CreditCardValuesMap = {};
+    const accountsToSeed = creditCardAccounts.filter(
+      (account) => !seededCreditCardAccountsRef.current.has(account.id),
+    );
+    for (const account of accountsToSeed) {
+      seededCreditCardAccountsRef.current.add(account.id);
+    }
+    setCreditCardValues((current) => {
+      const next: CreditCardValuesMap = { ...current };
       for (const account of creditCardAccounts) {
-        const seedRows: CreditCardDraftRow[] = ccState
-          .filter((entry) => entry.account_id === account.id)
-          .map((entry) => ({
-            id: `seed-${entry.account_id}-${entry.payment_month}`,
-            payment_month: entry.payment_month,
-            amount: entry.amount,
-            status: entry.status,
-          }));
-        for (const paymentMonth of derivedPaymentMonthsByAccount.get(
-          account.id,
-        ) ?? []) {
-          if (!seedRows.some((row) => row.payment_month === paymentMonth)) {
-            seedRows.push({
-              id: `derived-${account.id}-${paymentMonth}`,
-              payment_month: paymentMonth,
-              amount: "",
-              status: paymentMonth === currentMonth ? "open" : "confirmed",
-            });
-          }
-        }
-        next[account.id] = normalizeCreditCardRows(seedRows, currentMonth);
+        const derivedMonths = derivedPaymentMonthsByAccount.get(account.id) ?? new Set<string>();
+        const persistedRows = ccState.filter((entry) => entry.account_id === account.id);
+        const merged = mergeCreditCardDraftRows({
+          currentRows: seededCreditCardAccountsRef.current.has(account.id) && !accountsToSeed.includes(account)
+            ? current[account.id]
+            : undefined,
+          persistedRows,
+          derivedMonths,
+          currentMonth,
+          suppressedMonths: suppressedCreditCardMonthsRef.current.get(account.id),
+        });
+        if (merged !== current[account.id]) next[account.id] = merged;
       }
-      return next;
+      return Object.keys(next).some((key) => next[Number(key)] !== current[Number(key)])
+        ? next
+        : current;
     });
-    // Only run once when DB data first arrives; creditCardAccounts changes are handled separately.
+    // Later calendar/journal changes add months while keeping existing drafts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     ccStateLoaded,
@@ -370,7 +355,6 @@ export function ActualInputSection({
         );
         if (entries.length === 0) return;
         const saved = await api.trialBalance.saveCreditCardState({ entries });
-        setCcState(saved);
         onCreditCardStateSaved(saved);
         showFeedback({ message: t("ttActualInputSaved"), color: "teal" });
         return;
@@ -534,6 +518,10 @@ export function ActualInputSection({
       });
       return;
     }
+    const suppressed = suppressedCreditCardMonthsRef.current.get(accountId) ?? new Set<string>();
+    if (targetRow) suppressed.add(targetRow.payment_month);
+    if (nextMonth) suppressed.add(nextMonth);
+    suppressedCreditCardMonthsRef.current.set(accountId, suppressed);
     setCreditCardValues((prev) => {
       const currentRows = prev[accountId] ?? [];
       return {
@@ -580,6 +568,12 @@ export function ActualInputSection({
 
   function removeConfirmedRow(accountId: number, rowId: string) {
     const currentMonth = monthKeyFromDate(todayStr);
+    const removed = (creditCardValues[accountId] ?? []).find((row) => row.id === rowId);
+    if (removed) {
+      const suppressed = suppressedCreditCardMonthsRef.current.get(accountId) ?? new Set<string>();
+      suppressed.add(removed.payment_month);
+      suppressedCreditCardMonthsRef.current.set(accountId, suppressed);
+    }
     setCreditCardValues((prev) => ({
       ...prev,
       [accountId]: normalizeCreditCardRows(

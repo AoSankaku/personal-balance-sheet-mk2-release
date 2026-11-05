@@ -1,8 +1,8 @@
 import {
-  findLatestResetPointForPeriod,
+  createBudgetResetPointLookup,
   isAfterBudgetResetPoint,
+  type BudgetResetPointLookup,
   type BudgetAdjustmentLogForPeriod,
-  type BudgetResetPoint,
   type DateRange,
 } from "./budgetSummary";
 
@@ -31,33 +31,6 @@ export interface BudgetFundingPeriodSummary {
   reset_cutoff: number;
 }
 
-function resetBeforeEvent(
-  rows: BudgetAdjustmentLogForPeriod[],
-  budgetCategoryId: number,
-  event: { date: string; created_at?: string | null },
-): BudgetResetPoint | null {
-  const points = rows
-    .filter(
-      (row) =>
-        row.budget_category_id === budgetCategoryId &&
-        row.adjustment_type === "reset" &&
-        isAfterBudgetResetPoint(event, {
-          date: row.date,
-          created_at: row.created_at ?? null,
-        }),
-    )
-    .map((row) => ({
-      date: row.date,
-      created_at: row.created_at ?? null,
-    }))
-    .sort(
-      (a, b) =>
-        a.date.localeCompare(b.date) ||
-        (a.created_at ?? "").localeCompare(b.created_at ?? ""),
-    );
-  return points.at(-1) ?? null;
-}
-
 function emptySummary(): BudgetFundingPeriodSummary {
   return {
     net: 0,
@@ -74,6 +47,7 @@ export function sumBudgetFundingAfterResetsByPeriod(
   fundingRows: BudgetFundingTimelineRow[],
   budgetRows: BudgetAdjustmentLogForPeriod[],
   dateRangesByYearMonth: Map<string, DateRange>,
+  resetPointFor: BudgetResetPointLookup = createBudgetResetPointLookup(budgetRows),
 ): Map<string, BudgetFundingPeriodSummary> {
   const result = new Map<string, BudgetFundingPeriodSummary>();
 
@@ -83,20 +57,12 @@ export function sumBudgetFundingAfterResetsByPeriod(
     const range = dateRangesByYearMonth.get(yearMonth);
     if (!range || row.date < range.start || row.date > range.end) continue;
 
-    const periodReset = findLatestResetPointForPeriod(
-      budgetRows,
-      row.budget_category_id,
-      range,
-    );
+    const periodReset = resetPointFor(row.budget_category_id, range);
     if (!isAfterBudgetResetPoint(row, periodReset)) continue;
 
     let resetCutoff = false;
     if (row.source_date) {
-      const reset = resetBeforeEvent(
-        budgetRows,
-        row.budget_category_id,
-        row,
-      );
+      const reset = resetPointFor.beforeEvent(row.budget_category_id, row);
       if (
         reset &&
         !isAfterBudgetResetPoint(

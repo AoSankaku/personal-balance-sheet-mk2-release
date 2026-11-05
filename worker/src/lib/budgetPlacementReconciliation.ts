@@ -10,6 +10,7 @@ import { readBudgetMutationRevision, runBudgetGuardedBatch } from "./d1Mutation"
 import { loadCurrencyDecimalPlaces } from "./currencyPrecision";
 import { toLocalDateString } from "./appDate";
 import { fromStorageMoneyAmount, toStorageMoneyAmount } from "./moneyValidation";
+import { buildBudgetPlacementExpenseEvidence } from "./budgetPlacementExpenseEvidence";
 import { groupIncomeTransferRequirements } from "./incomeTransferRequirements";
 import { chunkForD1InClause } from "./d1Query";
 import { buildActualBalanceAdjustmentRefreshStatements } from "./actualBalanceAdjustments";
@@ -85,7 +86,6 @@ async function getSnapshot(db: ReturnType<typeof createDb>, env: Env, currency: 
 }
 
 async function getExpenseEvidence(db: ReturnType<typeof createDb>, accountRows: Array<{ id: number; name: string; type: string; category: string }>, summaries: Array<{ category: { id: number; name: string } }>, groups: BudgetPlacementReconciliation["groups"], currency: string, asOf: string, decimalPlacesByCurrency: Record<string, number | null | undefined>): Promise<BudgetPlacementReconciliation["expense_evidence"]> {
-  const summaryById = new Map(summaries.map(row => [row.category.id, row]));
   const [allAllocations, resetRows] = await Promise.all([
     db.select({ journal_entry_id: journalEntryBudgetAllocations.journal_entry_id, budget_category_id: journalEntryBudgetAllocations.budget_category_id, amount: journalEntryBudgetAllocations.amount, date: journalEntries.date, created_at: journalEntries.created_at, description: journalEntries.description, source: journalEntryBudgetAllocations.source, is_reference: journalEntryBudgetAllocations.is_reference })
       .from(journalEntryBudgetAllocations).innerJoin(journalEntries, eq(journalEntryBudgetAllocations.journal_entry_id, journalEntries.id))
@@ -112,25 +112,7 @@ async function getExpenseEvidence(db: ReturnType<typeof createDb>, accountRows: 
   const entryIds = [...new Set(allocations.map(row => row.journal_entry_id))];
   const lines = (await Promise.all(chunkForD1InClause(entryIds).map(entryChunk => db.select({ journal_entry_id: journalLines.journal_entry_id, account_id: journalLines.account_id, debit: journalLines.debit, credit: journalLines.credit, currency: journalLines.currency })
     .from(journalLines).where(and(inArray(journalLines.journal_entry_id, entryChunk), eq(journalLines.currency, currency)))))).flat();
-  const accountById = new Map(accountRows.map(row => [row.id, row]));
-  const groupByCategory = new Map<number, string>();
-  for (const group of groups) for (const category of group.categories) groupByCategory.set(category.budget_category_id, group.group_id);
-  const groupById = new Map(groups.map(group => [group.group_id, group]));
-  const evidence: BudgetPlacementReconciliation["expense_evidence"] = [];
-  for (const entryId of entryIds) {
-    const entryLines = lines.filter(row => row.journal_entry_id === entryId);
-    const payments = entryLines.filter(row => row.credit > 0 && accountById.get(row.account_id)?.type === "asset" && accountById.get(row.account_id)?.category === "cash");
-    const expenseDebits = entryLines.filter(row => row.debit > 0 && accountById.get(row.account_id)?.type === "expense");
-    const entryAllocations = allocations.filter(row => row.journal_entry_id === entryId);
-    if (entryLines.length !== 2 || payments.length !== 1 || expenseDebits.length !== 1 || entryAllocations.reduce((sum, row) => sum + Math.abs(row.amount), 0) !== payments[0]!.credit) continue;
-    for (const row of entryAllocations) {
-      const groupId = groupByCategory.get(row.budget_category_id);
-      const category = summaryById.get(row.budget_category_id)?.category;
-      const account = accountById.get(payments[0]!.account_id);
-      if (groupId && category && account && !groupById.get(groupId)?.account_ids.includes(account.id)) evidence.push({ journal_entry_id: row.journal_entry_id, date: row.date, description: row.description, budget_category_id: row.budget_category_id, budget_category_name: category.name, from_account_id: account.id, from_account_name: account.name, to_group_id: groupId, amount: Math.abs(fromStorageMoneyAmount(row.amount, currency, { decimalPlacesByCurrency })) });
-    }
-  }
-  return evidence;
+  return buildBudgetPlacementExpenseEvidence({ allocations, lines, accounts: accountRows, summaries, groups, currency, decimalPlacesByCurrency });
 }
 
 export async function previewBudgetPlacement(env: Env, currency: string) {

@@ -1,4 +1,5 @@
 import {
+  Alert,
   Anchor,
   Button,
   Divider,
@@ -28,16 +29,54 @@ import {
   toAccountSelectOption,
 } from "../lib/accountUtils";
 import { renderAccountOption } from "../lib/accountSelect";
-import { formatJPY } from "../lib/numberFormat";
+import { formatCurrency } from "../lib/numberFormat";
+import { isBudgetAccount, isBudgetAsset } from "../../../shared/budgetScope";
+import {
+  buildBusinessAdvanceJournalPayload,
+  fromCurrencyMinorUnits,
+  sumCurrencyBalance,
+  toCurrencyMinorUnits,
+  type BusinessAdvanceEntryKind,
+} from "../lib/businessAdvance";
 
 export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
   const { t, locale } = useLang();
-  const { accounts, budgetSettings, journal } = useAppData();
-  const [mode, setMode] = useState<"transfer" | "dispose">("transfer");
+  const {
+    accounts,
+    budgetCategories,
+    budgetSettings,
+    journal,
+    displayCurrency,
+    displayCurrencySymbol,
+    enabledCurrencies,
+  } = useAppData();
+  const currency = displayCurrency || "JPY";
+  const decimalPlaces = enabledCurrencies.find((item) => item.code === currency)?.decimal_places ?? 0;
+  const [mode, setMode] = useState<BusinessAdvanceEntryKind>("send");
   const [date, setDate] = useState<Date | null>(new Date());
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState<number>(0);
+  const sendSourceCandidates = accounts
+    .filter(
+      (account) =>
+        account.type === "asset" &&
+        account.category === "cash" &&
+        account.id !== budgetSettings?.business_advance_account_id &&
+        isUserSelectableAccount(account),
+    )
+    .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+  const preferredSourceId = (budgetSettings?.preferred_payment_account_ids ?? [])
+    .find((id) => sendSourceCandidates.some((account) => account.id === id))
+    ?? sendSourceCandidates[0]?.id;
+  const defaultSendFromId = preferredSourceId == null ? null : String(preferredSourceId);
+  const [sendFromId, setSendFromId] = useState<string | null>(defaultSendFromId);
   const [transferToId, setTransferToId] = useState<string | null>(null);
+  const [budgetCategoryId, setBudgetCategoryId] = useState<string | null>(() => {
+    const configuredId = budgetSettings?.business_advance_budget_category_id;
+    return configuredId != null && budgetCategories.some((item) => item.id === configuredId)
+      ? String(configuredId)
+      : null;
+  });
   const [lossAccountId, setLossAccountId] = useState<string | null>(
     budgetSettings?.business_loss_account_id
       ? String(budgetSettings.business_loss_account_id)
@@ -49,29 +88,6 @@ export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
     (a) => a.id === budgetSettings?.business_advance_account_id,
   );
 
-  const advanceBalance = advanceAccount?.balance ?? 0;
-
-  const historyRows = useMemo(() => {
-    if (!advanceAccount) return [];
-    const entries = journal
-      .filter((e) => e.lines.some((l) => l.account_id === advanceAccount.id))
-      .slice()
-      .sort((a, b) => a.date.localeCompare(b.date));
-    let running = 0;
-    return entries.map((e) => {
-      const line = e.lines.find((l) => l.account_id === advanceAccount.id)!;
-      running += line.debit - line.credit;
-      return {
-        id: e.id,
-        date: e.date,
-        description: e.description,
-        debit: line.debit,
-        credit: line.credit,
-        balance: running,
-      };
-    });
-  }, [journal, advanceAccount]);
-
   const assetOptions = accounts
     .filter(
       (a) =>
@@ -81,53 +97,127 @@ export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
     )
     .map((a) => toAccountSelectOption(a, t));
 
+  const sendSourceAccounts = sendSourceCandidates.filter(
+    (account) => account.id !== advanceAccount?.id,
+  );
+  const sendSourceOptions = sendSourceAccounts.map((a) => toAccountSelectOption(a, t));
+  const selectedSendSource = sendSourceAccounts.find((a) => String(a.id) === sendFromId);
+  const budgetOptions = budgetCategories
+    .filter((category) => !category.is_archived)
+    .map((category) => ({ value: String(category.id), label: category.name }));
+  const selectedBusinessBudget = budgetOptions.some(
+    (category) => category.value === budgetCategoryId,
+  );
+
+  const selectedDate = dayjs(date ?? new Date()).format("YYYY-MM-DD");
+  const normalizeCurrency = (value: string | null | undefined) =>
+    (value || "JPY").toUpperCase();
+  const advanceBalance = advanceAccount
+    ? sumCurrencyBalance(
+        journal
+          .filter((entry) => entry.date.slice(0, 10) <= selectedDate)
+          .flatMap((entry) => entry.lines)
+          .filter((line) =>
+            line.account_id === advanceAccount.id &&
+            normalizeCurrency(line.currency) === normalizeCurrency(currency),
+          ),
+        decimalPlaces,
+      )
+    : 0;
+
+  const historyRows = useMemo(() => {
+    if (!advanceAccount) return [];
+    const entries = journal
+      .filter((entry) => entry.date.slice(0, 10) <= selectedDate)
+      .slice()
+      .sort(
+        (a, b) =>
+          a.date.localeCompare(b.date) ||
+          a.created_at.localeCompare(b.created_at) ||
+          a.id - b.id,
+      );
+    let runningMinorUnits = 0;
+    return entries.flatMap((entry) => {
+      const lines = entry.lines.filter((candidate) =>
+        candidate.account_id === advanceAccount.id &&
+        normalizeCurrency(candidate.currency) === normalizeCurrency(currency),
+      );
+      if (lines.length === 0) return [];
+      const debitMinorUnits = lines.reduce(
+        (total, line) => total + toCurrencyMinorUnits(line.debit, decimalPlaces),
+        0,
+      );
+      const creditMinorUnits = lines.reduce(
+        (total, line) => total + toCurrencyMinorUnits(line.credit, decimalPlaces),
+        0,
+      );
+      runningMinorUnits += debitMinorUnits - creditMinorUnits;
+      return [{
+        id: entry.id,
+        date: entry.date,
+        description: entry.description,
+        debit: fromCurrencyMinorUnits(debitMinorUnits, decimalPlaces),
+        credit: fromCurrencyMinorUnits(creditMinorUnits, decimalPlaces),
+        balance: fromCurrencyMinorUnits(runningMinorUnits, decimalPlaces),
+      }];
+    });
+  }, [journal, advanceAccount, selectedDate, currency, decimalPlaces]);
+
   const expenseOptions = accounts
     .filter((a) => a.type === "expense" && isUserSelectableAccount(a))
     .map((a) => toAccountSelectOption(a, t));
 
   async function handleSubmit() {
-    if (!advanceAccount || amount <= 0 || !date) return;
-    if (mode === "transfer" && !transferToId) return;
+    if (!advanceAccount || !date || !Number.isFinite(amount) || amount <= 0) return;
+    if (isBudgetAsset(advanceAccount)) return;
+    if (mode !== "send" && amount > Math.max(advanceBalance, 0)) return;
+    if (mode === "send" && !sendSourceAccounts.some((account) => String(account.id) === sendFromId)) return;
+    if (mode === "recover" && !transferToId) return;
     if (mode === "dispose" && !lossAccountId) return;
 
     setSubmitting(true);
     try {
       const dateStr = dayjs(date).format("YYYY-MM-DD");
-      if (mode === "transfer") {
-        await api.journal.create({
-          date: dateStr,
-          description: description || t("businessAdvanceTransferDesc"),
-          lines: [
-            { account_id: Number(transferToId), debit: amount, credit: 0 },
-            { account_id: advanceAccount.id, debit: 0, credit: amount },
-          ],
-          budget_source: "simple",
-        });
-      } else {
-        const lossAcc = accounts.find((a) => a.id === Number(lossAccountId));
-        const budget_allocations = lossAcc?.budget_ratios
-          ?.filter((r) => r.ratio > 0)
-          .map((r) => ({
-            budget_category_id: r.budget_category_id,
-            amount: -Math.round(amount * (r.ratio / 100)),
-          }));
-        await api.journal.create({
-          date: dateStr,
-          description: description || t("businessAdvanceDisposeDesc"),
-          lines: [
-            { account_id: Number(lossAccountId), debit: amount, credit: 0 },
-            { account_id: advanceAccount.id, debit: 0, credit: amount },
-          ],
-          budget_source: "simple",
-          budget_allocations:
-            budget_allocations && budget_allocations.length > 0
-              ? budget_allocations
-              : undefined,
-        });
+      const kindDescription: Record<BusinessAdvanceEntryKind, string> = {
+        send: t("businessAdvanceSendDesc"),
+        recover: t("businessAdvanceTransferDesc"),
+        dispose: t("businessAdvanceDisposeDesc"),
+      };
+      const otherAccountId =
+        mode === "send"
+          ? Number(sendFromId)
+          : mode === "recover"
+            ? Number(transferToId)
+            : Number(lossAccountId);
+      const otherAccount = accounts.find((account) => account.id === otherAccountId);
+      if (
+        !otherAccount ||
+        (mode === "send" &&
+          (otherAccount.type !== "asset" || otherAccount.category !== "cash")) ||
+        (mode === "recover" && otherAccount.type !== "asset") ||
+        (mode === "dispose" && otherAccount.type !== "expense")
+      ) {
+        return;
       }
+      const payload = buildBusinessAdvanceJournalPayload({
+        kind: mode,
+        date: dateStr,
+        description: description || kindDescription[mode],
+        amount,
+        currency,
+        decimalPlaces,
+        advanceAccount,
+        otherAccount,
+        budgetCategoryId:
+          mode === "send" && selectedBusinessBudget && budgetCategoryId != null
+            ? Number(budgetCategoryId)
+            : null,
+      });
+      await api.journal.create(payload);
       showFeedback({ message: t("entrySaved"), color: "teal" });
       setAmount(0);
       setDescription("");
+      setSendFromId(defaultSendFromId);
       setTransferToId(null);
       onDone();
     } catch {
@@ -150,6 +240,19 @@ export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
     );
   }
 
+  if (isBudgetAsset(advanceAccount)) {
+    return (
+      <Stack pt="md">
+        <Alert color="orange" title={t("businessAdvanceAccountBudgetWarningTitle")}>
+          {t("businessAdvanceAccountBudgetWarning")}
+          <Anchor component={Link} to="/settings/business" size="sm" ml={4}>
+            {t("goToSettings")}
+          </Anchor>
+        </Alert>
+      </Stack>
+    );
+  }
+
   return (
     <Stack pt="md" maw={480}>
       {/* Current balance display */}
@@ -159,18 +262,19 @@ export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
             {advanceAccount.name} {t("currentBalance")}
           </Text>
           <Text size="sm" fw={600} c={advanceBalance > 0 ? "blue" : "dimmed"}>
-            ¥{advanceBalance.toLocaleString()}
+            {formatCurrency(advanceBalance, locale, currency, displayCurrencySymbol, decimalPlaces)}
           </Text>
         </Group>
       </Paper>
 
       <SegmentedControl
         data={[
-          { value: "transfer", label: t("businessAdvanceModeTransfer") },
+          { value: "send", label: t("businessAdvanceSendMode") },
+          { value: "recover", label: t("businessAdvanceModeTransfer") },
           { value: "dispose", label: t("businessAdvanceModeDispose") },
         ]}
         value={mode}
-        onChange={(v) => setMode(v as "transfer" | "dispose")}
+        onChange={(v) => setMode(v as BusinessAdvanceEntryKind)}
         fullWidth
       />
 
@@ -185,9 +289,11 @@ export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
         <TextInput
           label={t("descriptionLabel")}
           placeholder={
-            mode === "transfer"
-              ? t("businessAdvanceTransferDesc")
-              : t("businessAdvanceDisposeDesc")
+              mode === "send"
+                ? t("businessAdvanceSendDesc")
+                : mode === "recover"
+                  ? t("businessAdvanceTransferDesc")
+                  : t("businessAdvanceDisposeDesc")
           }
           value={description}
           onChange={(e) => setDescription(e.currentTarget.value)}
@@ -199,24 +305,60 @@ export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
         placeholder="0"
         required
         min={0}
-        max={advanceBalance > 0 ? advanceBalance : undefined}
+        decimalScale={decimalPlaces}
+        max={mode !== "send" ? Math.max(advanceBalance, 0) : undefined}
         thousandSeparator=","
-        prefix="¥"
+        prefix={displayCurrencySymbol}
         value={amount}
         onChange={(v) => setAmount(Number(v) || 0)}
       />
 
-      {mode === "transfer" && (
-        <Select
-          label={t("businessAdvanceTransferToLabel")}
-          placeholder={t("selectAccount")}
-          data={assetOptions}
-          renderOption={renderAccountOption as never}
-          searchable
-          required
-          value={transferToId}
-          onChange={setTransferToId}
-        />
+      {mode !== "send" && amount > Math.max(advanceBalance, 0) && (
+        <Text size="sm" c="red">{t("businessAdvanceAmountExceedsBalance")}</Text>
+      )}
+
+      {mode === "send" && (
+        <>
+          <Select
+            label={t("businessAdvanceSendFromLabel")}
+            placeholder={t("selectAccount")}
+            data={sendSourceOptions}
+            renderOption={renderAccountOption as never}
+            searchable
+            required
+            value={sendFromId}
+            onChange={setSendFromId}
+          />
+          <Select
+            label={t("businessAdvanceBudgetSourceLabel")}
+            description={t("businessAdvanceBudgetSourceHint")}
+            placeholder={t("businessAdvanceBudgetUnallocated")}
+            data={budgetOptions}
+            clearable
+            searchable
+            value={selectedBusinessBudget ? budgetCategoryId : null}
+            onChange={setBudgetCategoryId}
+          />
+          {selectedSendSource && !isBudgetAccount(selectedSendSource) && (
+            <Text size="sm" c="dimmed">{t("businessAdvanceUntrackedSourceHint")}</Text>
+          )}
+        </>
+      )}
+
+      {mode === "recover" && (
+        <>
+          <Select
+            label={t("businessAdvanceTransferToLabel")}
+            placeholder={t("selectAccount")}
+            data={assetOptions}
+            renderOption={renderAccountOption as never}
+            searchable
+            required
+            value={transferToId}
+            onChange={setTransferToId}
+          />
+          <Text size="sm" c="dimmed">{t("businessAdvanceRecoveryBudgetHint")}</Text>
+        </>
       )}
 
       {mode === "dispose" && (
@@ -238,8 +380,10 @@ export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
         disabled={
           amount <= 0 ||
           !date ||
-          (mode === "transfer" && !transferToId) ||
-          (mode === "dispose" && !lossAccountId)
+          isBudgetAsset(advanceAccount) ||
+          (mode === "send" && !sendSourceAccounts.some((account) => String(account.id) === sendFromId)) ||
+          (mode === "recover" && (!transferToId || amount > Math.max(advanceBalance, 0))) ||
+          (mode === "dispose" && (!lossAccountId || amount > Math.max(advanceBalance, 0)))
         }
       >
         {t("save")}
@@ -275,14 +419,14 @@ export function BusinessAdvanceProcessTab({ onDone }: { onDone: () => void }) {
                         c={change > 0 ? "teal" : change < 0 ? "red" : undefined}
                       >
                         {change > 0 ? "+" : ""}
-                        {formatJPY(change, locale)}
+                        {formatCurrency(change, locale, currency, displayCurrencySymbol, decimalPlaces)}
                       </Table.Td>
                       <Table.Td
                         className="currency-cell"
                         fw={500}
                         c={row.balance > 0 ? "blue" : "dimmed"}
                       >
-                        {formatJPY(row.balance, locale)}
+                        {formatCurrency(row.balance, locale, currency, displayCurrencySymbol, decimalPlaces)}
                       </Table.Td>
                     </Table.Tr>
                   );

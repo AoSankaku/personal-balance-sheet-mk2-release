@@ -789,6 +789,17 @@ importSalaryAndAmazonSwitched: 給与行をシンプル入力へ、Amazon行を�
 importEmptyRowsWarning: "{count}件の行に勘定科目が未選択のため、インポートされません。続行しますか？"
 importEmptyRowsWarningTitle: 科目未選択の行があります
 importContinue: 続行
+importKotoraWarningTitle: ことら送金の摘要を確認してください
+importKotoraWarningMessage: ことら送金の名前と送金番号がそのまま含まれています。続行しますか？
+importKotoraRewriteHint: 摘要を後からわかる内容へ書き換えることをおすすめします。何も選ばずに続行すると、名前と送金番号はそのまま保存されます。
+importKotoraMaskNumber: 自動で送金番号をマスクする
+importKotoraMaskFuture: 今後も自動で送金番号をマスクする
+importKotoraFutureHint: このブラウザーの銀行CSV取り込みで適用します。氏名は残し、末尾の送金番号のみ「****」へ置き換えます。CSV設定から解除できます。
+importKotoraEditDescription: 摘要を編集する
+importKotoraAffectedCount: "対象: {count}件"
+importKotoraReviewHint: ことら送金の名前と送金番号を含む行があります。必要に応じて摘要を書き換えてください。取り込み前に確認します。
+importKotoraMaskedPreview: "保存する摘要: {description}"
+importKotoraSettingsTitle: ことら送金の摘要
 deleteJournalConfirm: 仕訳を削除
 deleteJournalConfirmMsg: この仕訳を削除しますか？この操作は元に戻せません。
 suppressDeleteWarning5min: 5分間この警告を表示しない
@@ -803,14 +814,21 @@ depreciationSettingsTitle: "予算分割振替（減価償却）の設定"
 depreciationSettingsHint: "毎月の費用仕訳に使う費用科目を選択してください。"
 depreciationAccountNone: "科目を選択"
 businessOwnerSettingsTitle: 事業主用立替設定
-businessOwnerSettingsHint: 個人事業主として事業用経費を立て替えた場合の科目を設定します。
+businessOwnerSettingsHint: 事業立替金を記録する科目を設定します。予算対象の現金・預金口座は事業立替金科目に選べません。
 isBusinessOwner: 私は事業主です
 businessAdvanceAccountLabel: 事業立替金科目
-businessAdvanceAccountDesc: 事業が負債として計上する立替金の資産科目。
+businessAdvanceAccountDesc: 事業が負債として計上する立替金の資産科目。予算対象外の資産科目を選んでください。
+businessAdvanceAccountBudgetWarningTitle: 事業立替金科目の設定を確認してください
+businessAdvanceAccountBudgetWarning: 事業立替金科目が予算対象の口座です。事業立替金専用の予算対象外資産科目に変更してください。
 businessLossAccountLabel: 損失として破棄する場合の科目
 businessLossAccountDesc: 回収不能と判断した立替金を損失として破棄する際に使う費用科目。
 businessAdvanceBudgetCategoryLabel: 事業立替金の予算元
 businessAdvanceBudgetCategoryDesc: 事業用割合分を予算から差し引く予算カテゴリー。
+businessAdvanceBudgetSourceLabel: 事業送金の予算元
+businessAdvanceBudgetSourceHint: 選択すると送金額をこの予算から差し引きます。未選択なら予算配分しません。
+businessAdvanceBudgetUnallocated: 予算未配分
+businessAdvanceUntrackedSourceHint: 予算対象外の口座から送金するため、予算履歴のみ記録し残高は差し引きません。
+businessAdvanceRecoveryBudgetHint: 回収した現金は予算に戻さず、未配分のままにします。
 transactionTypeBusinessAdvance: 事業立替
 businessRatioLabel: 事業用割合
 businessRatioDesc: この支出のうち事業用経費にあたる割合。
@@ -818,6 +836,10 @@ businessAdvanceSplitBusiness: "事業用:"
 businessAdvanceSplitPersonal: "個人用:"
 personalPortionLabel: 個人用分
 tabBusinessAdvanceProcess: 事業立替金処理
+businessAdvanceSendMode: 事業へ送金
+businessAdvanceSendFromLabel: 送金元口座
+businessAdvanceSendDesc: 事業への送金
+businessAdvanceAmountExceedsBalance: 金額がこの日付時点の立替金残高を超えています。
 businessAdvanceModeTransfer: 振替（入金）
 businessAdvanceModeDispose: 損失として破棄
 businessAdvanceTransferDesc: 事業立替金回収
@@ -857,7 +879,13 @@ budgetReferenceAllocationTitle: 参考予算記録
 budgetReferenceAllocationHint: 支払元は予算原資に含まれませんが、将来の予算消費として残高と割り当て可能額を減らし、整合性画面では参考値として区分表示します。
 budgetMarkReferenceAction: 参考記録にする
 budgetMarkReferenceSuccess: 予算内訳を参考記録に変更しました
-budgetReferenceSpentLabel: うち参考支出
+budgetReferenceSpentLabel: 参考記録（使用額の外）
+budgetUsageLabel: 予算使用額
+budgetBeforeUsageLabel: 使用前予算
+budgetSpendingUsageLabel: 支出による使用
+budgetMonthlyFundingOutLabel: 月次補填への使用
+budgetMonthlyFundingInLabel: 月次補填の受入
+budgetUsageIncludesFundingHint: 予算使用額には減価償却の月次補填の出額を含みます。受入額は使用額に加えず、残高からも重ねて差し引きません。
 budgetDepreciationRecognizedLabel: "当月の費用振替額"
 budgetDepreciationReserveLabel: "購入時予約の残額"
 budgetDepreciationOverviewTitle: "毎月の費用振替予算"

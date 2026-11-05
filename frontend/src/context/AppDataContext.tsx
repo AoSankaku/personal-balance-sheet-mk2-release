@@ -83,6 +83,7 @@ interface AppDataContextValue {
   budgetSettings: BudgetSettings | null;
   creditCardSettings: CreditCardSettings[];
   creditCardState: CreditCardStateEntry[];
+  creditCardStateLoaded: boolean;
   creditCardStatementCompletions: CreditCardStatementCompletion[];
   latestTrialBalanceDate: string | null;
   taskSettings: TaskSettings;
@@ -103,6 +104,7 @@ interface AppDataContextValue {
   refreshBudgetFilters: () => void;
   refreshCreditCardSettings: () => void;
   refreshCreditCardState: () => void;
+  applyCreditCardState: (entries: CreditCardStateEntry[]) => void;
   refreshCreditCardStatementCompletions: () => void;
   refreshLatestTrialBalanceDate: () => void;
   updateTaskSettings: (input: UpdateTaskSettingsInput) => Promise<TaskSettings>;
@@ -203,6 +205,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [creditCardState, setCreditCardState] = useState<
     CreditCardStateEntry[]
   >([]);
+  const [creditCardStateLoaded, setCreditCardStateLoaded] = useState(false);
+  const creditCardStateRequestRef = useRef(0);
   const [creditCardStatementCompletions, setCreditCardStatementCompletions] =
     useState<CreditCardStatementCompletion[]>([]);
   const [latestTrialBalanceDate, setLatestTrialBalanceDate] = useState<
@@ -449,12 +453,22 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshCreditCardState = useCallback(async () => {
+    const requestId = ++creditCardStateRequestRef.current;
     try {
       const state = await api.trialBalance.getCreditCardState();
-      setCreditCardState(state);
+      if (requestId === creditCardStateRequestRef.current) {
+        setCreditCardState(state);
+      }
+      setCreditCardStateLoaded(true);
     } catch {
-      // silently ignore
+      setCreditCardStateLoaded(true);
     }
+  }, []);
+
+  const applyCreditCardState = useCallback((entries: CreditCardStateEntry[]) => {
+    creditCardStateRequestRef.current += 1;
+    setCreditCardState(entries);
+    setCreditCardStateLoaded(true);
   }, []);
 
   const refreshCreditCardStatementCompletions = useCallback(async () => {
@@ -568,6 +582,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   // Full app-data refresh. Wallet quantities remain opt-in in balance reconciliation.
   const refresh = useCallback(async () => {
+    const creditCardStateRequestId = ++creditCardStateRequestRef.current;
     try {
       setLoading(true);
       setError(null);
@@ -610,7 +625,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setBudgetCategories(cats);
       setBudgetFilters(filters);
       setCreditCardSettings(ccSettings);
-      setCreditCardState(ccState);
+      if (creditCardStateRequestId === creditCardStateRequestRef.current) {
+        setCreditCardState(ccState);
+      }
+      setCreditCardStateLoaded(true);
       setCreditCardStatementCompletions(ccStatementCompletions);
       setBudgetSettings(bSettings);
       setLatestTrialBalanceDate(latestTrialBalance.snapshot_date);
@@ -795,6 +813,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         budgetSettings,
         creditCardSettings,
         creditCardState,
+        creditCardStateLoaded,
         creditCardStatementCompletions,
         latestTrialBalanceDate,
         taskSettings,
@@ -811,6 +830,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         refreshBudgetFilters,
         refreshCreditCardSettings,
         refreshCreditCardState,
+        applyCreditCardState,
         refreshCreditCardStatementCompletions,
         refreshLatestTrialBalanceDate,
         updateTaskSettings,

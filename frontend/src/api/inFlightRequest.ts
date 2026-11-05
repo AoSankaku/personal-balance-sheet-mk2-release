@@ -19,3 +19,33 @@ export function createInFlightRequestDeduper() {
     return tracked;
   };
 }
+
+/** Shares pending reads and can detach them when a relevant write starts/ends. */
+export function createInvalidatableInFlightRequestDeduper() {
+  const requests = new Map<string, Promise<unknown>>();
+
+  function invalidate() {
+    requests.clear();
+  }
+
+  function dedupe<T>(key: string, request: () => Promise<T>): Promise<T> {
+    const existing = requests.get(key);
+    if (existing) return existing as Promise<T>;
+
+    let pending: Promise<T>;
+    try {
+      pending = request();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+
+    let tracked: Promise<T>;
+    tracked = pending.finally(() => {
+      if (requests.get(key) === tracked) requests.delete(key);
+    });
+    requests.set(key, tracked);
+    return tracked;
+  }
+
+  return { dedupe, invalidate };
+}

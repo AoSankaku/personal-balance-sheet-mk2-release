@@ -55,6 +55,8 @@ import {
   summarizeDepreciationBudget,
   type DepreciationBudgetPresentation,
 } from "../lib/depreciationBudgetPresentation";
+import { presentBudgetUsage, summarizeBudgetUsage } from "../lib/budgetUsagePresentation";
+import { BudgetUsageDetails } from "../components/BudgetUsageDetails";
 
 function normalizeCurrency(currency: string | null | undefined) {
   return (currency || "JPY").toUpperCase();
@@ -97,9 +99,10 @@ function BudgetCategoryCard({
   currency: string;
 }) {
   const { t } = useLang();
-  const pct =
-    summary.total_budget > 0 ? (summary.spent / summary.total_budget) * 100 : 0;
-  const color = pct >= 100 ? "red" : pct >= 80 ? "orange" : "teal";
+  const usage = presentBudgetUsage(summary);
+  const pct = usage.percentage;
+  const color = summary.available < 0 || (pct ?? 0) >= 100
+    ? "red" : (pct ?? 0) >= 80 ? "orange" : "teal";
 
   const isSavings = summary.category.budget_group === "貯蓄";
   const Icon = isSavings ? IconPigMoney : IconWallet;
@@ -148,7 +151,7 @@ function BudgetCategoryCard({
   }
 
   return (
-    <Box className={classes.categoryItem}>
+    <Box className={classes.categoryItem} data-testid={`budget-category-${summary.category.id}`}>
       <Group justify="space-between" align="flex-start" mb={8}>
         <Group gap={6} style={{ flex: 1 }}>
           <ThemeIcon variant="light" color={color} size={28} radius="xl">
@@ -275,12 +278,12 @@ function BudgetCategoryCard({
       )}
       <Box pos="relative" mb={6}>
         <Progress
-          value={Math.min(100, pct)}
+          value={Math.max(0, Math.min(100, pct ?? 0))}
           color={color}
           size="md"
           radius="xl"
         />
-        {pct > 100 && (
+        {pct !== null && pct > 100 && (
           <Box pos="absolute" top={0} left={0} right={0}>
             <Progress
               value={Math.min(100, pct - 100)}
@@ -294,20 +297,14 @@ function BudgetCategoryCard({
           </Box>
         )}
       </Box>
-      <Text size="xs" c="dimmed">
-        {formatCurrency(summary.spent, locale, currency)} /{" "}
-        {formatCurrency(summary.total_budget, locale, currency)}
-        {summary.total_budget > 0 && ` · ${pct.toFixed(1)}%`}
+      <Text size="xs" data-testid="budget-used-amount">
+        {t("budgetUsageLabel")}: {formatCurrency(usage.used, locale, currency)}
+        {pct !== null && ` · ${pct.toFixed(1)}%`}
       </Text>
-      {(summary.reference_spent ?? 0) > 0 && (
-        <Text size="xs" c="blue">
-          {t("budgetReferenceSpentLabel")}: {formatCurrency(
-            summary.reference_spent ?? 0,
-            locale,
-            currency,
-          )}
-        </Text>
-      )}
+      <Text size="xs" c="dimmed" data-testid="budget-before-usage">
+        {t("budgetBeforeUsageLabel")}: {formatCurrency(usage.beforeUsage, locale, currency)}
+      </Text>
+      <BudgetUsageDetails usage={usage} locale={locale} currency={currency} />
       {(summary.depreciation_spent ?? 0) > 0 && (
         <Text size="xs" c="violet">
           {t("budgetDepreciationRecognizedLabel")}: {formatCurrency(
@@ -694,15 +691,11 @@ export default function OverviewPage() {
     displaySummary?.categories.filter(
       (c) => c.category.budget_group !== "貯蓄",
     ) ?? [];
-  const expenseTotalBudget = expenseCategories.reduce(
-    (s, c) => s + c.total_budget,
-    0,
-  );
-  const expenseTotalSpent = expenseCategories.reduce((s, c) => s + c.spent, 0);
-  const expenseTotalAvailable = expenseCategories.reduce(
-    (s, c) => s + c.available,
-    0,
-  );
+  const expenseUsage = summarizeBudgetUsage(expenseCategories);
+  const allBudgetUsage = summarizeBudgetUsage(displaySummary?.categories ?? []);
+  const expenseTotalBudget = expenseUsage.beforeUsage;
+  const expenseTotalSpent = expenseUsage.used;
+  const expenseTotalAvailable = expenseUsage.available;
 
   const totalPct = getOverviewBudgetUsagePercentage(
     expenseTotalBudget,
@@ -867,7 +860,7 @@ export default function OverviewPage() {
               </Box>
               <Box className={classes.secondaryMetric}>
                 <Text size="xs" c="dimmed" mb={5}>
-                  {t("used")}
+                  {t("budgetUsageLabel")}
                 </Text>
                 <Skeleton width="fit-content" radius="sm">
                   <Text fw={700} size="lg" className="currency-token">
@@ -881,7 +874,7 @@ export default function OverviewPage() {
               </Box>
               <Box className={classes.secondaryMetric}>
                 <Text size="xs" c="dimmed" mb={5}>
-                  {t("budget")}
+                  {t("budgetBeforeUsageLabel")}
                 </Text>
                 <Skeleton width="fit-content" radius="sm">
                   <Text fw={700} size="lg" className="currency-token">
@@ -918,7 +911,7 @@ export default function OverviewPage() {
           </Stack>
         </Box>
       ) : displaySummary ? (
-        <Box className={classes.hero}>
+        <Box className={classes.hero} data-testid="budget-usage-hero">
           <Stack gap="lg" className={classes.heroContent}>
             <Box className={classes.heroMetrics}>
               <Box className={classes.primaryMetric}>
@@ -944,9 +937,9 @@ export default function OverviewPage() {
 
               <Box className={classes.secondaryMetric}>
                 <Text size="xs" c="dimmed" mb={5}>
-                  {t("used")}
+                  {t("budgetUsageLabel")}
                 </Text>
-                <Text fw={700} size="lg" className="currency-token">
+                <Text fw={700} size="lg" className="currency-token" data-testid="budget-used-amount">
                   {formatCurrency(
                     expenseTotalSpent,
                     locale,
@@ -956,9 +949,9 @@ export default function OverviewPage() {
               </Box>
               <Box className={classes.secondaryMetric}>
                 <Text size="xs" c="dimmed" mb={5}>
-                  {t("budget")}
+                  {t("budgetBeforeUsageLabel")}
                 </Text>
-                <Text fw={700} size="lg" className="currency-token">
+                <Text fw={700} size="lg" className="currency-token" data-testid="budget-before-usage">
                   {formatCurrency(
                     expenseTotalBudget,
                     locale,
@@ -967,6 +960,11 @@ export default function OverviewPage() {
                 </Text>
               </Box>
             </Box>
+
+            <BudgetUsageDetails usage={expenseUsage} locale={locale} currency={selectedCurrency} />
+            {expenseUsage.fundingOut !== 0 && (
+              <Text size="xs" c="dimmed">{t("budgetUsageIncludesFundingHint")}</Text>
+            )}
 
             <Box>
               <Group justify="space-between" mb={8}>
@@ -1177,34 +1175,29 @@ export default function OverviewPage() {
           </Group>
         </Box>
       ) : displaySummary ? (
-        <Box className={classes.summaryStrip}>
+        <Box className={classes.summaryStrip} data-testid="budget-usage-including-savings">
           <Group justify="space-between" align="center" wrap="wrap">
             <Box>
               <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                 {t("budgetIncludingSavings")}
               </Text>
-              <Text size="sm" c="dimmed" mt={3}>
+              <Text size="sm" mt={3} data-testid="budget-used-amount">
+                {t("budgetUsageLabel")}: {" "}
                 {formatCurrency(
-                  displaySummary.total_spent,
-                  locale,
-                  selectedCurrency,
-                )}{" "}
-                /{" "}
-                {formatCurrency(
-                  displaySummary.total_budget,
+                  allBudgetUsage.used,
                   locale,
                   selectedCurrency,
                 )}
               </Text>
-              {(displaySummary.total_reference_spent ?? 0) > 0 && (
-                <Text size="xs" c="blue" mt={2}>
-                  {t("budgetReferenceSpentLabel")}: {formatCurrency(
-                    displaySummary.total_reference_spent ?? 0,
-                    locale,
-                    selectedCurrency,
-                  )}
-                </Text>
-              )}
+              <Text size="xs" c="dimmed" data-testid="budget-before-usage">
+                {t("budgetBeforeUsageLabel")}: {" "}
+                {formatCurrency(
+                  allBudgetUsage.beforeUsage,
+                  locale,
+                  selectedCurrency,
+                )}
+              </Text>
+              <BudgetUsageDetails usage={allBudgetUsage} locale={locale} currency={selectedCurrency} />
             </Box>
             <Group gap="sm">
               <Text

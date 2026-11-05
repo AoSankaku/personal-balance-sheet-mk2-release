@@ -789,6 +789,17 @@ importSalaryAndAmazonSwitched: 薪水行移至簡單輸入，Amazon 行移至批
 importEmptyRowsWarning: "{count} 行未選擇帳戶，將不會被匯入。繼續嗎？"
 importEmptyRowsWarningTitle: 未選擇帳戶的行
 importContinue: 繼續
+importKotoraWarningTitle: 請確認ことら轉帳摘要
+importKotoraWarningMessage: ことら轉帳的姓名和轉帳編號仍完整保留。是否繼續？
+importKotoraRewriteHint: 建議將摘要改寫為方便日後辨認的內容。若不選擇任何選項而繼續，將原樣儲存姓名和轉帳編號。
+importKotoraMaskNumber: 自動遮蔽轉帳編號
+importKotoraMaskFuture: 今後也自動遮蔽轉帳編號
+importKotoraFutureHint: 適用於此瀏覽器中的銀行CSV匯入。保留姓名，僅將末尾的轉帳編號替換為「****」。可在CSV設定中關閉。
+importKotoraEditDescription: 編輯摘要
+importKotoraAffectedCount: "涉及列數：{count}"
+importKotoraReviewHint: 部分列含有ことら轉帳的姓名和轉帳編號。請視需要改寫摘要，匯入前將再次確認。
+importKotoraMaskedPreview: "將儲存的摘要：{description}"
+importKotoraSettingsTitle: ことら轉帳摘要
 deleteJournalConfirm: 刪除分錄
 deleteJournalConfirmMsg: 確定要刪除此分錄嗎？此操作無法復原。
 suppressDeleteWarning5min: 5 分鐘內不再顯示此警告
@@ -803,14 +814,21 @@ depreciationSettingsTitle: "預算分期轉帳（折舊）設定"
 depreciationSettingsHint: "選擇用於記錄每月費用分錄的支出帳戶。"
 depreciationAccountNone: "未選擇帳戶"
 businessOwnerSettingsTitle: 業主墊付款設定
-businessOwnerSettingsHint: 以個體經營者身分記錄業務費用墊付款時，設定相關帳戶。
+businessOwnerSettingsHint: 設定用來記錄業務墊付款的資產帳戶。納入預算的現金帳戶不能作為此帳戶。
 isBusinessOwner: 我是個體經營者
 businessAdvanceAccountLabel: 業務墊付款帳戶
-businessAdvanceAccountDesc: 記錄業務欠款的資產帳戶。
+businessAdvanceAccountDesc: 記錄業務欠款的資產帳戶。請選擇不納入預算的資產帳戶。
+businessAdvanceAccountBudgetWarningTitle: 請檢查業務墊付款帳戶
+businessAdvanceAccountBudgetWarning: 目前帳戶計入預算現金。請改用專用且不納入預算的資產帳戶。
 businessLossAccountLabel: 損失處理帳戶
 businessLossAccountDesc: 將墊付款作為無法收回的損失處理時使用的支出帳戶。
 businessAdvanceBudgetCategoryLabel: 墊付款的預算來源
 businessAdvanceBudgetCategoryDesc: 用於扣除業務部分金額的預算類別。
+businessAdvanceBudgetSourceLabel: 轉入業務的預算來源
+businessAdvanceBudgetSourceHint: 選擇類別後會從該預算扣除轉帳金額。留空則不分配預算。
+businessAdvanceBudgetUnallocated: 未分配
+businessAdvanceUntrackedSourceHint: 此來源不計入預算現金，因此只記錄類別供參考，不扣減餘額。
+businessAdvanceRecoveryBudgetHint: 收回的現金維持未分配狀態，不會恢復原預算。
 transactionTypeBusinessAdvance: 事業墊付款
 businessRatioLabel: 業務使用比例
 businessRatioDesc: 此項支出中屬於業務費用的部分。
@@ -818,6 +836,10 @@ businessAdvanceSplitBusiness: 業務部分：
 businessAdvanceSplitPersonal: 個人部分：
 personalPortionLabel: 個人部分
 tabBusinessAdvanceProcess: 墊付款處理
+businessAdvanceSendMode: 轉給業務
+businessAdvanceSendFromLabel: 轉出帳戶
+businessAdvanceSendDesc: 轉給業務
+businessAdvanceAmountExceedsBalance: 金額超過此日期的墊付款餘額。
 businessAdvanceModeTransfer: 轉帳（報銷）
 businessAdvanceModeDispose: 作為損失處理
 businessAdvanceTransferDesc: 業務墊付款報銷
@@ -857,7 +879,13 @@ budgetReferenceAllocationTitle: 參考預算記錄
 budgetReferenceAllocationHint: 付款來源不屬於預算資金，但此計畫支出會減少預算餘額與可分配金額，並在一致性檢查中分開顯示。
 budgetMarkReferenceAction: 設為參考記錄
 budgetMarkReferenceSuccess: 已將預算明細改為參考記錄
-budgetReferenceSpentLabel: 其中參考支出
+budgetReferenceSpentLabel: 參考記錄（不計入使用額）
+budgetUsageLabel: 預算使用額
+budgetBeforeUsageLabel: 使用前預算
+budgetSpendingUsageLabel: 支出使用額
+budgetMonthlyFundingOutLabel: 每月補充所用預算
+budgetMonthlyFundingInLabel: 收到的每月補充
+budgetUsageIncludesFundingHint: 預算使用額包含折舊每月補充的轉出額。收到的補充不計入使用額，也不會再次從餘額中扣除。
 budgetDepreciationRecognizedLabel: "本月認列的分期轉帳額"
 budgetDepreciationReserveLabel: "剩餘購買預留額"
 budgetDepreciationOverviewTitle: "分期轉帳預算"

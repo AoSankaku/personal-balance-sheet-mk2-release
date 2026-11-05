@@ -5,6 +5,7 @@ import {
   Group,
   Skeleton,
   Stack,
+  Switch,
   Text,
   Title,
 } from "@mantine/core";
@@ -18,12 +19,14 @@ import { useAppData } from "../context/AppDataContext";
 import { showFeedback } from "../lib/feedback";
 import { AppDataErrorAlert } from "../components/AppDataErrorAlert";
 import { accountDisplayNameFromName } from "../lib/accountUtils";
+import { useKotoraAutoMask } from "../hooks/useKotoraAutoMask";
 
 export default function CsvSettingsPage() {
   const { t } = useLang();
   const { accounts, budgetCategories, error } = useAppData();
   const [mappings, setMappings] = useState<StoreAccountMapping[]>([]);
   const [loadingMaps, setLoadingMaps] = useState(true);
+  const [autoMaskKotoraNumbers, setAutoMaskKotoraNumbers] = useKotoraAutoMask();
 
   useEffect(() => {
     api.storeMappings
@@ -63,6 +66,16 @@ export default function CsvSettingsPage() {
         <Text size="sm" c="dimmed">
           {t("settingsNavCsvDesc")}
         </Text>
+      </Stack>
+
+      <Stack gap="sm">
+        <Title order={5}>{t("importKotoraSettingsTitle")}</Title>
+        <Switch
+          label={t("importKotoraMaskFuture")}
+          description={t("importKotoraFutureHint")}
+          checked={autoMaskKotoraNumbers}
+          onChange={(event) => setAutoMaskKotoraNumbers(event.currentTarget.checked)}
+        />
       </Stack>
 
       <Stack gap="sm">

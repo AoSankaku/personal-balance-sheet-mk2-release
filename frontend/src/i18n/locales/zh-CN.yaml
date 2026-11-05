@@ -789,6 +789,17 @@ importSalaryAndAmazonSwitched: 工资行移至简单输入，Amazon 行移至批
 importEmptyRowsWarning: "{count} 行未选择账户，将不会被导入。继续吗？"
 importEmptyRowsWarningTitle: 未选择账户的行
 importContinue: 继续
+importKotoraWarningTitle: 请确认ことら转账摘要
+importKotoraWarningMessage: ことら转账的姓名和转账编号仍完整保留。是否继续？
+importKotoraRewriteHint: 建议将摘要改写为便于日后辨认的内容。不选择任何选项而继续时，将原样保存姓名和转账编号。
+importKotoraMaskNumber: 自动遮蔽转账编号
+importKotoraMaskFuture: 今后也自动遮蔽转账编号
+importKotoraFutureHint: 适用于此浏览器中的银行CSV导入。保留姓名，仅将末尾的转账编号替换为“****”。可在CSV设置中关闭。
+importKotoraEditDescription: 编辑摘要
+importKotoraAffectedCount: "涉及行数：{count}"
+importKotoraReviewHint: 部分行含有ことら转账的姓名和转账编号。请按需改写摘要，导入前将再次确认。
+importKotoraMaskedPreview: "将保存的摘要：{description}"
+importKotoraSettingsTitle: ことら转账摘要
 deleteJournalConfirm: 删除分录
 deleteJournalConfirmMsg: 确定要删除此分录吗？此操作不可撤销。
 suppressDeleteWarning5min: 5 分钟内不再显示此警告
@@ -803,14 +814,21 @@ depreciationSettingsTitle: "预算分期转账（折旧）设置"
 depreciationSettingsHint: "选择用于记录每月费用分录的支出账户。"
 depreciationAccountNone: "未选择账户"
 businessOwnerSettingsTitle: 业主垫付款设置
-businessOwnerSettingsHint: 以个体经营者身份记录业务费用垫付款时，配置相关账户。
+businessOwnerSettingsHint: 设置用于记录业务垫付款的资产账户。纳入预算的现金账户不能用作此账户。
 isBusinessOwner: 我是个体经营者
 businessAdvanceAccountLabel: 业务垫付款账户
-businessAdvanceAccountDesc: 记录业务欠款的资产账户。
+businessAdvanceAccountDesc: 记录业务欠款的资产账户。请选择不纳入预算的资产账户。
+businessAdvanceAccountBudgetWarningTitle: 请检查业务垫付款账户
+businessAdvanceAccountBudgetWarning: 当前账户计入预算现金。请改用专门且不纳入预算的资产账户。
 businessLossAccountLabel: 损失处理账户
 businessLossAccountDesc: 将垫付款作为无法收回的损失处理时使用的支出账户。
 businessAdvanceBudgetCategoryLabel: 垫付款的预算来源
 businessAdvanceBudgetCategoryDesc: 用于扣除业务部分金额的预算类别。
+businessAdvanceBudgetSourceLabel: 转入业务的预算来源
+businessAdvanceBudgetSourceHint: 选择类别后会从该预算扣除转账金额。留空则不分配预算。
+businessAdvanceBudgetUnallocated: 未分配
+businessAdvanceUntrackedSourceHint: 此来源不计入预算现金，因此仅记录类别供参考，不扣减余额。
+businessAdvanceRecoveryBudgetHint: 收回的现金保持未分配状态，不会恢复原预算。
 transactionTypeBusinessAdvance: 事业垫付款
 businessRatioLabel: 业务使用比例
 businessRatioDesc: 此项支出中属于业务费用的部分。
@@ -818,6 +836,10 @@ businessAdvanceSplitBusiness: 业务部分：
 businessAdvanceSplitPersonal: 个人部分：
 personalPortionLabel: 个人部分
 tabBusinessAdvanceProcess: 垫付款处理
+businessAdvanceSendMode: 转给业务
+businessAdvanceSendFromLabel: 转出账户
+businessAdvanceSendDesc: 转给业务
+businessAdvanceAmountExceedsBalance: 金额超过此日期的垫付款余额。
 businessAdvanceModeTransfer: 转账（报销）
 businessAdvanceModeDispose: 作为损失处理
 businessAdvanceTransferDesc: 业务垫付款报销
@@ -857,7 +879,13 @@ budgetReferenceAllocationTitle: 参考预算记录
 budgetReferenceAllocationHint: 付款来源不属于预算资金，但该计划支出会减少预算余额和可分配金额，并在一致性检查中单独显示。
 budgetMarkReferenceAction: 设为参考记录
 budgetMarkReferenceSuccess: 已将预算明细改为参考记录
-budgetReferenceSpentLabel: 其中参考支出
+budgetReferenceSpentLabel: 参考记录（不计入使用额）
+budgetUsageLabel: 预算使用额
+budgetBeforeUsageLabel: 使用前预算
+budgetSpendingUsageLabel: 支出使用额
+budgetMonthlyFundingOutLabel: 每月补充所用预算
+budgetMonthlyFundingInLabel: 收到的每月补充
+budgetUsageIncludesFundingHint: 预算使用额包含折旧每月补充的转出额。收到的补充不计入使用额，也不会再次从余额中扣除。
 budgetDepreciationRecognizedLabel: "本月确认的分期转账额"
 budgetDepreciationReserveLabel: "剩余购买预留额"
 budgetDepreciationOverviewTitle: "分期转账预算"

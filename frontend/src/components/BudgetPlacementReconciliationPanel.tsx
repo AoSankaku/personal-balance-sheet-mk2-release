@@ -90,7 +90,7 @@ export function BudgetPlacementReconciliationPanel({
 
   return (
     <>
-      <Paper withBorder p="md" radius="md">
+      <Paper withBorder p="md" radius="md" data-testid="budget-placement-reconciliation">
         <Stack gap="sm">
           <Group justify="space-between" align="center">
             <Text fw={700}>{t("budgetPlacementReconciliationTitle")}</Text>

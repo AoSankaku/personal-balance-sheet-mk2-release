@@ -789,6 +789,17 @@ importSalaryAndAmazonSwitched: Salary row(s) moved to Simple input and Amazon ro
 importEmptyRowsWarning: "{count} row(s) have no account selected and will not be imported. Continue?"
 importEmptyRowsWarningTitle: Rows without account
 importContinue: Continue
+importKotoraWarningTitle: Review Kotora transfer descriptions
+importKotoraWarningMessage: The Kotora transfer name and transfer number are still included. Continue?
+importKotoraRewriteHint: We recommend rewriting the description so you can recognize it later. Continuing without selecting an option saves the name and transfer number unchanged.
+importKotoraMaskNumber: Automatically mask the transfer number
+importKotoraMaskFuture: Automatically mask transfer numbers in future imports
+importKotoraFutureHint: Applies to bank CSV imports in this browser. Keeps the name and replaces only the trailing transfer number with ****. You can turn this off in CSV settings.
+importKotoraEditDescription: Edit descriptions
+importKotoraAffectedCount: "Affected rows: {count}"
+importKotoraReviewHint: Some rows contain a Kotora transfer name and transfer number. Rewrite descriptions if needed. You will be asked to confirm before importing.
+importKotoraMaskedPreview: "Saved description: {description}"
+importKotoraSettingsTitle: Kotora transfer descriptions
 deleteJournalConfirm: Delete Entry
 deleteJournalConfirmMsg: Are you sure you want to delete this entry? This cannot be undone.
 suppressDeleteWarning5min: Don't show this warning for 5 minutes
@@ -803,14 +814,21 @@ depreciationSettingsTitle: "Budget installment transfers (depreciation) settings
 depreciationSettingsHint: "Choose the expense account used for monthly expense entries."
 depreciationAccountNone: "No account selected"
 businessOwnerSettingsTitle: Business Owner Advance Settings
-businessOwnerSettingsHint: Configure accounts for recording business expense advances as a sole proprietor.
+businessOwnerSettingsHint: Configure the asset account used to track business advances. Budget-eligible cash accounts cannot be used for this account.
 isBusinessOwner: I am a sole proprietor (個人事業主)
 businessAdvanceAccountLabel: Business advance account (事業立替金科目)
-businessAdvanceAccountDesc: Asset account that records amounts owed to you by the business.
+businessAdvanceAccountDesc: Asset account that records amounts owed to you by the business. Choose an asset account excluded from budgets.
+businessAdvanceAccountBudgetWarningTitle: Check the business advance account
+businessAdvanceAccountBudgetWarning: The configured account is included in budget cash. Change it to a dedicated asset account excluded from budgets.
 businessLossAccountLabel: Loss disposal account
 businessLossAccountDesc: Expense account used when writing off an advance as irrecoverable.
 businessAdvanceBudgetCategoryLabel: Budget source for advances
 businessAdvanceBudgetCategoryDesc: Budget category from which the business portion is deducted.
+businessAdvanceBudgetSourceLabel: Budget source for business transfers
+businessAdvanceBudgetSourceHint: Selecting a category deducts the transfer from that budget. Leave it blank to keep the transfer unallocated.
+businessAdvanceBudgetUnallocated: Unallocated
+businessAdvanceUntrackedSourceHint: This source is excluded from budget cash, so the category is recorded for reference without a balance deduction.
+businessAdvanceRecoveryBudgetHint: Returned cash stays unallocated and does not restore the former budget.
 transactionTypeBusinessAdvance: Business Advance
 businessRatioLabel: Business use ratio
 businessRatioDesc: Portion of this expense that is a business cost.
@@ -818,6 +836,10 @@ businessAdvanceSplitBusiness: "Business:"
 businessAdvanceSplitPersonal: "Personal:"
 personalPortionLabel: Personal portion
 tabBusinessAdvanceProcess: Advance Processing
+businessAdvanceSendMode: Send to business
+businessAdvanceSendFromLabel: Send from account
+businessAdvanceSendDesc: Transfer to business
+businessAdvanceAmountExceedsBalance: The amount exceeds the advance balance on this date.
 businessAdvanceModeTransfer: Transfer (reimburse)
 businessAdvanceModeDispose: Dispose as loss
 businessAdvanceTransferDesc: Business advance reimbursement
@@ -857,7 +879,13 @@ budgetReferenceAllocationTitle: Reference budget record
 budgetReferenceAllocationHint: The payment source is outside budget funds, but this planned spending reduces both the budget balance and allocatable money and is shown separately in reconciliation.
 budgetMarkReferenceAction: Make reference
 budgetMarkReferenceSuccess: Changed the budget breakdown to a reference record
-budgetReferenceSpentLabel: Of which reference spending
+budgetReferenceSpentLabel: Reference records (outside usage)
+budgetUsageLabel: Budget used
+budgetBeforeUsageLabel: Budget before usage
+budgetSpendingUsageLabel: Used for spending
+budgetMonthlyFundingOutLabel: Used for monthly funding
+budgetMonthlyFundingInLabel: Monthly funding received
+budgetUsageIncludesFundingHint: Budget usage includes outgoing monthly depreciation funding. Received funding is not counted as usage, and the balance is not reduced a second time.
 budgetDepreciationRecognizedLabel: "Monthly expense recorded this month"
 budgetDepreciationReserveLabel: "Remaining purchase reservation"
 budgetDepreciationOverviewTitle: "Monthly expense transfer budget"
