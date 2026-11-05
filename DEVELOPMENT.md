@@ -1,5 +1,29 @@
 # Development Notes
 
+## Runtime versions
+
+このプロジェクトではNode.js `24.18.0`をルートの`.node-version`で指定し、Bun
+`1.4.4`をルートの`package.json`の`packageManager`で指定する。ローカル開発と
+Cloudflare Buildsではこの指定を使用する。Build Variablesに`NODE_VERSION`や
+`BUN_VERSION`を設定している場合は、それぞれ`24.18.0`、`1.4.4`へ揃える。
+
+## 本番デプロイの確認
+
+WranglerのOAuth認証では、Workers Builds APIの専用権限を利用できない場合がある。
+ビルド履歴APIが403を返しても、Workerのデプロイ権限や本番の稼働状態とは別に
+確認する。現在の本番配信は次のコマンドで確認できる。
+
+```powershell
+cd worker
+bun run wrangler deployments status --name balance-sheet-worker --json
+bun run wrangler versions view <version-id> --name balance-sheet-worker --json
+```
+
+本番バージョンのタグ・メッセージと配信割合を照合する。手動デプロイでは
+`--keep-vars`で既存の実行時変数を保持し、ソースのコミットを`--tag`、アプリの
+バージョンを`--message`に記録する。Build VariablesはWorker実行時の`vars`とは
+別の設定であり、`wrangler deploy --var`では変更しない。
+
 ## `dev`を`main`へマージする
 
 作業ツリーに未コミットの変更がないことを確認してから実行する。通常は、後述の
