@@ -17,6 +17,10 @@ describe("long-term loan budget defaults API", () => {
         currency: "JPY",
         source: "opening",
         source_journal_entry_id: 42,
+        budget_revision: 10,
+        settled_minor_units: 0,
+        settled_allocations: [],
+        settled_progress_available: true,
         allocations: [{ budget_category_id: 3, weight: 2 }],
       });
     };
@@ -41,6 +45,10 @@ describe("long-term loan budget defaults API", () => {
         currency: "USD",
         source: "custom",
         source_journal_entry_id: null,
+        budget_revision: 10,
+        settled_minor_units: 0,
+        settled_allocations: [],
+        settled_progress_available: true,
         allocations: [
           { budget_category_id: 3, weight: 2 },
           { budget_category_id: null, weight: 1 },
@@ -79,6 +87,10 @@ describe("long-term loan budget defaults API", () => {
         currency: "JPY",
         source: "opening",
         source_journal_entry_id: 42,
+        budget_revision: 10,
+        settled_minor_units: 0,
+        settled_allocations: [],
+        settled_progress_available: true,
         allocations: [],
       });
     };

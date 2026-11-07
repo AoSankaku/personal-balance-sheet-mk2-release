@@ -2,6 +2,7 @@ import type {
   BudgetFundingAllocationInput,
   BudgetFundingKind,
 } from "@balance-sheet/shared";
+import { loanBudgetMinorUnits } from "../../../shared/longTermLoanBudgetDefaults";
 
 export type LoanDirection = "increase" | "decrease" | "lend" | "collect";
 
@@ -16,22 +17,26 @@ export function fundingKindForLoanDirection(
 export function buildBudgetFundingAllocations(
   principal: number,
   categoryAmounts: ReadonlyMap<number, number>,
+  decimalPlaces = 0,
 ): BudgetFundingAllocationInput[] {
+  const principalUnits = loanBudgetMinorUnits(principal, decimalPlaces);
+  const scale = 10 ** decimalPlaces;
   const categoryAllocations = [...categoryAmounts.entries()]
     .filter(([, amount]) => Number.isFinite(amount) && amount > 0)
     .map(([budget_category_id, amount]) => ({
       budget_category_id,
-      amount,
-    }));
+      amount: loanBudgetMinorUnits(amount, decimalPlaces) / scale,
+    }))
+    .filter(allocation => allocation.amount > 0);
   const allocated = categoryAllocations.reduce(
-    (sum, allocation) => sum + allocation.amount,
-    0,
+    (sum, allocation) => sum + BigInt(loanBudgetMinorUnits(allocation.amount, decimalPlaces)),
+    0n,
   );
-  if (allocated > principal) {
+  if (allocated > BigInt(principalUnits)) {
     throw new Error("budget_funding_allocations_exceed_principal");
   }
 
-  const unallocated = principal - allocated;
+  const unallocated = Number(BigInt(principalUnits) - allocated) / scale;
   return [
     ...categoryAllocations,
     ...(unallocated > 0

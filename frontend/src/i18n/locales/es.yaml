@@ -1832,3 +1832,22 @@ expenseTagsEmpty: No hay etiquetas
 editExpenseTags: Editar etiquetas
 expenseTagsSaved: Etiquetas guardadas
 expenseTagsUnavailableForDepreciation: Las etiquetas no se pueden cambiar en la entrada de depreciación. Guarda el asiento y edita sus etiquetas desde el libro.
+loanFundingApplyDefaults: Aplicar distribución predeterminada
+loanFundingManualMode: Definir distribución manualmente
+loanFundingAutoHint: Distribución automática según la configuración presupuestaria de este préstamo a largo plazo.
+loanFundingManualOverrideHint: Este asiento usa la distribución siguiente sin cambiar la configuración predeterminada.
+loanFundingDefaultsStale: La configuración presupuestaria cambió en otra pantalla y se volvió a cargar. Revisa la distribución y vuelve a guardar.
+loanFundingDefaultsLoading: Cargando la configuración presupuestaria…
+loanFundingDefaultsError: No se pudo cargar o calcular la distribución. Cambia al modo manual o inténtalo de nuevo.
+loanBudgetDefaultsTitle: Distribución presupuestaria predeterminada del préstamo a largo plazo
+loanBudgetDefaultsHint: Distribución predeterminada para futuros cobros y pagos en esta moneda. Las operaciones existentes no cambian.
+loanBudgetDefaultsUnavailable: No hay una distribución inicial disponible. El valor predeterminado queda sin asignar.
+loanBudgetDefaultsLoadError: No se pudo cargar esta distribución presupuestaria.
+loanBudgetDefaultsSourceLabel: Origen actual
+loanBudgetDefaultsSource_opening: Operación inicial
+loanBudgetDefaultsSource_custom: Configuración personalizada
+loanBudgetDefaultsSource_unavailable: Valor sin asignar
+loanBudgetDefaultsRatioExample: Usa proporciones enteras, como 2:1. Los porcentajes son solo una vista previa.
+loanBudgetDefaultsWeightLabel: Proporción
+loanBudgetDefaultsReset: Usar distribución inicial
+loanBudgetDefaultsSave: Guardar distribución

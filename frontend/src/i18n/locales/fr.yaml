@@ -1832,3 +1832,22 @@ expenseTagsEmpty: Aucun tag
 editExpenseTags: Modifier les tags
 expenseTagsSaved: Tags enregistrés
 expenseTagsUnavailableForDepreciation: Les tags ne peuvent pas être modifiés dans la saisie d’amortissement. Enregistrez l’écriture, puis modifiez ses tags depuis le grand livre.
+loanFundingApplyDefaults: Appliquer la répartition par défaut
+loanFundingManualMode: Définir la répartition manuellement
+loanFundingAutoHint: Répartition automatique selon les paramètres de budget de ce prêt à long terme.
+loanFundingManualOverrideHint: Cette écriture utilise la répartition ci-dessous sans modifier les paramètres par défaut.
+loanFundingDefaultsStale: Les paramètres budgétaires ont changé ailleurs et ont été rechargés. Vérifiez la répartition puis réessayez.
+loanFundingDefaultsLoading: Chargement des paramètres de budget…
+loanFundingDefaultsError: Impossible de charger ou calculer la répartition. Passez en mode manuel ou réessayez.
+loanBudgetDefaultsTitle: Répartition budgétaire par défaut du prêt à long terme
+loanBudgetDefaultsHint: Répartition par défaut des remboursements futurs dans cette devise. Les écritures existantes ne changent pas.
+loanBudgetDefaultsUnavailable: Aucune répartition initiale n'est disponible. Le montant est entièrement non affecté par défaut.
+loanBudgetDefaultsLoadError: Impossible de charger cette répartition budgétaire.
+loanBudgetDefaultsSourceLabel: Source actuelle
+loanBudgetDefaultsSource_opening: Écriture initiale
+loanBudgetDefaultsSource_custom: Paramètre personnalisé
+loanBudgetDefaultsSource_unavailable: Valeur non affectée
+loanBudgetDefaultsRatioExample: Saisissez des rapports entiers, par exemple 2:1. Les pourcentages sont uniquement indicatifs.
+loanBudgetDefaultsWeightLabel: Rapport
+loanBudgetDefaultsReset: Reprendre la répartition initiale
+loanBudgetDefaultsSave: Enregistrer la répartition

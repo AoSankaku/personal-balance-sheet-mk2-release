@@ -29,6 +29,9 @@ describe("explicit budget funding allocations", () => {
       { budget_category_id: 10, amount: 0.1 }, { budget_category_id: null, amount: 0.2 },
     ]);
     expect(() => buildBudgetFundingAllocations(0.3, new Map([[10, 0.31]]), 2)).toThrow();
+    expect(buildBudgetFundingAllocations(1, new Map([[10, 0.1]]), 0)).toEqual([
+      { budget_category_id: null, amount: 1 },
+    ]);
   });
 
   test("maps every loan direction to a funding kind", () => {

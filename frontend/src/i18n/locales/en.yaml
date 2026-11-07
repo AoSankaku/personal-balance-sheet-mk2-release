@@ -1832,3 +1832,22 @@ expenseTagsEmpty: No tags
 editExpenseTags: Edit tags
 expenseTagsSaved: Tags saved
 expenseTagsUnavailableForDepreciation: Tags can't be changed in depreciation input. Save the entry, then edit its tags from the ledger.
+loanFundingApplyDefaults: Apply defaults
+loanFundingManualMode: Set allocation manually
+loanFundingAutoHint: Automatically allocated using this account's long-term loan budget defaults.
+loanFundingManualOverrideHint: This entry uses the allocation below. It does not change the saved defaults.
+loanFundingDefaultsStale: Budget defaults changed elsewhere. They have been reloaded; review the allocation and submit again.
+loanFundingDefaultsLoading: Loading this account's budget defaults…
+loanFundingDefaultsError: Could not load or calculate the budget defaults. Set allocation manually or retry.
+loanBudgetDefaultsTitle: Long-term loan budget defaults
+loanBudgetDefaultsHint: Default allocation weights for future repayments and collections in this currency. Existing entries are unchanged.
+loanBudgetDefaultsUnavailable: No opening allocation source is available. The default starts fully unallocated.
+loanBudgetDefaultsLoadError: Could not load these budget defaults.
+loanBudgetDefaultsSourceLabel: Current source
+loanBudgetDefaultsSource_opening: Opening transaction
+loanBudgetDefaultsSource_custom: Custom setting
+loanBudgetDefaultsSource_unavailable: Unallocated fallback
+loanBudgetDefaultsRatioExample: Use integer weights such as 2:1. Percentages are a preview only.
+loanBudgetDefaultsWeightLabel: Weight
+loanBudgetDefaultsReset: Use opening allocation
+loanBudgetDefaultsSave: Save defaults

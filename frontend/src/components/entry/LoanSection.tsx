@@ -1,5 +1,6 @@
 import {
   Badge,
+  Button,
   Checkbox,
   Collapse,
   Group,
@@ -22,6 +23,7 @@ import type {
 import {
   isAnyLendingCategory,
   isLongTermBorrowingCategory,
+  isLongTermLendingCategory,
   isShortTermBorrowingCategory,
   isShortTermLoanCategory,
 } from "@balance-sheet/shared";
@@ -69,6 +71,14 @@ interface Props {
   setLoanFundingCategoryAmounts: React.Dispatch<
     React.SetStateAction<Record<number, number>>
   >;
+  loanFundingMode?: "auto" | "manual";
+  loanFundingDefaultsLoading?: boolean;
+  loanFundingDefaultsError?: boolean;
+  canApplyLoanFundingDefaults?: boolean;
+  onApplyLoanFundingDefaults?: () => void;
+  onSetLoanFundingManual?: () => void;
+  onRetryLoanFundingDefaults?: () => void;
+  onFundingManualEdit?: () => void;
   currentUnallocatedFunding: number;
   showFundingSuggestion: boolean;
   handleLoanCounterAccountChange: (v: string | null) => void;
@@ -100,6 +110,14 @@ export function LoanSection({
   setLoanCounterBudgetDist,
   loanFundingCategoryAmounts,
   setLoanFundingCategoryAmounts,
+  loanFundingMode = "manual",
+  loanFundingDefaultsLoading = false,
+  loanFundingDefaultsError = false,
+  canApplyLoanFundingDefaults = true,
+  onApplyLoanFundingDefaults,
+  onSetLoanFundingManual,
+  onRetryLoanFundingDefaults,
+  onFundingManualEdit,
   currentUnallocatedFunding,
   showFundingSuggestion,
   handleLoanCounterAccountChange,
@@ -208,6 +226,14 @@ export function LoanSection({
   const automaticFundingReversal =
     (loanDirection === "decrease" || loanDirection === "collect") &&
     settledEntryIds.length > 0;
+  const usesLongTermDefaults = !creditCardInvolved && (
+    (loanDirection === "decrease" &&
+      loanAccount != null &&
+      isLongTermBorrowingCategory(loanAccount.category)) ||
+    (loanDirection === "collect" &&
+      loanAccount != null &&
+      isLongTermLendingCategory(loanAccount.category))
+  );
   const assignedFunding = Object.values(loanFundingCategoryAmounts).reduce(
     (sum, amount) => sum + (Number(amount) || 0),
     0,
@@ -300,6 +326,7 @@ export function LoanSection({
         onChange={(v) => {
           form.setFieldValue("loanAccountId", v ? Number(v) : null);
           setSettledEntryIds([]);
+          setLoanFundingCategoryAmounts({});
         }}
         error={form.errors.loanAccountId}
         renderOption={renderAccountOption as any}
@@ -448,11 +475,44 @@ export function LoanSection({
             </Text>
           ) : (
             <>
-              <Text size="xs" c="dimmed">
-                {t(loanDirection === "collect" || loanDirection === "decrease"
-                  ? "loanFundingManualSettlementHint"
-                  : "loanFundingBreakdownHint")}
-              </Text>
+              {usesLongTermDefaults && loanFundingMode === "auto" && !loanFundingDefaultsError ? (
+                <Text size="xs" c="dimmed">
+                  {loanFundingDefaultsLoading
+                    ? t("loanFundingDefaultsLoading")
+                    : t("loanFundingAutoHint")}
+                </Text>
+              ) : (
+                <Text size="xs" c="dimmed">
+                  {t(usesLongTermDefaults
+                    ? "loanFundingManualOverrideHint"
+                    : loanDirection === "collect" || loanDirection === "decrease"
+                      ? "loanFundingManualSettlementHint"
+                      : "loanFundingBreakdownHint")}
+                </Text>
+              )}
+              {usesLongTermDefaults && loanFundingDefaultsError && (
+                <Group justify="space-between" align="center">
+                  <Text size="xs" c="red">{t("loanFundingDefaultsError")}</Text>
+                  <Group gap="xs">
+                    <Button size="xs" variant="subtle" onClick={onRetryLoanFundingDefaults}>
+                      {t("reload")}
+                    </Button>
+                    <Button size="xs" variant="light" onClick={onSetLoanFundingManual}>
+                      {t("loanFundingManualMode")}
+                    </Button>
+                  </Group>
+                </Group>
+              )}
+              {usesLongTermDefaults && loanFundingMode === "manual" && canApplyLoanFundingDefaults && (
+                <Button
+                  size="xs"
+                  variant="light"
+                  w="fit-content"
+                  onClick={onApplyLoanFundingDefaults}
+                >
+                  {t("loanFundingApplyDefaults")}
+                </Button>
+              )}
               {showLendingSuggestion && (
                 <Group gap="xs" wrap="wrap">
                   <Badge size="sm" variant="light" color="gray">
@@ -477,7 +537,14 @@ export function LoanSection({
               )}
               {budgetCategories.map((category) => (
                 <Group key={category.id} justify="space-between" gap="xs">
-                  <Text size="sm">{category.name}</Text>
+                  <Group gap="xs" flex={1}>
+                    <Text size="sm">{category.name}</Text>
+                    {category.is_archived && (
+                      <Badge size="xs" color="gray" variant="light">
+                        {t("archivedBudgetCategoryBadge")}
+                      </Badge>
+                    )}
+                  </Group>
                   <NumberInput
                     w={150}
                     size="xs"
@@ -487,12 +554,13 @@ export function LoanSection({
                     prefix={currencySymbol}
                     thousandSeparator=","
                     value={loanFundingCategoryAmounts[category.id] ?? 0}
-                    onChange={(value) =>
+                    onChange={(value) => {
+                      onFundingManualEdit?.();
                       setLoanFundingCategoryAmounts((current) => ({
                         ...current,
                         [category.id]: Number(value) || 0,
-                      }))
-                    }
+                      }));
+                    }}
                   />
                 </Group>
               ))}
@@ -527,9 +595,22 @@ export function LoanSection({
           )}
         </Stack>
       ) : showFundingNoImpactHint ? (
-        <Text size="xs" c="dimmed">
-          {t("loanFundingNoBudgetImpactHint")}
-        </Text>
+        <Stack gap={4}>
+          <Text size="xs" c="dimmed">{t("loanFundingNoBudgetImpactHint")}</Text>
+          {usesLongTermDefaults && loanFundingDefaultsError ? (
+            <Group justify="space-between">
+              <Text size="xs" c="red">{t("loanFundingDefaultsError")}</Text>
+              <Group gap="xs">
+                <Button size="xs" variant="subtle" onClick={onRetryLoanFundingDefaults}>{t("reload")}</Button>
+                <Button size="xs" variant="light" onClick={onSetLoanFundingManual}>{t("loanFundingManualMode")}</Button>
+              </Group>
+            </Group>
+          ) : usesLongTermDefaults && loanFundingMode === "auto" ? (
+            <Text size="xs" c="dimmed">
+              {loanFundingDefaultsLoading ? t("loanFundingDefaultsLoading") : t("loanFundingAutoHint")}
+            </Text>
+          ) : null}
+        </Stack>
       ) : null}
 
       {(loanDirection === "decrease" || loanDirection === "collect") &&

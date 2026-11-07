@@ -55,6 +55,8 @@ import type {
   LongTermLoanPlanRow,
   UpsertLongTermLoanPlanInput,
   UpsertLongTermLoanPlanRowInput,
+  LongTermLoanBudgetDefaults,
+  LongTermLoanBudgetWeight,
   LongTermLoanComparisonRow,
   PlannedExpense,
   PlannedExpenseCategory,
@@ -907,6 +909,33 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
+    budgetDefaults: {
+      get: (accountId: number, currency = "JPY") => {
+        const query = new URLSearchParams({ currency });
+        return request<LongTermLoanBudgetDefaults>(
+          `/loans/${accountId}/budget-defaults?${query.toString()}`,
+        );
+      },
+      update: (
+        accountId: number,
+        input: {
+          currency: string;
+          allocations: LongTermLoanBudgetWeight[];
+        },
+      ) =>
+        request<LongTermLoanBudgetDefaults>(`/loans/${accountId}/budget-defaults`, {
+          method: "PUT",
+          body: JSON.stringify(input),
+        }),
+      reset: (accountId: number, currency = "JPY") => {
+        const query = new URLSearchParams({ currency });
+        return request<LongTermLoanBudgetDefaults>(
+          `/loans/${accountId}/budget-defaults?${query.toString()}`, {
+          method: "DELETE",
+          },
+        );
+      },
+    },
   },
   longTermLoanPlans: {
     get: (accountId: number) =>

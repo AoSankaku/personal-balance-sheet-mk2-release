@@ -33,12 +33,14 @@ function render(
   accounts: Account[],
   loanAccountId: number,
   loanCounterAccountId = 1,
+  direction: "increase" | "decrease" | "lend" | "collect" = "increase",
+  extraProps: Partial<Parameters<typeof LoanSection>[0]> = {},
 ) {
   const form = {
     values: {
       loanAccountId,
       loanCounterAccountId,
-      loanDirection: "increase",
+      loanDirection: direction,
       loanDifferenceAccountId: null,
       amount: 1_000,
     },
@@ -73,6 +75,7 @@ function render(
     currentUnallocatedFunding: 0,
     showFundingSuggestion: false,
     handleLoanCounterAccountChange: () => {},
+    ...extraProps,
   } as unknown as Parameters<typeof LoanSection>[0];
 
   return renderToStaticMarkup(
@@ -137,5 +140,40 @@ describe("LoanSection budget funding controls", () => {
 
     expect(html).toContain("loanFundingBreakdownTitle");
     expect(html).not.toContain("loanFundingNoBudgetImpactHint");
+  });
+
+  test("explains automatic defaults for long-term repayments", () => {
+    const html = render(
+      [
+        account(1, "asset", "cash", { include_in_allocatable: true }),
+        account(2, "liability", "long_term_loan", {
+          deduct_from_budget: false,
+        }),
+      ],
+      2,
+      1,
+      "decrease",
+      { loanFundingMode: "auto" },
+    );
+
+    expect(html).toContain("loanFundingAutoHint");
+    expect(html).not.toContain("loanFundingApplyDefaults");
+  });
+
+  test("offers a return to defaults after a manual long-term repayment override", () => {
+    const html = render(
+      [
+        account(1, "asset", "cash", { include_in_allocatable: true }),
+        account(2, "liability", "long_term_loan", {
+          deduct_from_budget: false,
+        }),
+      ],
+      2,
+      1,
+      "decrease",
+      { loanFundingMode: "manual" },
+    );
+
+    expect(html).toContain("loanFundingApplyDefaults");
   });
 });

@@ -5,6 +5,28 @@ export type AccountType =
   | "income"
   | "expense";
 
+export type LongTermLoanBudgetWeight = {
+  budget_category_id: number | null;
+  weight: number;
+};
+
+export type LongTermLoanBudgetSettledAllocation = {
+  budget_category_id: number | null;
+  minor_units: number;
+};
+
+export type LongTermLoanBudgetDefaults = {
+  account_id: number;
+  currency: string;
+  budget_revision: number;
+  source: "opening" | "custom" | "unavailable";
+  source_journal_entry_id: number | null;
+  allocations: LongTermLoanBudgetWeight[];
+  settled_minor_units: number;
+  settled_allocations: LongTermLoanBudgetSettledAllocation[];
+  settled_progress_available: boolean;
+};
+
 export type AccountCategory =
   // asset
   | "cash"
@@ -404,6 +426,11 @@ export interface CreateJournalInput {
   /** Explicit, stable budget funding split for loan/lending principal. */
   budget_funding?: BudgetFundingInput;
   budget_funding_components?: BudgetFundingComponentInput[];
+  /** Global budget revision and long-term loan accounts whose automatic split used this snapshot. */
+  loan_budget_default_snapshot?: {
+    revision: number;
+    account_ids: number[];
+  };
   income_transfer_destinations?: IncomeTransferDestinationInput[];
   /** When true, skip the debit=credit balance check (used for currency exchange entries) */
   is_currency_exchange?: boolean;

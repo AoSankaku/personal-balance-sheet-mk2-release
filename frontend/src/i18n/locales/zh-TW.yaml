@@ -1832,3 +1832,22 @@ expenseTagsEmpty: 沒有標籤
 editExpenseTags: 編輯標籤
 expenseTagsSaved: 標籤已儲存
 expenseTagsUnavailableForDepreciation: 折舊輸入中無法在此編輯標籤。儲存分錄後，請在帳簿中編輯標籤。
+loanFundingApplyDefaults: 套用預設分配
+loanFundingManualMode: 手動設定分配
+loanFundingAutoHint: 依照此長期貸款的預算預設設定自動分配。
+loanFundingManualOverrideHint: 此分錄使用下方分配，不會變更已儲存的預設設定。
+loanFundingDefaultsStale: 其他頁面已變更預算預設設定，現已重新載入。請檢查分配後再次提交。
+loanFundingDefaultsLoading: 正在載入預算預設設定…
+loanFundingDefaultsError: 無法載入或計算預算預設分配。請切換為手動分配或重試。
+loanBudgetDefaultsTitle: 長期貸款預算預設分配
+loanBudgetDefaultsHint: 此幣別未來還款與收款的預設分配比例。既有分錄不會變更。
+loanBudgetDefaultsUnavailable: 沒有可用的初始分配來源。預設全部保持未分配。
+loanBudgetDefaultsLoadError: 無法載入預算預設分配。
+loanBudgetDefaultsSourceLabel: 目前來源
+loanBudgetDefaultsSource_opening: 初始交易
+loanBudgetDefaultsSource_custom: 自訂設定
+loanBudgetDefaultsSource_unavailable: 未分配預設值
+loanBudgetDefaultsRatioExample: 使用整數比例，例如 2:1。百分比僅供預覽。
+loanBudgetDefaultsWeightLabel: 比例
+loanBudgetDefaultsReset: 使用初始分配
+loanBudgetDefaultsSave: 儲存預設分配

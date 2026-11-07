@@ -45,6 +45,7 @@ import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { api } from "../api/client";
 import { LoanManagementEntryForm } from "../components/LoanManagementEntryForm";
+import { LongTermLoanBudgetDefaultsEditor } from "../components/LongTermLoanBudgetDefaultsEditor";
 import type { SimpleFormDraft } from "../components/SimpleEntryForm";
 import { formatJPY } from "../lib/numberFormat";
 import {
@@ -75,7 +76,7 @@ interface EditableRow {
 export default function LongTermLoanDetailPage({ kind }: Props) {
   const { t, locale } = useLang();
   const { id } = useParams<{ id: string }>();
-  const { accounts, journal, refresh } = useAppData();
+  const { accounts, journal, refresh, displayCurrency } = useAppData();
   const accountId = Number(id);
   const isAsset = kind === "lend";
 
@@ -603,6 +604,14 @@ export default function LongTermLoanDetailPage({ kind }: Props) {
           )}
         </Group>
       </Card>
+
+      {account && isCorrectKind && (
+        <LongTermLoanBudgetDefaultsEditor
+          key={`${accountId}:${displayCurrency || "JPY"}`}
+          accountId={accountId}
+          currency={displayCurrency || "JPY"}
+        />
+      )}
 
       {/* Plan settings */}
       <Paper withBorder radius="md" p="lg">

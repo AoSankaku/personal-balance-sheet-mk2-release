@@ -41,6 +41,10 @@ Prêter et emprunter ne constituent ni une dépense ni un revenu, mais modifient
 
 La ventilation est figée lors de l’enregistrement et n’est pas recalculée après la modification d’une autre écriture ancienne. Pour les opérations à court terme, le remboursement ou le recouvrement inverse la ventilation enregistrée de l’écriture d’origine sélectionnée. Si la catégorie a été réinitialisée entre-temps, cette relation antérieure prend fin : la catégorie n’est pas rétablie et la trésorerie récupérée redevient non affectée.
 
+Pour les opérations à long terme, la répartition initiale reprend celle du premier emprunt ou prêt, par compte et devise, fonds non affectés compris. Le rapport entre les montants est conservé lorsque le principal change. Dans les paramètres de répartition de la page détaillée, saisissez des poids entiers, par exemple 2:1, pour modifier les valeurs futures. Les écritures enregistrées restent inchangées et chaque paiement peut être ajusté manuellement.
+
+Le calcul utilise la plus petite unité de la devise et reporte les écarts d’arrondi des versements qui suivent la même répartition. Si une autre fenêtre modifie le journal ou les paramètres, rechargez les valeurs actuelles et vérifiez la répartition avant d’enregistrer à nouveau.
+
 ## Remboursements ou recouvrements avec écarts
 
 Le montant du remboursement ou du recouvrement peut ne pas correspondre exactement au montant d'origine en raison de frais, remises, écarts de change, arrondis, dons ou raisons similaires.

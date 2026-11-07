@@ -29,13 +29,19 @@ import {
 import dayjs from "dayjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
+  BudgetCategory,
   CreateJournalInput,
   UnsettledLoanEntry,
+  BudgetFundingKind,
+  LongTermLoanBudgetDefaults,
 } from "@balance-sheet/shared";
 import {
+  isLongTermBorrowingCategory,
+  isLongTermLendingCategory,
   isShortTermBorrowingCategory,
   isShortTermLendingCategory,
 } from "@balance-sheet/shared";
+import { allocateLoanBudgetDefaults, loanBudgetMinorUnits } from "../../../shared/longTermLoanBudgetDefaults";
 import { api, ApiError } from "../api/client";
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
@@ -152,6 +158,17 @@ export function MultiLineEntryForm({
     [accounts],
   );
   const isMobile = useMediaQuery("(max-width: 48em)");
+  const [retainedLoanFundingCategories, setRetainedLoanFundingCategories] =
+    useState<BudgetCategory[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void api.budget.listCategories({ includeArchived: true })
+      .then((categories) => {
+        if (!cancelled) setRetainedLoanFundingCategories(categories);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   const isControlled = initialValues != null;
   const draftInitialValues: MultiLineDraft | undefined = initialValues ?? multiDraft ?? undefined;
 
@@ -240,29 +257,81 @@ export function MultiLineEntryForm({
   const [saleLossAccountId, setSaleLossAccountId] = useState<number | null>(() =>
     accounts.find((account) => account.type === "expense" && account.category === "investment_loss")?.id ?? null,
   );
+  const fundingDraftMatchesCurrency =
+    (draftInitialValues?.budgetFundingCurrency ?? selectedCurrency).toUpperCase() ===
+    selectedCurrency.toUpperCase();
   const initialFundingCategoryAmounts = useMemo(
-    () =>
-      Object.fromEntries(
-        (initialValues?.budgetFundingComponents ?? []).map((component) => [
+    () => {
+      if (!fundingDraftMatchesCurrency && initialValues == null) return {};
+      if (
+        fundingDraftMatchesCurrency &&
+        draftInitialValues?.budgetFundingCategoryAmounts != null
+      ) return draftInitialValues.budgetFundingCategoryAmounts;
+      return Object.fromEntries(
+        (draftInitialValues?.budgetFundingComponents ?? []).map((component) => [
           component.kind,
           Object.fromEntries(
-            budgetCategories.map((category) => [
-              category.id,
-              component.allocations
-                .filter(
-                  (allocation) =>
-                    allocation.budget_category_id === category.id,
-                )
-                .reduce((sum, allocation) => sum + allocation.amount, 0),
-            ]),
+            component.allocations
+              .filter((allocation) => allocation.budget_category_id != null)
+              .reduce((totals, allocation) => {
+                const id = allocation.budget_category_id!;
+                totals.set(id, (totals.get(id) ?? 0) + allocation.amount);
+                return totals;
+              }, new Map<number, number>()),
           ),
         ]),
-      ) as Record<string, Record<number, number>>,
-    [initialValues?.budgetFundingComponents, budgetCategories],
+      ) as Record<string, Record<number, number>>;
+    },
+    [
+      draftInitialValues?.budgetFundingCategoryAmounts,
+      draftInitialValues?.budgetFundingComponents,
+      fundingDraftMatchesCurrency,
+      initialValues,
+    ],
   );
+  const initialFundingCategoryModes = useMemo(() => {
+    const savedFundingComponents = draftInitialValues?.budgetFundingComponents ?? [];
+    if (
+      fundingDraftMatchesCurrency &&
+      draftInitialValues?.budgetFundingModes != null
+    ) return draftInitialValues.budgetFundingModes;
+    if (
+      (initialValues != null || fundingDraftMatchesCurrency) &&
+      savedFundingComponents.length > 0
+    ) {
+      return Object.fromEntries(
+        savedFundingComponents.map((component) => [
+          component.kind,
+          "manual" as const,
+        ]),
+      ) as Partial<Record<BudgetFundingKind, "auto" | "manual">>;
+    }
+    if (fundingDraftMatchesCurrency && draftInitialValues?.budgetFundingCategoryAmounts != null) {
+      return Object.fromEntries(
+        Object.keys(draftInitialValues.budgetFundingCategoryAmounts).map((kind) => [kind, "manual" as const]),
+      ) as Partial<Record<BudgetFundingKind, "auto" | "manual">>;
+    }
+    return {};
+  }, [
+    draftInitialValues?.budgetFundingCategoryAmounts,
+    draftInitialValues?.budgetFundingComponents,
+    draftInitialValues?.budgetFundingModes,
+    fundingDraftMatchesCurrency,
+    initialValues,
+  ]);
   const [fundingCategoryAmounts, setFundingCategoryAmounts] = useState<
     Record<string, Record<number, number>>
   >(initialFundingCategoryAmounts);
+  const [fundingCategoryModes, setFundingCategoryModes] = useState<
+    Partial<Record<BudgetFundingKind, "auto" | "manual">>
+  >(initialFundingCategoryModes);
+  const [fundingDefaultsByAccount, setFundingDefaultsByAccount] = useState<
+    Record<number, LongTermLoanBudgetDefaults>
+  >({});
+  const [fundingDefaultsStatus, setFundingDefaultsStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [fundingDefaultsRefreshToken, setFundingDefaultsRefreshToken] = useState(0);
   const [overBudgetWarnOpen, setOverBudgetWarnOpen] = useState(false);
   const [underBudgetWarnOpen, setUnderBudgetWarnOpen] = useState(false);
   const [budgetCalculatorOpen, setBudgetCalculatorOpen] = useState(false);
@@ -280,6 +349,25 @@ export function MultiLineEntryForm({
   const [tagExpenseCurrency, setTagExpenseCurrency] = useState(selectedCurrency);
   const [catalogExpenseTags, setCatalogExpenseTags] = useState<string[]>([]);
   const pendingValues = useRef<MultiForm | null>(null);
+  const fundingCurrencyRef = useRef(selectedCurrency);
+
+  useEffect(() => {
+    if (fundingCurrencyRef.current === selectedCurrency) return;
+    fundingCurrencyRef.current = selectedCurrency;
+    if (isControlled) return;
+    setFundingCategoryAmounts((previous) => ({
+      ...previous,
+      repay: {},
+      collect: {},
+    }));
+    setFundingCategoryModes((previous) => ({
+      ...previous,
+      repay: "auto",
+      collect: "auto",
+    }));
+    setFundingDefaultsByAccount({});
+    setFundingDefaultsStatus("idle");
+  }, [isControlled, selectedCurrency]);
 
   useEffect(() => {
     if (tagExpenseCurrency === selectedCurrency) return;
@@ -342,13 +430,17 @@ export function MultiLineEntryForm({
         expenseTags,
         tagExpenseMode,
         tagExpenseAmounts,
+        budgetFundingComponents: draftInitialValues?.budgetFundingComponents,
+        budgetFundingCategoryAmounts: fundingCategoryAmounts,
+        budgetFundingModes: fundingCategoryModes,
+        budgetFundingCurrency: selectedCurrency,
         budgetAllocs,
         incomeBudgetAllocs,
         incomeTransferTargets,
         deferIncomeTransfers,
       });
     }
-  }, [form.values, expenseTags, tagExpenseMode, tagExpenseAmounts, budgetAllocs, incomeBudgetAllocs, incomeTransferTargets, deferIncomeTransfers, isControlled]);
+  }, [form.values, expenseTags, tagExpenseMode, tagExpenseAmounts, fundingCategoryAmounts, fundingCategoryModes, selectedCurrency, draftInitialValues?.budgetFundingComponents, budgetAllocs, incomeBudgetAllocs, incomeTransferTargets, deferIncomeTransfers, isControlled]);
 
   // Accounts in "settlement direction": debit of short_term_loan (repayment)
   // or credit of short_term_lending (collection)
@@ -635,6 +727,262 @@ export function MultiLineEntryForm({
       }),
     [form.values.rows, accounts, selectedCurrency, currencyDecimalPlaces],
   );
+  const longTermSettlementPrincipalsByKind = useMemo(() => {
+    const amounts: Partial<Record<"repay" | "collect", Record<number, number>>> = {};
+    const netByAccount = new Map<number, number>();
+    for (const row of form.values.rows) {
+      if (row.account_id == null) continue;
+      netByAccount.set(
+        row.account_id,
+        (netByAccount.get(row.account_id) ?? 0) +
+          (row.debit ?? 0) - (row.credit ?? 0),
+      );
+    }
+    for (const [accountId, net] of netByAccount) {
+      const account = accountMap.get(accountId);
+      if (!account) continue;
+      const kind =
+        isLongTermBorrowingCategory(account.category) && net > 0
+          ? "repay"
+          : isLongTermLendingCategory(account.category) && net < 0
+            ? "collect"
+            : null;
+      if (kind == null) continue;
+      const byAccount = amounts[kind] ?? (amounts[kind] = {});
+      byAccount[account.id] = Math.abs(net);
+    }
+    return amounts;
+  }, [accountMap, form.values.rows]);
+  const longTermFundingScopeByKind = useMemo(() => ({
+    repay: `${selectedCurrency}:${Object.keys(longTermSettlementPrincipalsByKind.repay ?? {}).sort().join(",")}`,
+    collect: `${selectedCurrency}:${Object.keys(longTermSettlementPrincipalsByKind.collect ?? {}).sort().join(",")}`,
+  }), [longTermSettlementPrincipalsByKind, selectedCurrency]);
+  const longTermFundingScopeRef = useRef(longTermFundingScopeByKind);
+  useEffect(() => {
+    const previous = longTermFundingScopeRef.current;
+    longTermFundingScopeRef.current = longTermFundingScopeByKind;
+    if (isControlled) return;
+    const changedKinds = (["repay", "collect"] as const).filter(
+      (kind) => previous[kind] !== longTermFundingScopeByKind[kind],
+    );
+    if (changedKinds.length === 0) return;
+    setFundingCategoryModes((current) => ({
+      ...current,
+      ...Object.fromEntries(changedKinds.map((kind) => [kind, "auto"])),
+    }));
+    setFundingCategoryAmounts((current) => {
+      const next = { ...current };
+      for (const kind of changedKinds) next[kind] = {};
+      return next;
+    });
+  }, [isControlled, longTermFundingScopeByKind]);
+  const autoFundingDefaultAccountIds = useMemo(() => {
+    if (isControlled) return [];
+    const ids = new Set<number>();
+    for (const kind of ["repay", "collect"] as const) {
+      if (fundingCategoryModes[kind] === "manual") continue;
+      for (const accountId of Object.keys(longTermSettlementPrincipalsByKind[kind] ?? {})) {
+        ids.add(Number(accountId));
+      }
+    }
+    return [...ids].sort((left, right) => left - right);
+  }, [fundingCategoryModes, isControlled, longTermSettlementPrincipalsByKind]);
+  const autoFundingDefaultRequestKey = `${selectedCurrency}:${autoFundingDefaultAccountIds.join(",")}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (autoFundingDefaultAccountIds.length === 0) {
+      setFundingDefaultsByAccount({});
+      setFundingDefaultsStatus("ready");
+      return;
+    }
+    setFundingDefaultsByAccount({});
+    setFundingDefaultsStatus("loading");
+    void Promise.all(
+      autoFundingDefaultAccountIds.map((accountId) =>
+        api.loans.budgetDefaults.get(accountId, selectedCurrency),
+      ),
+    ).then((configs) => {
+      if (cancelled) return;
+      setFundingDefaultsByAccount(
+        Object.fromEntries(configs.map((config) => [config.account_id, config])),
+      );
+      setFundingDefaultsStatus("ready");
+    }).catch(() => {
+      if (cancelled) return;
+      setFundingDefaultsByAccount({});
+      setFundingDefaultsStatus("error");
+    });
+    return () => { cancelled = true; };
+  }, [autoFundingDefaultRequestKey, fundingDefaultsRefreshToken, selectedCurrency]);
+
+  const automaticFundingDefaultAllocations = useMemo(() => {
+    if (autoFundingDefaultAccountIds.length === 0) return { byKind: {} as Record<string, Array<{ budget_category_id: number | null; amount: number }>> };
+    if (fundingDefaultsStatus !== "ready") return null;
+    const byKind: Record<string, Array<{ budget_category_id: number | null; amount: number }>> = {};
+    const scale = 10 ** currencyDecimalPlaces;
+    try {
+      for (const kind of ["repay", "collect"] as const) {
+        if (fundingCategoryModes[kind] === "manual") continue;
+        const amountsByAccount = longTermSettlementPrincipalsByKind[kind] ?? {};
+        const totals = new Map<number | null, bigint>();
+        for (const [accountIdText, amount] of Object.entries(amountsByAccount)) {
+          const config = fundingDefaultsByAccount[Number(accountIdText)];
+          if (
+            !config ||
+            config.account_id !== Number(accountIdText) ||
+            config.currency.toUpperCase() !== selectedCurrency.toUpperCase()
+          ) {
+            throw new Error("loan_budget_defaults_missing_scope");
+          }
+          const allocations = allocateLoanBudgetDefaults(
+            amount,
+            config.allocations,
+            currencyDecimalPlaces,
+            config,
+          );
+          for (const allocation of allocations) {
+            const units = loanBudgetMinorUnits(allocation.amount, currencyDecimalPlaces);
+            const totalUnits = (totals.get(allocation.budget_category_id) ?? 0n) + BigInt(units);
+            if (totalUnits > BigInt(Number.MAX_SAFE_INTEGER)) {
+              throw new RangeError("loan_budget_amount_out_of_range");
+            }
+            totals.set(
+              allocation.budget_category_id,
+              totalUnits,
+            );
+          }
+        }
+        byKind[kind] = [...totals]
+          .sort(([left], [right]) => {
+            if (left === null) return right === null ? 0 : 1;
+            if (right === null) return -1;
+            return left - right;
+          })
+          .map(([budget_category_id, units]) => ({
+            budget_category_id,
+            amount: Number(units) / scale,
+          }));
+      }
+      return { byKind };
+    } catch {
+      return { error: true as const, byKind: {} as Record<string, Array<{ budget_category_id: number | null; amount: number }>> };
+    }
+  }, [
+    autoFundingDefaultAccountIds.length,
+    currencyDecimalPlaces,
+    fundingCategoryModes,
+    fundingDefaultsByAccount,
+    fundingDefaultsStatus,
+    longTermSettlementPrincipalsByKind,
+    selectedCurrency,
+  ]);
+  const fundingDefaultsCalculationError =
+    automaticFundingDefaultAllocations != null &&
+    "error" in automaticFundingDefaultAllocations;
+  const loadedFundingDefaultRevisions = autoFundingDefaultAccountIds
+    .map((accountId) => fundingDefaultsByAccount[accountId]?.budget_revision)
+    .filter((revision): revision is number => revision != null);
+  const fundingDefaultsRevisionMismatch =
+    fundingDefaultsStatus === "ready" &&
+    loadedFundingDefaultRevisions.length === autoFundingDefaultAccountIds.length &&
+    new Set(loadedFundingDefaultRevisions).size > 1;
+  const loanBudgetDefaultRevision =
+    autoFundingDefaultAccountIds.length > 0 &&
+    fundingDefaultsStatus === "ready" &&
+    loadedFundingDefaultRevisions.length === autoFundingDefaultAccountIds.length &&
+    new Set(loadedFundingDefaultRevisions).size === 1
+      ? loadedFundingDefaultRevisions[0]
+      : undefined;
+  const loanBudgetDefaultSnapshot =
+    loanBudgetDefaultRevision != null && autoFundingDefaultAccountIds.length > 0
+      ? {
+          revision: loanBudgetDefaultRevision,
+          account_ids: autoFundingDefaultAccountIds,
+        }
+      : undefined;
+  const fundingDefaultsError =
+    autoFundingDefaultAccountIds.length > 0 &&
+    (fundingDefaultsStatus === "error" ||
+      fundingDefaultsCalculationError ||
+      fundingDefaultsRevisionMismatch);
+  const effectiveFundingCategoryAmounts = useMemo(() => {
+    const result = { ...fundingCategoryAmounts };
+    for (const kind of ["repay", "collect"] as const) {
+      const hasLongTermRows = Object.keys(longTermSettlementPrincipalsByKind[kind] ?? {}).length > 0;
+      if (
+        !isControlled &&
+        hasLongTermRows &&
+        fundingCategoryModes[kind] !== "manual"
+      ) {
+        result[kind] = automaticFundingDefaultAllocations != null &&
+          !("error" in automaticFundingDefaultAllocations)
+          ? Object.fromEntries(
+              automaticFundingDefaultAllocations.byKind[kind]
+                ?.filter((allocation) => allocation.budget_category_id != null)
+                .map((allocation) => [allocation.budget_category_id!, allocation.amount]) ?? [],
+            )
+          : {};
+      }
+    }
+    return result;
+  }, [
+    automaticFundingDefaultAllocations,
+    fundingCategoryAmounts,
+    fundingCategoryModes,
+    isControlled,
+    longTermSettlementPrincipalsByKind,
+  ]);
+  const loanFundingBudgetCategories = useMemo(() => {
+    const byId = new Map<number, BudgetCategory>();
+    for (const category of [...budgetCategories, ...retainedLoanFundingCategories]) {
+      byId.set(category.id, category);
+    }
+    const usedIds = new Set<number>();
+    for (const byCategory of Object.values(effectiveFundingCategoryAmounts)) {
+      for (const id of Object.keys(byCategory)) usedIds.add(Number(id));
+    }
+    for (const rows of Object.values(automaticFundingDefaultAllocations?.byKind ?? {})) {
+      for (const row of rows) {
+        if (row.budget_category_id != null) usedIds.add(row.budget_category_id);
+      }
+    }
+    for (const id of usedIds) {
+      if (!byId.has(id)) {
+        byId.set(id, {
+          id,
+          name: `${t("unknownCategoryPrefix")}${id}`,
+          is_archived: true,
+        } as BudgetCategory);
+      }
+    }
+    return [...byId.values()];
+  }, [
+    automaticFundingDefaultAllocations,
+    budgetCategories,
+    effectiveFundingCategoryAmounts,
+    retainedLoanFundingCategories,
+    t,
+  ]);
+
+  const fundingDefaultAllocationRowsForKind = (kind: "repay" | "collect") => {
+    if (fundingCategoryModes[kind] === "manual") {
+      return Object.entries(fundingCategoryAmounts[kind] ?? {})
+        .map(([categoryId, amount]) => ({
+          budget_category_id: Number(categoryId),
+          amount,
+        }))
+        .filter((allocation) => allocation.amount > 0);
+    }
+    return automaticFundingDefaultAllocations != null &&
+      !("error" in automaticFundingDefaultAllocations)
+      ? automaticFundingDefaultAllocations.byKind[kind] ?? []
+      : [];
+  };
+  function reloadFundingDefaults() {
+    setFundingDefaultsStatus("loading");
+    setFundingDefaultsRefreshToken((previous) => previous + 1);
+  }
   const amountStep = 10 ** -currencyDecimalPlaces;
   const usesReferenceBudgetAllocations = shouldUseReferenceBudgetAllocations(
     form.values.rows
@@ -649,7 +997,16 @@ export function MultiLineEntryForm({
     selectedCurrency,
   );
 
-  async function doSubmit(values: MultiForm) {
+  async function doSubmit(values: MultiForm): Promise<boolean> {
+    if (
+      autoFundingDefaultAccountIds.length > 0 &&
+      (fundingDefaultsStatus !== "ready" ||
+        fundingDefaultsError ||
+        loanBudgetDefaultRevision == null)
+    ) {
+      showFeedback({ message: t("loanFundingDefaultsError"), color: "red" });
+      return false;
+    }
     const manualTagExpenseSubmission = activeTagExpenseMode === "manual" && expenseTags.length > 0
       ? buildManualTagExpenseSubmission(
           activeTagExpenseAmounts,
@@ -660,7 +1017,7 @@ export function MultiLineEntryForm({
       : undefined;
     if (activeTagExpenseMode === "manual" && expenseTags.length > 0 && manualTagExpenseSubmission == null) {
       showFeedback({ message: t("tagExpenseAmountRequired"), color: "red" });
-      return;
+      return false;
     }
     const validLines = values.rows.filter(
       (r) => r.account_id != null && (r.debit > 0 || r.credit > 0),
@@ -773,7 +1130,7 @@ export function MultiLineEntryForm({
             component,
             appliedAmount,
             categoryAmounts:
-              fundingCategoryAmounts[component.kind] ?? {},
+              effectiveFundingCategoryAmounts[component.kind] ?? {},
             currency: selectedCurrency,
             decimalPlaces: currencyDecimalPlaces,
           });
@@ -833,15 +1190,89 @@ export function MultiLineEntryForm({
             component,
             appliedAmount,
             categoryAmounts:
-              fundingCategoryAmounts[component.kind] ?? {},
+              effectiveFundingCategoryAmounts[component.kind] ?? {},
             currency: selectedCurrency,
             decimalPlaces: currencyDecimalPlaces,
             sourceJournalEntryIds: sourceIds,
           });
         }
+        const longTermPrincipals =
+          longTermSettlementPrincipalsByKind[component.kind] ?? {};
+        const longTermPrincipal = Object.values(longTermPrincipals).reduce(
+          (sum, amount) => sum + amount,
+          0,
+        );
+        let settlementAllocations: Array<{
+          budget_category_id: number | null;
+          amount: number;
+          source_journal_entry_id?: number;
+        }> = sourceAllocations;
+        if (longTermPrincipal > 0) {
+          let longTermAllocations: Array<{
+            budget_category_id: number | null;
+            amount: number;
+          }>;
+          if (fundingCategoryModes[component.kind] === "manual") {
+            const scale = 10 ** currencyDecimalPlaces;
+            const sourceCategoryUnits = new Map<number | null, number>();
+            for (const allocation of sourceAllocations) {
+              const units = loanBudgetMinorUnits(allocation.amount, currencyDecimalPlaces);
+              sourceCategoryUnits.set(
+                allocation.budget_category_id,
+                (sourceCategoryUnits.get(allocation.budget_category_id) ?? 0) + units,
+              );
+            }
+            const manualResiduals = Object.entries(
+              fundingCategoryAmounts[component.kind] ?? {},
+            ).map(([categoryId, amount]) => ({
+              budget_category_id: Number(categoryId),
+              units: Math.max(
+                0,
+                loanBudgetMinorUnits(amount, currencyDecimalPlaces) -
+                  (sourceCategoryUnits.get(Number(categoryId)) ?? 0),
+              ),
+            })).filter((row) => row.units > 0);
+            const longTermUnits = loanBudgetMinorUnits(
+              longTermPrincipal,
+              currencyDecimalPlaces,
+            );
+            const requestedUnits = manualResiduals.reduce((sum, row) => sum + row.units, 0);
+            const manualParts = requestedUnits > longTermUnits
+              ? splitByLargestRemainder(
+                  longTermPrincipal,
+                  manualResiduals.map((row) => row.units / scale),
+                  currencyDecimalPlaces,
+                )
+              : manualResiduals.map((row) => row.units / scale);
+            const allocatedUnits = manualParts.reduce(
+              (sum, amount) => sum + loanBudgetMinorUnits(amount, currencyDecimalPlaces),
+              0,
+            );
+            longTermAllocations = [
+              ...manualResiduals.flatMap((row, index) => {
+                const amount = manualParts[index] ?? 0;
+                return amount > 0
+                  ? [{ budget_category_id: row.budget_category_id, amount }]
+                  : [];
+              }),
+              ...(allocatedUnits < longTermUnits
+                ? [{
+                    budget_category_id: null,
+                    amount: (longTermUnits - allocatedUnits) / scale,
+                  }]
+                : []),
+            ];
+          } else {
+            longTermAllocations = fundingDefaultAllocationRowsForKind(component.kind);
+          }
+          settlementAllocations = [
+            ...sourceAllocations,
+            ...longTermAllocations,
+          ];
+        }
         const principalParts = splitByLargestRemainder(
           component.principal_amount,
-          sourceAllocations.map((allocation) => allocation.amount),
+          settlementAllocations.map((allocation) => allocation.amount),
           currencyDecimalPlaces,
         );
         const appliedParts = splitByLargestRemainder(
@@ -849,7 +1280,7 @@ export function MultiLineEntryForm({
           principalParts,
           currencyDecimalPlaces,
         );
-        const allocations = sourceAllocations.flatMap((allocation, index) => {
+        const allocations = settlementAllocations.flatMap((allocation, index) => {
           const principalPart = principalParts[index] ?? 0;
           const appliedPart = Math.min(
             principalPart,
@@ -925,6 +1356,9 @@ export function MultiLineEntryForm({
         budget_funding_components.length > 0
           ? budget_funding_components
           : undefined,
+      ...(loanBudgetDefaultSnapshot
+        ? { loan_budget_default_snapshot: loanBudgetDefaultSnapshot }
+        : {}),
     });
     if (!isControlled) {
       setMultiDraft(null);
@@ -939,10 +1373,46 @@ export function MultiLineEntryForm({
       setManualTagExpenseInputs(resetTagExpense.manualInputs);
       setSettledIdsByAccount({});
       setFundingCategoryAmounts({});
+      setFundingCategoryModes({});
+      setFundingDefaultsByAccount({});
+      setFundingDefaultsStatus("idle");
+    }
+    return true;
+  }
+
+  async function submitWithFeedback(values: MultiForm): Promise<boolean> {
+    try {
+      const saved = await doSubmit(values);
+      if (saved) pendingValues.current = null;
+      return saved;
+    } catch (e) {
+      if (e instanceof ApiError && e.body.error === "stale_loan_budget_defaults") {
+        reloadFundingDefaults();
+        showFeedback({ message: t("loanFundingDefaultsStale"), color: "orange" });
+        return false;
+      }
+      const msg =
+        e instanceof ApiError &&
+        e.body.error === "income_transfer_completed_conflict"
+          ? t("incomeTransferEditConflict")
+          : e instanceof ApiError
+            ? e.message
+            : String(e);
+      showFeedback({ message: msg, color: "red" });
+      return false;
     }
   }
 
   async function handleSubmit(values: MultiForm) {
+    if (
+      autoFundingDefaultAccountIds.length > 0 &&
+      (fundingDefaultsStatus !== "ready" ||
+        fundingDefaultsError ||
+        loanBudgetDefaultRevision == null)
+    ) {
+      showFeedback({ message: t("loanFundingDefaultsError"), color: "red" });
+      return;
+    }
     if (expenseTags.length > 0 && activeTagExpenseMode === "manual" && !isManualTagExpenseInputValid) {
       showFeedback({ message: t("tagExpenseAmountRequired"), color: "red" });
       return;
@@ -995,18 +1465,7 @@ export function MultiLineEntryForm({
       showFeedback({ message: t("incomeTransferSourceAmountError"), color: "red" });
       return;
     }
-    try {
-      await doSubmit(values);
-    } catch (e) {
-      const msg =
-        e instanceof ApiError &&
-        e.body.error === "income_transfer_completed_conflict"
-          ? t("incomeTransferEditConflict")
-          : e instanceof ApiError
-            ? e.message
-            : String(e);
-      showFeedback({ message: msg, color: "red" });
-    }
+    await submitWithFeedback(values);
   }
 
   function handleAccountChange(i: number, v: string | null) {
@@ -1530,11 +1989,15 @@ export function MultiLineEntryForm({
                   component.principal_amount - applied,
                 );
                 const categoryAmounts =
-                  fundingCategoryAmounts[component.kind] ?? {};
+                  effectiveFundingCategoryAmounts[component.kind] ?? {};
                 const allocated = Object.values(categoryAmounts).reduce(
                   (sum, amount) => sum + amount,
                   0,
                 );
+                const hasLongTermDefaults =
+                  !isControlled &&
+                  (component.kind === "repay" || component.kind === "collect") &&
+                  Object.keys(longTermSettlementPrincipalsByKind[component.kind] ?? {}).length > 0;
                 return (
                   <Stack
                     key={component.kind}
@@ -1596,13 +2059,63 @@ export function MultiLineEntryForm({
                     <Text size="xs" fw={500}>
                       {t("fundingCategoryBreakdown")}
                     </Text>
-                    {budgetCategories.map((category) => (
-                      <Group key={category.id} gap="xs">
-                        <Text size="sm" flex={1}>
-                          {category.name}
+                    {hasLongTermDefaults && (
+                      <Group justify="space-between" align="center">
+                        <Text size="xs" c={fundingDefaultsError ? "red" : "dimmed"}>
+                          {fundingDefaultsError
+                            ? t("loanFundingDefaultsError")
+                            : fundingDefaultsStatus === "loading"
+                              ? t("loanFundingDefaultsLoading")
+                              : fundingCategoryModes[component.kind] === "manual"
+                                ? t("loanFundingManualOverrideHint")
+                                : t("loanFundingAutoHint")}
                         </Text>
+                        {fundingCategoryModes[component.kind] === "manual" ? (
+                          <Button
+                            size="xs"
+                            variant="light"
+                            onClick={() => {
+                              setFundingCategoryModes((previous) => ({
+                                ...previous,
+                                [component.kind]: "auto",
+                              }));
+                              setFundingDefaultsStatus("idle");
+                            }}
+                          >
+                            {t("loanFundingApplyDefaults")}
+                          </Button>
+                        ) : fundingDefaultsError ? (
+                          <Group gap="xs">
+                            <Button size="xs" variant="subtle" onClick={reloadFundingDefaults}>
+                              {t("reload")}
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="light"
+                              onClick={() => setFundingCategoryModes((previous) => ({
+                                ...previous,
+                                [component.kind]: "manual",
+                              }))}
+                            >
+                              {t("loanFundingManualMode")}
+                            </Button>
+                          </Group>
+                        ) : null}
+                      </Group>
+                    )}
+                    {loanFundingBudgetCategories.map((category) => (
+                      <Group key={category.id} gap="xs">
+                        <Group gap="xs" flex={1}>
+                          <Text size="sm">{category.name}</Text>
+                          {category.is_archived && (
+                            <Badge size="xs" color="gray" variant="light">
+                              {t("archivedBudgetCategoryBadge")}
+                            </Badge>
+                          )}
+                        </Group>
                         <NumberInput
                           w={150}
+                          aria-label={category.name}
                           min={0}
                           max={component.principal_amount}
                           step={amountStep}
@@ -1610,15 +2123,19 @@ export function MultiLineEntryForm({
                           prefix={currencySymbol}
                           thousandSeparator=","
                           value={categoryAmounts[category.id] ?? 0}
-                          onChange={(value) =>
+                          onChange={(value) => {
+                            setFundingCategoryModes((previous) => ({
+                              ...previous,
+                              [component.kind]: "manual",
+                            }));
                             setFundingCategoryAmounts((previous) => ({
                               ...previous,
                               [component.kind]: {
-                                ...(previous[component.kind] ?? {}),
+                                ...(categoryAmounts ?? previous[component.kind] ?? {}),
                                 [category.id]: Number(value) || 0,
                               },
-                            }))
-                          }
+                            }));
+                          }}
                         />
                       </Group>
                     ))}
@@ -1944,8 +2461,7 @@ export function MultiLineEntryForm({
               onClick={async () => {
                 setUnderBudgetWarnOpen(false);
                 if (pendingValues.current) {
-                  await doSubmit(pendingValues.current);
-                  pendingValues.current = null;
+                  await submitWithFeedback(pendingValues.current);
                 }
               }}
             >
