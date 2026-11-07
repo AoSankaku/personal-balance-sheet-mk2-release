@@ -14,6 +14,7 @@ const accounts = [
 ].map(account => ({ ...account, created_at: "2026-01-01" })) as Account[];
 
 mock.module(import.meta.resolve("../i18n/LangContext.tsx"), () => ({
+  LangProvider: ({ children }: { children: unknown }) => children,
   useLang: () => ({ t: (key: string) => key, locale: "en" }),
 }));
 mock.module(import.meta.resolve("../context/AppDataContext.tsx"), () => ({
@@ -61,7 +62,7 @@ describe("loan management budget input", () => {
 
   test("includes expense budget distribution for borrowing interest", () => {
     const html = render({ entryType: "expense", expenseCategoryId: 5, expensePaidFromId: 1, amount: 500 });
-    expect(html).toContain("budgetDistributionLabel");
+    expect(html).toContain("budgetDistributionTotal");
     expect(html).toContain("Living budget");
   });
 });

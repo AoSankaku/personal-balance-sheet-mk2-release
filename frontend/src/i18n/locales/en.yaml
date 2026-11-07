@@ -373,6 +373,7 @@ loanDifferenceLoss: Loss (expense account)
 loanDifferenceAccountLabel: Difference account
 loanFundingBreakdownTitle: Budget funding breakdown
 loanFundingBreakdownHint: Choose which budget categories this principal funds or constrains. The remainder is saved as unallocated funding.
+loanFundingManualSettlementHint: Choose the budgets restored by this collection or used for this repayment. The original split is not copied automatically; the remainder is unallocated.
 loanFundingUnallocated: Unallocated funding
 loanFundingCurrentUnallocated: Covered by current unallocated
 loanFundingSuggestedConstraint: Suggested category constraint

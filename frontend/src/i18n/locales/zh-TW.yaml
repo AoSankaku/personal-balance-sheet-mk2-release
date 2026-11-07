@@ -373,6 +373,7 @@ loanDifferenceLoss: 損失（支出帳戶）
 loanDifferenceAccountLabel: 差額帳戶
 loanFundingBreakdownTitle: 預算資金明細
 loanFundingBreakdownHint: 指定該本金用於或占用哪些預算類別。剩餘金額將固定儲存為未分配資金。
+loanFundingManualSettlementHint: 指定收回時恢復或還款時使用的預算。原始分配不會自動沿用，剩餘金額將作為未分配資金。
 loanFundingUnallocated: 未分配資金
 loanFundingCurrentUnallocated: 由目前未分配資金吸收
 loanFundingSuggestedConstraint: 建議的類別暫時占用

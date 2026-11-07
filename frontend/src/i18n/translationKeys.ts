@@ -364,6 +364,7 @@ export const translationKeys = [
   "loanDifferenceAccountLabel",
   "loanFundingBreakdownTitle",
   "loanFundingBreakdownHint",
+  "loanFundingManualSettlementHint",
   "loanFundingUnallocated",
   "loanFundingCurrentUnallocated",
   "loanFundingSuggestedConstraint",

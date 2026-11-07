@@ -198,9 +198,8 @@ export function LoanSection({
     fundingPrincipalAmount > 0;
   const showFundingControls =
     !creditCardInvolved &&
-    hasCompleteFundingLines &&
     loanAccountSupportsFunding &&
-    appliedBudgetPrincipal > 0.000_001;
+    (!hasCompleteFundingLines || appliedBudgetPrincipal > 0.000_001);
   const showFundingNoImpactHint =
     !creditCardInvolved &&
     hasCompleteFundingLines &&
@@ -450,7 +449,9 @@ export function LoanSection({
           ) : (
             <>
               <Text size="xs" c="dimmed">
-                {t("loanFundingBreakdownHint")}
+                {t(loanDirection === "collect" || loanDirection === "decrease"
+                  ? "loanFundingManualSettlementHint"
+                  : "loanFundingBreakdownHint")}
               </Text>
               {showLendingSuggestion && (
                 <Group gap="xs" wrap="wrap">
@@ -480,6 +481,7 @@ export function LoanSection({
                   <NumberInput
                     w={150}
                     size="xs"
+                    aria-label={category.name}
                     min={0}
                     max={Math.max(0, form.values.amount)}
                     prefix={currencySymbol}
@@ -518,9 +520,11 @@ export function LoanSection({
               )}
             </>
           )}
-          <Text size="xs" c="dimmed">
-            {t("loanFundingResetBoundaryHint")}
-          </Text>
+          {automaticFundingReversal && (
+            <Text size="xs" c="dimmed">
+              {t("loanFundingResetBoundaryHint")}
+            </Text>
+          )}
         </Stack>
       ) : showFundingNoImpactHint ? (
         <Text size="xs" c="dimmed">
