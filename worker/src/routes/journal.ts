@@ -25,6 +25,7 @@ import {
   actualBalanceAdjustments,
 } from "../db/schema";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
+import { isLongTermLoanBudgetAccount } from "../lib/longTermLoanBudgetDefaults";
 import {
   findInvalidMoney,
   fromStorageMoneyAmount,
@@ -412,6 +413,10 @@ type JournalCreateInput = {
   loan_settlement_journal_entry_ids?: number[];
   budget_funding?: BudgetFundingInput;
   budget_funding_components?: BudgetFundingComponentInput[];
+  loan_budget_default_snapshot?: {
+    revision: number;
+    account_ids: number[];
+  };
   income_transfer_destinations?: Array<{
     budget_category_id: number;
     from_account_id: number;
@@ -436,6 +441,89 @@ type PreparedJournalCreate = {
 type JournalCreateResult =
   | { ok: false; status: 400 | 409; error: string | ReturnType<typeof invalidMoneyResponse> }
   | { ok: true; prepared: PreparedJournalCreate };
+
+type LoanBudgetDefaultSnapshotValidation = {
+  error?: string;
+  status?: 400 | 409;
+  keys: string[];
+};
+
+async function validateLoanBudgetDefaultSnapshot(
+  db: AppDb,
+  body: JournalCreateInput,
+  mutationRevision: number,
+): Promise<LoanBudgetDefaultSnapshotValidation> {
+  if (!body || typeof body !== "object") return { keys: [] };
+  const snapshot = body.loan_budget_default_snapshot as unknown;
+  if (snapshot === undefined) return { keys: [] };
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+    return { error: "invalid_loan_budget_default_snapshot", status: 400, keys: [] };
+  }
+  const value = snapshot as { revision?: unknown; account_ids?: unknown };
+  if (
+    !Number.isSafeInteger(value.revision) ||
+    (value.revision as number) < 0 ||
+    !Array.isArray(value.account_ids) ||
+    value.account_ids.length === 0 ||
+    value.account_ids.some((id) => !Number.isSafeInteger(id) || id <= 0) ||
+    new Set(value.account_ids).size !== value.account_ids.length
+  ) {
+    return { error: "invalid_loan_budget_default_snapshot", status: 400, keys: [] };
+  }
+  if (value.revision !== mutationRevision) {
+    return { error: "stale_loan_budget_defaults", status: 409, keys: [] };
+  }
+  if (!Array.isArray(body.lines)) {
+    return { error: "invalid_loan_budget_default_snapshot", status: 400, keys: [] };
+  }
+
+  const accountIds = value.account_ids as number[];
+  const accountRows = (await Promise.all(chunkIds(accountIds).map((idChunk) =>
+    db.select({ id: accounts.id, type: accounts.type, category: accounts.category })
+      .from(accounts)
+      .where(inArray(accounts.id, idChunk)),
+  ))).flat();
+  if (accountRows.length !== accountIds.length) {
+    return { error: "invalid_loan_budget_default_snapshot", status: 400, keys: [] };
+  }
+
+  const lineCurrencies = new Set<string>();
+  const keys: string[] = [];
+  for (const accountId of accountIds) {
+    const account = accountRows.find((row) => row.id === accountId);
+    if (!account || !isLongTermLoanBudgetAccount(account)) {
+      return { error: "invalid_loan_budget_default_snapshot", status: 400, keys: [] };
+    }
+    const netByCurrency = new Map<string, number>();
+    for (const line of body.lines) {
+      if (line?.account_id !== accountId) continue;
+      if (
+        !Number.isFinite(line.debit) ||
+        !Number.isFinite(line.credit) ||
+        line.debit < 0 ||
+        line.credit < 0
+      ) {
+        return { error: "invalid_loan_budget_default_snapshot", status: 400, keys: [] };
+      }
+      const currency = normalizeCurrency(line.currency);
+      const normalDelta = account.type === "asset"
+        ? line.debit - line.credit
+        : line.credit - line.debit;
+      netByCurrency.set(currency, (netByCurrency.get(currency) ?? 0) + normalDelta);
+    }
+    const changedCurrencies = [...netByCurrency].filter(([, amount]) => amount !== 0);
+    if (changedCurrencies.length !== 1 || changedCurrencies[0]![1] >= 0) {
+      return { error: "invalid_loan_budget_default_snapshot", status: 400, keys: [] };
+    }
+    const currency = changedCurrencies[0]![0];
+    lineCurrencies.add(currency);
+    keys.push(`${accountId}:${currency}`);
+  }
+  if (lineCurrencies.size !== 1) {
+    return { error: "invalid_loan_budget_default_snapshot", status: 400, keys: [] };
+  }
+  return { keys };
+}
 
 type ParsedExpenseTagFields = {
   names: string[];
@@ -1494,6 +1582,10 @@ router.post("/", async (c) => {
   const body = await c.req.json<JournalCreateInput>();
   const db = createDb(c.env);
   const mutationRevision = await readBudgetMutationRevision(c.env.DB);
+  const snapshotValidation = await validateLoanBudgetDefaultSnapshot(db, body, mutationRevision);
+  if (snapshotValidation.error) {
+    return c.json({ error: snapshotValidation.error }, snapshotValidation.status ?? 400);
+  }
   const decimalPlacesByCurrency = await loadCurrencyDecimalPlaces(db);
   const result = await prepareJournalCreate(c.env, body, "manual", decimalPlacesByCurrency);
   if (!result.ok) return c.json(typeof result.error === "string" ? { error: result.error } : result.error, result.status);
@@ -1503,7 +1595,13 @@ router.post("/", async (c) => {
     ...prepared.statements,
     ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB),
   ]);
-  if (!results) return c.json({ error: "stale_journal_mutation" }, 409);
+  if (!results) {
+    return c.json({
+      error: body.loan_budget_default_snapshot
+        ? "stale_loan_budget_defaults"
+        : "stale_journal_mutation",
+    }, 409);
+  }
 
   const entry = (results[prepared.entryStatementIndex] as D1QueryResult<typeof journalEntries.$inferSelect>).results?.[0];
   if (!entry) throw new Error("Failed to create journal entry");
@@ -1528,6 +1626,7 @@ router.post("/batch", async (c) => {
   const statements: D1PreparedStatement[] = [];
   const settlementSources = new Set<number>();
   const accountIds: number[] = [];
+  const defaultSnapshotKeysByEntry = new Map<number, string[]>();
 
   for (let index = 0; index < body.entries.length; index += 1) {
     const entry = body.entries[index];
@@ -1543,6 +1642,13 @@ router.post("/batch", async (c) => {
       }
       settlementSources.add(sourceId);
     }
+    const snapshotValidation = await validateLoanBudgetDefaultSnapshot(db, entry, mutationRevision);
+    if (snapshotValidation.error) {
+      return c.json({ error: snapshotValidation.error }, snapshotValidation.status ?? 400);
+    }
+    if (snapshotValidation.keys.length > 0) {
+      defaultSnapshotKeysByEntry.set(index, snapshotValidation.keys);
+    }
     const result = await prepareJournalCreate(c.env, entry, "csv_import", decimalPlacesByCurrency);
     if (!result.ok) {
       const response = typeof result.error === "string"
@@ -1556,11 +1662,32 @@ router.post("/batch", async (c) => {
     accountIds.push(...result.prepared.accountIds);
   }
 
+  for (const [snapshotEntryIndex, snapshotKeys] of defaultSnapshotKeysByEntry) {
+    const keys = new Set(snapshotKeys);
+    for (let otherIndex = 0; otherIndex < body.entries.length; otherIndex += 1) {
+      if (otherIndex === snapshotEntryIndex) continue;
+      const otherLines = body.entries[otherIndex]?.lines;
+      if (!Array.isArray(otherLines)) continue;
+      if (otherLines.some((line) =>
+        line && keys.has(`${line.account_id}:${normalizeCurrency(line.currency)}`),
+      )) {
+        return c.json({ error: "duplicate_loan_budget_default_snapshot" }, 400);
+      }
+    }
+  }
+
+  const hasDefaultSnapshot = body.entries.some(
+    (entry) => entry.loan_budget_default_snapshot !== undefined,
+  );
   const results = await runBudgetGuardedBatch(c.env.DB, mutationRevision, [
     ...statements,
     ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB),
   ]);
-  if (!results) return c.json({ error: "stale_journal_mutation" }, 409);
+  if (!results) {
+    return c.json({
+      error: hasDefaultSnapshot ? "stale_loan_budget_defaults" : "stale_journal_mutation",
+    }, 409);
+  }
 
   const created = preparedEntries.map(({ prepared, start }) => {
     const entry = (results[start + prepared.entryStatementIndex] as D1QueryResult<typeof journalEntries.$inferSelect>).results?.[0];

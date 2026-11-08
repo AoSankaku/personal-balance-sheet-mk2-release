@@ -373,6 +373,7 @@ loanDifferenceLoss: 差損（費用科目）
 loanDifferenceAccountLabel: 差額科目
 loanFundingBreakdownTitle: 予算資金の内訳
 loanFundingBreakdownHint: この元本をどの予算カテゴリに充当・拘束するか指定します。残額は未配分資金として固定保存されます。
+loanFundingManualSettlementHint: 回収で戻す予算、返済で負担する予算を指定します。元取引の内訳は自動で引き継がれず、残額は未配分資金になります。
 loanFundingUnallocated: 未配分資金
 loanFundingCurrentUnallocated: 現在の未配分で吸収
 loanFundingSuggestedConstraint: カテゴリ一時拘束の目安
@@ -1831,3 +1832,22 @@ expenseTagsEmpty: タグがありません
 editExpenseTags: タグを編集
 expenseTagsSaved: タグを保存しました
 expenseTagsUnavailableForDepreciation: 償却入力ではこの画面からタグを編集できません。保存後、帳簿のタグ編集から設定してください。
+loanFundingApplyDefaults: 初期配分を適用
+loanFundingManualMode: 予算配分を手動で設定
+loanFundingAutoHint: この長期貸付・借入の予算初期配分を使って自動配分します。
+loanFundingManualOverrideHint: この仕訳だけ下の配分を使います。保存済みの初期配分は変更されません。
+loanFundingDefaultsStale: 別の画面で予算の初期配分が変更されたため、再読み込みしました。内容を確認してからもう一度保存してください。
+loanFundingDefaultsLoading: 予算の初期配分を読み込んでいます…
+loanFundingDefaultsError: 予算の初期配分を読み込めないか計算できません。手動配分に切り替えるか、再試行してください。
+loanBudgetDefaultsTitle: 長期貸付・借入の予算初期配分
+loanBudgetDefaultsHint: この通貨で今後の回収・返済に使う初期配分比率です。既存の仕訳は変更されません。
+loanBudgetDefaultsUnavailable: 初回の貸付・借入から配分を取得できません。初期値は未配分です。
+loanBudgetDefaultsLoadError: 予算の初期配分を読み込めませんでした。
+loanBudgetDefaultsSourceLabel: 現在の設定元
+loanBudgetDefaultsSource_opening: 最初の貸付・借入
+loanBudgetDefaultsSource_custom: 個別設定
+loanBudgetDefaultsSource_unavailable: 未配分の初期値
+loanBudgetDefaultsRatioExample: 2:1 のような整数の比率を入力してください。割合表示は確認用です。
+loanBudgetDefaultsWeightLabel: 比率
+loanBudgetDefaultsReset: 最初の配分に戻す
+loanBudgetDefaultsSave: 初期配分を保存

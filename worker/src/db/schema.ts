@@ -470,6 +470,56 @@ export const budgetFundingAllocations = sqliteTable(
   }),
 );
 
+export const longTermLoanBudgetDefaults = sqliteTable(
+  "long_term_loan_budget_defaults",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    account_id: integer("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    currency: text("currency").notNull(),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    accountCurrencyUnique: uniqueIndex(
+      "idx_long_term_loan_budget_defaults_account_currency_unique",
+    ).on(table.account_id, table.currency),
+  }),
+);
+
+export const longTermLoanBudgetDefaultAllocations = sqliteTable(
+  "long_term_loan_budget_default_allocations",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    default_id: integer("default_id")
+      .notNull()
+      .references(() => longTermLoanBudgetDefaults.id, { onDelete: "cascade" }),
+    budget_category_id: integer("budget_category_id").references(
+      () => budgetCategories.id,
+      { onDelete: "set null" },
+    ),
+    weight: integer("weight").notNull(),
+  },
+  (table) => ({
+    defaultIndex: index(
+      "idx_long_term_loan_budget_default_allocations_default",
+    ).on(table.default_id),
+    weightInteger: check(
+      "chk_long_term_loan_budget_default_allocations_weight_integer",
+      sql`typeof(${table.weight}) = 'integer'`,
+    ),
+    weightPositive: check(
+      "chk_long_term_loan_budget_default_allocations_weight_positive",
+      sql`${table.weight} > 0 AND ${table.weight} <= 9007199254740991`,
+    ),
+  }),
+);
+
 export const incomeTransferRequirements = sqliteTable(
   "income_transfer_requirements",
   {
@@ -1278,6 +1328,14 @@ export type BudgetFundingAllocation =
   typeof budgetFundingAllocations.$inferSelect;
 export type NewBudgetFundingAllocation =
   typeof budgetFundingAllocations.$inferInsert;
+export type LongTermLoanBudgetDefault =
+  typeof longTermLoanBudgetDefaults.$inferSelect;
+export type NewLongTermLoanBudgetDefault =
+  typeof longTermLoanBudgetDefaults.$inferInsert;
+export type LongTermLoanBudgetDefaultAllocation =
+  typeof longTermLoanBudgetDefaultAllocations.$inferSelect;
+export type NewLongTermLoanBudgetDefaultAllocation =
+  typeof longTermLoanBudgetDefaultAllocations.$inferInsert;
 export type IncomeTransferRequirement =
   typeof incomeTransferRequirements.$inferSelect;
 export type NewIncomeTransferRequirement =

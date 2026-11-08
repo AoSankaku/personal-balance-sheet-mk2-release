@@ -373,6 +373,7 @@ loanDifferenceLoss: 损失（支出账户）
 loanDifferenceAccountLabel: 差额账户
 loanFundingBreakdownTitle: 预算资金明细
 loanFundingBreakdownHint: 指定该本金用于或占用哪些预算类别。剩余金额将固定保存为未分配资金。
+loanFundingManualSettlementHint: 指定回收时恢复或还款时使用的预算。原始分配不会自动沿用，剩余金额将作为未分配资金。
 loanFundingUnallocated: 未分配资金
 loanFundingCurrentUnallocated: 由当前未分配资金吸收
 loanFundingSuggestedConstraint: 建议的类别临时占用
@@ -1831,3 +1832,22 @@ expenseTagsEmpty: 没有标签
 editExpenseTags: 编辑标签
 expenseTagsSaved: 标签已保存
 expenseTagsUnavailableForDepreciation: 折旧录入中无法在此编辑标签。保存分录后，请在账簿中编辑标签。
+loanFundingApplyDefaults: 应用默认分配
+loanFundingManualMode: 手动设置分配
+loanFundingAutoHint: 根据此长期贷款的预算默认设置自动分配。
+loanFundingManualOverrideHint: 此分录使用下方分配，不会更改已保存的默认设置。
+loanFundingDefaultsStale: 其他页面更改了预算默认设置，现已重新加载。请检查分配后再次提交。
+loanFundingDefaultsLoading: 正在加载预算默认设置…
+loanFundingDefaultsError: 无法加载或计算预算默认分配。请切换到手动分配或重试。
+loanBudgetDefaultsTitle: 长期贷款预算默认分配
+loanBudgetDefaultsHint: 此币种未来还款和收款的默认分配比例。现有分录不会更改。
+loanBudgetDefaultsUnavailable: 没有可用的初始分配来源。默认全部保持未分配。
+loanBudgetDefaultsLoadError: 无法加载预算默认分配。
+loanBudgetDefaultsSourceLabel: 当前来源
+loanBudgetDefaultsSource_opening: 初始交易
+loanBudgetDefaultsSource_custom: 自定义设置
+loanBudgetDefaultsSource_unavailable: 未分配默认值
+loanBudgetDefaultsRatioExample: 使用整数比例，例如 2:1。百分比仅供预览。
+loanBudgetDefaultsWeightLabel: 比例
+loanBudgetDefaultsReset: 使用初始分配
+loanBudgetDefaultsSave: 保存默认分配

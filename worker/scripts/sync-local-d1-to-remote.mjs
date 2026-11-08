@@ -8,6 +8,8 @@ export const IMPORT_TABLE_ORDER = [
   "enabled_currencies",
   "accounts",
   "budget_categories",
+  "long_term_loan_budget_defaults",
+  "long_term_loan_budget_default_allocations",
   "budget_filters",
   "actual_balance_snapshots",
   "journal_entries",

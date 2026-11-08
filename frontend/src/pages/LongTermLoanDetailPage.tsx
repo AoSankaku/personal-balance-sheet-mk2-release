@@ -5,14 +5,12 @@ import {
   Box,
   Button,
   Card,
-  Divider,
   Group,
   Modal,
   NumberInput,
   Paper,
   ScrollArea,
   SegmentedControl,
-  Select,
   Skeleton,
   Stack,
   Table,
@@ -34,7 +32,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 import type {
   LongTermLoanPlan,
   UpsertLongTermLoanPlanRowInput,
@@ -46,6 +44,9 @@ import {
 import { useLang } from "../i18n";
 import { useAppData } from "../context/AppDataContext";
 import { api } from "../api/client";
+import { LoanManagementEntryForm } from "../components/LoanManagementEntryForm";
+import { LongTermLoanBudgetDefaultsEditor } from "../components/LongTermLoanBudgetDefaultsEditor";
+import type { SimpleFormDraft } from "../components/SimpleEntryForm";
 import { formatJPY } from "../lib/numberFormat";
 import {
   addMonths,
@@ -59,11 +60,7 @@ import {
   impliedAnnualRate,
   type ClassifiedEntry,
 } from "./longTermLoanUtils";
-import {
-  isUserSelectableAccount,
-  toAccountSelectOption,
-} from "../lib/accountUtils";
-import { renderAccountOption } from "../lib/accountSelect";
+import { isUserSelectableAccount } from "../lib/accountUtils";
 
 interface Props {
   kind: "loan" | "lend";
@@ -76,20 +73,10 @@ interface EditableRow {
   note: string;
 }
 
-interface InterestModalState {
-  classified: ClassifiedEntry;
-  date: string;
-  description: string;
-  amount: number | string;
-  interestAccountId: string | null;
-  paymentAccountId: string | null;
-}
-
 export default function LongTermLoanDetailPage({ kind }: Props) {
   const { t, locale } = useLang();
   const { id } = useParams<{ id: string }>();
-  const { accounts, journal, refresh } = useAppData();
-  const navigate = useNavigate();
+  const { accounts, journal, refresh, displayCurrency } = useAppData();
   const accountId = Number(id);
   const isAsset = kind === "lend";
 
@@ -125,15 +112,18 @@ export default function LongTermLoanDetailPage({ kind }: Props) {
   }
 
   function handleGoToInput() {
-    navigate("/input", {
-      state: {
-        loanDraft: {
-          entryType: "loan",
-          loanDirection: isAsset ? "collect" : "decrease",
-          loanAccountId: accountId,
-        },
-        tab: "simple",
+    setLoanEntryDraft({
+      formValues: {
+        date: new Date(),
+        description: account?.name ?? "",
+        entryType: "loan",
+        loanDirection: isAsset ? "collect" : "decrease",
+        loanAccountId: accountId,
+        loanCounterAccountId: null,
+        amount: 0,
       },
+      budgetDist: [],
+      showZeroCategories: false,
     });
   }
 
@@ -161,11 +151,16 @@ export default function LongTermLoanDetailPage({ kind }: Props) {
     "",
   );
 
-  // ── Interest entry modal ────────────────────────────────────────────────────
-  const [interestModal, setInterestModal] = useState<InterestModalState | null>(
+  // ── Loan and interest entry modal ────────────────────────────────────────────
+  const [loanEntryDraft, setLoanEntryDraft] = useState<SimpleFormDraft | null>(
     null,
   );
-  const [interestSaving, setInterestSaving] = useState(false);
+  const [loanEntrySaving, setLoanEntrySaving] = useState(false);
+
+  function closeLoanEntry() {
+    if (loanEntrySaving) return;
+    setLoanEntryDraft(null);
+  }
 
   // ── Load plan ───────────────────────────────────────────────────────────────
   const loadPlan = useCallback(async () => {
@@ -393,68 +388,48 @@ export default function LongTermLoanDetailPage({ kind }: Props) {
     const expected = calcExpectedInterest(Math.abs(c.balanceBefore), rate);
     const interestType = isAsset ? "income" : "expense";
     const defaultInterestAcct =
-      accounts.find((a) => a.type === interestType)?.id.toString() ?? null;
+      accounts.find(
+        (a) => a.type === interestType && isUserSelectableAccount(a),
+      )?.id ?? null;
     const defaultPayment =
       accounts
-        .find((a) => a.type === "asset" && a.id !== accountId)
-        ?.id.toString() ?? null;
-    setInterestModal({
-      classified: c,
-      date: c.entry.date,
-      description:
-        (locale === "ja" ? "利子: " : "Interest: ") +
-        (c.entry.description || ""),
-      amount: expected,
-      interestAccountId: defaultInterestAcct,
-      paymentAccountId: defaultPayment,
+        .find(
+          (a) =>
+            a.type === "asset" &&
+            a.category === "cash" &&
+            a.id !== accountId &&
+            a.include_in_allocatable !== false &&
+            isUserSelectableAccount(a),
+        )?.id ?? null;
+    const [year, month, day] = c.entry.date.slice(0, 10).split("-").map(Number);
+    const date =
+      year && month && day ? new Date(year, month - 1, day) : new Date();
+    const description =
+      (locale === "ja" ? "利子: " : "Interest: ") +
+      (c.entry.description || "");
+
+    setLoanEntryDraft({
+      formValues: isAsset
+        ? {
+            date,
+            description,
+            entryType: "income",
+            incomeTypeId: defaultInterestAcct,
+            incomeDepositedToId: defaultPayment,
+            amount: expected,
+          }
+        : {
+            date,
+            description,
+            entryType: "expense",
+            expenseCategoryId: defaultInterestAcct,
+            expensePaidFromId: defaultPayment,
+            amount: expected,
+          },
+      budgetDist: [],
+      showZeroCategories: false,
+      incomeDist: [],
     });
-  }
-
-  async function handleSaveInterest() {
-    if (!interestModal) return;
-    const { date, description, amount, interestAccountId, paymentAccountId } =
-      interestModal;
-    if (!interestAccountId || !paymentAccountId || !amount) return;
-
-    setInterestSaving(true);
-    try {
-      const amt = Number(amount);
-      // For loan (liability): DR expense / CR asset (cash out for interest)
-      // For lend  (asset):    DR asset   / CR income (cash in for interest)
-      await api.journal.create({
-        date,
-        description,
-        lines: isAsset
-          ? [
-              {
-                account_id: Number(paymentAccountId),
-                debit: amt,
-                credit: 0,
-              },
-              {
-                account_id: Number(interestAccountId),
-                debit: 0,
-                credit: amt,
-              },
-            ]
-          : [
-              {
-                account_id: Number(interestAccountId),
-                debit: amt,
-                credit: 0,
-              },
-              {
-                account_id: Number(paymentAccountId),
-                debit: 0,
-                credit: amt,
-              },
-            ],
-      });
-      await refresh();
-      setInterestModal(null);
-    } finally {
-      setInterestSaving(false);
-    }
   }
 
   // ── Auto-fill derived values ────────────────────────────────────────────────
@@ -537,31 +512,6 @@ export default function LongTermLoanDetailPage({ kind }: Props) {
     );
     return { principal, interest };
   }, [rows]);
-
-  // Account select options for interest modal
-  const interestAccountOptions = useMemo(
-    () =>
-      accounts
-        .filter(
-          (a) =>
-            a.type === (isAsset ? "income" : "expense") &&
-            isUserSelectableAccount(a),
-        )
-        .map((a) => toAccountSelectOption(a, t)),
-    [accounts, isAsset, t],
-  );
-  const paymentAccountOptions = useMemo(
-    () =>
-      accounts
-        .filter(
-          (a) =>
-            a.type === "asset" &&
-            a.id !== accountId &&
-            isUserSelectableAccount(a),
-        )
-        .map((a) => toAccountSelectOption(a, t)),
-    [accounts, accountId, t],
-  );
 
   if (!isCorrectKind && account) {
     return <Navigate to="/fs/db" replace />;
@@ -654,6 +604,14 @@ export default function LongTermLoanDetailPage({ kind }: Props) {
           )}
         </Group>
       </Card>
+
+      {account && isCorrectKind && (
+        <LongTermLoanBudgetDefaultsEditor
+          key={`${accountId}:${displayCurrency || "JPY"}`}
+          accountId={accountId}
+          currency={displayCurrency || "JPY"}
+        />
+      )}
 
       {/* Plan settings */}
       <Paper withBorder radius="md" p="lg">
@@ -1349,97 +1307,29 @@ export default function LongTermLoanDetailPage({ kind }: Props) {
         </Stack>
       </Modal>
 
-      {/* Interest entry modal */}
+      {/* Loan and interest entries share the budget-aware simple-entry form. */}
       <Modal
-        opened={interestModal !== null}
-        onClose={() => setInterestModal(null)}
-        title={t("loanInterestModalTitle")}
-        size="md"
+        opened={loanEntryDraft !== null}
+        onClose={closeLoanEntry}
+        title={
+          loanEntryDraft?.formValues.entryType === "loan"
+            ? t("loanInputBtn")
+            : t("loanInterestModalTitle")
+        }
+        size="lg"
+        centered
+        closeOnEscape={!loanEntrySaving}
+        closeOnClickOutside={!loanEntrySaving}
+        withCloseButton={!loanEntrySaving}
       >
-        {interestModal && (
-          <Stack gap="sm">
-            <Group grow>
-              <TextInput
-                label={t("loanDetailMonth")}
-                value={interestModal.date}
-                onChange={(e) =>
-                  setInterestModal((m) =>
-                    m ? { ...m, date: e.currentTarget.value } : m,
-                  )
-                }
-              />
-            </Group>
-            <TextInput
-              label={locale === "ja" ? "摘要" : "Description"}
-              value={interestModal.description}
-              onChange={(e) =>
-                setInterestModal((m) =>
-                  m ? { ...m, description: e.currentTarget.value } : m,
-                )
-              }
-            />
-            <NumberInput
-              label={t("loanInterestAmountLabel")}
-              value={interestModal.amount}
-              onChange={(v) =>
-                setInterestModal((m) => (m ? { ...m, amount: v } : m))
-              }
-              min={0}
-              thousandSeparator=","
-              allowDecimal={false}
-            />
-            <Divider />
-            <Select
-              label={t("loanInterestAccount")}
-              placeholder={locale === "ja" ? "科目を選択" : "Select account"}
-              data={interestAccountOptions}
-              renderOption={renderAccountOption as never}
-              value={interestModal.interestAccountId}
-              onChange={(v) =>
-                setInterestModal((m) =>
-                  m ? { ...m, interestAccountId: v } : m,
-                )
-              }
-            />
-            <Select
-              label={t("loanInterestPaymentAccount")}
-              placeholder={
-                locale === "ja" ? "決済口座を選択" : "Select account"
-              }
-              data={paymentAccountOptions}
-              renderOption={renderAccountOption as never}
-              value={interestModal.paymentAccountId}
-              onChange={(v) =>
-                setInterestModal((m) => (m ? { ...m, paymentAccountId: v } : m))
-              }
-            />
-            <Text size="xs" c="dimmed">
-              {isAsset
-                ? locale === "ja"
-                  ? "仕訳: 決済口座（借方）/ 収益科目（貸方）"
-                  : "Entry: payment account (DR) / income account (CR)"
-                : locale === "ja"
-                  ? "仕訳: 費用科目（借方）/ 決済口座（貸方）"
-                  : "Entry: expense account (DR) / payment account (CR)"}
-            </Text>
-            <Group justify="flex-end">
-              <Button variant="default" onClick={() => setInterestModal(null)}>
-                {locale === "ja" ? "キャンセル" : "Cancel"}
-              </Button>
-              <Button
-                color="orange"
-                loading={interestSaving}
-                disabled={
-                  !interestModal.interestAccountId ||
-                  !interestModal.paymentAccountId ||
-                  !interestModal.amount
-                }
-                onClick={() => void handleSaveInterest()}
-              >
-                {locale === "ja" ? "仕訳を作成" : "Create Entry"}
-              </Button>
-            </Group>
-          </Stack>
+        {loanEntryDraft && (
+          <LoanManagementEntryForm
+            key={loanEntryDraft.formValues.entryType}
+            draft={loanEntryDraft}
+            onSaved={() => setLoanEntryDraft(null)}
+            onCancel={closeLoanEntry}
+            onSavingChange={setLoanEntrySaving}
+          />
         )}
       </Modal>
     </Stack>

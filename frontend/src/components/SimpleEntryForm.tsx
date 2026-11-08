@@ -21,15 +21,18 @@ import { useMediaQuery } from "@mantine/hooks";
 import dayjs from "dayjs";
 import {
   type Account,
+  type BudgetCategory,
   type BudgetFilter,
   type CreateDepreciationInput,
   type CreateJournalInput,
   type UpdateDepreciationInput,
   type DepreciationBudgetSettings,
   type UnsettledLoanEntry,
+  type LongTermLoanBudgetDefaults,
   isAnyLendingCategory,
   isShortTermLoanCategory,
   isLongTermBorrowingCategory,
+  isLongTermLendingCategory,
   isBusinessAdvanceCategory,
 } from "@balance-sheet/shared";
 import { isBudgetAccount, isBudgetAsset } from "../../../shared/budgetScope";
@@ -65,6 +68,7 @@ import {
   buildBudgetFundingAllocations,
   fundingKindForLoanDirection,
 } from "../lib/budgetFundingAllocation";
+import { allocateLoanBudgetDefaults } from "../../../shared/longTermLoanBudgetDefaults";
 import {
   accountDisplayName,
   categoryIndex,
@@ -105,6 +109,7 @@ type EntryType =
   | "business_advance";
 /** increase=borrow, decrease=repay (liability); lend=lend, collect=collect (asset) */
 type LoanDirection = "increase" | "decrease" | "lend" | "collect";
+const EMPTY_LOAN_FUNDING_CATEGORY_AMOUNTS: Record<number, number> = {};
 
 interface HouseholdForm {
   date: Date;
@@ -208,6 +213,8 @@ export interface SimpleFormDraft {
   diffBudgetDist?: BudgetDistributionItem[];
   loanCounterBudgetDist?: BudgetDistributionItem[];
   loanFundingCategoryAmounts?: Record<number, number>;
+  loanFundingMode?: "auto" | "manual";
+  loanFundingCurrency?: string;
   depreciation?: {
     enabled: boolean;
     scheduleId?: number;
@@ -276,6 +283,23 @@ export function SimpleEntryForm({
   } = useAppData();
   const isMobile = useMediaQuery("(max-width: 48em)");
   const selectedCurrency = displayCurrency || "JPY";
+  const [retainedLoanBudgetCategories, setRetainedLoanBudgetCategories] = useState<
+    BudgetCategory[]
+  >([]);
+  useEffect(() => {
+    let cancelled = false;
+    void api.budget.listCategories({ includeArchived: true })
+      .then((categories) => {
+        if (!cancelled) setRetainedLoanBudgetCategories(categories);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+  const loanBudgetCategories = useMemo(() => {
+    const byId = new Map(budgetCategories.map((category) => [category.id, category]));
+    for (const category of retainedLoanBudgetCategories) byId.set(category.id, category);
+    return [...byId.values()];
+  }, [budgetCategories, retainedLoanBudgetCategories]);
   const [expenseTags, setExpenseTags] = useState<string[]>(
     initialDraft?.expenseTags ?? [],
   );
@@ -393,7 +417,29 @@ export function SimpleEntryForm({
   >(initialDraft?.loanCounterBudgetDist ?? []);
   const [loanFundingCategoryAmounts, setLoanFundingCategoryAmounts] = useState<
     Record<number, number>
-  >(initialDraft?.loanFundingCategoryAmounts ?? {});
+  >(
+    isEditing ||
+      (initialDraft?.loanFundingCurrency ?? selectedCurrency).toUpperCase() ===
+        selectedCurrency.toUpperCase()
+      ? initialDraft?.loanFundingCategoryAmounts ?? {}
+      : {},
+  );
+  const [loanFundingMode, setLoanFundingMode] = useState<"auto" | "manual">(
+    isEditing
+      ? "manual"
+      : (initialDraft?.loanFundingCurrency ?? selectedCurrency).toUpperCase() !==
+          selectedCurrency.toUpperCase()
+        ? "auto"
+        : initialDraft?.loanFundingMode ??
+          (initialDraft?.loanFundingCategoryAmounts !== undefined
+            ? "manual"
+            : "auto"),
+  );
+  const [loanFundingDefaults, setLoanFundingDefaults] =
+    useState<LongTermLoanBudgetDefaults | null>(null);
+  const [loanFundingDefaultsStatus, setLoanFundingDefaultsStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
 
   // ── Depreciation state ──────────────────────────────────────────────────
   const [depreciationEnabled, setDepreciationEnabled] = useState(
@@ -830,6 +876,179 @@ export function SimpleEntryForm({
     }
   }, [initialDraft]);
 
+  // Load unsettled entries when direction is repay/collect and a short-term account is selected
+  const loanAccountId = form.values.loanAccountId;
+  const loanDirection = form.values.loanDirection;
+  const loanFundingScopeKey = `${loanAccountId ?? ""}:${loanDirection}:${selectedCurrency}`;
+  const loanFundingScopeRef = useRef(loanFundingScopeKey);
+  const loanAccountForDefaults = accounts.find(
+    (account) => account.id === loanAccountId,
+  );
+  const loanCounterForDefaults = accounts.find(
+    (account) => account.id === form.values.loanCounterAccountId,
+  );
+  const loanFundingTouchesCreditCard = [
+    loanAccountForDefaults,
+    loanCounterForDefaults,
+  ].some((account) => account?.type === "liability" && account.category === "credit_card");
+  const usesLoanBudgetDefaults =
+    !isEditing &&
+    form.values.entryType === "loan" &&
+    !loanFundingTouchesCreditCard &&
+    ((loanDirection === "decrease" &&
+      loanAccountForDefaults != null &&
+      isLongTermBorrowingCategory(loanAccountForDefaults.category)) ||
+      (loanDirection === "collect" &&
+        loanAccountForDefaults != null &&
+        isLongTermLendingCategory(loanAccountForDefaults.category)));
+
+  useEffect(() => {
+    if (loanFundingScopeRef.current === loanFundingScopeKey) return;
+    loanFundingScopeRef.current = loanFundingScopeKey;
+    setLoanFundingMode(isEditing ? "manual" : "auto");
+    setLoanFundingCategoryAmounts({});
+    setLoanFundingDefaults(null);
+    setLoanFundingDefaultsStatus("idle");
+  }, [isEditing, loanFundingScopeKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!usesLoanBudgetDefaults || loanFundingMode === "manual") {
+      setLoanFundingDefaultsStatus("ready");
+      return;
+    }
+    if (loanAccountId == null) {
+      setLoanFundingDefaultsStatus("ready");
+      setLoanFundingDefaults(null);
+      return;
+    }
+    setLoanFundingDefaultsStatus("loading");
+    setLoanFundingDefaults(null);
+    void api.loans.budgetDefaults.get(loanAccountId, selectedCurrency)
+      .then((defaults) => {
+        if (cancelled) return;
+        setLoanFundingDefaults(defaults);
+        setLoanFundingDefaultsStatus("ready");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLoanFundingDefaults(null);
+        setLoanFundingDefaultsStatus("error");
+      });
+    return () => { cancelled = true; };
+  }, [
+    loanAccountId,
+    loanDirection,
+    loanFundingMode,
+    loanFundingTouchesCreditCard,
+    selectedCurrency,
+    usesLoanBudgetDefaults,
+  ]);
+
+  const automaticFundingCalculation = useMemo(() => {
+    if (
+      !usesLoanBudgetDefaults ||
+      loanFundingMode !== "auto" ||
+      !loanFundingDefaults ||
+      loanFundingDefaults.account_id !== loanAccountId ||
+      loanFundingDefaults.currency.toUpperCase() !== selectedCurrency.toUpperCase()
+    ) return null;
+    try {
+      const allocations = allocateLoanBudgetDefaults(
+        form.values.amount,
+        loanFundingDefaults.allocations,
+        currencyDecimalPlaces,
+        loanFundingDefaults,
+      );
+      return {
+        categoryAmounts: Object.fromEntries(
+          allocations
+            .filter((allocation) => allocation.budget_category_id != null)
+            .map((allocation) => [
+              allocation.budget_category_id!,
+              allocation.amount,
+            ]),
+        ) as Record<number, number>,
+      };
+    } catch {
+      return { error: true as const, categoryAmounts: {} as Record<number, number> };
+    }
+  }, [
+    currencyDecimalPlaces,
+    form.values.amount,
+    loanAccountId,
+    loanFundingDefaults,
+    loanFundingMode,
+    selectedCurrency,
+    usesLoanBudgetDefaults,
+  ]);
+  const automaticFundingCalculationError =
+    automaticFundingCalculation != null && "error" in automaticFundingCalculation;
+  const activeLoanFundingCategoryAmounts =
+    automaticFundingCalculation?.categoryAmounts ??
+    (usesLoanBudgetDefaults && loanFundingMode === "auto"
+      ? EMPTY_LOAN_FUNDING_CATEGORY_AMOUNTS
+      : loanFundingCategoryAmounts);
+  const loanFundingDefaultsScopeMismatch =
+    loanFundingDefaults?.account_id !== loanAccountId ||
+    loanFundingDefaults?.currency.toUpperCase() !== selectedCurrency.toUpperCase();
+  const loanFundingDefaultsError =
+    usesLoanBudgetDefaults &&
+    loanFundingMode === "auto" &&
+    (loanFundingDefaultsStatus === "error" ||
+      automaticFundingCalculationError ||
+      (loanFundingDefaultsStatus === "ready" && loanFundingDefaultsScopeMismatch));
+  const loanBudgetDefaultSnapshot =
+    usesLoanBudgetDefaults &&
+    loanFundingMode === "auto" &&
+    loanFundingDefaultsStatus === "ready" &&
+    loanFundingDefaults != null &&
+    !loanFundingDefaultsScopeMismatch &&
+    !loanFundingDefaultsError
+      ? {
+          revision: loanFundingDefaults.budget_revision,
+          account_ids: [loanFundingDefaults.account_id],
+        }
+      : undefined;
+  const setLoanFundingManual = useCallback(() => {
+    setLoanFundingCategoryAmounts(activeLoanFundingCategoryAmounts);
+    setLoanFundingMode("manual");
+    setLoanFundingDefaultsStatus("ready");
+  }, [activeLoanFundingCategoryAmounts]);
+  const applyLoanFundingDefaults = useCallback(() => {
+    setLoanFundingMode("auto");
+    setLoanFundingDefaultsStatus("idle");
+  }, []);
+  const reloadLoanFundingDefaults = useCallback(async () => {
+    if (loanAccountId == null) return;
+    const accountId = loanAccountId;
+    const direction = loanDirection;
+    const currency = selectedCurrency;
+    const scope = loanFundingScopeKey;
+    setLoanFundingDefaultsStatus("loading");
+    setLoanFundingDefaults(null);
+    try {
+      const defaults = await api.loans.budgetDefaults.get(accountId, currency);
+      if (
+        form.values.loanAccountId !== accountId ||
+        form.values.loanDirection !== direction ||
+        selectedCurrency !== currency ||
+        loanFundingScopeRef.current !== scope ||
+        defaults.account_id !== accountId ||
+        defaults.currency.toUpperCase() !== currency.toUpperCase()
+      ) return;
+      setLoanFundingDefaults(defaults);
+      setLoanFundingDefaultsStatus("ready");
+    } catch {
+      if (
+        form.values.loanAccountId === accountId &&
+        form.values.loanDirection === direction &&
+        selectedCurrency === currency &&
+        loanFundingScopeRef.current === scope
+      ) setLoanFundingDefaultsStatus("error");
+    }
+  }, [form, loanAccountId, loanDirection, loanFundingScopeKey, selectedCurrency]);
+
   useEffect(() => {
     onDraftChangeRef.current?.({
       formValues: form.values,
@@ -845,7 +1064,9 @@ export function SimpleEntryForm({
       settledEntryIds,
       diffBudgetDist,
       loanCounterBudgetDist,
-      loanFundingCategoryAmounts,
+      loanFundingCategoryAmounts: activeLoanFundingCategoryAmounts,
+      loanFundingMode,
+      loanFundingCurrency: selectedCurrency,
       depreciation: {
         enabled: depreciationEnabled,
         scheduleId: initialDraft?.depreciation?.scheduleId,
@@ -881,12 +1102,11 @@ export function SimpleEntryForm({
     depreciationIdempotencyKey,
     initialDraft?.depreciation?.scheduleId,
     loanCounterBudgetDist,
-    loanFundingCategoryAmounts,
+    activeLoanFundingCategoryAmounts,
+    loanFundingMode,
+    selectedCurrency,
   ]);
 
-  // Load unsettled entries when direction is repay/collect and a short-term account is selected
-  const loanAccountId = form.values.loanAccountId;
-  const loanDirection = form.values.loanDirection;
   useEffect(() => {
     if (form.values.entryType !== "loan") return;
     if (loanDirection !== "decrease" && loanDirection !== "collect") {
@@ -929,6 +1149,19 @@ export function SimpleEntryForm({
   ]);
 
   async function doSubmit(values: HouseholdForm) {
+    if (
+      values.entryType === "loan" &&
+      usesLoanBudgetDefaults &&
+      loanFundingMode === "auto" &&
+      (loanFundingDefaultsStatus !== "ready" ||
+        loanFundingDefaults == null ||
+        loanFundingDefaults.account_id !== values.loanAccountId ||
+        loanFundingDefaults.currency.toUpperCase() !== selectedCurrency.toUpperCase() ||
+        automaticFundingCalculationError)
+    ) {
+      showFeedback({ message: t("loanFundingDefaultsError"), color: "red" });
+      return;
+    }
     const businessSplit = splitBusinessExpenseAmount(
       values.amount,
       values.businessRatio ?? 100,
@@ -1449,13 +1682,14 @@ export function SimpleEntryForm({
           explicitFundingAllocations = buildBudgetFundingAllocations(
             loanAmount,
             new Map(
-              Object.entries(loanFundingCategoryAmounts).map(
+              Object.entries(activeLoanFundingCategoryAmounts).map(
                 ([categoryId, fundingAmount]) => [
                   Number(categoryId),
                   Number(fundingAmount) || 0,
                 ],
               ),
             ),
+            currencyDecimalPlaces,
           );
         } catch {
           showFeedback({
@@ -1482,7 +1716,7 @@ export function SimpleEntryForm({
         let fundingComponent = buildFundingComponentInput({
           component: calculatedFunding,
           appliedAmount: calculatedFunding.applied_amount,
-          categoryAmounts: loanFundingCategoryAmounts,
+          categoryAmounts: activeLoanFundingCategoryAmounts,
           currency: selectedCurrency,
           decimalPlaces: currencyDecimalPlaces,
           sourceJournalEntryIds: automaticSettlement
@@ -1604,6 +1838,9 @@ export function SimpleEntryForm({
         budget_source: "simple",
         ...expenseTagFields,
         ...loanBudgetMetadata,
+        ...(loanBudgetDefaultSnapshot
+          ? { loan_budget_default_snapshot: loanBudgetDefaultSnapshot }
+          : {}),
       });
 
       if (!isEditing) {
@@ -1613,6 +1850,9 @@ export function SimpleEntryForm({
         setDiffBudgetDist([]);
         setLoanCounterBudgetDist([]);
         setLoanFundingCategoryAmounts({});
+        setLoanFundingMode("auto");
+        setLoanFundingDefaults(null);
+        setLoanFundingDefaultsStatus("idle");
         form.reset();
         if (defaultPaymentAccount) {
           form.setFieldValue("expensePaidFromId", defaultPaymentAccount.id);
@@ -1749,6 +1989,14 @@ export function SimpleEntryForm({
     try {
       await doSubmit(values);
     } catch (e) {
+      if (e instanceof ApiError && e.body.error === "stale_loan_budget_defaults") {
+        const message = t("loanFundingDefaultsStale");
+        if (usesLoanBudgetDefaults && loanFundingMode === "auto") {
+          await reloadLoanFundingDefaults();
+        }
+        showFeedback({ message, color: "orange" });
+        return;
+      }
       const msg =
         e instanceof Error && e.message === "income_transfer_destination_required"
           ? t("incomeTransferDestination")
@@ -2642,7 +2890,7 @@ export function SimpleEntryForm({
             expenseOnlyOptions={expenseOnlyOptions}
             incomeOnlyOptions={incomeOnlyOptions}
             accounts={accounts}
-            budgetCategories={budgetCategories}
+            budgetCategories={loanBudgetCategories}
             locale={locale}
             selectedCurrency={selectedCurrency}
             currencyDecimalPlaces={currencyDecimalPlaces}
@@ -2656,8 +2904,18 @@ export function SimpleEntryForm({
             setDiffBudgetDist={setDiffBudgetDist}
             loanCounterBudgetDist={loanCounterBudgetDist}
             setLoanCounterBudgetDist={setLoanCounterBudgetDist}
-            loanFundingCategoryAmounts={loanFundingCategoryAmounts}
+            loanFundingCategoryAmounts={activeLoanFundingCategoryAmounts}
             setLoanFundingCategoryAmounts={setLoanFundingCategoryAmounts}
+            loanFundingMode={loanFundingMode}
+            loanFundingDefaultsLoading={
+              loanFundingDefaultsStatus === "loading"
+            }
+            loanFundingDefaultsError={loanFundingDefaultsError}
+            canApplyLoanFundingDefaults={!isEditing}
+            onApplyLoanFundingDefaults={applyLoanFundingDefaults}
+            onSetLoanFundingManual={setLoanFundingManual}
+            onRetryLoanFundingDefaults={() => void reloadLoanFundingDefaults()}
+            onFundingManualEdit={setLoanFundingManual}
             currentUnallocatedFunding={allocatableToday}
             showFundingSuggestion={!isEditing}
             handleLoanCounterAccountChange={handleLoanCounterAccountChange}

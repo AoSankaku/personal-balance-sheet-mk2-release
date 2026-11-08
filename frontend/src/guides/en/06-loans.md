@@ -40,6 +40,10 @@ Lending and borrowing are not expenses or income, but they change the cash backi
 
 The breakdown is fixed when the entry is saved. Editing an older, unrelated entry does not recalculate it. For short-term repayments and collections, the saved breakdown of the selected source entry is reversed. If a category was reset after the source entry, that reset ends the old funding relationship: a later repayment or collection does not restore the category, and the returned cash is treated as unallocated.
 
+For long-term loans, repayment and collection defaults use the first opening's budget split for each account and currency, including unallocated funds. The original amount ratio is retained as the principal changes. In the detail page's budget-default settings, enter integer weights such as 2:1 to change future defaults. Saved entries remain unchanged, and you can override the allocation for an individual payment.
+
+Amounts are split in the currency's smallest unit. Matching installments carry their rounding differences forward. If another screen changes the ledger or defaults before saving, reload the current defaults and review the allocation before saving again.
+
 ## Repayments Or Collections With Differences
 
 The repayment or collection amount may not exactly match the original amount because of fees, discounts, exchange differences, rounding, gifts, or similar reasons.

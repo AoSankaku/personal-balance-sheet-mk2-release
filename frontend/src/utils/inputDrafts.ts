@@ -6,6 +6,7 @@
 import type { SimpleFormDraft } from "../components/SimpleEntryForm";
 import type {
   BudgetFundingComponentRecord,
+  BudgetFundingKind,
   CompleteCreditCardStatementInput,
   CreateJournalInput,
 } from "@balance-sheet/shared";
@@ -29,6 +30,9 @@ export interface MultiLineDraft {
   tagExpenseAmounts?: NonNullable<CreateJournalInput["tag_expense_amounts"]>;
   budgetAllocs?: Record<number, number>;
   budgetFundingComponents?: BudgetFundingComponentRecord[];
+  budgetFundingCategoryAmounts?: Record<string, Record<number, number>>;
+  budgetFundingModes?: Partial<Record<BudgetFundingKind, "auto" | "manual">>;
+  budgetFundingCurrency?: string;
   incomeBudgetAllocations?: NonNullable<CreateJournalInput["income_budget_allocations"]>;
   incomeTransferDestinations?: NonNullable<CreateJournalInput["income_transfer_destinations"]>;
   incomeBudgetAllocs?: Record<number, number>;

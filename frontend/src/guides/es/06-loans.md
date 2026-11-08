@@ -41,6 +41,10 @@ Prestar y pedir prestado no son gastos ni ingresos, pero cambian el efectivo que
 
 El desglose queda fijo al guardar la transacción y no se recalcula al modificar otra transacción antigua. En pagos y cobros a corto plazo se revierte el desglose guardado de la transacción de origen seleccionada. Si la categoría se restableció después del origen, el restablecimiento termina la relación anterior: la categoría no se restaura y el efectivo recuperado vuelve como no asignado.
 
+En los préstamos a largo plazo, los valores iniciales de pagos y cobros siguen el reparto presupuestario de la primera operación, por cuenta y moneda, incluidos los fondos sin asignar. La proporción original se conserva al cambiar el principal. En los ajustes de reparto de la página de detalle puede introducir pesos enteros, como 2:1, para cambiar los valores futuros. Los asientos guardados no cambian y cada pago admite un ajuste manual.
+
+Los importes se calculan en la unidad mínima de la moneda. Las cuotas que siguen el mismo reparto trasladan sus diferencias de redondeo a las siguientes. Si otra ventana modifica el libro o los ajustes, recargue los valores y revise el reparto antes de volver a guardar.
+
 ## Pagos o Cobros con Diferencias
 
 El monto del pago o cobro puede no coincidir exactamente con el monto original debido a comisiones, descuentos, diferencias cambiarias, redondeos, regalos o razones similares.
