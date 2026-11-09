@@ -1,4 +1,5 @@
 import type { Account, JournalEntry } from "@balance-sheet/shared";
+import { matchesExpenseTags } from "../../../shared/expenseTags";
 
 export const EXPENSE_HISTORY_STORAGE_KEY = "expense_history:v1";
 export const EXPENSE_HISTORY_SCHEMA_VERSION = 1;
@@ -81,7 +82,9 @@ function normalizeCurrency(currency: string | null | undefined) {
 export function buildExpenseHistorySnapshot(
   journal: JournalEntry[],
   accounts: Account[],
+  selectedTagIds: readonly number[] = [],
 ): StoredExpenseHistorySnapshot {
+  const selectedJournal = journal.filter(entry => matchesExpenseTags(entry, selectedTagIds));
   const expenseAccountMap = new Map(
     accounts
       .filter((account) => account.type === "expense" && !account.is_system)
@@ -93,7 +96,7 @@ export function buildExpenseHistorySnapshot(
   let firstEntryDate: string | null = null;
   let lastEntryDate: string | null = null;
 
-  for (const entry of journal) {
+  for (const entry of selectedJournal) {
     const entryDate = entry.date.slice(0, 10);
     if (!firstEntryDate || entryDate < firstEntryDate)
       firstEntryDate = entryDate;
@@ -119,7 +122,7 @@ export function buildExpenseHistorySnapshot(
     version: EXPENSE_HISTORY_SCHEMA_VERSION,
     updated_at: new Date().toISOString(),
     source: {
-      journal_count: journal.length,
+      journal_count: selectedJournal.length,
       account_count: accounts.length,
       first_entry_date: firstEntryDate,
       last_entry_date: lastEntryDate,
