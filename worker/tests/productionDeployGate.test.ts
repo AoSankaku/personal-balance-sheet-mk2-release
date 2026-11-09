@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { checkProductionDeployment } from "../scripts/production-deploy-gate.mjs";
+import { VERSION } from "../../frontend/src/lib/version";
+import { join } from "node:path";
 
 const release = "a".repeat(40);
 const newer = "b".repeat(40);
@@ -45,6 +47,11 @@ describe("production CI deployment gate", () => {
     expect(f.calls.at(-1)).toEqual(["ls-remote", "--exit-code", "origin", "refs/heads/main"]);
   });
 
+  test("reads the actual application version when checking the release marker", async () => {
+    const f = fixture(`chore: bump version to ${VERSION}`);
+    expect(await checkProductionDeployment({ args: ["deploy"], env: ci, git: f.git })).toEqual({ deploy: true });
+  });
+
   test("skips an old release retry once main has advanced", async () => {
     const f = fixture(undefined, newer);
     expect(await checkProductionDeployment({ args: ["deploy"], env: ci, ...f })).toMatchObject({ deploy: false, reason: "outdated-release" });
@@ -63,6 +70,10 @@ describe("production CI deployment gate", () => {
     await expect(checkProductionDeployment({ args: ["deploy"], env: { ...ci, WORKERS_CI_COMMIT_SHA: newer }, ...fixture() })).rejects.toThrow("checkout");
   });
 
+  test("uses the real Git checkout to reject an unrelated CI revision", async () => {
+    await expect(checkProductionDeployment({ args: ["deploy"], env: { ...ci, WORKERS_CI_COMMIT_SHA: "0".repeat(40) } })).rejects.toThrow("checkout");
+  });
+
   test("fails closed when the current remote revision cannot be verified", async () => {
     const f = fixture();
     const git = f.git;
@@ -78,5 +89,30 @@ describe("production CI deployment gate", () => {
     const git = f.git;
     f.git = async (args) => args[0] === "ls-remote" ? "" : git(args);
     await expect(checkProductionDeployment({ args: ["deploy"], env: ci, ...f })).rejects.toThrow();
+  });
+
+  test("the real wrapper checks the CI checkout before reading D1 credentials", async () => {
+    const child = Bun.spawn([process.execPath, join(import.meta.dir, "../scripts/run-wrangler-with-d1.mjs"), "deploy"], {
+      env: { ...process.env, ...ci, WORKERS_CI_COMMIT_SHA: "0".repeat(40), D1_DATABASE_ID: "" },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [code, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);
+    expect(code).not.toBe(0);
+    expect(stderr).toContain("checkout does not match");
+    expect(stderr).not.toContain("D1_DATABASE_ID is required");
+  });
+
+  test("the real wrapper fails closed when Git cannot run", async () => {
+    const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toLowerCase() !== "path"));
+    const child = Bun.spawn([process.execPath, join(import.meta.dir, "../scripts/run-wrangler-with-d1.mjs"), "deploy"], {
+      env: { ...environment, ...ci, PATH: "", D1_DATABASE_ID: "" },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [code, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);
+    expect(code).not.toBe(0);
+    expect(stderr).toContain("Unable to verify Git release metadata");
+    expect(stderr).not.toContain("D1_DATABASE_ID is required");
   });
 });

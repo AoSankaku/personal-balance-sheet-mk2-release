@@ -144,36 +144,8 @@ describe("hard reload prompt detection", () => {
     expect(shouldPromptForNewVersion("2026.6.0-beta0", "")).toBe(false);
   });
 
-  test.each([
-    ["2026.11.0-beta3", "2026.11.0-beta2", false],
-    ["2026.11.0-beta9", "2026.11.0-beta10", true],
-    ["2026.11.0-beta10", "2026.11.0-beta9", false],
-    ["2026.2.0-beta9", "2026.11.0-beta0", true],
-    ["2026.11.0-beta0", "2026.2.0-beta9", false],
-    ["2026.12.0-beta9", "2027.1.0-beta0", true],
-    ["2027.1.0-beta0", "2026.12.0-beta9", false],
-    ["1.2.9", "1.2.10", true],
-    ["1.2.10", "1.2.9", false],
-    ["1.2.3-beta9", "1.2.3", true],
-    ["1.2.3", "1.2.3-beta9", false],
-    ["1.2.3-alpha2", "1.2.3-beta0", true],
-    ["1.2.3-beta9", "1.2.3-rc1", true],
-    ["1.2.3-beta.9", "1.2.3-beta.10", true],
-    ["1.2.3+old", "1.2.3+new", false],
-    ["1.2.3", "unknown", false],
-    ["unknown", "1.2.3", false],
-    ["1.2.3", null, false],
-    ["1.2.3", undefined, false],
-  ])("compares app versions %s -> %s numerically", (current, latest, expected) => {
-    expect(shouldPromptForNewVersion(current, latest)).toBe(expected);
-  });
-
-  test("does not announce an older server version as a new update", async () => {
-    const fetcher = (async () => new Response(JSON.stringify({ version: "2026.11.0-beta2" }), {
-      headers: { "content-type": "application/json" },
-    })) as typeof fetch;
-    expect(await checkForNewAppVersion(fetcher)).toBe(false);
-    expect(getReloadPromptSnapshot()).toBeNull();
+  test("keeps update notifications when an older version is intentionally deployed", () => {
+    expect(shouldPromptForNewVersion("2026.11.0-beta3", "2026.11.0-beta2")).toBe(true);
   });
 
   test("emits version.json from the Vite build using version.ts", () => {

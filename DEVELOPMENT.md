@@ -24,6 +24,13 @@ bun run wrangler versions view <version-id> --name balance-sheet-worker --json
 バージョンを`--message`に記録する。Build VariablesはWorker実行時の`vars`とは
 別の設定であり、`wrangler deploy --var`では変更しない。
 
+Workers Buildsからの本番デプロイは、GitHub Actionsが作る
+`chore: bump version to <version>`コミットだけを公開する。マージ直後の中間コミットは
+ビルドが後から完了しても公開しない。公開前にチェックアウトとCIのコミットを照合し、
+さらに`origin/main`の先頭に一致することを確認する。照合できない場合は公開を止める。
+この確認は本番用の`deploy`だけに適用し、手動コマンド、dry-run、プレビュー、D1操作には
+適用しない。更新通知はバージョンの大小にかかわらず、配信版が異なれば表示する。
+
 ## `dev`を`main`へマージする
 
 作業ツリーに未コミットの変更がないことを確認してから実行する。通常は、後述の
