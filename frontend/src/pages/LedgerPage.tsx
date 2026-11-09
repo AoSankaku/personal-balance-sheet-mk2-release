@@ -81,6 +81,7 @@ import { matchesExpenseTags } from "../../../shared/expenseTags";
 import { expenseTagOptions } from "../lib/expenseTagSummary";
 import { ExpenseTagSummary } from "../components/ExpenseTagSummary";
 import { ExpenseTagsModal } from "../components/ExpenseTagsModal";
+import { includesSearchText } from "../lib/searchText";
 import classes from "./LedgerPage.module.css";
 
 function normalizeCurrency(currency: string | null | undefined) {
@@ -508,7 +509,7 @@ export default function LedgerPage() {
       if (to && e.date > toDateStr(to)) return false;
       if (
         filterDesc &&
-        !e.description.toLowerCase().includes(filterDesc.toLowerCase())
+        !includesSearchText(e.description, filterDesc)
       )
         return false;
       if (filterSource && (e.source ?? "manual") !== filterSource) return false;
@@ -558,7 +559,7 @@ export default function LedgerPage() {
       // Apply all non-date-range filters
       if (
         filterDesc &&
-        !e.description.toLowerCase().includes(filterDesc.toLowerCase())
+        !includesSearchText(e.description, filterDesc)
       )
         return false;
       if (filterSource && (e.source ?? "manual") !== filterSource) return false;
