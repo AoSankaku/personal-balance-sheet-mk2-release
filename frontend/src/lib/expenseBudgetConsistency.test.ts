@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Account, JournalEntry } from "@balance-sheet/shared";
 import { getSuspiciousReasons } from "../components/tt/ttUtils";
+import { matchesExpenseAndExcludedCashTransfer } from "./expenseBudgetConsistency";
 
 function account(id: number, overrides: Partial<Account> = {}): Account {
   return {
@@ -103,6 +104,8 @@ describe("expense checks with transfers to excluded cash", () => {
     entry.budget_allocations![1].is_reference = true;
     expect(getSuspiciousReasons(entry, accounts(), "ja")).toHaveLength(1);
     const mixedPayment = compound([[1, 0, 1_000], [3, 0, 1_000], [4, 2_000, 0]], 2_000);
+    mixedPayment.budget_allocations![0].amount = -1_000;
+    mixedPayment.budget_allocations![1].amount = -1_000;
     mixedPayment.budget_allocations![1].is_reference = true;
     expect(getSuspiciousReasons(mixedPayment, accounts(), "ja")).toEqual([]);
   });
@@ -113,6 +116,17 @@ describe("expense checks with transfers to excluded cash", () => {
     expect(getSuspiciousReasons(entry, accounts(), "ja")).toHaveLength(1);
     entry.budget_allocations![1].amount = 0;
     expect(getSuspiciousReasons(entry, accounts(), "ja")).toEqual([]);
+  });
+
+  test.each(["legacy", "components"])("does not reinterpret separately saved %s loan funding", (format) => {
+    const entry = compound();
+    const allocations = [{ id: 1, budget_category_id: 2, amount: 8_000, currency: "JPY", effect: "apply" as const }];
+    if (format === "legacy") {
+      entry.budget_funding = { kind: "lend", allocations };
+    } else {
+      entry.budget_funding_components = [{ kind: "lend", principal_amount: 8_000, applied_amount: 8_000, component_only_amount: 0, allocations, source_journal_entry_ids: [] }];
+    }
+    expect(getSuspiciousReasons(entry, accounts(), "ja")).toHaveLength(1);
   });
 
   test.each([7, 8, 6, 99])("does not infer an excluded cash transfer from loan, advance, income, or unknown account %i", (accountId) => {
@@ -147,6 +161,27 @@ describe("expense checks with transfers to excluded cash", () => {
     expect(getSuspiciousReasons(entry, accounts(), "ja")).toEqual([]);
     entry.budget_allocations![1].amount += 1;
     expect(getSuspiciousReasons(entry, accounts(), "ja")).toHaveLength(1);
+  });
+
+  test("allows an ordinary expense in another currency alongside a qualifying transfer", () => {
+    const entry = compound();
+    entry.lines.push(...compound([[1, 0, 12.34, "USD"], [4, 12.34, 0, "USD"]]).lines);
+    entry.budget_allocations!.push({ budget_category_id: 2, amount: -12.34, currency: "USD" });
+    expect(getSuspiciousReasons(entry, accounts(), "ja")).toEqual([]);
+  });
+
+  test("supports cached allocations with the default JPY currency", () => {
+    const entry = compound();
+    for (const allocation of entry.budget_allocations!) delete allocation.currency;
+    expect(getSuspiciousReasons(entry, accounts(), "ja")).toEqual([]);
+  });
+
+  test("does not infer a transfer when there is no mismatched allocation", () => {
+    expect(matchesExpenseAndExcludedCashTransfer(compound(undefined, 2_000), accounts())).toBe(false);
+    const entry = compound();
+    delete entry.budget_allocations;
+    expect(getSuspiciousReasons(entry, accounts(), "ja")).toEqual([]);
+    expect(matchesExpenseAndExcludedCashTransfer({ ...entry, lines: [] }, accounts())).toBe(false);
   });
 
   test("does not hide an unrelated currency's mismatch when a valid transfer is present", () => {
