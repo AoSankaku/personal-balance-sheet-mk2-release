@@ -30,6 +30,8 @@ Si las importaciones históricas o correcciones hacen que un saldo sea poco real
 
 Los asientos de ingreso pueden aplicar un filtro de presupuesto para distribuir el depósito entre categorías. Los filtros usan pasos fijos, limitados y de división proporcional. Los ajustes manuales de presupuesto pueden luego aumentar o disminuir categorías individuales y pueden incluir un comentario opcional.
 
+En Entrada > Ajuste de presupuesto, consulta todos los presupuestos, selecciona los que quieras ajustar y filtra la lista para mostrarlos. Introduce varios aumentos y reducciones a la vez, con una fecha y un comentario comunes. Revisa cada saldo antes y después, además del presupuesto disponible calculado exactamente a la fecha elegida. El ajuste total no tiene que ser cero: −10.000 en A y +8.000 en B suman −2.000. El presupuesto disponible puede cambiar en una cantidad distinta debido a la cobertura de presupuestos negativos y al traspaso de excesos del límite. El guardado se desactiva mientras se calcula el resultado o si no está disponible. Si cambian los saldos, revisa el nuevo cálculo antes de volver a guardar. Cambia a «Restablecer presupuesto» para usar el flujo de reinicio del saldo a cero.
+
 ## Colocación del Presupuesto
 
 Las cuentas de efectivo/bancarias tienen una configuración "incluir en fuente de presupuesto asignable". Solo las cuentas habilitadas cuentan como efectivo asignable y como saldos reales en la colocación del presupuesto.

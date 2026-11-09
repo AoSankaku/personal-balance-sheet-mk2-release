@@ -6,6 +6,7 @@ import {
   NumberInput,
   Paper,
   Select,
+  SegmentedControl,
   Stack,
   Text,
   Textarea,
@@ -13,7 +14,7 @@ import {
 import { DateInput } from "@mantine/dates";
 import { Link } from "react-router-dom";
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { DepreciationResetInputDecision } from "@balance-sheet/shared";
 import { api, ApiError } from "../api/client";
 import { useLang } from "../i18n";
@@ -21,15 +22,35 @@ import { useAppData } from "../context/AppDataContext";
 import { showFeedback } from "../lib/feedback";
 import { formatCurrency } from "../lib/numberFormat";
 import { normalizeBudgetAdjustmentNote } from "../lib/budgetAdjustmentNote";
-import { budgetDraft, setBudgetDraft } from "../utils/inputDrafts";
+import { budgetDraft, setBudgetDraft, getBudgetAdjustmentSaveState, subscribeBudgetAdjustmentSave } from "../utils/inputDrafts";
+import { BudgetAdjustmentEditor } from "./BudgetAdjustmentEditor";
 
 type ResetPlan = Awaited<ReturnType<typeof api.budget.depreciationResetPlans>>["plans"][number];
 type ResetDecision = Partial<DepreciationResetInputDecision> & Pick<DepreciationResetInputDecision, "schedule_id">;
 
 export function BudgetAdjustForm({
+  active = true,
   onDone,
   onReset,
 }: {
+  active?: boolean;
+  onDone: (result?: { categoryArchived?: boolean }) => void;
+  onReset?: () => void;
+}) {
+  const { t } = useLang();
+  const { displayCurrency } = useAppData();
+  const [mode, setMode] = useState("adjust");
+  const saveState = useSyncExternalStore(subscribeBudgetAdjustmentSave, getBudgetAdjustmentSaveState, getBudgetAdjustmentSaveState);
+  return <Stack>
+    <SegmentedControl value={mode} onChange={setMode} disabled={saveState.saving} fullWidth
+      data={[{ value: "adjust", label: t("tabBudgetAdjust") }, { value: "reset", label: t("budgetResetModeLabel") }]} />
+    {mode === "adjust"
+      ? <BudgetAdjustmentEditor key={`${displayCurrency || "JPY"}:${saveState.version}`} active={active} busy={saveState.saving} onDone={onDone} onReset={onReset} />
+      : <BudgetResetForm onDone={onDone} onReset={onReset} />}
+  </Stack>;
+}
+
+function BudgetResetForm({ onDone, onReset }: {
   onDone: (result?: { categoryArchived?: boolean }) => void;
   onReset?: () => void;
 }) {
@@ -69,6 +90,7 @@ export function BudgetAdjustForm({
   });
   const canSubmit =
     !resettingBudget &&
+    isBudgetReset &&
     !!categoryId &&
     (Number(amount) !== 0 || (isBudgetReset && archiveAfterReset)) &&
     (!isBudgetReset || (plansAreCurrent && resetPlans.every((plan) => {
@@ -103,7 +125,7 @@ export function BudgetAdjustForm({
       adhoc_delta: delta,
       date: dayjs(date).format("YYYY-MM-DD"),
       note: normalizeBudgetAdjustmentNote(note),
-      adjustment_type: isBudgetReset ? "reset" : "allocation",
+      adjustment_type: "reset",
       archive_category: isBudgetReset && archiveAfterReset,
       depreciation_decisions: isBudgetReset
         ? resetPlans

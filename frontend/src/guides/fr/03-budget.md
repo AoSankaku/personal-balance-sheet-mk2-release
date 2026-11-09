@@ -30,6 +30,8 @@ Si des importations historiques ou des corrections rendent un solde irréaliste,
 
 Les écritures de revenu peuvent appliquer un filtre budgétaire pour distribuer le dépôt entre les catégories. Les filtres utilisent des étapes fixes, plafonnées et de répartition proportionnelle. Des ajustements budgétaires manuels peuvent ensuite augmenter ou diminuer des catégories individuelles et peuvent inclure un commentaire facultatif.
 
+Dans Saisie > Ajustement budgétaire, affichez tous les budgets, sélectionnez ceux à ajuster, puis limitez la liste à ces budgets. Saisissez plusieurs hausses et baisses ensemble avec une date et un commentaire communs. Vérifiez chaque solde avant et après, ainsi que le montant disponible calculé précisément à la date choisie. Le total des ajustements n’a pas besoin d’être nul : −10 000 pour A et +8 000 pour B donnent −2 000. Le montant disponible peut évoluer différemment en raison de la couverture des budgets négatifs et du transfert des dépassements de plafond. L’enregistrement est désactivé pendant le calcul ou si le résultat n’est pas disponible. Si les soldes changent, vérifiez le nouveau calcul avant d’enregistrer à nouveau. Passez à « Réinitialiser le budget » pour retrouver la procédure de remise du solde à zéro.
+
 ## Placement budgétaire
 
 Les comptes bancaires/de liquidités ont un paramètre « inclure dans la source budgétaire allouable ». Seuls les comptes activés comptent comme liquidités allouables et comme soldes réels dans le placement budgétaire.

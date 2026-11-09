@@ -18,8 +18,8 @@ afterEach(() => {
   for (const harness of harnesses.splice(0)) harness.close();
 });
 
-function fixture() {
-  const harness = createTestD1();
+function fixture(options: { maxParameters?: number } = {}) {
+  const harness = createTestD1(options);
   harnesses.push(harness);
   harness.sqlite.exec(`
     INSERT INTO enabled_currencies(code, decimal_places) VALUES ('JPY', 0), ('USD', 2);
@@ -110,6 +110,39 @@ describe("budget adjustment batch API", () => {
     ]);
     expect(result.logs[0]!.created_at).toBe(result.logs[1]!.created_at);
     expect(harness.sqlite.query("SELECT COUNT(*) AS n FROM budget_adjustment_logs").get<{ n: number }>()!.n).toBe(initialCount + 2);
+    const duplicate = await request(harness, "/allocations/batch", {
+      ...previewBody("2026-01-31", "JPY", adjustments, "Trip"),
+      preview_token: preview.token,
+    });
+    expect(duplicate.status).toBe(409);
+    expect(await duplicate.json()).toMatchObject({ error: "adjustment_preview_stale" });
+    expect(harness.sqlite.query("SELECT COUNT(*) AS n FROM budget_adjustment_logs").get<{ n: number }>()!.n).toBe(initialCount + 2);
+  });
+
+  test("previews and saves 100 budget adjustments with SQLite's 100-parameter limit", async () => {
+    const harness = fixture({ maxParameters: 100 });
+    const adjustments: Adjustment[] = [];
+    for (let index = 0; index < 100; index++) {
+      adjustments.push({
+        budget_category_id: addCategory(harness, `Budget ${index + 1}`, { sort_order: index }),
+        adhoc_delta: 1,
+      });
+    }
+
+    const previewResponse = await request(harness, "/allocations/preview", previewBody("2026-01-31", "JPY", adjustments));
+    expect(previewResponse.status).toBe(200);
+    const preview = await previewResponse.json() as Preview;
+    expect(preview.adjustment_total).toBe(100);
+    expect(preview.categories).toHaveLength(100);
+
+    const savedResponse = await request(harness, "/allocations/batch", {
+      ...previewBody("2026-01-31", "JPY", adjustments),
+      preview_token: preview.token,
+    });
+    expect(savedResponse.status).toBe(200);
+    const saved = await savedResponse.json() as { logs: unknown[] };
+    expect(saved.logs).toHaveLength(100);
+    expect(harness.sqlite.query("SELECT COUNT(*) AS n FROM budget_adjustment_logs").get<{ n: number }>()!.n).toBe(100);
   });
 
   test("computes projected allocatable money from positive category balances after caps", async () => {
@@ -133,6 +166,40 @@ describe("budget adjustment batch API", () => {
     expect(preview.adjustment_total).toBe(3_500);
     expect(preview.allocatable_before).toBe(48_500);
     expect(preview.allocatable_after).toBe(48_000);
+  });
+
+  test("includes depreciation non-cash offsets in allocatable claims", async () => {
+    const harness = fixture();
+    const categoryId = addCategory(harness, "Depreciation budget");
+    harness.sqlite.exec(`
+      INSERT INTO accounts(id,name,type,category,is_depreciable,include_in_allocatable) VALUES
+        (103,'Equipment','asset','property',1,0),(104,'Depreciation expense','expense','other',0,0);
+      INSERT INTO journal_entries(id,date,description,created_at) VALUES
+        (102,'2026-01-01','Equipment purchase','2026-01-01 09:00:00'),
+        (103,'2026-02-15','Monthly depreciation','2026-02-15 09:00:00');
+      INSERT INTO depreciation_schedules(id,source_journal_entry_id,asset_account_id,expense_account_id,total_amount,months,start_date)
+        VALUES(1,102,103,104,10000,10,'2026-01-01');
+      INSERT INTO depreciation_entries(schedule_id,journal_entry_id,month_number) VALUES(1,103,2);
+      INSERT INTO depreciation_budget_reservations(schedule_id,budget_category_id,amount,currency)
+        VALUES(1,${categoryId},10000,'JPY');
+      INSERT INTO journal_entry_budget_allocations(journal_entry_id,budget_category_id,amount,currency,source)
+        VALUES(103,${categoryId},-1000,'JPY','expense');
+    `);
+    addLog(harness, categoryId, 0, "2026-02-01", "JPY", "reset", "2026-02-01 08:00:00");
+    addLog(harness, categoryId, 5_000, "2026-02-01", "JPY", "allocation", "2026-02-01 09:00:00");
+
+    const response = await request(harness, "/allocations/preview", previewBody("2026-02-28", "JPY", [
+      { budget_category_id: categoryId, adhoc_delta: 500 },
+    ]));
+    expect(response.status).toBe(200);
+    const preview = await response.json() as Preview;
+    expect(preview.categories.find((item) => item.budget_category_id === categoryId)).toEqual({
+      budget_category_id: categoryId,
+      before_available: 4_000,
+      after_available: 4_500,
+    });
+    expect(preview.allocatable_before).toBe(45_000);
+    expect(preview.allocatable_after).toBe(44_500);
   });
 
   test("honors an historical reset cutoff and currency minor units", async () => {
@@ -160,6 +227,9 @@ describe("budget adjustment batch API", () => {
     const harness = fixture();
     const active = addCategory(harness, "Active");
     const archived = addCategory(harness, "Archived", { is_archived: 1 });
+    const largeA = addCategory(harness, "Large A");
+    const largeB = addCategory(harness, "Large B");
+    const largeC = addCategory(harness, "Large C");
     const count = () => harness.sqlite.query("SELECT COUNT(*) AS n FROM budget_adjustment_logs").get<{ n: number }>()!.n;
     const initialCount = count();
     const invalidCases = [
@@ -168,6 +238,11 @@ describe("budget adjustment batch API", () => {
       previewBody("2026-02-01", "JPY", [{ budget_category_id: archived, adhoc_delta: 100 }]),
       previewBody("2026-02-01", "JPY", [{ budget_category_id: active, adhoc_delta: 100 }, { budget_category_id: active, adhoc_delta: 200 }]),
       previewBody("2026-02-01", "JPY", [{ budget_category_id: active, adhoc_delta: 1.5 }]),
+      previewBody("2026-02-01", "JPY", [
+        { budget_category_id: largeA, adhoc_delta: Number.MAX_SAFE_INTEGER },
+        { budget_category_id: largeB, adhoc_delta: 2 },
+        { budget_category_id: largeC, adhoc_delta: -Number.MAX_SAFE_INTEGER },
+      ]),
     ];
     for (const body of invalidCases) expect((await request(harness, "/allocations/preview", body)).status).toBe(400);
     const zeroPreview = await request(harness, "/allocations/preview", previewBody("2026-02-01", "JPY", [
@@ -205,16 +280,36 @@ describe("budget adjustment batch API", () => {
     expect(mismatched.status).toBe(409);
     expect(await mismatched.json()).toMatchObject({ error: "adjustment_preview_stale" });
 
+    const guardedPreviewResponse = await request(harness, "/allocations/preview", body);
+    const guardedPreview = await guardedPreviewResponse.json() as Preview;
+    const originalBatch = harness.DB.batch.bind(harness.DB);
+    let raced = false;
+    harness.DB.batch = (async (statements: D1PreparedStatement[]) => {
+      if (!raced) {
+        raced = true;
+        addLog(harness, a, 2, "2026-01-06");
+      }
+      return originalBatch(statements);
+    }) as typeof harness.DB.batch;
+    const guardedApply = await request(harness, "/allocations/batch", {
+      ...body,
+      preview_token: guardedPreview.token,
+    });
+    expect(guardedApply.status).toBe(409);
+    expect(await guardedApply.json()).toMatchObject({ error: "adjustment_preview_stale" });
+    harness.DB.batch = originalBatch;
+
     harness.sqlite.exec(`CREATE TRIGGER fail_second_batch_log BEFORE INSERT ON budget_adjustment_logs
       WHEN NEW.budget_category_id = ${b} AND NEW.note = 'rollback'
       BEGIN SELECT RAISE(ABORT, 'injected insert failure'); END;`);
     const rollbackPreviewResponse = await request(harness, "/allocations/preview", previewBody("2026-01-31", "JPY", adjustments, "rollback"));
     const rollbackPreview = await rollbackPreviewResponse.json() as Preview;
     const before = harness.sqlite.query("SELECT COUNT(*) AS n FROM budget_adjustment_logs").get<{ n: number }>()!.n;
-    await expect(request(harness, "/allocations/batch", {
+    const failedWrite = await request(harness, "/allocations/batch", {
       ...previewBody("2026-01-31", "JPY", adjustments, "rollback"),
       preview_token: rollbackPreview.token,
-    })).rejects.toThrow("injected insert failure");
+    });
+    expect(failedWrite.status).toBe(500);
     expect(harness.sqlite.query("SELECT COUNT(*) AS n FROM budget_adjustment_logs").get<{ n: number }>()!.n).toBe(before);
   });
 });

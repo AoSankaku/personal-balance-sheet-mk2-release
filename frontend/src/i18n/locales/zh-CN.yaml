@@ -344,6 +344,28 @@ tabBudgetAdjust: 预算调整
 budgetCategoryLabel: 预算类别
 budgetAdjustAmountLabel: 调整金额（+ 追加 / − 减少）
 budgetAdjusted: 预算已调整
+budgetResetModeLabel: 重置预算
+budgetBatchSaveUncertain: 无法确认保存结果，操作可能已完成。请先在概览中检查余额和预算变动记录，再重置本次输入后继续。
+budgetBatchAll: 所有预算
+budgetBatchSelected: 仅所选预算
+budgetBatchSelectLabel: "调整{name}"
+budgetBatchAmountLabel: "{name}调整额"
+budgetBatchBefore: 调整前
+budgetBatchAfter: 调整后
+budgetBatchTotal: 调整额合计
+budgetBatchAllocatableBefore: 调整前可分配预算
+budgetBatchAllocatableAfter: 调整后可分配预算
+budgetBatchAsOf: "截至{date}"
+budgetBatchSelectionEmpty: 在“所有预算”中选择要调整的预算。
+budgetBatchHint: 合计为零表示在预算之间调拨；合计非零则会改变预算总额。可分配金额单独计算，并会考虑负数预算和超出上限后的转出。
+budgetBatchCalculating: 正在计算更新后的余额
+budgetBatchPreviewError: 无法加载更新后的余额。请重新加载后再保存。
+budgetBatchSave: 保存调整
+budgetBatchSaveError: 无法保存调整。请检查金额后重试。
+budgetBatchStale: 余额或设置已发生变化。请先检查更新后的计算结果，再重新保存。
+budgetBatchInvalidAmount: 请输入有限数值，且小数位数符合币种精度。
+budgetBatchUnavailableCategory: 所选预算已不可用。请检查选择。
+budgetBatchLimit: 一次最多可调整 100 个预算。
 budgetResetToZeroButton: 预算重置（余额归零）
 archiveBudgetCategoryAfterReset: 重置后归档此预算类别
 expenseSubAccountLabel: 支出账户

@@ -20,12 +20,17 @@ import {
   depreciationEntries,
   depreciationSchedules,
   depreciationBudgetReservations,
+  enabledCurrencies,
 } from "../db/schema";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
 import type {
   BudgetCategory,
   BudgetHistoryResponse,
   BudgetCategorySummary,
+  BudgetAdjustmentBatchInput,
+  BudgetAdjustmentPreview,
+  ApplyBudgetAdjustmentBatchInput,
+  BudgetAdjustmentLog,
   BudgetSummary,
   BudgetFilter,
   InterestIncomeRule,
@@ -64,6 +69,8 @@ import {
   rescaleStorageMoneyAmount,
   toStorageMoneyAmount,
 } from "../lib/moneyValidation";
+import { accountsRouter } from "./accounts";
+import { sumBudgetResourceBalances } from "../../../shared/budgetScope";
 
 type D1QueryResult<T> = { results?: T[] };
 
@@ -145,6 +152,309 @@ function isValidIsoDate(value: string): boolean {
     Number.isFinite(date.getTime()) &&
     date.toISOString().slice(0, 10) === value
   );
+}
+
+type NormalizedBudgetAdjustment = {
+  budget_category_id: number;
+  adhoc_delta: number;
+  storage_delta: number;
+};
+
+type ValidatedBudgetAdjustmentBatch = {
+  date: string;
+  currency: string;
+  note: string | null;
+  adjustments: NormalizedBudgetAdjustment[];
+  adjustment_total_storage: number;
+  scaleOptions: MoneyScaleOptions;
+  categoryNames: Map<number, string>;
+};
+
+type BudgetAdjustmentPreviewResult = {
+  preview: BudgetAdjustmentPreview;
+  revision: number;
+};
+
+async function validateBudgetAdjustmentBatchInput(
+  db: ReturnType<typeof createDb>,
+  body: unknown,
+  requireAdjustment: boolean,
+): Promise<
+  | { value: ValidatedBudgetAdjustmentBatch }
+  | { error: Record<string, unknown>; status: 400 }
+> {
+  if (!isObjectRecord(body)) {
+    return { error: { error: "invalid_adjustment_batch" }, status: 400 };
+  }
+
+  if (typeof body.date !== "string" || !isValidIsoDate(body.date)) {
+    return { error: { error: "invalid_date" }, status: 400 };
+  }
+  if (typeof body.currency !== "string" || body.currency.trim().length === 0) {
+    return { error: { error: "invalid_currency" }, status: 400 };
+  }
+  const currency = normalizeCurrency(body.currency.trim());
+  if (!Array.isArray(body.adjustments) || body.adjustments.length > 100) {
+    return { error: { error: "invalid_adjustments" }, status: 400 };
+  }
+  if (
+    body.note !== undefined && body.note !== null &&
+    typeof body.note !== "string"
+  ) {
+    return { error: { error: "invalid_note" }, status: 400 };
+  }
+
+  const scaleOptions = await loadMoneyScaleOptions(db);
+  const [currencyRow] = await db
+    .select({ code: enabledCurrencies.code })
+    .from(enabledCurrencies)
+    .where(eq(enabledCurrencies.code, currency))
+    .limit(1);
+  if (!currencyRow) {
+    return { error: { error: "invalid_currency" }, status: 400 };
+  }
+
+  const seenCategoryIds = new Set<number>();
+  const normalized: NormalizedBudgetAdjustment[] = [];
+  for (let index = 0; index < body.adjustments.length; index++) {
+    const raw = body.adjustments[index];
+    if (!isObjectRecord(raw)) {
+      return { error: { error: "invalid_adjustments" }, status: 400 };
+    }
+    const categoryId = raw.budget_category_id;
+    if (
+      typeof categoryId !== "number" || !Number.isSafeInteger(categoryId) ||
+      categoryId <= 0 || seenCategoryIds.has(categoryId)
+    ) {
+      return { error: { error: "invalid_budget_category_id" }, status: 400 };
+    }
+    seenCategoryIds.add(categoryId);
+    if (typeof raw.adhoc_delta !== "number") {
+      return {
+        error: invalidMoneyResponse(
+          `adjustments[${index}].adhoc_delta`,
+          currency,
+        ),
+        status: 400,
+      };
+    }
+
+    const invalidMoneyField = findInvalidMoneyField([{
+      path: `adjustments[${index}].adhoc_delta`,
+      value: raw.adhoc_delta,
+      currency,
+      decimalPlaces: decimalPlacesForCurrency(scaleOptions, currency),
+    }]);
+    if (invalidMoneyField) {
+      return {
+        error: invalidMoneyResponse(invalidMoneyField, currency),
+        status: 400,
+      };
+    }
+
+    const storageDelta = toStorageMoneyAmount(
+      raw.adhoc_delta as number,
+      currency,
+      scaleOptions,
+    );
+    normalized.push({
+      budget_category_id: categoryId,
+      adhoc_delta: fromStorageMoneyAmount(storageDelta, currency, scaleOptions),
+      storage_delta: storageDelta,
+    });
+  }
+
+  const categoryNames = new Map<number, string>();
+  if (seenCategoryIds.size > 0) {
+    const activeCategories = await db
+      .select({ id: budgetCategories.id, name: budgetCategories.name })
+      .from(budgetCategories)
+      .where(and(
+        inArray(budgetCategories.id, [...seenCategoryIds]),
+        sql`${budgetCategories.is_archived} = 0`,
+      ));
+    for (const category of activeCategories) {
+      categoryNames.set(category.id, category.name);
+    }
+    if (categoryNames.size !== seenCategoryIds.size) {
+      return { error: { error: "invalid_budget_category_id" }, status: 400 };
+    }
+  }
+
+  const adjustments = normalized
+    .filter((adjustment) => adjustment.storage_delta !== 0)
+    .sort((left, right) => left.budget_category_id - right.budget_category_id);
+  let adjustmentTotalStorage = 0;
+  for (const adjustment of adjustments) {
+    adjustmentTotalStorage += adjustment.storage_delta;
+    if (!Number.isSafeInteger(adjustmentTotalStorage)) {
+      return { error: { error: "invalid_adjustments" }, status: 400 };
+    }
+  }
+  if (requireAdjustment && adjustments.length === 0) {
+    return { error: { error: "adjustments_required" }, status: 400 };
+  }
+
+  return {
+    value: {
+      date: body.date,
+      currency,
+      note: normalizeNote(body.note as string | null | undefined),
+      adjustments,
+      adjustment_total_storage: adjustmentTotalStorage,
+      scaleOptions,
+      categoryNames,
+    },
+  };
+}
+
+function isAdjustmentTimestamp(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/.test(value);
+}
+
+function timestampFromAdjustmentToken(token: string): string | null {
+  const separator = token.lastIndexOf(".");
+  if (separator <= 0 || !/^[\da-f]{64}$/.test(token.slice(separator + 1))) {
+    return null;
+  }
+  try {
+    const timestamp = decodeURIComponent(token.slice(0, separator));
+    return isAdjustmentTimestamp(timestamp) ? timestamp : null;
+  } catch {
+    return null;
+  }
+}
+
+async function digestAdjustmentPreview(snapshot: unknown): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(JSON.stringify(snapshot)),
+  );
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
+function allocatableBudget(
+  resourceBalance: number,
+  categories: BudgetCategorySummary[],
+): number {
+  const positiveClaims = categories.reduce(
+    (total, category) => total + Math.max(category.available, 0) +
+      (category.reference_reserve ?? 0) +
+      (category.depreciation_non_cash_offset ?? 0),
+    0,
+  );
+  return resourceBalance - positiveClaims;
+}
+
+async function buildBudgetAdjustmentPreview(
+  db: ReturnType<typeof createDb>,
+  env: Env,
+  input: ValidatedBudgetAdjustmentBatch,
+  createdAt: string,
+  revision: number,
+): Promise<BudgetAdjustmentPreviewResult | null> {
+  const existingLogs = await db
+    .select()
+    .from(budgetAdjustmentLogs)
+    .where(eq(budgetAdjustmentLogs.currency, input.currency))
+    .orderBy(
+      budgetAdjustmentLogs.date,
+      budgetAdjustmentLogs.created_at,
+      budgetAdjustmentLogs.id,
+    );
+  const proposedLogs: (typeof budgetAdjustmentLogs.$inferSelect)[] =
+    input.adjustments.map((adjustment, index) => ({
+      id: -(index + 1),
+      budget_category_id: adjustment.budget_category_id,
+      year_month: input.date.slice(0, 7),
+      amount: adjustment.storage_delta,
+      currency: input.currency,
+      date: input.date,
+      adjustment_type: "allocation",
+      note: input.note,
+      journal_entry_id: null,
+      created_at: createdAt,
+      depreciation_schedule_id: null,
+      depreciation_event_key: null,
+      depreciation_event_side: null,
+      reset_scope: null,
+      reset_group_key: null,
+    }));
+
+  const accountsResponse = await accountsRouter.request(
+    `/?as_of=${encodeURIComponent(input.date)}`,
+    {},
+    env,
+  );
+  if (!accountsResponse.ok) throw new Error("budget_adjustment_accounts_unavailable");
+  const resourceBalance = sumBudgetResourceBalances(
+    await accountsResponse.json() as Parameters<typeof sumBudgetResourceBalances>[0],
+    input.currency,
+  );
+  const [before, after] = await Promise.all([
+    computeBudgetSummaryForDate(db, input.date, input.currency),
+    computeBudgetSummaryForDate(db, input.date, input.currency, {
+      adjustmentLogs: [...existingLogs, ...proposedLogs],
+    }),
+  ]);
+
+  const afterByCategoryId = new Map(
+    after.categories.map((category) => [category.category.id, category]),
+  );
+  const categories = before.categories.map((category) => {
+    const projected = afterByCategoryId.get(category.category.id);
+    return {
+      budget_category_id: category.category.id,
+      before_available: category.available,
+      after_available: projected?.available ?? category.available,
+    };
+  });
+  const allocatableBefore = allocatableBudget(resourceBalance, before.categories);
+  const allocatableAfter = allocatableBudget(resourceBalance, after.categories);
+  const preview: BudgetAdjustmentPreview = {
+    date: input.date,
+    currency: input.currency,
+    adjustment_total: fromStorageMoneyAmount(
+      input.adjustment_total_storage,
+      input.currency,
+      input.scaleOptions,
+    ),
+    categories,
+    allocatable_before: allocatableBefore,
+    allocatable_after: allocatableAfter,
+    token: "",
+  };
+  const serializeCategoryState = (items: BudgetCategorySummary[]) => items.map((item) => [
+    item.category.id,
+    item.available,
+    item.reference_reserve ?? 0,
+    item.depreciation_reserve ?? 0,
+    item.depreciation_non_cash_offset ?? 0,
+  ]);
+  const snapshot = {
+    revision,
+    created_at: createdAt,
+    request: {
+      date: input.date,
+      currency: input.currency,
+      note: input.note,
+      adjustments: input.adjustments.map((item) => [
+        item.budget_category_id,
+        item.storage_delta,
+      ]),
+    },
+    resource_balance: resourceBalance,
+    before: serializeCategoryState(before.categories),
+    after: serializeCategoryState(after.categories),
+    allocatable_before: allocatableBefore,
+    allocatable_after: allocatableAfter,
+  };
+  preview.token = `${encodeURIComponent(createdAt)}.${await digestAdjustmentPreview(snapshot)}`;
+
+  if (await readBudgetMutationRevision(env.DB) !== revision) return null;
+  return { preview, revision };
 }
 
 function buildTargetAccountMap(
@@ -662,6 +972,119 @@ router.get("/depreciation-reset-plans", async (c) => {
   if (!Number.isInteger(id) || id <= 0 || !isValidIsoDate(date)) return c.json({ error: "invalid reset query" },400);
   const scaleOptions = await loadMoneyScaleOptions(createDb(c.env));
   return c.json({plans: await getDepreciationResetPlans(c.env.DB,id,date,normalizeCurrency(c.req.query("currency")),scaleOptions)});
+});
+
+router.post("/allocations/preview", async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json<BudgetAdjustmentBatchInput>();
+  } catch {
+    return c.json({ error: "invalid_adjustment_batch" }, 400);
+  }
+
+  const db = createDb(c.env);
+  const revision = await readBudgetMutationRevision(c.env.DB);
+  const validated = await validateBudgetAdjustmentBatchInput(db, body, false);
+  if ("error" in validated) return c.json(validated.error, validated.status);
+
+  const createdAt = new Date().toISOString().replace("T", " ").replace("Z", "");
+  const result = await buildBudgetAdjustmentPreview(
+    db,
+    c.env,
+    validated.value,
+    createdAt,
+    revision,
+  );
+  if (!result) return c.json({ error: "adjustment_preview_stale" }, 409);
+  return c.json(result.preview);
+});
+
+router.post("/allocations/batch", async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json<ApplyBudgetAdjustmentBatchInput>();
+  } catch {
+    return c.json({ error: "invalid_adjustment_batch" }, 400);
+  }
+  if (
+    !isObjectRecord(body) || typeof body.preview_token !== "string" ||
+    body.preview_token.length === 0
+  ) {
+    return c.json({ error: "adjustment_preview_stale" }, 409);
+  }
+  const createdAt = timestampFromAdjustmentToken(body.preview_token);
+  if (!createdAt) {
+    return c.json({ error: "adjustment_preview_stale" }, 409);
+  }
+
+  const db = createDb(c.env);
+  const revision = await readBudgetMutationRevision(c.env.DB);
+  const validated = await validateBudgetAdjustmentBatchInput(db, body, true);
+  if ("error" in validated) return c.json(validated.error, validated.status);
+
+  const previewResult = await buildBudgetAdjustmentPreview(
+    db,
+    c.env,
+    validated.value,
+    createdAt,
+    revision,
+  );
+  if (!previewResult || previewResult.preview.token !== body.preview_token) {
+    return c.json({ error: "adjustment_preview_stale" }, 409);
+  }
+
+  const statements = validated.value.adjustments.map((adjustment) =>
+    prepareMutation(
+      c.env.DB,
+      db.insert(budgetAdjustmentLogs).values({
+        budget_category_id: adjustment.budget_category_id,
+        year_month: validated.value.date.slice(0, 7),
+        amount: adjustment.storage_delta,
+        currency: validated.value.currency,
+        date: validated.value.date,
+        adjustment_type: "allocation",
+        note: validated.value.note,
+        created_at: createdAt,
+      }).returning(),
+    ),
+  );
+
+  let results: D1QueryResult<typeof budgetAdjustmentLogs.$inferSelect>[] | null;
+  try {
+    results = await runBudgetGuardedBatch(c.env.DB, revision, statements) as
+      D1QueryResult<typeof budgetAdjustmentLogs.$inferSelect>[] | null;
+  } catch (error) {
+    if (String(error).includes("stale_depreciation_budget_preview")) {
+      return c.json({ error: "adjustment_preview_stale" }, 409);
+    }
+    throw error;
+  }
+  if (!results) return c.json({ error: "adjustment_preview_stale" }, 409);
+
+  const logs: BudgetAdjustmentLog[] = [];
+  for (let index = 0; index < results.length; index++) {
+    const log = results[index]?.results?.[0];
+    if (!log) throw new Error("budget_adjustment_batch_insert_failed");
+    logs.push({
+      id: log.id,
+      budget_category_id: log.budget_category_id,
+      budget_category_name:
+        validated.value.categoryNames.get(log.budget_category_id) ?? null,
+      year_month: log.year_month,
+      amount: fromStorageMoneyAmount(
+        log.amount,
+        log.currency,
+        validated.value.scaleOptions,
+      ),
+      currency: log.currency,
+      date: log.date,
+      created_at: log.created_at,
+      note: log.note ?? null,
+      type: "manual",
+      adjustment_type: "allocation",
+    });
+  }
+  return c.json({ logs });
 });
 
 router.patch("/allocations", async (c) => {

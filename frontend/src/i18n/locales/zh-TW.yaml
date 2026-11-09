@@ -344,6 +344,28 @@ tabBudgetAdjust: 預算調整
 budgetCategoryLabel: 預算類別
 budgetAdjustAmountLabel: 調整金額（+ 追加 / − 減少）
 budgetAdjusted: 預算已調整
+budgetResetModeLabel: 重設預算
+budgetBatchSaveUncertain: 無法確認儲存結果，操作可能已完成。請先在概要中檢查餘額及預算變動紀錄，再重設本次輸入後繼續。
+budgetBatchAll: 所有預算
+budgetBatchSelected: 僅所選預算
+budgetBatchSelectLabel: "調整{name}"
+budgetBatchAmountLabel: "{name}調整額"
+budgetBatchBefore: 調整前
+budgetBatchAfter: 調整後
+budgetBatchTotal: 調整額合計
+budgetBatchAllocatableBefore: 調整前可分配預算
+budgetBatchAllocatableAfter: 調整後可分配預算
+budgetBatchAsOf: "截至{date}"
+budgetBatchSelectionEmpty: 在「所有預算」中選擇要調整的預算。
+budgetBatchHint: 合計為零表示在預算之間調撥；合計非零則會改變預算總額。可分配金額會另外計算，並考量負數預算與超出上限後的轉出。
+budgetBatchCalculating: 正在計算更新後的餘額
+budgetBatchPreviewError: 無法載入更新後的餘額。請重新載入後再儲存。
+budgetBatchSave: 儲存調整
+budgetBatchSaveError: 無法儲存調整。請檢查金額後再試一次。
+budgetBatchStale: 餘額或設定已變更。請先檢查更新後的計算結果，再重新儲存。
+budgetBatchInvalidAmount: 請輸入有限數值，且小數位數符合幣別精度。
+budgetBatchUnavailableCategory: 所選預算已無法使用。請檢查選擇。
+budgetBatchLimit: 一次最多可調整 100 個預算。
 budgetResetToZeroButton: 預算重設（餘額歸零）
 archiveBudgetCategoryAfterReset: 重設後封存此預算類別
 expenseSubAccountLabel: 支出帳戶
