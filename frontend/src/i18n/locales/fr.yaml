@@ -303,6 +303,20 @@ filterClearAll: "Clair"
 outsideDateRangeMsg: "Entrées {n} en dehors de la plage de dates sélectionnée"
 clearDateFilter: "[Effacer le filtre de date]"
 availableBalance: "Solde disponible"
+overviewRemaining: Budget restant
+overviewUsed: Utilisé
+overviewBefore: Avant usage
+overviewDetails: Détails
+overviewCategoryDetails: "Détails de {name}"
+overviewWithSavings: Épargne incluse
+overviewSavingsLink: Épargne
+overviewInstallments: Échelonnement
+overviewAllocation: Répartition
+overviewLedgerLink: Journal
+overviewGoalEstimate: "Estimation : {date}"
+overviewPreviousMonth: Mois précédent
+overviewNextMonth: Mois suivant
+overviewToday: Revenir à aujourd’hui
 carryover: "Report"
 budgetResetBadge: "Réinitialisé"
 used: "utilisé"

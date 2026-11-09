@@ -303,6 +303,20 @@ filterClearAll: クリア
 outsideDateRangeMsg: 指定日付範囲外の仕訳 {n}件
 clearDateFilter: 【日付指定解除】
 availableBalance: 使える残高
+overviewRemaining: 予算残高
+overviewUsed: 使用
+overviewBefore: 使用前
+overviewDetails: 内訳
+overviewCategoryDetails: "{name}の内訳"
+overviewWithSavings: 貯蓄込み
+overviewSavingsLink: 貯蓄
+overviewInstallments: 分割振替
+overviewAllocation: 配分
+overviewLedgerLink: 帳簿へ
+overviewGoalEstimate: "達成目安 {date}"
+overviewPreviousMonth: 前の月
+overviewNextMonth: 次の月
+overviewToday: 今日に戻す
 carryover: 繰越
 budgetResetBadge: リセット
 used: 使用済み

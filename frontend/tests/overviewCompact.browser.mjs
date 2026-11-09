@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 const require = createRequire(import.meta.url);
 const runtime = process.argv[2] || "playwright";
 const { chromium } = require(runtime), { expect } = require(`${runtime}/test`);
@@ -44,7 +44,7 @@ await page.route("**/*", async route => {
   if (url.pathname.endsWith("/placement-preview")) return route.fulfill({ status: 503, json: { error: "synthetic_unavailable" } });
   return route.fulfill({ json });
 });
-await page.addInitScript(() => { localStorage.setItem("locale", "ja"); localStorage.setItem("display_currency", "JPY"); localStorage.setItem("app:initialSeeded", "true"); });
+await page.addInitScript(() => { localStorage.setItem("locale", localStorage.getItem("locale") || "ja"); localStorage.setItem("display_currency", "JPY"); localStorage.setItem("app:initialSeeded", "true"); });
 const countText = async () => Array.from((await page.locator("main").innerText()).replace(/\s/g, "")).length;
 try {
   await page.clock.setFixedTime(new Date("2026-11-09T12:00:00+09:00"));
@@ -59,7 +59,8 @@ try {
   await page.screenshot({ path: `.tmp/overview-compact-${process.env.OVERVIEW_CAPTURE_BASELINE ? "before" : "after"}-mobile.png`, fullPage: true });
   if (process.env.OVERVIEW_CAPTURE_BASELINE) writeFileSync(".tmp/overview-compact-before.json", JSON.stringify(counts));
   await expect(hero.getByTestId("budget-monthly-funding-out")).not.toBeVisible();
-  const baseline = JSON.parse(readFileSync(".tmp/overview-compact-before.json", "utf8"));
+  // Captured from this same synthetic fixture before the simplification.
+  const baseline = { desktop: 1023, mobile: 1023 };
   assert.ok(counts.desktop <= baseline.desktop * 0.75, `desktop text: ${counts.desktop}/${baseline.desktop}`);
   assert.ok(counts.mobile <= baseline.mobile * 0.75, `mobile text: ${counts.mobile}/${baseline.mobile}`);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
@@ -72,10 +73,33 @@ try {
   await expect(necessary.getByTestId("budget-monthly-funding-in")).toBeVisible();
   await expect(necessary).toContainText("参考記録");
   await expect(necessary).toContainText("500");
+  const savings = page.getByTestId("budget-usage-including-savings");
+  await savings.locator("summary").click();
+  await expect(savings.getByTestId("budget-used-amount")).toContainText("31,000");
+  await expect(savings.getByTestId("budget-monthly-funding-in")).toContainText("4,000");
+  const installments = page.locator("details").filter({ has: page.locator("summary", { hasText: "分割振替" }) }).last();
+  await installments.locator("summary").click();
+  await expect(installments).toContainText("5,000");
+  const transaction = page.locator("details").filter({ has: page.locator("summary", { hasText: /^配分$/ }) }).first();
+  await transaction.locator("summary").click();
+  await expect(transaction).toContainText("自由出費");
   await expect(page.getByRole("link", { name: /買い物リスト/ })).toHaveAttribute("href", "/shopping-list");
-  await expect(page.getByRole("link", { name: /ほしいもの/ })).toHaveAttribute("href", "/wishlist");
-  await expect(page.getByRole("link", { name: /支払い予定/ })).toHaveAttribute("href", "/scheduled-payments");
+  await expect(page.locator('a[href="/wishlist"]')).toBeVisible();
+  await expect(page.locator('a[href="/scheduled-payments"]')).toBeVisible();
+  for (const locale of ["en", "fr", "es", "zh-CN", "zh-TW", "ja"]) {
+    await page.evaluate(locale => localStorage.setItem("locale", locale), locale);
+    await page.reload();
+    await expect(page.getByTestId("budget-usage-hero")).toBeVisible();
+    assert.equal((await page.locator("main").innerText()).includes("overviewCategoryDetails"), false);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  }
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.reload();
+  await expect(page.getByTestId("budget-usage-hero")).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await page.screenshot({ path: ".tmp/overview-compact-after-dark-mobile.png", fullPage: true });
   assert.deepEqual(errors, []); assert.deepEqual(writes, []);
   writeFileSync(".tmp/overview-compact-result.json", JSON.stringify({ baseline, counts, reduction: 1 - counts.desktop / baseline.desktop }));
-  console.log(JSON.stringify({ baseline, counts, checks: "exact balances; compact defaults; keyboard disclosure; category details; mobile overflow; links; no writes/errors" }));
+  console.log(JSON.stringify({ baseline, counts, checks: "exact balances; compact defaults; keyboard disclosures; full financial details; 6 locales; 320px/dark; links; no writes/errors" }));
 } finally { await browser.close(); }

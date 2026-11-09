@@ -303,6 +303,20 @@ filterClearAll: 清除
 outsideDateRangeMsg: "{n} 筆分錄在選定日期範圍外"
 clearDateFilter: 清除日期篩選
 availableBalance: 可用餘額
+overviewRemaining: 預算餘額
+overviewUsed: 已用
+overviewBefore: 使用前
+overviewDetails: 明細
+overviewCategoryDetails: "{name}明細"
+overviewWithSavings: 含儲蓄
+overviewSavingsLink: 儲蓄
+overviewInstallments: 分期
+overviewAllocation: 分配
+overviewLedgerLink: 帳簿
+overviewGoalEstimate: "預計{date}達標"
+overviewPreviousMonth: 上個月
+overviewNextMonth: 下個月
+overviewToday: 返回今天
 carryover: 結轉
 budgetResetBadge: 重設
 used: 已使用

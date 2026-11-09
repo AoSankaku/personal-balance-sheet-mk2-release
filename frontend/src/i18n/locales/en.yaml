@@ -303,6 +303,20 @@ filterClearAll: Clear
 outsideDateRangeMsg: "{n} entries outside selected date range"
 clearDateFilter: "[Clear date filter]"
 availableBalance: Available Balance
+overviewRemaining: Budget left
+overviewUsed: Used
+overviewBefore: Before use
+overviewDetails: Details
+overviewCategoryDetails: "{name} details"
+overviewWithSavings: With savings
+overviewSavingsLink: Savings
+overviewInstallments: Installments
+overviewAllocation: Budget split
+overviewLedgerLink: Ledger
+overviewGoalEstimate: "Estimate: {date}"
+overviewPreviousMonth: Previous month
+overviewNextMonth: Next month
+overviewToday: Back to today
 carryover: Carryover
 budgetResetBadge: Reset
 used: used
