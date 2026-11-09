@@ -1662,7 +1662,7 @@ export default function LedgerPage() {
       </Tabs.Panel>
 
       {/* Edit journal entry modal */}
-      {taggingEntry && <ExpenseTagsModal key={taggingEntry.id} entry={taggingEntry} onClose={() => setTaggingEntry(null)} onSaved={refresh} />}
+      {taggingEntry && <ExpenseTagsModal key={taggingEntry.id} entry={taggingEntry} onClose={() => setTaggingEntry(null)} />}
       <JournalModal
         opened={journalEditOpened}
         accounts={accounts}

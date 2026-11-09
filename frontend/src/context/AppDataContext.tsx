@@ -92,6 +92,10 @@ interface AppDataContextValue {
   loading: boolean;
   error: string | null;
   refresh: () => void;
+  applyJournalExpenseTags: (
+    id: number,
+    metadata: Pick<JournalEntry, "expense_tags" | "tag_expense_mode" | "tag_expense_amounts">,
+  ) => void;
   /** Manually refresh crypto prices. Returns false if still on cooldown. */
   refreshCryptoPrices: () => Promise<boolean>;
   /** Force refresh crypto prices regardless of cooldown (use after switching provider). */
@@ -471,6 +475,19 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setCreditCardStateLoaded(true);
   }, []);
 
+  const applyJournalExpenseTags = useCallback((
+    id: number,
+    metadata: Pick<JournalEntry, "expense_tags" | "tag_expense_mode" | "tag_expense_amounts">,
+  ) => {
+    // Tag-only edits do not change accounting or budget balances.
+    setJournal(current => current.map(entry => entry.id === id ? {
+      ...entry,
+      expense_tags: metadata.expense_tags,
+      tag_expense_mode: metadata.tag_expense_mode,
+      tag_expense_amounts: metadata.tag_expense_amounts,
+    } : entry));
+  }, []);
+
   const refreshCreditCardStatementCompletions = useCallback(async () => {
     try {
       const completions = await api.creditCardStatements.listCompletions();
@@ -822,6 +839,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         loading,
         error,
         refresh,
+        applyJournalExpenseTags,
         refreshCryptoPrices,
         forceRefreshCryptoPrices,
         forceRefreshRates,
