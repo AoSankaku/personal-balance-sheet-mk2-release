@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "frontend/src/pages/GuidesPage.module.css"
+        ],
+        "createdAt": "2026-11-09T10:54:55.572Z",
+        "reason": "Agent review: existing Markdown blockquote delimiter, a neutral gray 3px border under .markdown blockquote since eff9f2b; it is not a card or tab accent."
+      }
+    ]
+  }
+}
