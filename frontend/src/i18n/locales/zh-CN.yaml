@@ -451,6 +451,20 @@ budgetTargetAccountsDesc: 仅用作存放位置参考。关联的预算和账户
 budgetTargetManyToManyError: 这将产生多对多的配置关系。请使用一个预算对应多个账户，或多个预算对应一个账户。
 budgetPlacementTitle: 预算放置
 budgetReconciliationTitle: 整体预算核对
+budgetHelpOpenGuide: 点击打开指南中的对应部分
+budgetHelpGuideLabel: 在指南中阅读“{term}”说明
+budgetHelpResources: 纳入预算的现金和银行余额减去可扣除负债（如信用卡欠款）。不计入已排除账户。
+budgetHelpNetBalance: 所有类别余额之和，包括负余额。
+budgetHelpNetGap: 预算资源减去净预算余额。负数表示预算超过资源；正数可能包含未分配资金、预留额和抵扣。
+budgetHelpReferenceReserve: 用于单独预留非跟踪支出的金额，目前为零。转入排除账户不会自动填入此项。
+budgetHelpPurchaseReserve: 购入预留中尚未确认费用的部分。它已影响预算，不会再次从整合差额中扣除。
+budgetHelpNonCashOffset: 防止重置后的非现金费用确认减少正预算余额后，这部分金额又变成新增可分配资金。
+budgetHelpAdjustedGap: 纯差额减去非跟踪支出预留额和非现金费用抵扣。不要再次扣除剩余购入预留额。
+budgetHelpPositiveClaims: 只合计正类别余额。负类别不会抵减支撑这些预算所需的资源。
+budgetHelpSecured: 正预算需求额加上非跟踪支出预留额和非现金费用抵扣。
+budgetHelpFundingGap: 资源减去已确保金额，也等于扣除后差额减去未弥补超支。负数表示资金不足。
+budgetHelpOverspending: 负类别余额绝对值之和。从其他预算补足不会改变净余额或纯差额。
+budgetHelpPlacementGap: 账户中的现金减去所需的正预算、预留额和抵扣。此列尚未扣除信用卡欠款等负债。
 budgetReconciliationCash: 可分配现金
 budgetReconciliationNetBudget: 预算净余额
 budgetReconciliationNetGap: 净核对差额
@@ -876,6 +890,7 @@ depreciationBudgetPressureNoExpense: "今年没有支出记录。"
 budgetConsistencyTitle: 预算一致性检查
 budgetUnallocatedIncomeIssue: "进入预算资金的收入尚未分配：{amount}"
 budgetExcludedCashConsumptionIssue: "使用未追踪现金支出时记录了普通预算消耗：{amount}"
+budgetExcludedCashTransferIssue: "转入预算外账户的转账缺少 {amount} 的预算扣减。"
 budgetReferenceAllocationTitle: 参考预算记录
 budgetReferenceAllocationHint: 付款来源不属于预算资金，但该计划支出会减少预算余额和可分配金额，并在一致性检查中单独显示。
 budgetMarkReferenceAction: 设为参考记录

@@ -451,6 +451,20 @@ budgetTargetAccountsDesc: "Utilisé uniquement à des fins de conseils de placem
 budgetTargetManyToManyError: "Cela créerait un placement plusieurs-à-plusieurs. Utilisez soit un budget avec plusieurs comptes, soit plusieurs budgets avec un seul compte."
 budgetPlacementTitle: "Placement budgétaire"
 budgetReconciliationTitle: "Rapprochement budgétaire global"
+budgetHelpOpenGuide: Cliquez pour consulter cette section du guide
+budgetHelpGuideLabel: "Lire l'explication de {term} dans le guide"
+budgetHelpResources: Liquidités et soldes bancaires inclus, moins les dettes déductibles telles que les cartes. Les comptes exclus ne sont pas comptés.
+budgetHelpNetBalance: Somme des soldes de toutes les catégories, y compris les soldes négatifs.
+budgetHelpNetGap: Ressources budgétaires moins soldes budgétaires nets. Un résultat négatif signifie que les budgets dépassent les ressources. Le positif peut inclure des fonds non affectés, des réserves et des corrections.
+budgetHelpReferenceReserve: Réserve distincte pour les dépenses non suivies, actuellement à zéro. Les virements vers des comptes exclus ne la remplissent pas automatiquement.
+budgetHelpPurchaseReserve: Partie de la réserve d'achat non encore imputée aux dépenses. Elle affecte déjà le budget et n'est pas déduite à nouveau de l'écart.
+budgetHelpNonCashOffset: Empêche que la baisse des budgets positifs due aux charges non décaissées après réinitialisation devienne de l'argent nouvellement affectable.
+budgetHelpAdjustedGap: Écart net moins la réserve pour dépenses non suivies et la correction non décaissée. Ne déduisez pas une nouvelle fois la réserve d'achat restante.
+budgetHelpPositiveClaims: Seuls les soldes positifs des catégories sont additionnés. Les catégories négatives ne réduisent pas les ressources nécessaires pour financer ces budgets.
+budgetHelpSecured: Engagements budgétaires positifs, plus la réserve pour dépenses non suivies et la correction des charges non décaissées.
+budgetHelpFundingGap: Ressources moins sommes réservées ; également égal à l'écart ajusté moins le dépassement non financé. Un résultat négatif indique un manque de ressources.
+budgetHelpOverspending: Somme des valeurs absolues des soldes de catégories négatifs. Les couvrir depuis un autre budget ne change ni les soldes nets ni l'écart net.
+budgetHelpPlacementGap: Liquidités des comptes de dépôt moins budgets positifs, réserves et corrections nécessaires. Les dettes comme les cartes ne sont pas encore déduites.
 budgetReconciliationCash: "Trésorerie attribuable"
 budgetReconciliationNetBudget: "Solde budgétaire net"
 budgetReconciliationNetGap: "Écart net de rapprochement"
@@ -876,6 +890,7 @@ depreciationBudgetPressureNoExpense: "Aucune dépense enregistrée pour cette an
 budgetConsistencyTitle: "Contrôle de cohérence budgétaire"
 budgetUnallocatedIncomeIssue: "Revenu reçu dans les fonds budgétaires mais non réparti : {amount}"
 budgetExcludedCashConsumptionIssue: "Une consommation budgétaire normale est enregistrée pour une dépense en espèces non suivies : {amount}"
+budgetExcludedCashTransferIssue: "La réduction du budget pour un transfert vers un compte hors budget est insuffisante de {amount}."
 budgetReferenceAllocationTitle: Écriture budgétaire de référence
 budgetReferenceAllocationHint: La source de paiement est hors des fonds budgétaires, mais cette dépense prévue réduit le solde et le montant allouable et reste séparée dans le rapprochement.
 budgetMarkReferenceAction: Rendre indicative

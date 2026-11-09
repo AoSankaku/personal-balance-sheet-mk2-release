@@ -12,6 +12,8 @@ describe("mobile guide page navigation", () => {
     expect(guidesPageSource).toMatch(
       /window\.scrollTo\(\{\s*top:\s*0,\s*left:\s*0,\s*behavior:\s*"smooth",?\s*\}\)/,
     );
-    expect(guidesPageSource).not.toContain("scrollIntoView");
+    expect(guidesPageSource).toContain('target.scrollIntoView({ block: "start" })');
+    const effect = guidesPageSource.slice(guidesPageSource.indexOf("useEffect(() => {"));
+    expect(effect.indexOf("if (target)")).toBeLessThan(effect.indexOf("if (isMobile)"));
   });
 });

@@ -451,6 +451,20 @@ budgetTargetAccountsDesc: 予算の置き場所の目安です。紐づけた各
 budgetTargetManyToManyError: 多対多の予算配置になります。1つの予算を複数口座に置くか、複数予算を1つの口座に置く形にしてください。
 budgetPlacementTitle: 予算配置
 budgetReconciliationTitle: 予算全体の整合性
+budgetHelpOpenGuide: クリックしてガイドの該当箇所を開く
+budgetHelpGuideLabel: "{term}の説明をガイドで読む"
+budgetHelpResources: 予算対象の現金・預金から、控除対象のカード未払などの負債を引いた額です。対象外口座は含みません。
+budgetHelpNetBalance: すべての予算カテゴリの残高を、マイナスも含めて合計した額です。
+budgetHelpNetGap: 予算原資 − 全予算残高です。マイナスは原資より予算残高が多い状態です。プラスには未割当資金や予約・補正分が含まれることがあります。
+budgetHelpReferenceReserve: 非追跡支出向けの別途予約額です。現在は0です。対象外口座への送金額が自動で入る欄ではありません。
+budgetHelpPurchaseReserve: 購入時に予約した額の未費用化分です。予算残高へ反映済みなので、整合差額から追加で引きません。
+budgetHelpNonCashOffset: リセット後の月次費用化で現金を使わずに減った正の予算残高を、割り当て可能額に戻さないための補正です。
+budgetHelpAdjustedGap: 純整合差額 − 非追跡支出の予約額 − 月次非現金費用の補正額です。購入時予約の残額は重ねて引きません。
+budgetHelpPositiveClaims: プラスの予算残高だけの合計です。マイナスのカテゴリで相殺せず、全額を支える原資が必要です。
+budgetHelpSecured: 正の予算要求額に、非追跡支出の予約額と月次非現金費用の補正額を加えた額です。
+budgetHelpFundingGap: 予算原資 − 確保済み額です。予約控除後の整合差額 − 未補填の予算超過とも一致します。マイナスなら原資不足です。
+budgetHelpOverspending: マイナスの予算残高の絶対値の合計です。予算間の補填だけでは、全予算残高や純整合差額は変わりません。
+budgetHelpPlacementGap: 保管口座の現預金 − 必要な正の予算・予約・補正額です。この列ではカード未払などの負債をまだ引いていません。
 budgetReconciliationCash: 予算原資の現預金
 budgetReconciliationNetBudget: 全予算残高（負を含む）
 budgetReconciliationNetGap: 純整合差額
@@ -876,6 +890,7 @@ depreciationBudgetPressureNoExpense: "この年の支出データがありませ
 budgetConsistencyTitle: 予算整合性チェック
 budgetUnallocatedIncomeIssue: "予算原資への収入が未配賦: {amount}"
 budgetExcludedCashConsumptionIssue: "非追跡現金等からの支出に通常の予算消費が記録されています: {amount}"
+budgetExcludedCashTransferIssue: "予算対象外口座への振替に対する予算減少が{amount}不足しています。"
 budgetReferenceAllocationTitle: 参考予算記録
 budgetReferenceAllocationHint: 支払元は予算原資に含まれませんが、将来の予算消費として残高と割り当て可能額を減らし、整合性画面では参考値として区分表示します。
 budgetMarkReferenceAction: 参考記録にする

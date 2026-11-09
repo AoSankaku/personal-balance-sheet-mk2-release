@@ -166,6 +166,7 @@ export function BudgetCheckSection() {
             accountMap,
             locale,
             excludedExpenseAllocationCategoryId,
+            displayCurrency || "JPY",
           )
         : [];
       let referenceCandidateAmount = 0;
@@ -708,12 +709,14 @@ export function BudgetCheckSection() {
                       totalIncome,
                       totalExpenseAllocated,
                       totalIncomeAllocated,
+                      unrecordedTransfer,
                     } = getBudgetCheckTotals(
                       entry,
                       accountMap,
                       excludedExpenseAllocationCategoryId,
+                      displayCurrency || "JPY",
                     );
-                    const displayAmount =
+                    const displayAmount = unrecordedTransfer?.amount ?? (
                       totalExpense > 0
                         ? totalExpense
                         : totalIncome > 0
@@ -724,11 +727,14 @@ export function BudgetCheckSection() {
                                 accountMap,
                                 displayCurrency || "JPY",
                               )
-                            : 0;
-                    const totalAllocated =
+                            : 0);
+                    const totalAllocated = unrecordedTransfer?.allocated ?? (
                       totalExpense > 0
                         ? totalExpenseAllocated
-                        : totalIncomeAllocated;
+                        : totalIncomeAllocated);
+                    const formatAmount = (amount: number) => unrecordedTransfer
+                      ? formatCurrency(amount, locale, displayCurrency || "JPY")
+                      : formatJPY(amount, locale);
                     const allocatedCatNames = [
                       ...(entry.budget_allocations ?? []),
                       ...(entry.income_budget_allocations ?? []),
@@ -748,15 +754,15 @@ export function BudgetCheckSection() {
                         </Table.Td>
                         <Table.Td>{entry.description}</Table.Td>
                         <Table.Td className="currency-cell">
-                          {formatJPY(displayAmount, locale)}
+                          {formatAmount(displayAmount)}
                         </Table.Td>
                         <Table.Td className="currency-cell">
-                          {totalAllocated > 0 ? (
+                          {totalAllocated !== 0 && (unrecordedTransfer != null || totalAllocated > 0) ? (
                             <Text
                               size="sm"
                               title={allocatedCatNames || undefined}
                             >
-                              {formatJPY(totalAllocated, locale)}
+                              {formatAmount(totalAllocated)}
                               {allocatedCatNames && (
                                 <Text size="xs" c="dimmed" span>
                                   {" "}
