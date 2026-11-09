@@ -18,11 +18,12 @@ import {
   IconBook,
   IconChevronDown,
 } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useLang, type Locale } from "../i18n";
+import { guideAnchorFromHash, remarkGuideAnchors, resolveGuideSection } from "../lib/guideNavigation";
 import classes from "./GuidesPage.module.css";
 
 import raw01En from "../guides/en/01-overview.md?raw";
@@ -255,7 +256,14 @@ function NavButtons({
 
 export default function GuidesPage() {
   const { t, locale } = useLang();
-  const [activeId, setActiveId] = useState(GUIDE_SECTIONS[0]!.id);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { hash } = useLocation();
+  const activeId = resolveGuideSection(searchParams.get("section"), GUIDE_SECTIONS.map(section => section.id));
+  const setActiveId = (id: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("section", id);
+    setSearchParams(next); // A chapter change also removes the previous chapter's hash.
+  };
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   const activeIndex = GUIDE_SECTIONS.findIndex((s) => s.id === activeId);
@@ -271,6 +279,12 @@ export default function GuidesPage() {
   };
 
   useEffect(() => {
+    const anchor = guideAnchorFromHash(hash);
+    const target = anchor ? document.getElementById(anchor) : null;
+    if (target) {
+      target.scrollIntoView({ block: "start" });
+      return;
+    }
     if (isMobile) {
       window.scrollTo({
         top: 0,
@@ -278,7 +292,7 @@ export default function GuidesPage() {
         behavior: "smooth",
       });
     }
-  }, [activeId, isMobile]);
+  }, [activeId, hash, isMobile, locale]);
 
   return (
     <Stack gap="md">
@@ -304,7 +318,7 @@ export default function GuidesPage() {
             styles={{ input: { fontWeight: 500 } }}
           />
           <Box className={classes.markdown}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkGuideAnchors]}>
               {activeSection.content[locale] ?? activeSection.content["en"]}
             </ReactMarkdown>
             <NavButtons
@@ -336,7 +350,7 @@ export default function GuidesPage() {
 
           <Box style={{ flex: 1, minWidth: 0 }}>
             <div className={classes.markdown}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkGuideAnchors]}>
                 {activeSection.content[locale] ?? activeSection.content["en"]}
               </ReactMarkdown>
               <NavButtons

@@ -52,6 +52,78 @@ Al registrar una transferencia de cuenta en Entrada Simple, opcionalmente puedes
 
 La transferencia real y el movimiento de presupuesto son eventos separados. Los vínculos presupuesto-cuenta son orientación de colocación; no fuerzan que la asignación de ingresos y las transferencias bancarias ocurran al mismo tiempo.
 
-## Consistencia del Presupuesto
+## Consistencia del Presupuesto {#budget-reconciliation}
 
 Presupuesto -> Verificación de Consistencia del Presupuesto detecta discrepancias entre los montos de los asientos contables y los montos de asignación presupuestaria guardados. Para entradas multilínea y transacciones fuera del seguimiento de presupuesto, la aplicación no adivina categorías de presupuesto a menos que se hayan guardado asignaciones explícitas.
+
+Pasa el puntero o el foco sobre el icono «?» de un cálculo detallado para ver una explicación breve. Haz clic o tócalo en una pantalla táctil para abrir la sección correspondiente de esta guía.
+
+Compara la misma moneda y el mismo período. «A día de hoy» e «Incluyendo ingresos futuros» usan datos distintos. El filtro por fecha de los avisos del diario de abajo no modifica el cálculo general de arriba.
+
+### Recursos en efectivo para el presupuesto (C) {#budget-resources}
+
+Efectivo y saldos bancarios incluidos como recursos presupuestarios, menos los pasivos que se descuentan del presupuesto. La deuda de tarjetas se descuenta de forma predeterminada. No se incluyen el efectivo excluido, los activos comprados ni las inversiones. Aunque la etiqueta dice efectivo, este importe ya resta los pasivos seleccionados.
+
+### Saldo presupuestario neto, incluidos los negativos (N) {#budget-net-balance}
+
+Suma de los saldos de todas las categorías, incluidos los negativos. Si P son los importes de presupuesto positivos y O el exceso sin financiar, `N = P − O`.
+
+### Diferencia neta de conciliación (G) {#budget-net-gap}
+
+`G = C − N`. Un resultado positivo indica que los recursos superan los saldos presupuestarios netos; uno negativo indica que los presupuestos superan los recursos. Los fondos sin asignar, las reservas y los ajustes por gastos no monetarios también pueden producir una diferencia, por lo que un valor distinto de cero no siempre indica un error de entrada.
+
+### Reserva para gastos no seguidos (R) {#budget-reference-reserve}
+
+Campo para el dinero separado para gastos no seguidos. Actualmente es cero; los registros de referencia no consumen el presupuesto ordinario. Las transferencias a cuentas excluidas y los importes de referencia no rellenan automáticamente este campo.
+
+### Reserva de compra restante {#budget-purchase-reserve}
+
+Parte de la reserva creada al comprar que aún no se ha aplicado al reconocimiento mensual del gasto. Ya afectó los saldos presupuestarios en el momento de la compra, por lo que no se descuenta otra vez de la diferencia neta. Un reinicio elimina las reservas anteriores.
+
+### Ajuste por gastos mensuales no monetarios posteriores al reinicio (D) {#budget-non-cash-offset}
+
+Después de que un reinicio borre una reserva de compra, el reconocimiento mensual del gasto puede reducir el presupuesto sin un nuevo pago. Este ajuste evita que esa disminución genere dinero recién asignable. Por categoría, suma la parte positiva de «saldo positivo según efectivo − saldo positivo ordinario». Puede diferir del gasto mensual total.
+
+### Diferencia de conciliación tras reservas (A) {#budget-adjusted-gap}
+
+`A = G − R − D`. Resta de la diferencia neta la reserva para gastos no seguidos y el ajuste por gastos no monetarios. No vuelvas a descontar la reserva de compra restante. Si R y D valen cero, A es igual a G. Una diferencia negativa restante puede señalar una reducción de recursos sin la reducción presupuestaria correspondiente; una positiva puede incluir fondos sin asignar.
+
+### Importes de presupuesto positivos (P) {#budget-positive-claims}
+
+Suma únicamente los saldos positivos de las categorías, sin compensarlos con categorías negativas. Representa los recursos necesarios para que se puedan usar por completo todos los presupuestos positivos.
+
+### Importe ya reservado (S) {#budget-secured}
+
+`S = P + R + D`. Importes positivos de presupuesto más la reserva y el ajuste por gastos no monetarios.
+
+### Dinero recién asignable / falta de fondos presupuestarios (F) {#budget-funding-gap}
+
+`F = C − S = A − O`. Un resultado igual o superior a cero es dinero recién asignable; uno negativo indica falta de fondos. Aunque la diferencia de conciliación sea cero, las categorías negativas generan una falta de fondos equivalente a su exceso. La disminución de efectivo por el exceso ya está reflejada en C; no restes O de F otra vez.
+
+### Exceso de presupuesto sin financiar (O) {#budget-overspending}
+
+Suma los valores absolutos de los saldos de categoría negativos. Cúbrelo con otro presupuesto o asignando ingresos posteriores. Mover la misma cantidad entre categorías no cambia N ni G.
+
+### Diferencia frente al exceso o déficit de colocación {#budget-placement-gap}
+
+El exceso o déficit de colocación es el efectivo de las cuentas menos los presupuestos positivos, las reservas y los ajustes necesarios para esas cuentas. Aún no descuenta pasivos como la deuda de tarjetas. La columna «Después de las transferencias» proyecta las transferencias propuestas para equilibrar la colocación; el total «Después de descontar deuda de tarjetas» también resta los pasivos correspondientes. Una transferencia puede cambiar la diferencia de una cuenta concreta, pero mover dinero entre cuentas presupuestarias incluidas no resuelve la diferencia global de conciliación.
+
+Ejemplo ficticio: efectivo de `100,000`, deuda de tarjeta deducible de `10,000`, saldos de categoría de `100,000` y `−15,000`, R de `2,000` y D de `3,000`. Actualmente R es cero.
+
+| Elemento | Cálculo |
+| --- | --- |
+| Recursos C | 100,000 − 10,000 = 90,000 |
+| Saldo neto N | 100,000 − 15,000 = 85,000 |
+| Diferencia neta G | 90,000 − 85,000 = 5,000 |
+| Diferencia ajustada A | 5,000 − 2,000 − 3,000 = 0 |
+| Importe reservado S | 100,000 + 2,000 + 3,000 = 105,000 |
+| Falta de fondos F | 90,000 − 105,000 = −15,000 |
+| Diferencia total de colocación | 100,000 − 105,000 = −5,000 |
+
+La conciliación es cero, mientras que el exceso sin financiar es `15,000` y la falta de fondos es `−15,000`. La diferencia de colocación de `−5,000` es anterior al descuento de la deuda de tarjetas, por lo que difiere de la falta de fondos.
+
+### Comprobar transferencias a cuentas excluidas {#budget-excluded-transfers}
+
+Si recibes efectivo no seguido y envías la misma cantidad desde una cuenta bancaria incluida, el hogar ha intercambiado dinero, pero los recursos presupuestarios C disminuyen. Sin registrar una reducción presupuestaria igual, N no cambia y G y A disminuyen. En Entrada Simple, elige el presupuesto pagador como origen y «Desaparición» como destino para reducir el presupuesto. Una transferencia entre categorías por sí sola no reduce N.
+
+La comprobación también detecta una reducción presupuestaria insuficiente en transferencias a cuentas excluidas aunque no haya una cuenta de gastos. En asientos compuestos con gastos y transferencias a cuentas excluidas, tiene en cuenta las reducciones presupuestarias guardadas. Si decides usar fondos sin asignar, la disminución de recursos consume ese excedente; el aviso no reduce automáticamente ningún presupuesto.

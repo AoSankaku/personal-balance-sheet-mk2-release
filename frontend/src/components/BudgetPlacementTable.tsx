@@ -33,6 +33,7 @@ import {
   sumBudgetResourceBalances,
   summarizeBudgetFunding,
 } from "../lib/allocatableBudget";
+import { BudgetTermHelp } from "./BudgetTermHelp";
 
 function formatSignedCurrency(
   amount: number,
@@ -146,6 +147,7 @@ export function BudgetPlacementTable({
               <Stack gap={2} style={{ minWidth: 0 }}>
                 <Text size="xs" c="dimmed">
                   {t("budgetReconciliationCash")}
+                  <BudgetTermHelp term="budgetReconciliationCash" />
                 </Text>
                 <Text fw={750} className="currency-token">
                   {formatCurrency(
@@ -166,6 +168,7 @@ export function BudgetPlacementTable({
               <Stack gap={2} style={{ minWidth: 0 }}>
                 <Text size="xs" c="dimmed">
                   {t("budgetFundingReservedLabel")}
+                  <BudgetTermHelp term="budgetFundingReservedLabel" />
                 </Text>
                 <Text fw={750} className="currency-token">
                   {formatCurrency(securedAmount, locale, currency)}
@@ -200,6 +203,7 @@ export function BudgetPlacementTable({
                       ? "budgetFundingAvailableLabel"
                       : "budgetFundingShortageLabel",
                   )}
+                  <BudgetTermHelp term={fundingSummary.fundingGap >= 0 ? "budgetFundingAvailableLabel" : "budgetFundingShortageLabel"} />
                 </Text>
                 <Text
                   fw={800}
@@ -231,44 +235,46 @@ export function BudgetPlacementTable({
             <Accordion.Panel>
               <Table fz="sm" withRowBorders={false}>
                 <Table.Tbody>
-                  {[
+                  {([
                     [
-                      t("budgetReconciliationNetBudget"),
+                      "budgetReconciliationNetBudget",
                       fundingSummary.netBudgetBalance,
                     ],
                     [
-                      t("budgetReconciliationNetGap"),
+                      "budgetReconciliationNetGap",
                       fundingSummary.reconciliationGap,
                     ],
                     [
-                      t("budgetReconciliationReferenceReserve"),
+                      "budgetReconciliationReferenceReserve",
                       fundingSummary.referenceReserve,
                     ],
                     [
-                      t("budgetReconciliationDepreciationReserve"),
+                      "budgetReconciliationDepreciationReserve",
                       depreciationReserve,
                     ],
                     [
-                      t("budgetReconciliationDepreciationOffset"),
+                      "budgetReconciliationDepreciationOffset",
                       fundingSummary.depreciationNonCashOffset,
                     ],
                     [
-                      t("budgetReconciliationAdjustedGap"),
+                      "budgetReconciliationAdjustedGap",
                       fundingSummary.adjustedReconciliationGap,
                     ],
                     [
-                      t("budgetReconciliationPositiveClaims"),
+                      "budgetReconciliationPositiveClaims",
                       fundingSummary.positiveBudgetClaims,
                     ],
-                  ].map(([label, amount]) => (
-                    <Table.Tr key={String(label)}>
-                      <Table.Td>{label}</Table.Td>
+                  ] as const).map(([term, amount]) => (
+                    <Table.Tr key={term}>
+                      <Table.Td>
+                        {t(term)} <BudgetTermHelp term={term} />
+                      </Table.Td>
                       <Table.Td className="currency-cell">
                         <Text
                           size="sm"
                           fw={600}
                           c={
-                            label === t("budgetReconciliationAdjustedGap")
+                            term === "budgetReconciliationAdjustedGap"
                               ? reconciliationIsClear
                                 ? "teal"
                                 : "orange"
@@ -276,7 +282,7 @@ export function BudgetPlacementTable({
                           }
                         >
                           {formatSignedCurrency(
-                            amount as number,
+                            amount,
                             locale,
                             currency,
                           )}
@@ -339,7 +345,10 @@ export function BudgetPlacementTable({
           color="orange"
           variant="light"
           icon={<IconAlertTriangle size={18} />}
-          title={t("budgetPlacementUnfundedOverspending")}
+          title={<Group gap={4}>
+            <span>{t("budgetPlacementUnfundedOverspending")}</span>
+            <BudgetTermHelp term="budgetPlacementUnfundedOverspending" />
+          </Group>}
         >
           <Stack gap={4}>
             <Text size="sm">
@@ -384,6 +393,7 @@ export function BudgetPlacementTable({
                 </Table.Th>
                 <Table.Th className="currency-cell">
                   {t("budgetPlacementSurplusShortage")}
+                  <BudgetTermHelp term="budgetPlacementSurplusShortage" />
                 </Table.Th>
                 <Table.Th className="currency-cell">
                   {t("budgetPlacementAfterTransfers")}

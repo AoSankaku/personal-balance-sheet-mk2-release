@@ -451,6 +451,20 @@ budgetTargetAccountsDesc: "Se utiliza únicamente como guía de ubicación. Los 
 budgetTargetManyToManyError: "Esto crearía una ubicación de muchos a muchos. Utilice un presupuesto con varias cuentas o varios presupuestos con una cuenta."
 budgetPlacementTitle: "Colocación del presupuesto"
 budgetReconciliationTitle: "Conciliación presupuestaria global"
+budgetHelpOpenGuide: Haz clic para abrir esta sección de la guía
+budgetHelpGuideLabel: "Leer la explicación de {term} en la guía"
+budgetHelpResources: Efectivo y saldos bancarios incluidos menos pasivos deducibles, como la deuda de tarjetas. No se cuentan las cuentas excluidas.
+budgetHelpNetBalance: Suma de los saldos de todas las categorías, incluidos los saldos negativos.
+budgetHelpNetGap: Recursos presupuestarios menos saldos presupuestarios netos. Un resultado negativo indica que los presupuestos superan los recursos. El resultado positivo puede incluir dinero sin asignar, reservas y ajustes.
+budgetHelpReferenceReserve: Reserva independiente para gastos no seguidos, actualmente en cero. Las transferencias a cuentas excluidas no la completan automáticamente.
+budgetHelpPurchaseReserve: Parte de la reserva de compra que aún no se ha aplicado al gasto. Ya afecta al presupuesto y no se descuenta otra vez de la diferencia.
+budgetHelpNonCashOffset: Evita que la disminución de saldos positivos por gastos no monetarios posteriores al reinicio se convierta en dinero recién asignable.
+budgetHelpAdjustedGap: Diferencia neta menos la reserva para gastos no seguidos y el ajuste no monetario. No vuelvas a descontar la reserva de compra restante.
+budgetHelpPositiveClaims: Solo se suman los saldos positivos de las categorías. Las categorías negativas no reducen los recursos necesarios para respaldar esos presupuestos.
+budgetHelpSecured: Importes de presupuesto positivos más la reserva para gastos no seguidos y el ajuste por gastos no monetarios.
+budgetHelpFundingGap: Recursos menos el importe reservado; también equivale a la diferencia ajustada menos el exceso sin financiar. Un resultado negativo indica falta de fondos.
+budgetHelpOverspending: Suma de los valores absolutos de los saldos de categoría negativos. Cubrirlos con otro presupuesto no cambia los saldos netos ni la diferencia neta.
+budgetHelpPlacementGap: Efectivo de las cuentas menos presupuestos positivos, reservas y ajustes necesarios. Todavía no descuenta pasivos como la deuda de tarjetas.
 budgetReconciliationCash: "Efectivo asignable"
 budgetReconciliationNetBudget: "Saldo presupuestario neto"
 budgetReconciliationNetGap: "Diferencia neta de conciliación"

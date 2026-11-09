@@ -52,6 +52,78 @@ Lors de la saisie d'un transfert de compte en saisie simplifiée, vous pouvez é
 
 Le transfert réel et le mouvement budgétaire sont des événements séparés. Les liens budget-compte sont des indications de placement ; ils ne forcent pas l'allocation des revenus et les virements bancaires à se produire en même temps.
 
-## Cohérence budgétaire
+## Cohérence budgétaire {#budget-reconciliation}
 
 Budget -> Vérification de cohérence budgétaire détecte les écarts entre les montants des écritures de journal et les montants d'allocation budgétaire enregistrés. Pour les écritures multilignes et les transactions hors suivi budgétaire, l'application ne devine pas les catégories budgétaires à moins que des allocations explicites ne soient enregistrées.
+
+Survolez ou placez le focus sur une icône « ? » dans le calcul détaillé pour afficher une brève explication. Cliquez dessus, ou touchez-la sur écran tactile, pour ouvrir la section correspondante de ce guide.
+
+Comparez les mêmes devise et période. « À aujourd'hui » et « Avec revenus futurs » reposent sur des données différentes. Le filtre de dates des anomalies de journal ci-dessous ne modifie pas le calcul global présenté plus haut.
+
+### Ressources de trésorerie pour le budget (C) {#budget-resources}
+
+Total des soldes de trésorerie et bancaires inclus comme sources budgétaires, moins les dettes à déduire du budget. Les dettes de carte sont déduites par défaut. La trésorerie exclue, les actifs achetés et les investissements ne sont pas comptés. Malgré son libellé, ce montant est déjà net des dettes sélectionnées.
+
+### Solde budgétaire net, déficits compris (N) {#budget-net-balance}
+
+Somme des soldes de toutes les catégories, y compris les soldes négatifs. Si P désigne les engagements budgétaires positifs et O les dépassements non financés, `N = P − O`.
+
+### Écart net de cohérence (G) {#budget-net-gap}
+
+`G = C − N`. Un résultat positif signifie que les ressources dépassent les soldes budgétaires nets ; un résultat négatif signifie que les soldes budgétaires dépassent les ressources. Des fonds non affectés, des réserves ou des corrections sans décaissement peuvent aussi créer un écart : une valeur non nulle ne signale donc pas toujours une erreur de saisie.
+
+### Réserve pour dépenses non suivies (R) {#budget-reference-reserve}
+
+Champ destiné aux sommes mises à part pour des dépenses non suivies. Il vaut actuellement zéro ; les écritures de référence ne consomment pas le budget ordinaire. Les virements vers des comptes exclus et les montants de référence ne le remplissent pas automatiquement.
+
+### Réserve d'achat restante {#budget-purchase-reserve}
+
+Part de la réserve créée à l'achat qui n'a pas encore été imputée aux dépenses mensuelles. Elle a déjà affecté les soldes budgétaires lors de l'achat et ne se déduit donc pas une seconde fois de l'écart net. Une réinitialisation efface les anciennes réserves.
+
+### Correction des charges mensuelles non décaissées après réinitialisation (D) {#budget-non-cash-offset}
+
+Après qu'une réinitialisation a effacé une réserve d'achat, la constatation mensuelle d'une charge peut réduire le budget sans nouveau paiement. Cette correction empêche cette baisse de créer de l'argent nouvellement affectable. Pour chaque catégorie, elle additionne la partie positive de « solde positif sur base de trésorerie − solde positif ordinaire ». Elle peut différer du total des charges mensuelles.
+
+### Écart de cohérence après réserves (A) {#budget-adjusted-gap}
+
+`A = G − R − D`. On retranche de l'écart net la réserve pour dépenses non suivies et la correction des charges non décaissées. Ne retranchez pas de nouveau la réserve d'achat restante. Si R et D valent tous deux zéro, A est égal à G. Un écart négatif restant peut signaler une baisse de ressources sans baisse budgétaire correspondante ; un écart positif peut inclure des fonds non affectés.
+
+### Engagements budgétaires positifs (P) {#budget-positive-claims}
+
+Somme des seuls soldes budgétaires positifs ; les catégories négatives ne les compensent pas. C'est le financement nécessaire pour pouvoir utiliser intégralement les budgets positifs.
+
+### Sommes déjà réservées (S) {#budget-secured}
+
+`S = P + R + D`. Engagements positifs, plus la réserve et la correction des charges non décaissées.
+
+### Nouvel argent affectable / manque de ressources budgétaires (F) {#budget-funding-gap}
+
+`F = C − S = A − O`. Une valeur positive ou nulle indique l'argent nouvellement affectable ; une valeur négative indique un manque de ressources. Même si l'écart de cohérence est nul, les catégories négatives créent un manque égal à leur dépassement. La baisse de trésorerie liée au dépassement est déjà incluse dans C : ne retranchez pas O de F une seconde fois.
+
+### Dépassement budgétaire non financé (O) {#budget-overspending}
+
+Somme des valeurs absolues des soldes négatifs. Couvrez-la depuis un autre budget ou affectez-lui des revenus ultérieurs. Déplacer une même somme entre catégories ne change ni N ni G.
+
+### Différence avec l'excédent ou le déficit de placement {#budget-placement-gap}
+
+L'excédent ou le déficit de placement correspond aux liquidités des comptes de dépôt moins les budgets positifs, les réserves et les corrections nécessaires sur ces comptes. Les dettes comme les cartes ne sont pas encore déduites. La colonne « Après virements » projette les virements proposés pour rééquilibrer le placement ; le total « Après déduction de la dette de carte » déduit aussi les dettes concernées. Les virements modifient le manque de chaque compte, mais un transfert entre des comptes budgétaires inclus ne résout pas l'écart global de cohérence.
+
+Exemple fictif : trésorerie de `100,000`, dette de carte déductible de `10,000`, soldes de catégories de `100,000` et `−15,000`, R de `2,000` et D de `3,000`. R vaut actuellement zéro.
+
+| Élément | Calcul |
+| --- | --- |
+| Ressources C | 100,000 − 10,000 = 90,000 |
+| Solde net N | 100,000 − 15,000 = 85,000 |
+| Écart net G | 90,000 − 85,000 = 5,000 |
+| Écart ajusté A | 5,000 − 2,000 − 3,000 = 0 |
+| Sommes réservées S | 100,000 + 2,000 + 3,000 = 105,000 |
+| Manque de ressources F | 90,000 − 105,000 = −15,000 |
+| Écart total de placement | 100,000 − 105,000 = −5,000 |
+
+L'écart de cohérence est nul, tandis que le dépassement non financé est de `15,000` et le manque de ressources de `−15,000`. L'écart de placement de `−5,000` précède la déduction de la dette de carte : il diffère donc du manque de ressources.
+
+### Vérifier les virements vers des comptes exclus {#budget-excluded-transfers}
+
+Si vous recevez des espèces non suivies et envoyez la même somme depuis un compte bancaire inclus, le foyer a échangé de l'argent, mais les ressources C diminuent. Sans baisse budgétaire enregistrée du même montant, N ne change pas et G ainsi que A diminuent. Dans la saisie simplifiée, choisissez le budget payeur comme source budgétaire et « Disparition » comme destination pour réduire le budget. Un simple transfert entre catégories ne réduit pas N.
+
+La vérification détecte aussi une baisse budgétaire insuffisante pour un virement vers un compte exclu sans compte de charges. Pour les écritures composées qui comprennent des charges et des virements vers des comptes exclus, elle tient compte des baisses budgétaires enregistrées. Si vous choisissez délibérément des fonds non affectés, la baisse des ressources utilise cet excédent ; un signalement ne réduit pas automatiquement un budget.

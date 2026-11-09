@@ -451,6 +451,20 @@ budgetTargetAccountsDesc: Used for placement guidance only. Linked budgets and a
 budgetTargetManyToManyError: This would create a many-to-many placement. Use either one budget with multiple accounts, or multiple budgets with one account.
 budgetPlacementTitle: Budget Placement
 budgetReconciliationTitle: Overall budget reconciliation
+budgetHelpOpenGuide: Click to open this section of the guide
+budgetHelpGuideLabel: "Read about {term} in the guide"
+budgetHelpResources: Included cash and bank balances minus deductible liabilities such as card debt. Excluded accounts are not counted.
+budgetHelpNetBalance: The sum of all category balances, including negative balances.
+budgetHelpNetGap: Budget resources minus net budget balances. Negative means budgets exceed resources. Positive amounts may include unallocated money, reserves and offsets.
+budgetHelpReferenceReserve: A separate reserve for untracked spending, currently zero. Transfers to excluded accounts do not automatically populate it.
+budgetHelpPurchaseReserve: The unrecognized part of the purchase reservation. It already affects budget balances and is not deducted again from reconciliation.
+budgetHelpNonCashOffset: Prevents positive budget balances reduced by post-reset non-cash expense recognition from becoming newly allocatable money.
+budgetHelpAdjustedGap: Net gap minus the untracked spending reserve and non-cash expense offset. Do not deduct the remaining purchase reservation again.
+budgetHelpPositiveClaims: Only positive category balances are added. Negative categories do not offset the resources needed to support them.
+budgetHelpSecured: Positive budget claims plus the untracked spending reserve and non-cash expense offset.
+budgetHelpFundingGap: Resources minus secured money, also equal to the adjusted gap minus unfunded overspending. A negative result is a funding shortage.
+budgetHelpOverspending: The sum of the absolute values of negative category balances. Covering them from another budget does not change net balances or the net gap.
+budgetHelpPlacementGap: Holding-account cash minus required positive budgets, reserves and offsets. This column does not yet deduct liabilities such as card debt.
 budgetReconciliationCash: Allocatable cash
 budgetReconciliationNetBudget: Net budget balance
 budgetReconciliationNetGap: Net reconciliation gap
