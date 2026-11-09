@@ -35,11 +35,55 @@ const categories = [
   },
 ];
 
+const accounts = [
+  { id: 10, type: "asset", category: "cash" },
+  { id: 11, type: "asset", category: "cash" },
+  { id: 20, type: "asset", category: "cash" },
+  { id: 30, type: "liability", category: "credit_card" },
+  { id: 99, type: "asset", category: "cash" },
+] as const;
+
 describe("getTransferBudgetCategoryOptions", () => {
+  test("offers all budget categories for a card charge into excluded cash", () => {
+    const reversed = [...categories].reverse();
+    const before = structuredClone(reversed);
+    expect(getTransferBudgetCategoryOptions({
+      budgetCategories: reversed,
+      accounts,
+      fromAccountId: 30,
+      toAccountId: 99,
+    })).toEqual({
+      sourceOptions: categories.map((category) => ({ value: String(category.id), label: category.name })),
+      destinationOptions: [],
+    });
+    expect(reversed).toEqual(before);
+  });
+
+  test("keeps destination choices scoped to the receiving cash account for card transfers", () => {
+    const options = getTransferBudgetCategoryOptions({
+      budgetCategories: categories,
+      accounts,
+      fromAccountId: 30,
+      toAccountId: 20,
+    });
+    expect(options.sourceOptions.map((option) => option.value)).toEqual(["1", "2", "3", "4"]);
+    expect(options.destinationOptions).toEqual([{ value: "4", label: "Investment reserve" }]);
+  });
+
+  test.each([null, 404, 99])("does not offer all categories for missing or unlinked non-card source %s", (fromAccountId) => {
+    expect(getTransferBudgetCategoryOptions({
+      budgetCategories: categories,
+      accounts,
+      fromAccountId,
+      toAccountId: 20,
+    }).sourceOptions).toEqual([]);
+  });
+
   test("returns categories in the connected budget-account group for each transfer account", () => {
     expect(
       getTransferBudgetCategoryOptions({
         budgetCategories: categories,
+        accounts,
         fromAccountId: 11,
         toAccountId: 20,
       }),

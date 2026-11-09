@@ -17,6 +17,11 @@ const accounts = [
   { id: 9, name: "Legacy advance", type: "asset", category: "other" },
 ].map(account => ({ ...account, created_at: "2026-11-05" })) as Account[];
 
+const budgetCategories = [
+  { id: 101, name: "Daily budget", sort_order: 0, target_accounts: [{ account_id: 3, ratio: 100 }] },
+  { id: 102, name: "Travel reserve", sort_order: 1, target_accounts: [] },
+];
+
 mock.module(import.meta.resolve("../i18n/LangContext.tsx"), () => ({
   LangProvider: ({ children }: { children: unknown }) => children,
   useLang: () => ({ t: (key: string) => key, locale: "en" }),
@@ -24,7 +29,7 @@ mock.module(import.meta.resolve("../i18n/LangContext.tsx"), () => ({
 mock.module(import.meta.resolve("../context/AppDataContext.tsx"), () => ({
   useAppData: () => ({
     accounts,
-    budgetCategories: [],
+    budgetCategories,
     journal: [],
     enabledCurrencies: [{ code: "JPY", decimal_places: 0 }],
     displayCurrency: "JPY",
@@ -48,13 +53,13 @@ function entry(fromId: number, toId = 2, offset?: number): JournalEntry {
   };
 }
 
-function renderTransfer(fromId: number, offset = 0) {
+function renderTransfer(fromId: number, offset = 0, sourceBudgetCategoryId: number | null = null) {
   return renderToStaticMarkup(createElement(MantineProvider, null,
     createElement(SimpleEntryForm, {
       accounts,
       onSubmit: async () => {},
       initialDraft: {
-        formValues: { entryType: "transfer", transferFromId: fromId, transferToId: 2, amount: 3_000, creditCardStatementOffsetMonths: offset },
+        formValues: { entryType: "transfer", transferFromId: fromId, transferToId: 2, amount: 3_000, creditCardStatementOffsetMonths: offset, transferBudgetSourceCategoryId: sourceBudgetCategoryId },
         budgetDist: [],
         showZeroCategories: false,
       },
@@ -63,6 +68,15 @@ function renderTransfer(fromId: number, offset = 0) {
 }
 
 describe("simple credit card transfers", () => {
+  test("displays a selected budget source even though the card has no holding-account group", () => {
+    expect(renderTransfer(1, 0, 102)).toContain('value="Travel reserve"');
+  });
+
+  test("keeps budget movement optional for a new card transfer", () => {
+    expect(renderTransfer(1)).not.toContain('value="Travel reserve"');
+    expect(renderTransfer(1)).toContain("transferBudgetNoMovementPlaceholder");
+  });
+
   test("offers a card as the transfer source and excluded cash as the destination", () => {
     const html = renderTransfer(1);
     expect(html.includes('value="Credit card"')).toBe(true);
