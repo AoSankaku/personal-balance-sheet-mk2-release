@@ -17,6 +17,7 @@ import { useLang } from "../../i18n";
 import { systemAccountTranslationKey } from "../../lib/accountUtils";
 import { formatJPY } from "../../lib/numberFormat";
 import { hasBudgetAllocationMismatch } from "../../lib/budgetConsistency";
+import { matchesExpenseAndExcludedCashTransfer } from "../../lib/expenseBudgetConsistency";
 
 // ──────────────────────────────────────────────
 // Hook
@@ -148,7 +149,14 @@ export function getSuspiciousReasons(
     );
     if (hasExplicitExpenseAllocations) {
       const totalAllocated = totalExpenseAllocated;
-      if (hasBudgetAllocationMismatch(totalExpense, totalExpenseAllocated)) {
+      if (
+        hasBudgetAllocationMismatch(totalExpense, totalExpenseAllocated) &&
+        !matchesExpenseAndExcludedCashTransfer(
+          entry,
+          accountMap,
+          excludedExpenseAllocationCategoryId,
+        )
+      ) {
         const fmt = (n: number) => formatJPY(Math.round(n), locale);
         reasons.push(
           locale === "ja"

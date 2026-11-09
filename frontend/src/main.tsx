@@ -3,7 +3,7 @@ import "@mantine/dates/styles.css";
 import "@mantine/charts/styles.css";
 import "./index.css";
 
-import { MantineProvider, createTheme } from "@mantine/core";
+import { MantineProvider } from "@mantine/core";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
@@ -13,20 +13,17 @@ import { AppDataProvider } from "./context/AppDataContext";
 import { PrivacyProvider } from "./context/PrivacyContext";
 import { DepreciationBudgetProvider } from "./context/DepreciationBudgetContext";
 import { clearPwaReloadMarkersFromAddressBar } from "./lib/pwaUpdate";
+import { appTheme } from "./theme";
 
 clearPwaReloadMarkersFromAddressBar();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Root element not found");
 
-const theme = createTheme({
-  cursorType: "pointer",
-});
-
 createRoot(root).render(
   <StrictMode>
     <LangProvider>
-      <MantineProvider defaultColorScheme="auto" theme={theme}>
+      <MantineProvider defaultColorScheme="auto" theme={appTheme}>
         <BrowserRouter>
           <PrivacyProvider>
             <AppDataProvider>

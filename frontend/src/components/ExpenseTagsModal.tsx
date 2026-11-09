@@ -9,12 +9,12 @@ import { showFeedback } from "../lib/feedback";
 import { ExpenseTagInput } from "./ExpenseTagInput";
 
 /** A metadata-only editor also works for journals with managed accounting lines. */
-export function ExpenseTagsModal({ entry, onClose, onSaved }: {
-  entry: JournalEntry; onClose: () => void; onSaved: () => void | Promise<void>;
+export function ExpenseTagsModal({ entry, onClose }: {
+  entry: JournalEntry; onClose: () => void;
 }) {
   const { t } = useLang();
   const { privacyMode } = usePrivacy();
-  const { journal } = useAppData();
+  const { journal, applyJournalExpenseTags } = useAppData();
   const [tags, setTags] = useState(() => entry.expense_tags?.map(tag => tag.name) ?? []);
   const [catalog, setCatalog] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -30,8 +30,8 @@ export function ExpenseTagsModal({ entry, onClose, onSaved }: {
     if (privacyMode || saving) return;
     setSaving(true);
     try {
-      await api.journal.updateExpenseTags(entry.id, tags);
-      await onSaved();
+      const metadata = await api.journal.updateExpenseTags(entry.id, tags);
+      applyJournalExpenseTags(entry.id, metadata);
       showFeedback({ message: t("expenseTagsSaved"), color: "teal" });
       onClose();
     } catch {
