@@ -681,6 +681,31 @@ export interface BudgetHistoryResponse {
   summaries: BudgetSummary[];
 }
 
+export interface BudgetAdjustmentBatchInput {
+  date: string;
+  currency: string;
+  note?: string | null;
+  adjustments: Array<{ budget_category_id: number; adhoc_delta: number }>;
+}
+
+export interface BudgetAdjustmentPreview {
+  date: string;
+  currency: string;
+  adjustment_total: number;
+  categories: Array<{
+    budget_category_id: number;
+    before_available: number;
+    after_available: number;
+  }>;
+  allocatable_before: number;
+  allocatable_after: number;
+  token: string;
+}
+
+export interface ApplyBudgetAdjustmentBatchInput extends BudgetAdjustmentBatchInput {
+  preview_token: string;
+}
+
 export type BudgetFilterStepType = "fixed" | "capped" | "remainder";
 
 export interface BudgetFilterStepAllocation {

@@ -1,0 +1,164 @@
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const runtime = process.argv[2] || "playwright";
+const { chromium } = require(runtime), { expect } = require(`${runtime}/test`);
+const ui = process.argv[3] || "http://127.0.0.1:5173";
+const api = process.argv[4] || "http://127.0.0.1:18794";
+const browser = await chromium.launch({ headless: true, channel: "chrome" });
+const page = await browser.newPage({ viewport: { width: 1280, height: 1050 }, serviceWorkers: "block" });
+page.setDefaultTimeout(12_000);
+const errors = [];
+page.on("pageerror", error => errors.push(error.message));
+let failPreview = false;
+let delayNextSave = false, loseNextSaveResponse = false, releaseSaveResponse;
+await page.route("**/*", async route => {
+  const url = new URL(route.request().url());
+  if (url.origin !== ui) return route.abort();
+  if (!url.pathname.startsWith("/api/")) return route.continue();
+  if (failPreview && url.pathname.endsWith("/allocations/preview")) return route.fulfill({ status: 503, json: { error: "synthetic_unavailable" } });
+  if (url.pathname === "/api/accounts" || /^\/api\/budget\/(summary|categories|allocations\/preview|allocations\/batch|depreciation-reset-plans)$/.test(url.pathname)) {
+    const response = await route.fetch({ url: api + url.pathname + url.search });
+    if (url.pathname.endsWith("/allocations/batch") && response.ok()) {
+      if (delayNextSave) { delayNextSave = false; await new Promise(resolve => { releaseSaveResponse = resolve; }); }
+      if (loseNextSaveResponse) { loseNextSaveResponse = false; return route.abort(); }
+    }
+    return route.fulfill({ response });
+  }
+  let json = [];
+  if (url.pathname === "/api/currencies") json = [{ id: 1, code: "JPY", decimal_places: 0, sort_order: 0 }, { id: 2, code: "USD", decimal_places: 2, sort_order: 1 }];
+  if (url.pathname === "/api/budget/settings") json = {};
+  if (url.pathname === "/api/task-settings") json = { configured: true, loan_overdue_days: 30 };
+  if (url.pathname === "/api/reports/pl") json = { income: [], expenses: [], total_income: 0, total_expenses: 0, net_income: 0 };
+  if (url.pathname === "/api/trial-balance/latest-snapshot") json = { snapshot_date: null };
+  if (url.pathname === "/api/income-transfer-requirements") json = { groups: [], requirements: [] };
+  if (url.pathname.endsWith("/placement-preview")) return route.fulfill({ status: 503, json: { error: "synthetic_unavailable" } });
+  return route.fulfill({ json });
+});
+await page.addInitScript(() => {
+  localStorage.setItem("locale", "ja"); localStorage.setItem("display_currency", "JPY"); localStorage.setItem("app:initialSeeded", "true");
+});
+const editor = page.getByTestId("budget-adjustment-editor");
+const save = () => editor.getByRole("button", { name: "調整を保存", exact: true });
+const amount = name => editor.getByRole("textbox", { name: `${name} 調整額`, exact: true });
+const select = name => editor.getByRole("checkbox", { name: `${name}を調整`, exact: true });
+const total = () => editor.getByTestId("budget-adjustment-total");
+const after = () => editor.getByTestId("budget-adjustment-allocatable-after");
+const money = text => Number(text.replace(/[^0-9.-]/g, ""));
+const state = async () => (await page.request.get(`${api}/__state`)).json();
+async function currency(code) {
+  await page.locator("header").getByRole("textbox").first().click();
+  await page.getByRole("option").filter({ hasText: code }).first().click();
+}
+try {
+  assert.equal((await state()).isolated, true);
+  assert.equal((await (await page.request.post(`${api}/__reset`)).json()).isolated, true);
+  await page.clock.setFixedTime(new Date("2026-11-09T12:00:00+09:00"));
+  await page.goto(`${ui}/input`);
+  await page.getByRole("tab", { name: "予算調整", exact: true }).waitFor();
+  assert.equal((await state()).previews, 0);
+  await page.getByRole("tab", { name: "予算調整", exact: true }).click();
+  await expect(after()).toHaveText(/55,000/);
+  await expect(amount("予算A")).toBeDisabled();
+  await expect(amount("アーカイブ予算")).toHaveCount(0);
+  const initial = await state();
+  await select("予算A").check(); await select("予算B").check();
+  await amount("予算A").fill("-10000"); await amount("予算B").fill("8000");
+  await expect(total()).toHaveText(/-.*2,000/);
+  await expect(after()).toHaveText(/57,000/);
+  assert.equal((await state()).logs.length, initial.logs.length);
+  await editor.getByText("選んだ予算のみ", { exact: true }).click();
+  await expect(editor.getByTestId("budget-adjustment-row-1003")).toHaveCount(0);
+  await expect(amount("予算A")).toHaveValue(/10,000/);
+  await page.getByRole("tab", { name: "複合仕訳", exact: true }).click();
+  await page.getByRole("tab", { name: "予算調整", exact: true }).click();
+  await expect(amount("予算B")).toHaveValue(/8,000/);
+  await expect(save()).toBeEnabled();
+
+  failPreview = true;
+  await amount("予算B").fill("8001");
+  await expect(editor).toContainText("変更後の残高を取得できませんでした");
+  await expect(save()).toBeDisabled();
+  failPreview = false;
+  await editor.getByRole("button", { name: "再読み込み", exact: true }).click();
+  await expect(save()).toBeEnabled();
+  await amount("予算B").fill("8000");
+  await expect(after()).toHaveText(/57,000/);
+  await expect(save()).toBeEnabled();
+  await page.request.post(`${api}/__bump`);
+  const bumped = await state();
+  await save().click();
+  await expect(editor).toContainText("残高または設定が変わりました");
+  await expect(save()).toBeEnabled();
+  assert.equal((await state()).logs.length, bumped.logs.length);
+  await expect(amount("予算A")).toHaveValue(/10,000/);
+  await expect(after()).toHaveText(/56,999/);
+  await save().dblclick();
+  await expect(save()).toBeDisabled();
+  await expect(editor).toContainText("すべての予算");
+  const saved = await state();
+  assert.equal(saved.logs.length, bumped.logs.length + 2);
+  assert.deepEqual(saved.logs.slice(-2).map(row => [row.budget_category_id, row.amount]), [[1001, -10_000], [1002, 8_000]]);
+
+  await editor.getByText("すべての予算", { exact: true }).click();
+  await select("予算A").check(); await amount("予算A").fill("-500");
+  await expect(save()).toBeEnabled();
+  const beforeDelayed = await state();
+  delayNextSave = true;
+  await save().click();
+  await expect.poll(async () => (await state()).logs.length).toBe(beforeDelayed.logs.length + 1);
+  await currency("USD"); await expect(save()).toBeDisabled();
+  await currency("JPY"); await expect(amount("予算A")).toBeDisabled();
+  releaseSaveResponse();
+  await expect(total()).toHaveText(/(?:￥|¥)0$/);
+  await expect(amount("予算A")).toBeDisabled();
+  assert.equal((await state()).logs.length, beforeDelayed.logs.length + 1);
+  await select("予算A").check(); await amount("予算A").fill("-500");
+  await currency("USD");
+  await expect(amount("予算A")).toBeDisabled();
+  await select("予算A").check(); await select("予算B").check();
+  await amount("予算A").fill("1.23"); await amount("予算B").fill("-0.34");
+  await expect(total()).toHaveText(/0\.89/);
+  await expect(save()).toBeEnabled();
+  await currency("JPY");
+  await expect(amount("予算A")).toHaveValue(/500/);
+  await expect(total()).toHaveText(/-.*500/);
+  await currency("USD");
+  await expect(amount("予算A")).toHaveValue(/1\.23/);
+  await expect(amount("予算B")).toHaveValue(/0\.34/);
+  await expect(save()).toBeEnabled();
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await expect(amount("予算A")).toBeVisible();
+  if (process.env.BUDGET_ADJUST_SCREENSHOTS) await page.screenshot({ path: ".tmp/budget-adjustment-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1280, height: 1050 });
+  if (process.env.BUDGET_ADJUST_SCREENSHOTS) await page.screenshot({ path: ".tmp/budget-adjustment-desktop.png", fullPage: true });
+  await page.getByText("予算リセット", { exact: true }).click();
+  const resetButton = page.getByRole("button", { name: "予算リセット（残高0）", exact: true });
+  await resetButton.waitFor();
+  await page.getByRole("textbox", { name: "予算カテゴリ", exact: true }).click();
+  await page.getByRole("option", { name: "予算A", exact: true }).click();
+  await resetButton.click();
+  const add = page.getByRole("button", { name: "追加", exact: true });
+  await expect(add).toBeEnabled();
+  await page.locator("label").filter({ hasText: /^予算調整$/ }).click();
+  await page.locator("label").filter({ hasText: /^予算リセット$/ }).click();
+  await expect(add).toBeDisabled();
+  await page.locator("label").filter({ hasText: /^予算調整$/ }).click();
+  await expect(save()).toBeEnabled();
+  const beforeLost = await state();
+  loseNextSaveResponse = true;
+  await save().click();
+  await expect(editor).toContainText("保存結果を確認できません");
+  await expect(save()).toBeDisabled();
+  assert.equal((await state()).logs.length, beforeLost.logs.length + 2);
+  await currency("JPY"); await currency("USD");
+  await expect(editor).toContainText("保存結果を確認できません");
+  await expect(save()).toBeDisabled();
+  await expect(amount("予算A")).toBeDisabled();
+  assert.deepEqual(errors, []);
+  console.log("PASS: selection/filter; -2000 total and exact preview; read-only previews; drafts; failure/stale recovery; atomic save; delayed-save currency round-trip; lost response blocks duplicates; cents; desktop/mobile; reset remount guard");
+} catch (error) {
+  console.error(JSON.stringify({ errors, body: (await page.locator("body").innerText()).slice(-1600) }));
+  throw error;
+} finally { await browser.close(); }

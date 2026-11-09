@@ -29,6 +29,8 @@ If historical imports or corrections make a balance unrealistic, use Input -> Bu
 
 Income entries can apply a budget filter to distribute the deposit across categories. Filters use fixed, capped, and ratio-split steps. Manual budget adjustments can later increase or decrease individual categories and can include an optional comment.
 
+In Input -> Budget Adjustment, view all budgets, select the ones to adjust, and narrow the list to those budgets. Enter several increases and decreases together, sharing one date and comment. Review each balance before and after, plus allocatable money as of that date. The adjustment total need not be zero: A −10,000 and B +8,000 totals −2,000. Covering negative budgets and cap overflows can make the change in allocatable money differ from that total. Saving is disabled while the calculation is pending or unavailable. If balances change, review the updated calculation before saving again. Switch to Reset budget for the existing zero-balance reset workflow.
+
 ## Budget Placement
 
 Cash/bank accounts have an "include in allocatable budget source" setting. Only enabled accounts count as allocatable cash and as actual balances in budget placement.

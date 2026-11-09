@@ -85,7 +85,10 @@ interface Props {
   journal: JournalEntry[];
   accounts: Account[];
   includeAllCurrencies?: boolean;
+  selectedTagIds?: readonly number[];
 }
+
+const NO_TAG_FILTER: readonly number[] = [];
 
 type PortalTooltipState = {
   label: string;
@@ -101,6 +104,7 @@ export function ExpenseBarChart({
   journal,
   accounts,
   includeAllCurrencies = false,
+  selectedTagIds = NO_TAG_FILTER,
 }: Props) {
   const { t, locale } = useLang();
   const { displayCurrency, displayCurrencySymbol, convertCurrency } =
@@ -142,6 +146,13 @@ export function ExpenseBarChart({
   useEffect(() => {
     saveExpenseHistorySnapshot(expenseHistorySnapshot);
   }, [expenseHistorySnapshot]);
+
+  const chartHistorySnapshot = useMemo(
+    () => selectedTagIds.length === 0
+      ? expenseHistorySnapshot
+      : buildExpenseHistorySnapshot(journal, accounts, selectedTagIds),
+    [journal, accounts, selectedTagIds, expenseHistorySnapshot],
+  );
 
   const filteredJournal = useMemo(() => {
     if (includeFuture) return journal;
@@ -358,7 +369,7 @@ export function ExpenseBarChart({
     const displayTo = toStr ?? allDates[allDates.length - 1]!;
     const buckets = generateBuckets(displayFrom, displayTo, granularity);
 
-    const storedBuckets = expenseHistorySnapshot.buckets[granularity];
+    const storedBuckets = chartHistorySnapshot.buckets[granularity];
     const todayBucket = bucketFor(todayStr, granularity);
     const accountTotals = new Map<string, number>();
     const bucketData = new Map<string, Record<string, number>>();
@@ -412,7 +423,7 @@ export function ExpenseBarChart({
     expenseAccounts,
     granularity,
     dateRange,
-    expenseHistorySnapshot,
+    chartHistorySnapshot,
     todayStr,
     includeFuture,
     convertTotalsToDisplay,

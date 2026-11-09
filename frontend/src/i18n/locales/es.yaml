@@ -303,6 +303,20 @@ filterClearAll: "Claro"
 outsideDateRangeMsg: "Entradas {n} fuera del rango de fechas seleccionado"
 clearDateFilter: "[Borrar filtro de fecha]"
 availableBalance: "Saldo disponible"
+overviewRemaining: Presupuesto restante
+overviewUsed: Usado
+overviewBefore: Antes del uso
+overviewDetails: Detalles
+overviewCategoryDetails: "Detalles de {name}"
+overviewWithSavings: Con ahorros
+overviewSavingsLink: Ahorros
+overviewInstallments: Cuotas
+overviewAllocation: Reparto
+overviewLedgerLink: Libro mayor
+overviewGoalEstimate: "Previsión: {date}"
+overviewPreviousMonth: Mes anterior
+overviewNextMonth: Mes siguiente
+overviewToday: Volver a hoy
 carryover: "Arrastre"
 budgetResetBadge: "Reiniciado"
 used: "usado"
@@ -344,6 +358,28 @@ tabBudgetAdjust: "Ajuste de presupuesto"
 budgetCategoryLabel: "Categoría de presupuesto"
 budgetAdjustAmountLabel: "Monto del ajuste (+ agregar / − reducir)"
 budgetAdjusted: "Presupuesto ajustado"
+budgetResetModeLabel: "Restablecer presupuesto"
+budgetBatchSaveUncertain: No se conoce el resultado y es posible que se haya guardado. Revise los saldos y el historial en Resumen y después restablezca esta entrada antes de continuar.
+budgetBatchAll: "Todos los presupuestos"
+budgetBatchSelected: "Solo los presupuestos seleccionados"
+budgetBatchSelectLabel: "Ajustar {name}"
+budgetBatchAmountLabel: "Ajuste de {name}"
+budgetBatchBefore: "Antes"
+budgetBatchAfter: "Después"
+budgetBatchTotal: "Ajuste total"
+budgetBatchAllocatableBefore: "Presupuesto disponible antes del ajuste"
+budgetBatchAllocatableAfter: "Presupuesto disponible después del ajuste"
+budgetBatchAsOf: "A fecha de {date}"
+budgetBatchSelectionEmpty: "En «Todos los presupuestos», selecciona los presupuestos que quieras ajustar."
+budgetBatchHint: "Un total de cero mueve dinero entre presupuestos; un total distinto de cero cambia el presupuesto global. El dinero disponible se calcula por separado e incluye el efecto de los presupuestos negativos y los excesos del límite."
+budgetBatchCalculating: "Calculando los saldos actualizados"
+budgetBatchPreviewError: "No se pudieron cargar los saldos actualizados. Recarga la página antes de guardar."
+budgetBatchSave: "Guardar ajustes"
+budgetBatchSaveError: "No se pudieron guardar los ajustes. Comprueba los importes e inténtalo de nuevo."
+budgetBatchStale: "Los saldos o la configuración han cambiado. Revisa el cálculo actualizado antes de volver a guardar."
+budgetBatchInvalidAmount: "Introduce un ajuste finito con la precisión decimal de la moneda."
+budgetBatchUnavailableCategory: "Uno de los presupuestos seleccionados ya no está disponible. Revisa la selección."
+budgetBatchLimit: "Puedes ajustar hasta 100 presupuestos a la vez."
 budgetResetToZeroButton: "Restablecimiento de presupuesto (saldo 0)"
 archiveBudgetCategoryAfterReset: "Archivar esta categoría de presupuesto después del reinicio"
 expenseSubAccountLabel: "cuenta de gastos"

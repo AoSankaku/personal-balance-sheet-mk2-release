@@ -1,7 +1,36 @@
 .page {
   width: min(100%, 68rem);
   margin-inline: auto;
+  --mantine-color-dimmed: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-4));
 }
+
+.breakdown,
+.allocationDetails {
+  margin-top: 0.35rem;
+  font-size: var(--mantine-font-size-xs);
+}
+
+.breakdown > summary,
+.allocationDetails > summary,
+.installmentSummary {
+  min-height: 1.5rem;
+  align-content: center;
+  cursor: pointer;
+  color: var(--mantine-color-text);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.breakdown > summary:focus-visible,
+.allocationDetails > summary:focus-visible,
+.installmentSummary:focus-visible {
+  outline: 2px solid var(--mantine-color-blue-6);
+  outline-offset: 3px;
+}
+
+.allocationDetails > summary { margin-left: auto; }
+.installmentSummary { font-size: var(--mantine-font-size-xs); }
+.installmentSummary > svg { margin-inline: 0.3rem; vertical-align: middle; }
 
 .dateNavigator {
   width: fit-content;

@@ -1,0 +1,42 @@
+.columns,
+.row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.3fr) minmax(100px, 1fr) minmax(150px, 1fr) minmax(100px, 1fr);
+  gap: var(--mantine-spacing-sm);
+  align-items: center;
+}
+
+.columns {
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+  padding-bottom: var(--mantine-spacing-xs);
+}
+
+.row {
+  padding-block: var(--mantine-spacing-sm);
+  border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.name { grid-column: 1; min-width: 0; }
+.before { grid-column: 2; }
+.amount { grid-column: 3; min-width: 0; }
+.after { grid-column: 4; }
+
+.fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+@media (max-width: 48em) {
+  .columns { display: none; }
+  .row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "name name" "before after" "amount amount";
+  }
+  .name { grid-area: name; }
+  .before { grid-area: before; }
+  .amount { grid-area: amount; }
+  .after { grid-area: after; }
+}

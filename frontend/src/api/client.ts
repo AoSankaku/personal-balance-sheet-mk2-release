@@ -23,6 +23,9 @@ import type {
   UpsertBudgetAllocationInput,
   BudgetSummary,
   BudgetHistoryResponse,
+  BudgetAdjustmentBatchInput,
+  BudgetAdjustmentPreview,
+  ApplyBudgetAdjustmentBatchInput,
   BudgetFilter,
   CreateBudgetFilterInput,
   BudgetAdjustmentLog,
@@ -612,6 +615,14 @@ export const api = {
         plans: DepreciationResetPlan[];
       }>(`/budget/depreciation-reset-plans?${q.toString()}`);
     },
+    previewAdjustments: (input: BudgetAdjustmentBatchInput, options?: { signal?: AbortSignal }) =>
+      request<BudgetAdjustmentPreview>("/budget/allocations/preview", {
+        method: "POST", body: JSON.stringify(input), signal: options?.signal,
+      }),
+    applyAdjustments: (input: ApplyBudgetAdjustmentBatchInput) =>
+      mutationRequest<{ logs: BudgetAdjustmentLog[] }>("/budget/allocations/batch", {
+        method: "POST", body: JSON.stringify(input),
+      }, BUDGET_PREFIXES),
     patchAdhocAllocation: (input: {
       budget_category_id: number;
       year_month: string;

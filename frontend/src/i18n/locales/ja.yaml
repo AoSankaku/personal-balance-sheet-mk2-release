@@ -303,6 +303,20 @@ filterClearAll: クリア
 outsideDateRangeMsg: 指定日付範囲外の仕訳 {n}件
 clearDateFilter: 【日付指定解除】
 availableBalance: 使える残高
+overviewRemaining: 予算残高
+overviewUsed: 使用
+overviewBefore: 使用前
+overviewDetails: 内訳
+overviewCategoryDetails: "{name}の内訳"
+overviewWithSavings: 貯蓄込み
+overviewSavingsLink: 貯蓄
+overviewInstallments: 分割振替
+overviewAllocation: 配分
+overviewLedgerLink: 帳簿へ
+overviewGoalEstimate: "達成目安 {date}"
+overviewPreviousMonth: 前の月
+overviewNextMonth: 次の月
+overviewToday: 今日に戻す
 carryover: 繰越
 budgetResetBadge: リセット
 used: 使用済み
@@ -344,6 +358,28 @@ tabBudgetAdjust: 予算調整
 budgetCategoryLabel: 予算カテゴリ
 budgetAdjustAmountLabel: 調整額（＋追加 / −減額）
 budgetAdjusted: 予算を調整しました
+budgetResetModeLabel: 予算リセット
+budgetBatchAll: すべての予算
+budgetBatchSelected: 選んだ予算のみ
+budgetBatchSelectLabel: "{name}を調整"
+budgetBatchAmountLabel: "{name} 調整額"
+budgetBatchBefore: 調整前
+budgetBatchAfter: 調整後
+budgetBatchTotal: 調整額の合計
+budgetBatchAllocatableBefore: 調整前の予算可能額
+budgetBatchAllocatableAfter: 変更後の予算可能額
+budgetBatchAsOf: "{date}時点"
+budgetBatchSelectionEmpty: 「すべての予算」で調整したい予算を選んでください。
+budgetBatchHint: 合計が0なら予算間の移動、0以外なら予算全体の増減です。予算可能額は、赤字予算や上限からの移動も反映して別に計算します。
+budgetBatchCalculating: 変更後の残高を計算中
+budgetBatchPreviewError: 変更後の残高を取得できませんでした。再読み込みしてから保存してください。
+budgetBatchSave: 調整を保存
+budgetBatchSaveError: 予算調整を保存できませんでした。入力内容を確認して再度お試しください。
+budgetBatchSaveUncertain: 保存結果を確認できません。保存済みの可能性があるため、概要の残高・予算増減履歴を確認してから入力をリセットしてください。
+budgetBatchStale: 残高または設定が変わりました。更新された計算結果を確認してから、もう一度保存してください。
+budgetBatchInvalidAmount: 通貨の桁数に合う有限の調整額を入力してください。
+budgetBatchUnavailableCategory: 利用できない予算が選択されています。選択を見直してください。
+budgetBatchLimit: 一度に調整できる予算は100件までです。
 budgetResetToZeroButton: 予算リセット（残高0）
 archiveBudgetCategoryAfterReset: リセット後にこの予算科目をアーカイブ
 expenseSubAccountLabel: 費用科目

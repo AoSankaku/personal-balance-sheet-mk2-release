@@ -735,6 +735,7 @@ export default function PlPage() {
         journal={journal}
         accounts={accounts}
         includeAllCurrencies={includeAllCurrencies}
+        selectedTagIds={selectedTagIds}
       />
 
       {/* Income table */}

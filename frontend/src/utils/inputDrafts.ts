@@ -120,6 +120,49 @@ export let budgetDraft: {
   date: Date;
   note: string;
 } | null = null;
+
+export interface BudgetAdjustmentDraft {
+  date: Date;
+  note: string;
+  selectedCategoryIds: number[];
+  amounts: Record<number, number | string>;
+  showOnlySelected: boolean;
+  saveStatus?: "stale" | "failed" | "uncertain" | null;
+}
+export let budgetAdjustmentDrafts: Record<string, BudgetAdjustmentDraft> = {};
+let budgetAdjustmentSaveState = { saving: false, version: 0 };
+let savingBudgetCurrency: string | null = null;
+const budgetAdjustmentSaveListeners = new Set<() => void>();
+export function getBudgetAdjustmentSaveState() { return budgetAdjustmentSaveState; }
+export function subscribeBudgetAdjustmentSave(listener: () => void) {
+  budgetAdjustmentSaveListeners.add(listener);
+  return () => { budgetAdjustmentSaveListeners.delete(listener); };
+}
+function notifyBudgetAdjustmentSave() { budgetAdjustmentSaveListeners.forEach(listener => listener()); }
+export function beginBudgetAdjustmentSave(currency: string): boolean {
+  if (budgetAdjustmentSaveState.saving) return false;
+  savingBudgetCurrency = currency;
+  budgetAdjustmentSaveState = { ...budgetAdjustmentSaveState, saving: true };
+  notifyBudgetAdjustmentSave();
+  return true;
+}
+export function finishBudgetAdjustmentSave(currency: string, outcome: "saved" | "stale" | "failed" | "uncertain") {
+  if (savingBudgetCurrency !== currency) return;
+  if (outcome === "saved") delete budgetAdjustmentDrafts[currency];
+  else if (budgetAdjustmentDrafts[currency]) budgetAdjustmentDrafts[currency] = { ...budgetAdjustmentDrafts[currency], saveStatus: outcome };
+  savingBudgetCurrency = null;
+  budgetAdjustmentSaveState = { saving: false, version: budgetAdjustmentSaveState.version + 1 };
+  notifyBudgetAdjustmentSave();
+}
+
+export function setBudgetAdjustmentDraft(currency: string, draft: BudgetAdjustmentDraft | null) {
+  if (draft == null) delete budgetAdjustmentDrafts[currency];
+  else budgetAdjustmentDrafts[currency] = draft;
+}
+
+export function resetBudgetAdjustmentDrafts() {
+  budgetAdjustmentDrafts = {};
+}
 export let csvDraft: CsvDraft = {
   parseResult: null,
   manualFormat: null,

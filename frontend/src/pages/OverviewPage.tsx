@@ -14,6 +14,7 @@ import {
   ActionIcon,
   ThemeIcon,
   UnstyledButton,
+  VisuallyHidden,
   rem,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
@@ -150,56 +151,7 @@ function BudgetCategoryCard({
     }
   }
 
-  return (
-    <Box className={classes.categoryItem} data-testid={`budget-category-${summary.category.id}`}>
-      <Group justify="space-between" align="flex-start" mb={8}>
-        <Group gap={6} style={{ flex: 1 }}>
-          <ThemeIcon variant="light" color={color} size={28} radius="xl">
-            <Icon size={15} />
-          </ThemeIcon>
-          <Text fw={600} size="sm">
-            {summary.category.name}
-          </Text>
-        </Group>
-        <Box ta="right">
-          <Text
-            fw={800}
-            size="lg"
-            c={summary.available >= 0 ? "teal" : "red"}
-            lh={1}
-          >
-            {formatCurrency(summary.available, locale, currency)}
-          </Text>
-          <Box mt={4}>
-            {summary.reset_date ? (
-              <Badge size="xs" color="orange" variant="light">
-                {t("budgetResetBadge")} {summary.reset_date}
-              </Badge>
-            ) : summary.carryover > 0 ? (
-              <Badge size="xs" color="blue" variant="light">
-                {t("carryover")} +
-                {formatCurrency(summary.carryover, locale, currency)}
-              </Badge>
-            ) : summary.carryover < 0 ? (
-              <Badge size="xs" color="red" variant="light">
-                {t("carryover")}{" "}
-                {formatCurrency(summary.carryover, locale, currency)}
-              </Badge>
-            ) : (
-              <Badge
-                size="xs"
-                variant="light"
-                aria-hidden="true"
-                style={{ visibility: "hidden" }}
-              >
-                {t("carryover")} +
-                {formatCurrency(overviewSkeletonAmount, locale, currency)}
-              </Badge>
-            )}
-          </Box>
-        </Box>
-      </Group>
-      {((summary.borrowed_funding ?? 0) !== 0 ||
+  const fundingDetails = ((summary.borrowed_funding ?? 0) !== 0 ||
         (summary.lent_funding ?? 0) !== 0 ||
         (summary.restored_funding ?? 0) !== 0 ||
         (summary.discarded_funding ?? 0) !== 0 ||
@@ -275,7 +227,59 @@ function BudgetCategoryCard({
             </Badge>
           )}
         </Group>
-      )}
+      );
+  const hasDetails = Boolean(fundingDetails) || usage.fundingOut !== 0 || usage.fundingIn !== 0 || usage.reference !== 0 ||
+    (summary.depreciation_spent ?? 0) > 0 || (summary.depreciation_reserve ?? 0) > 0 || predictedDate !== null;
+
+  return (
+    <Box className={classes.categoryItem} data-testid={`budget-category-${summary.category.id}`}>
+      <Group justify="space-between" align="flex-start" mb={8}>
+        <Group gap={6} style={{ flex: 1 }}>
+          <ThemeIcon variant="light" color={color} size={28} radius="xl">
+            <Icon size={15} />
+          </ThemeIcon>
+          <Text fw={600} size="sm">
+            {summary.category.name}
+          </Text>
+        </Group>
+        <Box ta="right">
+          <Text
+            fw={800}
+            size="lg"
+            c={summary.available >= 0 ? "teal" : "red"}
+            lh={1}
+          >
+            {formatCurrency(summary.available, locale, currency)}
+          </Text>
+          <Box mt={4}>
+            {summary.reset_date ? (
+              <Badge size="xs" color="orange" variant="light">
+                {t("budgetResetBadge")} {summary.reset_date}
+              </Badge>
+            ) : summary.carryover > 0 ? (
+              <Badge size="xs" color="blue" variant="light">
+                {t("carryover")} +
+                {formatCurrency(summary.carryover, locale, currency)}
+              </Badge>
+            ) : summary.carryover < 0 ? (
+              <Badge size="xs" color="red" variant="light">
+                {t("carryover")}{" "}
+                {formatCurrency(summary.carryover, locale, currency)}
+              </Badge>
+            ) : (
+              <Badge
+                size="xs"
+                variant="light"
+                aria-hidden="true"
+                style={{ visibility: "hidden" }}
+              >
+                {t("carryover")} +
+                {formatCurrency(overviewSkeletonAmount, locale, currency)}
+              </Badge>
+            )}
+          </Box>
+        </Box>
+      </Group>
       <Box pos="relative" mb={6}>
         <Progress
           value={Math.max(0, Math.min(100, pct ?? 0))}
@@ -297,14 +301,45 @@ function BudgetCategoryCard({
           </Box>
         )}
       </Box>
-      <Text size="xs" data-testid="budget-used-amount">
-        {t("budgetUsageLabel")}: {formatCurrency(usage.used, locale, currency)}
-        {pct !== null && ` · ${pct.toFixed(1)}%`}
+      <Text size="xs">
+        <Text span data-testid="budget-used-amount">{t("overviewUsed")}: {formatCurrency(usage.used, locale, currency)}</Text>
+        <Text span c="dimmed" data-testid="budget-before-usage">
+          <VisuallyHidden> {t("budgetBeforeUsageLabel")}: </VisuallyHidden>
+          {" / "}{formatCurrency(usage.beforeUsage, locale, currency)}
+        </Text>
+        {pct !== null && <Text span c="dimmed"> · {pct.toFixed(1)}%</Text>}
       </Text>
-      <Text size="xs" c="dimmed" data-testid="budget-before-usage">
-        {t("budgetBeforeUsageLabel")}: {formatCurrency(usage.beforeUsage, locale, currency)}
-      </Text>
-      <BudgetUsageDetails usage={usage} locale={locale} currency={currency} />
+      {goal !== null && (
+        <>
+          <Progress
+            value={Math.min(100, goalPct ?? 0)}
+            color={goalColor}
+            size="xs"
+            radius="xl"
+            mt={8}
+          />
+          <Text size="xs" c="dimmed" mt={4}>
+            {t("goal")}: {formatCurrency(goal, locale, currency)}
+            {goalPct !== null && ` · ${goalPct.toFixed(1)}%`}
+          </Text>
+          {goalPct !== null && goalPct >= 100 && (
+            <Text size="xs" c="green" fw={600} mt={2}>
+              {t("goalAlreadyReached")}
+            </Text>
+          )}
+          {predictedDate !== null && (
+            <Text size="xs" c="blue" mt={2}>
+              {t("overviewGoalEstimate").replace("{date}", predictedDate)}
+            </Text>
+          )}
+        </>
+      )}
+      {hasDetails && (
+        <details className={classes.breakdown}>
+          <summary aria-label={t("overviewCategoryDetails").replace("{name}", summary.category.name)}>{t("overviewDetails")}</summary>
+          <Stack gap="xs" mt="xs">
+            {fundingDetails}
+            <BudgetUsageDetails usage={usage} locale={locale} currency={currency} />
       {(summary.depreciation_spent ?? 0) > 0 && (
         <Text size="xs" c="violet">
           {t("budgetDepreciationRecognizedLabel")}: {formatCurrency(
@@ -323,25 +358,7 @@ function BudgetCategoryCard({
           )}
         </Text>
       )}
-      {goal !== null && (
-        <>
-          <Progress
-            value={Math.min(100, goalPct ?? 0)}
-            color={goalColor}
-            size="xs"
-            radius="xl"
-            mt={8}
-          />
-          <Text size="xs" c="dimmed" mt={4}>
-            {t("goal")}: {formatCurrency(summary.available, locale, currency)} /{" "}
-            {formatCurrency(goal, locale, currency)}
-            {goalPct !== null && ` · ${goalPct.toFixed(1)}%`}
-          </Text>
-          {goalPct !== null && goalPct >= 100 && (
-            <Text size="xs" c="green" fw={600} mt={2}>
-              {t("goalAlreadyReached")}
-            </Text>
-          )}
+
           {monthsToGoal !== null && predictedDate !== null && (
             <Text size="xs" c="blue" mt={2}>
               {t("goalReachIn").replace("{months}", String(monthsToGoal))}
@@ -350,7 +367,8 @@ function BudgetCategoryCard({
               {t("goalReachBy").replace("{date}", predictedDate)}
             </Text>
           )}
-        </>
+          </Stack>
+        </details>
       )}
     </Box>
   );
@@ -374,10 +392,15 @@ function DepreciationBudgetReference({
         : t("budgetDepreciationRecognizedStatus");
 
   return (
-    <Box
+    <details
       className={classes.depreciationBudgetReference}
       title={t("budgetDepreciationOverviewHint")}
     >
+      <summary className={classes.installmentSummary}>
+        <IconCalendarDollar size={14} aria-hidden="true" />
+        <span>{t("overviewInstallments")}</span>
+      </summary>
+      <Box mt="xs">
       <Group justify="space-between" align="center" gap="xs" wrap="wrap">
         <Group gap={6} wrap="wrap">
           <IconCalendarDollar
@@ -426,7 +449,8 @@ function DepreciationBudgetReference({
           </Text>
         </Group>
       </Group>
-    </Box>
+      </Box>
+    </details>
   );
 }
 
@@ -541,9 +565,10 @@ function RecentTransactionRow({
             {formattedAmount}
           </Text>
           {badgeNodes.length > 0 && (
-            <Group gap={4} wrap="wrap" justify="flex-end">
-              {badgeNodes}
-            </Group>
+            <details className={classes.allocationDetails}>
+              <summary>{t("overviewAllocation")}</summary>
+              <Group gap={4} mt={4} wrap="wrap" justify="flex-end">{badgeNodes}</Group>
+            </details>
           )}
         </Stack>
       </Group>
@@ -784,10 +809,12 @@ export default function OverviewPage() {
           size="lg"
           radius="xl"
           onClick={handlePrevMonth}
+          aria-label={t("overviewPreviousMonth")}
         >
           <IconChevronLeft size={18} />
         </ActionIcon>
         <DatePickerInput
+          aria-label={t("budgetAdjustDateLabel")}
           value={selectedDate}
           onChange={setSelectedDate}
           valueFormat={locale === "ja" ? "YYYY年M月D日" : "MMMM D, YYYY"}
@@ -799,6 +826,7 @@ export default function OverviewPage() {
                 variant="subtle"
                 color="dimmed"
                 size="sm"
+                aria-label={t("overviewToday")}
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedDate(new Date());
@@ -826,6 +854,7 @@ export default function OverviewPage() {
           size="lg"
           radius="xl"
           onClick={handleNextMonth}
+          aria-label={t("overviewNextMonth")}
         >
           <IconChevronRight size={18} />
         </ActionIcon>
@@ -837,8 +866,8 @@ export default function OverviewPage() {
           <Stack gap="lg" className={classes.heroContent}>
             <Box className={classes.heroMetrics}>
               <Box className={classes.primaryMetric}>
-                <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={8}>
-                  {t("availableBalance")}
+                <Text size="xs" fw={700} c="dimmed" mb={8}>
+                  {t("overviewRemaining")}
                   {selectedDate &&
                     !dayjs(selectedDate).isSame(dayjs(), "day") && (
                       <Text span fw={500} tt="none" c="teal" ml={6}>
@@ -860,7 +889,7 @@ export default function OverviewPage() {
               </Box>
               <Box className={classes.secondaryMetric}>
                 <Text size="xs" c="dimmed" mb={5}>
-                  {t("budgetUsageLabel")}
+                  {t("overviewUsed")}
                 </Text>
                 <Skeleton width="fit-content" radius="sm">
                   <Text fw={700} size="lg" className="currency-token">
@@ -874,7 +903,7 @@ export default function OverviewPage() {
               </Box>
               <Box className={classes.secondaryMetric}>
                 <Text size="xs" c="dimmed" mb={5}>
-                  {t("budgetBeforeUsageLabel")}
+                  {t("overviewBefore")}
                 </Text>
                 <Skeleton width="fit-content" radius="sm">
                   <Text fw={700} size="lg" className="currency-token">
@@ -915,8 +944,8 @@ export default function OverviewPage() {
           <Stack gap="lg" className={classes.heroContent}>
             <Box className={classes.heroMetrics}>
               <Box className={classes.primaryMetric}>
-                <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={8}>
-                  {t("availableBalance")}
+                <Text size="xs" fw={700} c="dimmed" mb={8}>
+                  {t("overviewRemaining")}
                   {selectedDate &&
                     !dayjs(selectedDate).isSame(dayjs(), "day") && (
                       <Text span fw={500} tt="none" c="teal" ml={6}>
@@ -937,7 +966,7 @@ export default function OverviewPage() {
 
               <Box className={classes.secondaryMetric}>
                 <Text size="xs" c="dimmed" mb={5}>
-                  {t("budgetUsageLabel")}
+                  {t("overviewUsed")}
                 </Text>
                 <Text fw={700} size="lg" className="currency-token" data-testid="budget-used-amount">
                   {formatCurrency(
@@ -949,7 +978,7 @@ export default function OverviewPage() {
               </Box>
               <Box className={classes.secondaryMetric}>
                 <Text size="xs" c="dimmed" mb={5}>
-                  {t("budgetBeforeUsageLabel")}
+                  {t("overviewBefore")}
                 </Text>
                 <Text fw={700} size="lg" className="currency-token" data-testid="budget-before-usage">
                   {formatCurrency(
@@ -961,9 +990,12 @@ export default function OverviewPage() {
               </Box>
             </Box>
 
-            <BudgetUsageDetails usage={expenseUsage} locale={locale} currency={selectedCurrency} />
-            {expenseUsage.fundingOut !== 0 && (
-              <Text size="xs" c="dimmed">{t("budgetUsageIncludesFundingHint")}</Text>
+            {(expenseUsage.fundingOut !== 0 || expenseUsage.fundingIn !== 0 || expenseUsage.reference !== 0) && (
+              <details className={classes.breakdown}>
+                <summary>{t("overviewDetails")}</summary>
+                <BudgetUsageDetails usage={expenseUsage} locale={locale} currency={selectedCurrency} />
+                {expenseUsage.fundingOut !== 0 && <Text size="xs" mt="xs">{t("budgetUsageIncludesFundingHint")}</Text>}
+              </details>
             )}
 
             <Box>
@@ -971,17 +1003,6 @@ export default function OverviewPage() {
                 <Text size="xs" c="dimmed">
                   {totalPct === null ? "—" : `${totalPct.toFixed(1)}%`}{" "}
                   {t("used")}
-                </Text>
-                <Text
-                  size="xs"
-                  c={expenseTotalAvailable >= 0 ? "teal" : "red"}
-                  fw={700}
-                >
-                  {formatCurrency(
-                    expenseTotalAvailable,
-                    locale,
-                    selectedCurrency,
-                  )}
                 </Text>
               </Group>
               <Box pos="relative">
@@ -1126,8 +1147,8 @@ export default function OverviewPage() {
         >
           <Group justify="space-between" align="center" wrap="wrap">
             <Box>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                {t("budgetIncludingSavings")}
+              <Text size="xs" c="dimmed" fw={600}>
+                {t("overviewWithSavings")}
               </Text>
               <Skeleton width="fit-content" radius="sm">
                 <Text size="sm" c="dimmed" mt={3}>
@@ -1168,7 +1189,7 @@ export default function OverviewPage() {
                   color="teal"
                   leftSection={<IconPigMoney size={13} />}
                 >
-                  {t("svViewDetails")}
+                  {t("overviewSavingsLink")}
                 </Button>
               )}
             </Group>
@@ -1178,11 +1199,13 @@ export default function OverviewPage() {
         <Box className={classes.summaryStrip} data-testid="budget-usage-including-savings">
           <Group justify="space-between" align="center" wrap="wrap">
             <Box>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                {t("budgetIncludingSavings")}
+              <Text size="xs" c="dimmed" fw={600}>
+                {t("overviewWithSavings")}
               </Text>
+              <details className={classes.breakdown}>
+                <summary>{t("overviewDetails")}</summary>
               <Text size="sm" mt={3} data-testid="budget-used-amount">
-                {t("budgetUsageLabel")}: {" "}
+                {t("overviewUsed")}: {" "}
                 {formatCurrency(
                   allBudgetUsage.used,
                   locale,
@@ -1190,7 +1213,7 @@ export default function OverviewPage() {
                 )}
               </Text>
               <Text size="xs" c="dimmed" data-testid="budget-before-usage">
-                {t("budgetBeforeUsageLabel")}: {" "}
+                {t("overviewBefore")}: {" "}
                 {formatCurrency(
                   allBudgetUsage.beforeUsage,
                   locale,
@@ -1198,6 +1221,7 @@ export default function OverviewPage() {
                 )}
               </Text>
               <BudgetUsageDetails usage={allBudgetUsage} locale={locale} currency={selectedCurrency} />
+              </details>
             </Box>
             <Group gap="sm">
               <Text
@@ -1220,7 +1244,7 @@ export default function OverviewPage() {
                   color="teal"
                   leftSection={<IconPigMoney size={13} />}
                 >
-                  {t("svViewDetails")}
+                  {t("overviewSavingsLink")}
                 </Button>
               )}
             </Group>
@@ -1285,7 +1309,7 @@ export default function OverviewPage() {
             {t("recentTransactions")}
           </Text>
           <Anchor component={Link} to="/ledger" size="xs">
-            {t("showAllTransactions")} →
+            {t("overviewLedgerLink")} →
           </Anchor>
         </Group>
         {recentEntries.length === 0 ? (
@@ -1314,13 +1338,7 @@ export default function OverviewPage() {
                   {t("showMore")} ({recentEntries.length - txShowCount})
                 </Button>
               </Center>
-            ) : (
-              <Center py="sm">
-                <Anchor component={Link} to="/ledger" size="xs">
-                  {t("showAllTransactions")} →
-                </Anchor>
-              </Center>
-            )}
+            ) : null}
           </>
         )}
       </Box>

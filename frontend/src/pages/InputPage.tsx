@@ -61,6 +61,7 @@ import {
   setSimpleDraft,
   setMultiDraft,
   setBudgetDraft,
+  resetBudgetAdjustmentDrafts,
 } from "../utils/inputDrafts";
 import {
   addOfflineDraft,
@@ -167,7 +168,10 @@ export default function InputPage() {
     if (!tab) return;
     if (tab === "simple") setSimpleDraft(null);
     if (tab === "multi") setMultiDraft(null);
-    if (tab === "budget") setBudgetDraft(null);
+    if (tab === "budget") {
+      setBudgetDraft(null);
+      resetBudgetAdjustmentDrafts();
+    }
     setResetKeys((k) => ({ ...k, [tab]: k[tab] + 1 }));
   }
 
@@ -500,6 +504,7 @@ export default function InputPage() {
           <div style={{ display: activeTab === "budget" ? undefined : "none" }}>
             <BudgetAdjustForm
               key={resetKeys.budget}
+              active={activeTab === "budget"}
               onDone={(result) => {
                 if (result?.categoryArchived) {
                   void refresh();

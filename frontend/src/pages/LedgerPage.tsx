@@ -116,6 +116,11 @@ function thisMonthRange(): [Date, Date] {
   return [new Date(now.getFullYear(), now.getMonth(), 1), now];
 }
 
+function initialJournalRange(): [Date, Date] {
+  const now = new Date();
+  return [new Date(now.getFullYear(), now.getMonth() - 3, 1), now];
+}
+
 function formatPageSummary(
   template: string,
   page: number,
@@ -193,9 +198,9 @@ export default function LedgerPage() {
     getPageSize("ledger:journalPageSize", 25),
   );
   const [journalRange, setJournalRange] =
-    useState<[Date | null, Date | null]>(thisMonthRange);
+    useState<[Date | null, Date | null]>(initialJournalRange);
   const [appliedJournalRange, setAppliedJournalRange] =
-    useState<[Date | null, Date | null]>(thisMonthRange);
+    useState<[Date | null, Date | null]>(initialJournalRange);
   const [filterDesc, setFilterDesc] = useState("");
   const [filterSource, setFilterSource] = useState<string | null>(null);
   const [filterAmountMin, setFilterAmountMin] = useState<number | string>("");

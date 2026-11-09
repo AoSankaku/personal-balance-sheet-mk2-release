@@ -303,6 +303,20 @@ filterClearAll: Clear
 outsideDateRangeMsg: "{n} entries outside selected date range"
 clearDateFilter: "[Clear date filter]"
 availableBalance: Available Balance
+overviewRemaining: Budget left
+overviewUsed: Used
+overviewBefore: Before use
+overviewDetails: Details
+overviewCategoryDetails: "{name} details"
+overviewWithSavings: With savings
+overviewSavingsLink: Savings
+overviewInstallments: Installments
+overviewAllocation: Budget split
+overviewLedgerLink: Ledger
+overviewGoalEstimate: "Estimate: {date}"
+overviewPreviousMonth: Previous month
+overviewNextMonth: Next month
+overviewToday: Back to today
 carryover: Carryover
 budgetResetBadge: Reset
 used: used
@@ -344,6 +358,28 @@ tabBudgetAdjust: Budget Adj.
 budgetCategoryLabel: Budget Category
 budgetAdjustAmountLabel: Adjustment amount (+ add / − reduce)
 budgetAdjusted: Budget adjusted
+budgetResetModeLabel: Reset budget
+budgetBatchAll: All budgets
+budgetBatchSelected: Selected budgets only
+budgetBatchSelectLabel: "Adjust {name}"
+budgetBatchAmountLabel: "{name} adjustment"
+budgetBatchBefore: Before
+budgetBatchAfter: After
+budgetBatchTotal: Total adjustment
+budgetBatchAllocatableBefore: Allocatable before adjustment
+budgetBatchAllocatableAfter: Allocatable after adjustment
+budgetBatchAsOf: "As of {date}"
+budgetBatchSelectionEmpty: Choose the budgets you want to adjust under All budgets.
+budgetBatchHint: A zero total moves money between budgets; a nonzero total changes the overall budget. Allocatable money is calculated separately, including negative budgets and cap overflows.
+budgetBatchCalculating: Calculating updated balances
+budgetBatchPreviewError: Updated balances could not be loaded. Reload before saving.
+budgetBatchSave: Save adjustments
+budgetBatchSaveError: Adjustments could not be saved. Check your input and try again.
+budgetBatchSaveUncertain: The save result is unknown and may have completed. Check balances and budget history on Overview, then reset this input before continuing.
+budgetBatchStale: Balances or settings changed. Review the updated calculation before saving again.
+budgetBatchInvalidAmount: Enter a finite adjustment using the currency's decimal precision.
+budgetBatchUnavailableCategory: A selected budget is no longer available. Review your selection.
+budgetBatchLimit: You can adjust up to 100 budgets at once.
 budgetResetToZeroButton: Budget reset (balance 0)
 archiveBudgetCategoryAfterReset: Archive this budget category after reset
 expenseSubAccountLabel: Expense account
