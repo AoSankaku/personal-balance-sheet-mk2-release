@@ -144,6 +144,10 @@ describe("hard reload prompt detection", () => {
     expect(shouldPromptForNewVersion("2026.6.0-beta0", "")).toBe(false);
   });
 
+  test("keeps update notifications when an older version is intentionally deployed", () => {
+    expect(shouldPromptForNewVersion("2026.11.0-beta3", "2026.11.0-beta2")).toBe(true);
+  });
+
   test("emits version.json from the Vite build using version.ts", () => {
     const configSource = readFileSync(
       join(frontendRoot, "vite.config.ts"),
