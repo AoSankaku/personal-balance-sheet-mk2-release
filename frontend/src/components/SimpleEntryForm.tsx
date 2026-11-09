@@ -2260,10 +2260,11 @@ export function SimpleEntryForm({
     () =>
       getTransferBudgetCategoryOptions({
         budgetCategories,
+        accounts,
         fromAccountId: form.values.transferFromId,
         toAccountId: form.values.transferToId,
       }),
-    [budgetCategories, form.values.transferFromId, form.values.transferToId],
+    [budgetCategories, accounts, form.values.transferFromId, form.values.transferToId],
   );
   const selectedIncomeAccount = accounts.find(
     (account) => account.id === form.values.incomeTypeId,

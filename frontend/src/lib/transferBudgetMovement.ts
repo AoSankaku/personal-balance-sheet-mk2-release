@@ -1,3 +1,5 @@
+import type { Account } from "@balance-sheet/shared";
+
 export interface TransferBudgetCategory {
   id: number;
   name: string;
@@ -76,18 +78,25 @@ function findCategoriesInAccountGroup(
 
 export function getTransferBudgetCategoryOptions({
   budgetCategories,
+  accounts = [],
   fromAccountId,
   toAccountId,
 }: {
   budgetCategories: TransferBudgetCategory[];
+  accounts?: readonly Pick<Account, "id" | "type" | "category">[];
   fromAccountId: number | null;
   toAccountId: number | null;
 }) {
+  const fromAccount = accounts.find((account) => account.id === fromAccountId);
+  // Cards increase debt rather than hold budget money, so they cannot identify
+  // a holding-account group. Let the user choose which budget bears the charge.
+  const sourceCategories =
+    fromAccount?.type === "liability" && fromAccount.category === "credit_card"
+      ? [...budgetCategories].sort(categorySort)
+      : findCategoriesInAccountGroup(budgetCategories, fromAccountId);
+
   return {
-    sourceOptions: findCategoriesInAccountGroup(
-      budgetCategories,
-      fromAccountId,
-    ).map((category) => ({
+    sourceOptions: sourceCategories.map((category) => ({
       value: String(category.id),
       label: category.name,
     })),
