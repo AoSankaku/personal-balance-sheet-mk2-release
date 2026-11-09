@@ -1114,6 +1114,7 @@ export const translationKeys = [
   "budgetConsistencyTitle",
   "budgetUnallocatedIncomeIssue",
   "budgetExcludedCashConsumptionIssue",
+  "budgetExcludedCashTransferIssue",
   "budgetReferenceAllocationTitle",
   "budgetReferenceAllocationHint",
   "budgetMarkReferenceAction",

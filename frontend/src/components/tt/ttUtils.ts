@@ -13,10 +13,10 @@ import type {
   CreditCardSettings,
   JournalEntry,
 } from "@balance-sheet/shared";
-import { useLang } from "../../i18n";
+import { tForLocale, useLang, type Locale } from "../../i18n";
 import { systemAccountTranslationKey } from "../../lib/accountUtils";
-import { formatJPY } from "../../lib/numberFormat";
-import { hasBudgetAllocationMismatch } from "../../lib/budgetConsistency";
+import { formatCurrency, formatJPY } from "../../lib/numberFormat";
+import { getUnrecordedCashTransferBudget, hasBudgetAllocationMismatch } from "../../lib/budgetConsistency";
 import { matchesExpenseAndExcludedCashTransfer } from "../../lib/expenseBudgetConsistency";
 
 // ──────────────────────────────────────────────
@@ -95,6 +95,7 @@ export function getBudgetCheckTotals(
   entry: JournalEntry,
   accountMap: Map<number, Account>,
   excludedExpenseAllocationCategoryId?: number | null,
+  currency = "JPY",
 ) {
   const expenseLines = entry.lines.filter(
     (l) => accountMap.get(l.account_id)?.type === "expense",
@@ -120,6 +121,7 @@ export function getBudgetCheckTotals(
     totalIncome,
     totalExpenseAllocated,
     totalIncomeAllocated,
+    unrecordedTransfer: getUnrecordedCashTransferBudget(entry, accountMap, currency),
   };
 }
 
@@ -128,6 +130,7 @@ export function getSuspiciousReasons(
   accountMap: Map<number, Account>,
   locale: string,
   excludedExpenseAllocationCategoryId?: number | null,
+  currency = "JPY",
 ): string[] {
   const reasons: string[] = [];
   const {
@@ -137,10 +140,12 @@ export function getSuspiciousReasons(
     totalIncome,
     totalExpenseAllocated,
     totalIncomeAllocated,
+    unrecordedTransfer,
   } = getBudgetCheckTotals(
     entry,
     accountMap,
     excludedExpenseAllocationCategoryId,
+    currency,
   );
   if (expenseLines.length > 0) {
     const hasExplicitExpenseAllocations = (entry.budget_allocations ?? []).some(
@@ -183,6 +188,13 @@ export function getSuspiciousReasons(
         );
       }
     }
+  }
+
+  if (unrecordedTransfer) {
+    reasons.push(tForLocale("budgetExcludedCashTransferIssue", locale as Locale).replace(
+      "{amount}",
+      formatCurrency(unrecordedTransfer.missing, locale, currency),
+    ));
   }
 
   return reasons;

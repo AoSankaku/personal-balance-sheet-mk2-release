@@ -138,6 +138,54 @@ export function getExcludedCashBudgetConsumptionAmount(
   return Math.max(0, Math.min(allocated, excludedCashOutflow));
 }
 
+export interface UnrecordedTransferBudget {
+  amount: number;
+  allocated: number;
+  missing: number;
+}
+
+/** Find cash leaving the budget boundary without a matching net budget decrease. */
+export function getUnrecordedCashTransferBudget(
+  entry: JournalEntry,
+  accountMap: Map<number, Account>,
+  currency: string,
+): UnrecordedTransferBudget | null {
+  if (
+    (entry.budget_funding?.allocations.length ?? 0) > 0 ||
+    (entry.budget_funding_components?.length ?? 0) > 0 ||
+    entry.lines.some((line) => {
+      const account = accountMap.get(line.account_id);
+      return !account || !(
+        (account.type === "asset" && account.category === "cash" && !account.is_depreciable) ||
+        (account.type === "liability" && account.category === "credit_card")
+      );
+    })
+  ) return null;
+
+  const lines = entry.lines.filter((line) => lineCurrencyMatches(line.currency, currency));
+  const amount = -budgetAccountDelta(lines, [...accountMap.values()], currency);
+  const excludedCashIncrease = lines.reduce((sum, line) => {
+    const account = accountMap.get(line.account_id)!;
+    return account.type === "asset" && !isBudgetAsset(account)
+      ? sum + line.debit - line.credit : sum;
+  }, 0);
+  if (
+    amount <= BUDGET_ALLOCATION_EPSILON ||
+    excludedCashIncrease <= BUDGET_ALLOCATION_EPSILON ||
+    hasBudgetAllocationMismatch(amount, excludedCashIncrease)
+  ) return null;
+
+  const consumption = (entry.budget_allocations ?? [])
+    .filter((allocation) => !allocation.is_reference && lineCurrencyMatches(allocation.currency, currency))
+    .reduce((sum, allocation) => sum + allocation.amount, 0);
+  const adjustments = (entry.income_budget_allocations ?? [])
+    .filter((allocation) => allocation.adjustment_type !== "reset" && lineCurrencyMatches(allocation.currency, currency))
+    .reduce((sum, allocation) => sum + allocation.amount, 0);
+  const allocated = -(consumption + adjustments);
+  const missing = amount - allocated;
+  return missing > BUDGET_ALLOCATION_EPSILON ? { amount, allocated: allocated || 0, missing } : null;
+}
+
 export interface PreResetCreditCardSettlement {
   entry: JournalEntry;
   amount: number;

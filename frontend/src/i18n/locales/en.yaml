@@ -876,6 +876,7 @@ depreciationBudgetPressureNoExpense: "No expenses recorded for this year."
 budgetConsistencyTitle: Budget Consistency Check
 budgetUnallocatedIncomeIssue: "Income received into budget funds is unallocated: {amount}"
 budgetExcludedCashConsumptionIssue: "Normal budget consumption is recorded for spending from untracked cash: {amount}"
+budgetExcludedCashTransferIssue: "Budget reduction is {amount} short for a transfer to a budget-excluded account."
 budgetReferenceAllocationTitle: Reference budget record
 budgetReferenceAllocationHint: The payment source is outside budget funds, but this planned spending reduces both the budget balance and allocatable money and is shown separately in reconciliation.
 budgetMarkReferenceAction: Make reference

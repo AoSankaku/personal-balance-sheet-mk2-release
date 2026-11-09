@@ -876,6 +876,7 @@ depreciationBudgetPressureNoExpense: "この年の支出データがありませ
 budgetConsistencyTitle: 予算整合性チェック
 budgetUnallocatedIncomeIssue: "予算原資への収入が未配賦: {amount}"
 budgetExcludedCashConsumptionIssue: "非追跡現金等からの支出に通常の予算消費が記録されています: {amount}"
+budgetExcludedCashTransferIssue: "予算対象外口座への振替に対する予算減少が{amount}不足しています。"
 budgetReferenceAllocationTitle: 参考予算記録
 budgetReferenceAllocationHint: 支払元は予算原資に含まれませんが、将来の予算消費として残高と割り当て可能額を減らし、整合性画面では参考値として区分表示します。
 budgetMarkReferenceAction: 参考記録にする

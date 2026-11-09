@@ -876,6 +876,7 @@ depreciationBudgetPressureNoExpense: "No se registraron gastos para este año."
 budgetConsistencyTitle: "Verificación de coherencia presupuestaria"
 budgetUnallocatedIncomeIssue: "Ingreso recibido en los fondos presupuestarios sin distribuir: {amount}"
 budgetExcludedCashConsumptionIssue: "Se registró consumo presupuestario normal para un gasto con efectivo no rastreado: {amount}"
+budgetExcludedCashTransferIssue: "Faltan {amount} de reducción presupuestaria para una transferencia a una cuenta excluida del presupuesto."
 budgetReferenceAllocationTitle: Registro presupuestario de referencia
 budgetReferenceAllocationHint: La fuente de pago está fuera de los fondos presupuestarios, pero este gasto previsto reduce el saldo y el importe asignable y se muestra por separado en la conciliación.
 budgetMarkReferenceAction: Marcar referencia

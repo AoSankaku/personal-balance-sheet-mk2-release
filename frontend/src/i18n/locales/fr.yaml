@@ -876,6 +876,7 @@ depreciationBudgetPressureNoExpense: "Aucune dépense enregistrée pour cette an
 budgetConsistencyTitle: "Contrôle de cohérence budgétaire"
 budgetUnallocatedIncomeIssue: "Revenu reçu dans les fonds budgétaires mais non réparti : {amount}"
 budgetExcludedCashConsumptionIssue: "Une consommation budgétaire normale est enregistrée pour une dépense en espèces non suivies : {amount}"
+budgetExcludedCashTransferIssue: "La réduction du budget pour un transfert vers un compte hors budget est insuffisante de {amount}."
 budgetReferenceAllocationTitle: Écriture budgétaire de référence
 budgetReferenceAllocationHint: La source de paiement est hors des fonds budgétaires, mais cette dépense prévue réduit le solde et le montant allouable et reste séparée dans le rapprochement.
 budgetMarkReferenceAction: Rendre indicative

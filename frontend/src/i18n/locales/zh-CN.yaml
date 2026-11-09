@@ -876,6 +876,7 @@ depreciationBudgetPressureNoExpense: "今年没有支出记录。"
 budgetConsistencyTitle: 预算一致性检查
 budgetUnallocatedIncomeIssue: "进入预算资金的收入尚未分配：{amount}"
 budgetExcludedCashConsumptionIssue: "使用未追踪现金支出时记录了普通预算消耗：{amount}"
+budgetExcludedCashTransferIssue: "转入预算外账户的转账缺少 {amount} 的预算扣减。"
 budgetReferenceAllocationTitle: 参考预算记录
 budgetReferenceAllocationHint: 付款来源不属于预算资金，但该计划支出会减少预算余额和可分配金额，并在一致性检查中单独显示。
 budgetMarkReferenceAction: 设为参考记录
