@@ -26,6 +26,10 @@ read. When adding read-heavy behavior, extend the relevant read-volume regressio
 test. Record representative fixture sizes and measured counts in verification
 notes. Remote measurements are optional read-only follow-up, not routine tests.
 
+For budget adjustment previews, include note-only edits (zero preview requests
+and DB reads), repeated amount edits (bounded reads without repeated history
+scans), revision-change refresh, and fresh save-time integrity verification.
+
 Run from within each workspace directly — root-level scripts do not work:
 ```bash
 cd frontend && bun run dev     # Vite dev server → http://localhost:5173

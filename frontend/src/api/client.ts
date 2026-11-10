@@ -162,7 +162,11 @@ async function apiFetch(input: RequestInfo | URL, init?: RequestInit) {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isMutation = !["GET", "HEAD"].includes((init?.method ?? "GET").toUpperCase());
-  const invalidatesBudgetSummary = isMutation && path !== "/task-settings";
+  // This POST computes an authoritative preview but does not write. It must
+  // not detach/invalidate caches used by other read paths.
+  const isReadOnlyBudgetAdjustmentPreview = path === "/budget/allocations/preview";
+  const invalidatesDerivedReads = isMutation && path !== "/task-settings" && !isReadOnlyBudgetAdjustmentPreview;
+  const invalidatesBudgetSummary = invalidatesDerivedReads;
   if (invalidatesBudgetSummary) {
     budgetMutationRevision++;
     budgetMutationsInFlight++;
@@ -173,9 +177,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // Cover raw request mutations as well as mutationRequest: deferral, card
   // state, depreciation and admin operations can all affect the preview.
   // Task notification preferences do not change placement inputs.
-  const invalidatesPlacement = isMutation && path !== "/task-settings";
+  const invalidatesPlacement = invalidatesDerivedReads;
   if (invalidatesPlacement) placementPreviewCache.invalidate();
-  if (isMutation) dedupeTrialBalanceReads.invalidate();
+  if (invalidatesDerivedReads) dedupeTrialBalanceReads.invalidate();
   try {
     return await requestJson<T>(path, init);
   } finally {

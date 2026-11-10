@@ -45,7 +45,14 @@ export function BudgetAdjustmentEditor({ active, busy, onDone, onReset }: {
   const built = useMemo(() => buildBudgetAdjustmentInput({
     date: dateString, currency, note, selectedCategoryIds: selectedIds, amounts, decimalPlaces,
   }), [dateString, currency, note, selectedIds, amounts, decimalPlaces]);
-  const requestKey = built == null ? null : JSON.stringify(built.input);
+  // Notes are metadata for the saved logs and do not affect the preview's
+  // financial result. Keep them out of the preview identity and payload so
+  // editing a note does not discard an otherwise-current preview token.
+  const requestKey = built == null ? null : JSON.stringify({
+    date: built.input.date,
+    currency: built.input.currency,
+    adjustments: built.input.adjustments,
+  });
   const inputError = selectionUnavailable ? t("budgetBatchUnavailableCategory")
     : built == null ? t("budgetBatchInvalidAmount")
     : built.input.adjustments.length > 100 ? t("budgetBatchLimit") : null;
@@ -71,7 +78,7 @@ export function BudgetAdjustmentEditor({ active, busy, onDone, onReset }: {
     setPreviewError(null);
     setPreviewLoading(true);
     const timer = window.setTimeout(() => {
-      void api.budget.previewAdjustments(JSON.parse(requestKey), { signal: controller.signal })
+      void api.budget.previewAdjustments({ ...JSON.parse(requestKey), note: null }, { signal: controller.signal })
         .then(data => {
           if (!disposed) {
             setPreview({ key: requestKey, data });

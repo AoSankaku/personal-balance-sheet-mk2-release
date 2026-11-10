@@ -61,6 +61,7 @@ import {
 } from "../lib/depreciationBudgetReset";
 import type { DepreciationResetInputDecision } from "../../../shared/depreciationBudget";
 import { prepareMutation, readBudgetMutationRevision, runBudgetGuardedBatch } from "../lib/d1Mutation";
+import { createBudgetAdjustmentPreviewDb } from "../lib/budgetAdjustmentPreviewCache";
 import {
   findInvalidMoneyField,
   fromStorageMoneyAmount,
@@ -354,6 +355,7 @@ async function buildBudgetAdjustmentPreview(
   input: ValidatedBudgetAdjustmentBatch,
   createdAt: string,
   revision: number,
+  freshDB: D1Database = env.DB,
 ): Promise<BudgetAdjustmentPreviewResult | null> {
   const existingLogs = await db
     .select()
@@ -434,12 +436,12 @@ async function buildBudgetAdjustmentPreview(
     item.depreciation_non_cash_offset ?? 0,
   ]);
   const snapshot = {
+    snapshot_version: 2,
     revision,
     created_at: createdAt,
     request: {
       date: input.date,
       currency: input.currency,
-      note: input.note,
       adjustments: input.adjustments.map((item) => [
         item.budget_category_id,
         item.storage_delta,
@@ -453,7 +455,7 @@ async function buildBudgetAdjustmentPreview(
   };
   preview.token = `${encodeURIComponent(createdAt)}.${await digestAdjustmentPreview(snapshot)}`;
 
-  if (await readBudgetMutationRevision(env.DB) !== revision) return null;
+  if (await readBudgetMutationRevision(freshDB) !== revision) return null;
   return { preview, revision };
 }
 
@@ -987,13 +989,21 @@ router.post("/allocations/preview", async (c) => {
   const validated = await validateBudgetAdjustmentBatchInput(db, body, false);
   if ("error" in validated) return c.json(validated.error, validated.status);
 
+  const previewDB = createBudgetAdjustmentPreviewDb(
+    c.env.DB,
+    validated.value.date,
+    validated.value.currency,
+    revision,
+  );
+  const previewEnv: Env = { ...c.env, DB: previewDB };
   const createdAt = new Date().toISOString().replace("T", " ").replace("Z", "");
   const result = await buildBudgetAdjustmentPreview(
-    db,
-    c.env,
+    createDb(previewEnv),
+    previewEnv,
     validated.value,
     createdAt,
     revision,
+    c.env.DB,
   );
   if (!result) return c.json({ error: "adjustment_preview_stale" }, 409);
   return c.json(result.preview);

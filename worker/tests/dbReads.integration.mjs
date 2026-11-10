@@ -60,7 +60,7 @@ function assertReadCounter(result) {
 // Routes use all/first/raw. Record executions, then replay the unchanged SELECTs
 // with all() to collect their workerd counters (raw/first omit meta). Replays are
 // outside the request and excluded from the recorded count; fixtures never change.
-async function profile(invoke) {
+function createReadProfiler() {
   const reads = [];
   const wrap = (statement, sql, parameters = []) => new Proxy(statement, {
     get(target, property) {
@@ -81,19 +81,28 @@ async function profile(invoke) {
       return typeof value === "function" ? value.bind(target) : value;
     },
   });
-  const response = await invoke(binding);
-  assert.equal(response.status, 200);
-  const body = await response.json();
-  let rowsRead = 0;
-  for (const { sql, parameters } of reads) {
-    const result = await DB.prepare(sql).bind(...parameters).all();
-    assert.equal(result.success, true);
-    assert.equal(typeof result.meta.rows_read, "number");
-    assert.equal(result.meta.rows_written, 0);
-    rowsRead += result.meta.rows_read;
+  async function measure(invoke) {
+    const start = reads.length;
+    const response = await invoke(binding);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    const executed = reads.slice(start);
+    let rowsRead = 0;
+    for (const { sql, parameters } of executed) {
+      const result = await DB.prepare(sql).bind(...parameters).all();
+      assert.equal(result.success, true);
+      assert.equal(typeof result.meta.rows_read, "number");
+      assert.equal(result.meta.rows_written, 0);
+      rowsRead += result.meta.rows_read;
+    }
+    assert.ok(rowsRead > 0);
+    return { body, rowsRead, queries: executed.length };
   }
-  assert.ok(rowsRead > 0);
-  return { body, rowsRead, queries: reads.length };
+  return { measure };
+}
+
+async function profile(invoke) {
+  return createReadProfiler().measure(invoke);
 }
 
 test("entry/currency lookup reads a bounded subset rather than all same-currency lines", async () => {
@@ -163,4 +172,38 @@ test("actual accounts route eliminates per-line account reads with equal balance
   // Include every SELECT performed by the route, not only the aggregate.
   assert.ok(measured.rowsRead < old.meta.rows_read * 0.8);
   console.log(`account aggregate baseline rows_read: ${old.meta.rows_read}; optimized whole route: ${measured.rowsRead}`);
+});
+
+test("consecutive adjustment amounts reuse history while save still verifies fresh DB state", async () => {
+  const profiler = createReadProfiler();
+  const input = (amount) => ({ date: "2026-11-10", currency: "JPY", note: null,
+    adjustments: [{ budget_category_id: 1001, adhoc_delta: amount }] });
+  const request = (binding, path, body) => budgetRouter.request(path, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+  }, { DB: binding });
+  const numerical = ({ token, ...body }) => body;
+  const cold = await profiler.measure((binding) => request(binding, "/allocations/preview", input(1)));
+  const warmReads = [];
+  let last;
+  for (const amount of [2, 30, -30, 100]) {
+    last = await profiler.measure((binding) => request(binding, "/allocations/preview", input(amount)));
+    const fresh = await profile((binding) => request(binding, "/allocations/preview", input(amount)));
+    assert.deepEqual(numerical(last.body), numerical(fresh.body));
+    assert.ok(last.rowsRead <= 20, `warm amount edit read ${last.rowsRead} rows`);
+    assert.ok(last.rowsRead < cold.rowsRead / 20);
+    warmReads.push(last.rowsRead);
+  }
+  await DB.prepare("UPDATE budget_adjustment_logs SET amount=amount+1 WHERE journal_entry_id=2").run();
+  const refreshed = await profiler.measure((binding) => request(binding, "/allocations/preview", input(100)));
+  assert.ok(refreshed.rowsRead > 1000, "changed DB revision must refresh cached history");
+  assert.notDeepEqual(numerical(refreshed.body), numerical(last.body));
+  const stale = await request(DB, "/allocations/batch", { ...input(100), preview_token: last.body.token });
+  assert.equal(stale.status, 409);
+  // Save bypasses the cross-request cache. Its own existing regression suite
+  // also verifies guarded atomic writes, replay rejection and rollback.
+  const saved = await request(DB, "/allocations/batch", { ...input(100), note: "Edited locally without preview", preview_token: refreshed.body.token });
+  assert.equal(saved.status, 200);
+  const note = await DB.prepare("SELECT note FROM budget_adjustment_logs WHERE note=?").bind("Edited locally without preview").first("note");
+  assert.equal(note, "Edited locally without preview");
+  console.log(`adjustment preview rows_read: initial ${cold.rowsRead}; consecutive edits ${warmReads.join(", ")}; revision refresh ${refreshed.rowsRead}`);
 });

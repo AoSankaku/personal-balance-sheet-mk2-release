@@ -10,14 +10,18 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 1050 }, se
 page.setDefaultTimeout(12_000);
 const errors = [];
 page.on("pageerror", error => errors.push(error.message));
+const previewRequestNotes = [];
+let apiRequestCount = 0;
 let failPreview = false;
 let delayNextSave = false, loseNextSaveResponse = false, releaseSaveResponse;
 await page.route("**/*", async route => {
   const url = new URL(route.request().url());
   if (url.origin !== ui) return route.abort();
   if (!url.pathname.startsWith("/api/")) return route.continue();
+  apiRequestCount++;
+  if (url.pathname.endsWith("/allocations/preview")) previewRequestNotes.push(route.request().postDataJSON()?.note);
   if (failPreview && url.pathname.endsWith("/allocations/preview")) return route.fulfill({ status: 503, json: { error: "synthetic_unavailable" } });
-  if (url.pathname === "/api/accounts" || /^\/api\/budget\/(summary|categories|allocations\/preview|allocations\/batch|depreciation-reset-plans)$/.test(url.pathname)) {
+  if (url.pathname === "/api/accounts" || /^\/api\/budget\/(summary(?:-pair)?|categories|allocations\/preview|allocations\/batch|depreciation-reset-plans)$/.test(url.pathname)) {
     const response = await route.fetch({ url: api + url.pathname + url.search });
     if (url.pathname.endsWith("/allocations/batch") && response.ok()) {
       if (delayNextSave) { delayNextSave = false; await new Promise(resolve => { releaseSaveResponse = resolve; }); }
@@ -85,6 +89,14 @@ try {
   await amount("予算B").fill("8000");
   await expect(after()).toHaveText(/57,000/);
   await expect(save()).toBeEnabled();
+  const previewsBeforeNote = (await state()).previews;
+  const apiRequestsBeforeNote = apiRequestCount;
+  await editor.getByRole("textbox", { name: "コメント", exact: true }).fill("プレビューを再計算しないメモ");
+  await page.waitForTimeout(400);
+  assert.equal((await state()).previews, previewsBeforeNote);
+  assert.equal(apiRequestCount, apiRequestsBeforeNote);
+  assert.equal(previewRequestNotes.every(value => value === null), true);
+  await expect(save()).toBeEnabled();
   await page.request.post(`${api}/__bump`);
   const bumped = await state();
   await save().click();
@@ -95,10 +107,12 @@ try {
   await expect(after()).toHaveText(/56,999/);
   await save().dblclick();
   await expect(save()).toBeDisabled();
+  await expect.poll(async () => (await state()).logs.length).toBe(bumped.logs.length + 2);
   await expect(editor).toContainText("すべての予算");
   const saved = await state();
   assert.equal(saved.logs.length, bumped.logs.length + 2);
   assert.deepEqual(saved.logs.slice(-2).map(row => [row.budget_category_id, row.amount]), [[1001, -10_000], [1002, 8_000]]);
+  assert.deepEqual(saved.logs.slice(-2).map(row => row.note), ["プレビューを再計算しないメモ", "プレビューを再計算しないメモ"]);
 
   await editor.getByText("すべての予算", { exact: true }).click();
   await select("予算A").check(); await amount("予算A").fill("-500");
@@ -157,7 +171,7 @@ try {
   await expect(save()).toBeDisabled();
   await expect(amount("予算A")).toBeDisabled();
   assert.deepEqual(errors, []);
-  console.log("PASS: selection/filter; -2000 total and exact preview; read-only previews; drafts; failure/stale recovery; atomic save; delayed-save currency round-trip; lost response blocks duplicates; cents; desktop/mobile; reset remount guard");
+  console.log("PASS: selection/filter; -2000 total and exact preview; note edits reuse preview and save metadata; read-only previews; drafts; failure/stale recovery; atomic save; delayed-save currency round-trip; lost response blocks duplicates; cents; desktop/mobile; reset remount guard");
 } catch (error) {
   console.error(JSON.stringify({ errors, body: (await page.locator("body").innerText()).slice(-1600) }));
   throw error;
