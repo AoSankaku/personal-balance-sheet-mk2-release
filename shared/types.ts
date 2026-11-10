@@ -674,6 +674,11 @@ export interface BudgetSummary {
   total_available: number;
 }
 
+export interface BudgetSummaryPair {
+  today: BudgetSummary;
+  total: BudgetSummary;
+}
+
 export interface BudgetHistoryResponse {
   from: string;
   to: string;

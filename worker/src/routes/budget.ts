@@ -2579,6 +2579,38 @@ router.get("/summary", async (c) => {
   return c.json(computedSummaries[0]);
 });
 
+router.get("/summary-pair", async (c) => {
+  const ym = c.req.query("year_month");
+  if (!ym || !/^\d{4}-\d{2}$/.test(ym)) {
+    return c.json({ error: "year_month must be YYYY-MM" }, 400);
+  }
+  const currency = normalizeCurrency(c.req.query("currency"));
+  const monthStart = `${ym}-01`;
+  const monthEnd = monthEndDate(ym);
+  const asOfRaw = c.req.query("as_of");
+  const effectiveEnd =
+    asOfRaw &&
+    /^\d{4}-\d{2}-\d{2}$/.test(asOfRaw) &&
+    asOfRaw >= monthStart &&
+    asOfRaw <= monthEnd
+      ? asOfRaw
+      : monthEnd;
+
+  const db = createDb(c.env);
+  const scaleOptions = await loadMoneyScaleOptions(db);
+  const [today, total] = await computeBudgetSummaries(
+    db,
+    currency,
+    scaleOptions,
+    [
+      { yearMonth: ym, effectiveEnd },
+      { yearMonth: ym, effectiveEnd: monthEnd },
+    ],
+  );
+
+  return c.json({ today, total });
+});
+
 // GET /api/budget/history?from=YYYY-MM&to=YYYY-MM[&currency=JPY]
 router.get("/history", async (c) => {
   const from = c.req.query("from");

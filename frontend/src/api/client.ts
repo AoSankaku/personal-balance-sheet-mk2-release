@@ -22,6 +22,7 @@ import type {
   BudgetAllocation,
   UpsertBudgetAllocationInput,
   BudgetSummary,
+  BudgetSummaryPair,
   BudgetHistoryResponse,
   BudgetAdjustmentBatchInput,
   BudgetAdjustmentPreview,
@@ -93,7 +94,8 @@ import {
 import { showReloadPrompt } from "../lib/reloadPrompt";
 
 const BASE = "/api";
-const dedupeBudgetSummaryRequest = createInFlightRequestDeduper();
+const dedupeBudgetSummaryRequest = createInvalidatableInFlightRequestDeduper();
+const dedupeBudgetSummaryPairRequest = createInvalidatableInFlightRequestDeduper();
 const dedupeCachedRequest = createInFlightRequestDeduper();
 const dedupeTrialBalanceReads = createInvalidatableInFlightRequestDeduper();
 const sessionResponseCache = new Map<string, unknown>();
@@ -104,6 +106,8 @@ function placementPreviewKey(currency: string) {
 }
 const NETWORK_OFFLINE_ERROR = "network_offline";
 const CLOUDFLARE_ACCESS_SESSION_ERROR = "cloudflare_access_session_expired";
+let budgetMutationRevision = 0;
+let budgetMutationsInFlight = 0;
 
 export class ApiError extends Error {
   constructor(
@@ -158,6 +162,14 @@ async function apiFetch(input: RequestInfo | URL, init?: RequestInit) {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isMutation = !["GET", "HEAD"].includes((init?.method ?? "GET").toUpperCase());
+  const invalidatesBudgetSummary = isMutation && path !== "/task-settings";
+  if (invalidatesBudgetSummary) {
+    budgetMutationRevision++;
+    budgetMutationsInFlight++;
+    dedupeBudgetSummaryRequest.invalidate();
+    dedupeBudgetSummaryPairRequest.invalidate();
+    invalidateSessionCache((key) => key.startsWith("/budget/summary"));
+  }
   // Cover raw request mutations as well as mutationRequest: deferral, card
   // state, depreciation and admin operations can all affect the preview.
   // Task notification preferences do not change placement inputs.
@@ -170,7 +182,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // Invalidate even after an uncertain/failed write, and prevent reads made
     // during a write from being reused after it has finished.
     if (invalidatesPlacement) placementPreviewCache.invalidate();
-    if (isMutation) dedupeTrialBalanceReads.invalidate();
+    if (invalidatesBudgetSummary) {
+      budgetMutationsInFlight--;
+      budgetMutationRevision++;
+      dedupeBudgetSummaryRequest.invalidate();
+      dedupeBudgetSummaryPairRequest.invalidate();
+      dedupeTrialBalanceReads.invalidate();
+    }
   }
 }
 
@@ -592,7 +610,43 @@ export const api = {
       if (asOf) q.set("as_of", asOf);
       if (currency) q.set("currency", currency);
       const path = `/budget/summary?${q.toString()}`;
-      return dedupeBudgetSummaryRequest(path, () => cachedRequest<BudgetSummary>(path));
+      if (sessionResponseCache.has(path)) {
+        return Promise.resolve(sessionResponseCache.get(path) as BudgetSummary);
+      }
+      return dedupeBudgetSummaryRequest.dedupe(path, async () => {
+        const revision = budgetMutationRevision;
+        const result = await request<BudgetSummary>(path);
+        if (revision === budgetMutationRevision && budgetMutationsInFlight === 0) {
+          sessionResponseCache.set(path, result);
+        }
+        return result;
+      });
+    },
+    summaryPair: (yearMonth: string, asOf: string, currency?: string) => {
+      const query = new URLSearchParams({ year_month: yearMonth, as_of: asOf });
+      if (currency) query.set("currency", currency);
+      const path = `/budget/summary-pair?${query.toString()}`;
+      const todayQuery = new URLSearchParams({ year_month: yearMonth, as_of: asOf });
+      if (currency) todayQuery.set("currency", currency);
+      const todayPath = `/budget/summary?${todayQuery.toString()}`;
+      const totalQuery = new URLSearchParams({ year_month: yearMonth });
+      if (currency) totalQuery.set("currency", currency);
+      const totalPath = `/budget/summary?${totalQuery.toString()}`;
+      if (budgetMutationsInFlight === 0 && sessionResponseCache.has(todayPath) && sessionResponseCache.has(totalPath)) {
+        return Promise.resolve({
+          today: sessionResponseCache.get(todayPath) as BudgetSummary,
+          total: sessionResponseCache.get(totalPath) as BudgetSummary,
+        });
+      }
+      return dedupeBudgetSummaryPairRequest.dedupe(path, async () => {
+        const revision = budgetMutationRevision;
+        const pair = await request<BudgetSummaryPair>(path);
+        if (revision === budgetMutationRevision && budgetMutationsInFlight === 0) {
+          sessionResponseCache.set(todayPath, pair.today);
+          sessionResponseCache.set(totalPath, pair.total);
+        }
+        return pair;
+      });
     },
     history: (from: string, to: string, currency?: string) => {
       const q = new URLSearchParams({ from, to });
@@ -1109,6 +1163,13 @@ export const api = {
       }, ["/currencies"]),
   },
   __testing: {
-    clearSessionCache: () => { invalidateSessionCache(); placementPreviewCache.invalidate(); dedupeTrialBalanceReads.invalidate(); },
+    clearSessionCache: () => {
+      invalidateSessionCache();
+      placementPreviewCache.invalidate();
+      dedupeTrialBalanceReads.invalidate();
+      dedupeBudgetSummaryRequest.invalidate();
+      dedupeBudgetSummaryPairRequest.invalidate();
+      budgetMutationRevision++;
+    },
   },
 };

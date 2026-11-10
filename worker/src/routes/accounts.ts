@@ -53,32 +53,31 @@ router.get("/", async (c) => {
 
   // Fetch per-currency balances for all accounts in a single query
   const balanceResult = await db.run(sql`
-          SELECT
-            jl.account_id,
-            jl.currency,
-            CASE
-              WHEN a.type IN ('asset', 'expense')
-                THEN SUM(jl.debit) - SUM(jl.credit)
-              ELSE SUM(jl.credit) - SUM(jl.debit)
-            END AS balance
-          FROM journal_lines jl
-          JOIN journal_entries je ON jl.journal_entry_id = je.id
-          JOIN accounts a ON a.id = jl.account_id
-          WHERE je.date <= ${asOf}
-          GROUP BY jl.account_id, jl.currency
-        `);
+    SELECT
+      jl.account_id,
+      jl.currency,
+      SUM(jl.debit) - SUM(jl.credit) AS net
+    FROM journal_lines jl
+    JOIN journal_entries je ON jl.journal_entry_id = je.id
+    WHERE je.date <= ${asOf}
+    GROUP BY jl.account_id, jl.currency
+  `);
   const balanceRows = balanceResult.results as {
     account_id: number;
     currency: string;
-    balance: number;
+    net: number;
   }[];
 
   // Build per-account balances map: account_id → { currency: balance }
   const balancesMap = new Map<number, Record<string, number>>();
+  const accountTypes = new Map(rows.map((row) => [row.id, row.type]));
   for (const row of balanceRows) {
     const map = balancesMap.get(row.account_id) ?? {};
+    const isDebitNormal =
+      accountTypes.get(row.account_id) === "asset" ||
+      accountTypes.get(row.account_id) === "expense";
     map[row.currency] = fromStorageMoneyAmount(
-      Number(row.balance),
+      Number(row.net) * (isDebitNormal ? 1 : -1),
       row.currency,
       { decimalPlacesByCurrency },
     );

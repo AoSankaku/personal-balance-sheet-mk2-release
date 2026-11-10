@@ -114,6 +114,10 @@ export const journalLines = sqliteTable("journal_lines", {
     .default(sql`(datetime('now'))`),
 }, (table) => ({
   entryIdx: index("idx_journal_lines_entry").on(table.journal_entry_id),
+  entryCurrencyIdx: index("idx_journal_lines_entry_currency").on(
+    table.journal_entry_id,
+    table.currency,
+  ),
   accountEntryIdx: index("idx_journal_lines_account_entry").on(
     table.account_id,
     table.journal_entry_id,
@@ -403,6 +407,9 @@ export const budgetAdjustmentLogs = sqliteTable("budget_adjustment_logs", {
     .notNull()
     .default(sql`(datetime('now'))`),
 }, (table) => ({
+  journalEntryIdx: index("idx_budget_adjustment_logs_journal_entry").on(
+    table.journal_entry_id,
+  ),
   amountInteger: check(
     "chk_budget_adjustment_logs_amount_integer",
     sql`typeof(${table.amount}) = 'integer'`,
@@ -948,7 +955,11 @@ export const depreciationEntries = sqliteTable("depreciation_entries", {
   created_at: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
-});
+}, (table) => ({
+  journalEntryIdx: index("idx_depreciation_entries_journal_entry").on(
+    table.journal_entry_id,
+  ),
+}));
 
 export const depreciationBudgetReservations = sqliteTable(
   "depreciation_budget_reservations",
