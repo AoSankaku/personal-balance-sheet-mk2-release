@@ -67,6 +67,13 @@ hardReloadAccessMessage: Cloudflare Access が再ログインを要求してい�
 hardReloadVersionTitle: 新しいバージョンがあります
 hardReloadVersionMessage: 新しいバージョンがデプロイされています。「今すぐ再読み込み」を押して最新のアプリに更新してください。
 networkOfflineError: オフラインのようです。ネットワーク接続を確認して、もう一度お試しください。
+d1LimitTitle: データベースの利用上限に達しました
+d1DailyReadLimitMessage: D1の日次読み取り上限に達しました。日次上限がリセットされるまでデータベースへの問い合わせは利用できません。
+d1DailyWriteLimitMessage: D1の日次書き込み上限に達しました。日次上限がリセットされるまでデータベースへの問い合わせは利用できません。
+d1RequestLimitMessage: 1回の処理で実行できるデータベース操作の上限を超えました。対象を減らして再試行するか、管理者にお問い合わせください。
+d1LimitRetryAt: "日次上限のリセット予定時刻: {date}"
+d1LimitSaveWarning: 再読み込みや再ログインでは上限はリセットされません。保存が中断した場合は、再試行する前に登録結果を確認してください。
+d1LimitError: データベースの利用上限に達しました。詳細は画面の案内をご確認ください。
 offlineModeLabel: オフラインモード
 internalServerError: 内部サーバーエラー
 accountAdded: 勘定科目を追加しました

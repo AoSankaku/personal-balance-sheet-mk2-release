@@ -4,15 +4,28 @@ import { parse } from "yaml";
 import { api, ApiError } from "../src/api/client";
 import { isD1LimitErrorBody } from "../../shared/d1Limits";
 import {
-  clearD1LimitNotice, getD1LimitNoticeSnapshot, reportD1Limit, subscribeD1LimitNotice,
+  clearD1LimitNotice, getD1LimitErrorMessage, getD1LimitNoticeSnapshot, reportD1Limit, subscribeD1LimitNotice,
 } from "../src/lib/d1LimitNotice";
+import { tForLocale } from "../src/i18n/translate";
 import { getReloadPromptSnapshot, resetReloadPromptForTests, showReloadPrompt } from "../src/lib/reloadPrompt";
 
 const readLimit = { error: "d1_limit_exceeded", limit_type: "daily_read", retry_at: "2026-11-11T00:00:00.000Z" } as const;
 const originalFetch = globalThis.fetch;
+const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
 
-beforeEach(() => { clearD1LimitNotice(); resetReloadPromptForTests(); });
-afterEach(() => { globalThis.fetch = originalFetch; clearD1LimitNotice(); resetReloadPromptForTests(); });
+beforeEach(() => {
+  api.__testing.clearSessionCache();
+  clearD1LimitNotice();
+  resetReloadPromptForTests();
+});
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  api.__testing.clearSessionCache();
+  if (originalLocalStorageDescriptor) Object.defineProperty(globalThis, "localStorage", originalLocalStorageDescriptor);
+  else Reflect.deleteProperty(globalThis, "localStorage");
+  clearD1LimitNotice();
+  resetReloadPromptForTests();
+});
 
 describe("D1 limit contract and notice", () => {
   test("validates supported limits without accepting arbitrary 503 bodies", () => {
@@ -47,10 +60,24 @@ describe("API D1 limit detection", () => {
     let requests = 0;
     globalThis.fetch = (async () => { requests++; return Response.json(readLimit, { status: 503 }); }) as typeof fetch;
     await expect(api.accounts.create({ name: "Test", type: "asset", category: "cash" } as never)).rejects.toMatchObject({
-      name: "ApiError", message: "d1_limit_exceeded", status: 503, body: readLimit,
+      name: "ApiError", message: tForLocale("d1LimitError", "ja"), status: 503, body: readLimit,
     });
     expect(getD1LimitNoticeSnapshot()).toMatchObject(readLimit);
     expect(requests).toBe(1);
+  });
+
+  test("uses the stored locale and safely falls back to Japanese when storage is unavailable", async () => {
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { getItem: () => "en" },
+    });
+    expect(getD1LimitErrorMessage()).toBe(tForLocale("d1LimitError", "en"));
+
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      get() { throw new Error("storage unavailable"); },
+    });
+    expect(getD1LimitErrorMessage()).toBe(tForLocale("d1LimitError", "ja"));
   });
 
   test("handles a quota JSON response on a normally binary download", async () => {

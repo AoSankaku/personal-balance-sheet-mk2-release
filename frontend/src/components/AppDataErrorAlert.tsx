@@ -25,6 +25,9 @@ function formatErrorMessage(error: string, locale: Locale) {
   if (normalized === internalServerError) {
     return multilingual("internalServerError", locale);
   }
+  if (normalized === "d1_limit_exceeded") {
+    return multilingual("d1LimitError", locale);
+  }
   return error;
 }
 

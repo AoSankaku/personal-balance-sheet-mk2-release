@@ -25,12 +25,31 @@ import { creditCardStatementsRouter } from "./routes/creditCardStatements";
 import { taskSettingsRouter } from "./routes/taskSettings";
 import {
   databaseNotInitializedResponse,
+  d1LimitExceededResponse,
+  getD1LimitType,
   isMissingD1TableError,
 } from "./lib/d1Errors";
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.onError((error, c) => {
+  const d1LimitType = getD1LimitType(error);
+  if (d1LimitType) {
+    const now = new Date();
+    const body = d1LimitExceededResponse(d1LimitType, now);
+    c.header("Cache-Control", "no-store");
+
+    const response = c.json(body, 503);
+    if (body.retry_at) {
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((Date.parse(body.retry_at) - now.getTime()) / 1_000),
+      );
+      response.headers.set("Retry-After", String(retryAfterSeconds));
+    }
+    return response;
+  }
+
   if (isMissingD1TableError(error)) {
     return c.json(databaseNotInitializedResponse(), 503);
   }

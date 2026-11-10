@@ -23,6 +23,7 @@ import {
   enabledCurrencies,
 } from "../db/schema";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
+import { getD1LimitType } from "../lib/d1Errors";
 import type {
   BudgetCategory,
   BudgetHistoryResponse,
@@ -70,7 +71,7 @@ import {
   rescaleStorageMoneyAmount,
   toStorageMoneyAmount,
 } from "../lib/moneyValidation";
-import { accountsRouter } from "./accounts";
+import { listAccountsWithBalances } from "./accounts";
 import { sumBudgetResourceBalances } from "../../../shared/budgetScope";
 
 type D1QueryResult<T> = { results?: T[] };
@@ -385,14 +386,8 @@ async function buildBudgetAdjustmentPreview(
       reset_group_key: null,
     }));
 
-  const accountsResponse = await accountsRouter.request(
-    `/?as_of=${encodeURIComponent(input.date)}`,
-    {},
-    env,
-  );
-  if (!accountsResponse.ok) throw new Error("budget_adjustment_accounts_unavailable");
   const resourceBalance = sumBudgetResourceBalances(
-    await accountsResponse.json() as Parameters<typeof sumBudgetResourceBalances>[0],
+    await listAccountsWithBalances(env, input.date) as Parameters<typeof sumBudgetResourceBalances>[0],
     input.currency,
   );
   const [before, after] = await Promise.all([
@@ -1191,6 +1186,7 @@ router.patch("/allocations", async (c) => {
   let results;
   try { results = await c.env.DB.batch(statements); }
   catch (error) {
+    if (getD1LimitType(error)) throw error;
     if (String(error).includes("depreciation_budget") || String(error).includes("stale")) return c.json({error:"depreciation_preview_stale"},409);
     throw error;
   }

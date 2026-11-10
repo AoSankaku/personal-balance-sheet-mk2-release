@@ -67,6 +67,13 @@ hardReloadAccessMessage: Cloudflare Access is asking you to sign in again. Hard 
 hardReloadVersionTitle: New version available
 hardReloadVersionMessage: A newer version has been deployed. Select Reload now to update to the latest app.
 networkOfflineError: You appear to be offline. Check your network connection and try again.
+d1LimitTitle: Database request limit reached
+d1DailyReadLimitMessage: The D1 daily read limit has been reached. Database queries are unavailable until the daily limit resets.
+d1DailyWriteLimitMessage: The D1 daily write limit has been reached. Database queries are unavailable until the daily limit resets.
+d1RequestLimitMessage: This action exceeded the database request limit for a single operation. Try handling fewer items at once, or contact your administrator.
+d1LimitRetryAt: The daily limit resets around {date}.
+d1LimitSaveWarning: Reloading or signing in again will not reset the limit. If a save was interrupted, check its result before trying again.
+d1LimitError: The database usage limit has been reached. See the notice for details.
 offlineModeLabel: Offline mode
 internalServerError: Internal Server Error
 accountAdded: Account added

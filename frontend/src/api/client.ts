@@ -92,6 +92,8 @@ import {
   isLikelyCloudflareAccessResponse,
 } from "../lib/appVersion";
 import { showReloadPrompt } from "../lib/reloadPrompt";
+import { isD1LimitErrorBody } from "../../../shared/d1Limits";
+import { getD1LimitErrorMessage, reportD1Limit } from "../lib/d1LimitNotice";
 
 const BASE = "/api";
 const dedupeBudgetSummaryRequest = createInvalidatableInFlightRequestDeduper();
@@ -153,6 +155,27 @@ async function apiFetch(input: RequestInfo | URL, init?: RequestInit) {
       showReloadPrompt({ reason: "cloudflare-access-session" });
       throw createCloudflareAccessSessionError();
     }
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (
+      !response.ok &&
+      (response.status === 429 || response.status === 503) &&
+      contentType.toLowerCase().includes("application/json")
+    ) {
+      const body: unknown = await response
+        .clone()
+        .json()
+        .catch(() => null);
+      if (isD1LimitErrorBody(body)) {
+        reportD1Limit(body);
+        throw new ApiError(getD1LimitErrorMessage(), response.status, {
+          error: body.error,
+          limit_type: body.limit_type,
+          retry_at: body.retry_at,
+        });
+      }
+    }
+
     return response;
   } catch (error) {
     if (isLikelyNetworkFailure(error)) throw createOfflineApiError();

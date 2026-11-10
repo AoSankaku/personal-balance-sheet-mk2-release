@@ -2,6 +2,7 @@ import { count, eq, like, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { createDb, type Env } from "../db";
 import { exportD1ToSQLite } from "../lib/exportSqlite";
+import { getD1LimitType } from "../lib/d1Errors";
 import { prepareMutation } from "../lib/d1Mutation";
 import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
 import { buildJournalHistoryStatements } from "../lib/journalHistory";
@@ -193,6 +194,7 @@ router.post("/erase", async (c) => {
 
     return c.json({ ok: true, scope });
   } catch (error) {
+    if (getD1LimitType(error)) throw error;
     return c.json(
       {
         error: "erase_failed",

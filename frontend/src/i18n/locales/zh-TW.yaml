@@ -67,6 +67,13 @@ hardReloadAccessMessage: Cloudflare Access 要求你重新登入。請強制重�
 hardReloadVersionTitle: 有新版本可用
 hardReloadVersionMessage: 已部署新版本。請選擇「立即重新載入」以更新至最新應用程式。
 networkOfflineError: 你似乎處於離線狀態。請檢查網路連線後再試一次。
+d1LimitTitle: 已達到資料庫要求上限
+d1DailyReadLimitMessage: 已達到 D1 每日讀取上限。上限重設前，資料庫查詢暫時無法使用。
+d1DailyWriteLimitMessage: 已達到 D1 每日寫入上限。上限重設前，資料庫查詢暫時無法使用。
+d1RequestLimitMessage: 此操作已超過資料庫單次要求數量上限。請減少每次處理的項目數量，或聯絡管理員。
+d1LimitRetryAt: 每日上限預計於 {date} 重設。
+d1LimitSaveWarning: 重新載入或重新登入不會重設上限。如果儲存中斷，請先確認儲存結果再重試。
+d1LimitError: 已達到資料庫使用上限。詳情請查看頁面提示。
 offlineModeLabel: 離線模式
 internalServerError: 伺服器內部錯誤
 accountAdded: 帳戶已新增

@@ -25,10 +25,10 @@ const router = new Hono<{ Bindings: Env }>();
 // Balance sign: debit-normal types (asset, expense)               → SUM(debit)-SUM(credit)
 //               credit-normal types (liability, equity, income)   → SUM(credit)-SUM(debit)
 // When as_of is provided, only journal entries on or before that date are included.
-router.get("/", async (c) => {
-  const db = createDb(c.env);
+export async function listAccountsWithBalances(env: Env, asOfDate?: string) {
+  const db = createDb(env);
   const decimalPlacesByCurrency = await loadCurrencyDecimalPlaces(db);
-  const asOf = resolveAsOfDate(c.req.query("as_of"));
+  const asOf = resolveAsOfDate(asOfDate);
 
   const rows = await db
     .select({
@@ -114,24 +114,26 @@ router.get("/", async (c) => {
     }
   }
 
-  return c.json(
-    rows.map((r) => {
-      const balances = balancesMap.get(r.id) ?? {};
-      const balance = Object.values(balances).reduce((s, v) => s + v, 0);
-      return {
-        ...r,
-        payday: r.payday ?? null,
-        is_depreciable: r.is_depreciable === 1,
-        include_in_allocatable: r.include_in_allocatable === 1,
-        deduct_from_budget: r.deduct_from_budget === 1,
-        is_system: r.is_system === 1,
-        is_completed: r.completion_id != null,
-        balance,
-        balances,
-        budget_ratios: budgetRatiosMap[r.id] ?? [],
-      };
-    }),
-  );
+  return rows.map((r) => {
+    const balances = balancesMap.get(r.id) ?? {};
+    const balance = Object.values(balances).reduce((s, v) => s + v, 0);
+    return {
+      ...r,
+      payday: r.payday ?? null,
+      is_depreciable: r.is_depreciable === 1,
+      include_in_allocatable: r.include_in_allocatable === 1,
+      deduct_from_budget: r.deduct_from_budget === 1,
+      is_system: r.is_system === 1,
+      is_completed: r.completion_id != null,
+      balance,
+      balances,
+      budget_ratios: budgetRatiosMap[r.id] ?? [],
+    };
+  });
+}
+
+router.get("/", async (c) => {
+  return c.json(await listAccountsWithBalances(c.env, c.req.query("as_of")));
 });
 
 // POST /api/accounts — create account

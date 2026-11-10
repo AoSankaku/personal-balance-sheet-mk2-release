@@ -1,4 +1,5 @@
 import { enabledCurrencies } from "../db/schema";
+import { getD1LimitType } from "./d1Errors";
 
 export type CurrencyDecimalPlacesMap = Record<string, number>;
 
@@ -25,7 +26,8 @@ export async function loadCurrencyDecimalPlaces(
     return Object.fromEntries(
       rows.map((row) => [row.code.toUpperCase(), row.decimal_places]),
     );
-  } catch {
+  } catch (error) {
+    if (getD1LimitType(error)) throw error;
     return {};
   }
 }
