@@ -343,21 +343,20 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
     const pending = (async () => {
       try {
-        const [accs, summaryToday, summaryTotal] = await Promise.all([
+        const [accs, budgetSummaryPair] = await Promise.all([
           api.accounts.list(today),
-          api.budget.summary(ym, today, currency),
-          api.budget.summary(ym, undefined, currency),
+          api.budget.summaryPair(ym, today, currency),
         ]);
         setAccountsToday(accs);
-        setBudgetSummaryToday(summaryToday);
-        setBudgetSummaryTotal(summaryTotal);
+        setBudgetSummaryToday(budgetSummaryPair.today);
+        setBudgetSummaryTotal(budgetSummaryPair.total);
         if (ym === today.slice(0, 7)) {
           updateOfflineAppCache({
             accounts: accs,
             todayBudget: {
               asOf: today,
               capturedAt: new Date().toISOString(),
-              summary: summaryToday,
+              summary: budgetSummaryPair.today,
             },
           });
         }
@@ -553,13 +552,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     try {
       const ym = currentYearMonthRef.current;
       const currency = displayCurrencyRef.current;
-      const [cats, summary, filters] = await Promise.all([
+      const [cats, pair, filters] = await Promise.all([
         api.budget.listCategories(),
-        api.budget.summary(ym, undefined, currency),
+        api.budget.summaryPair(ym, toDateStr(new Date()), currency),
         api.budget.listFilters(),
       ]);
       setBudgetCategories(cats);
-      setBudgetSummary(summary);
+      setBudgetSummary(pair.total);
+      setBudgetSummaryToday(pair.today);
+      setBudgetSummaryTotal(pair.total);
       setBudgetFilters(filters);
       updateOfflineAppCache({
         budgetCategories: cats,
@@ -576,12 +577,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     if (!isInitialSetupComplete) return;
     if (!shouldRefreshMonthScopedData(pathname)) return;
     void api.budget
-      .summary(
+      .summaryPair(
         currentYearMonthRef.current,
-        undefined,
+        toDateStr(new Date()),
         displayCurrencyRef.current,
       )
-      .then(setBudgetSummary)
+      .then(({ total }) => setBudgetSummary(total))
       .catch(() => {});
   }, [currentYearMonth, displayCurrency, isInitialSetupComplete, pathname]);
 
@@ -670,9 +671,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       void refreshAllocatable();
       // Also refresh budget summary
       try {
-        const summary = await api.budget.summary(
+        const { total: summary } = await api.budget.summaryPair(
           currentYearMonthRef.current,
-          undefined,
+          toDateStr(new Date()),
           displayCurrencyRef.current,
         );
         setBudgetSummary(summary);

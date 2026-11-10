@@ -99,14 +99,14 @@ describe("budget adjustment batch API", () => {
     expect(harness.sqlite.query("SELECT COUNT(*) AS n FROM budget_adjustment_logs").get<{ n: number }>()!.n).toBe(initialCount);
 
     const saved = await request(harness, "/allocations/batch", {
-      ...previewBody("2026-01-31", "JPY", adjustments, "Trip"),
+      ...previewBody("2026-01-31", "JPY", adjustments, "Revised memo"),
       preview_token: preview.token,
     });
     expect(saved.status).toBe(200);
     const result = await saved.json() as { logs: { budget_category_id: number; amount: number; note: string | null; date: string; created_at: string }[] };
     expect(result.logs.map(({ budget_category_id, amount, note, date }) => ({ budget_category_id, amount, note, date }))).toEqual([
-      { budget_category_id: a, amount: -10_000, note: "Trip", date: "2026-01-31" },
-      { budget_category_id: b, amount: 8_000, note: "Trip", date: "2026-01-31" },
+      { budget_category_id: a, amount: -10_000, note: "Revised memo", date: "2026-01-31" },
+      { budget_category_id: b, amount: 8_000, note: "Revised memo", date: "2026-01-31" },
     ]);
     expect(result.logs[0]!.created_at).toBe(result.logs[1]!.created_at);
     expect(harness.sqlite.query("SELECT COUNT(*) AS n FROM budget_adjustment_logs").get<{ n: number }>()!.n).toBe(initialCount + 2);

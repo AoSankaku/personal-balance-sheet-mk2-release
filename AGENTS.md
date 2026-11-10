@@ -11,6 +11,25 @@ export PATH="$HOME/.bun/bin:$PATH" && bun ...
 
 ## Dev Commands
 
+### Database read-volume checks
+
+Changes to DB reads, refresh flows, or schema indexes must verify both result
+correctness and read volume. Run `cd worker && bun run test:db-reads` for affected
+budget, journal lookup, or account balance paths. This uses synthetic data and an
+isolated, nonpersistent local D1 runtime; it must never query the real local or
+production database.
+
+Track `meta.rows_read` alongside executed query counts. Keep selective lookups
+bounded as unrelated data grows, and compare complete results before and after
+optimization. Execution time and returned row count do not substitute for rows
+read. When adding read-heavy behavior, extend the relevant read-volume regression
+test. Record representative fixture sizes and measured counts in verification
+notes. Remote measurements are optional read-only follow-up, not routine tests.
+
+For budget adjustment previews, include note-only edits (zero preview requests
+and DB reads), repeated amount edits (bounded reads without repeated history
+scans), revision-change refresh, and fresh save-time integrity verification.
+
 Run from within each workspace directly — root-level scripts do not work:
 ```bash
 cd frontend && bun run dev     # Vite dev server → http://localhost:5173
@@ -134,6 +153,7 @@ Loan and lending principal uses explicit `budget_funding_allocations`, separate 
 | `/api/budget/allocations` | `budget.ts` | POST (upsert), PATCH (delta adhoc/reset/comment) |
 | `/api/budget/adjustment-logs` | `budget.ts` | GET, PATCH :id, DELETE :id |
 | `/api/budget/summary` | `budget.ts` | GET ?year_month=YYYY-MM[&as_of=YYYY-MM-DD] |
+| `/api/budget/summary-pair` | `budget.ts` | GET ?year_month=YYYY-MM&as_of=YYYY-MM-DD[&currency=JPY], returns today/total using shared reads |
 | `/api/budget/filters` | `budget.ts` | GET, POST, PATCH :id, DELETE :id, POST :id/copy, POST :id/apply |
 
 Account deletion safety: `DELETE /api/accounts/:id` returns 409 `{error:'in_use', journal_line_count, crypto_wallet_count}`. `POST /api/accounts/:id/replace` atomically reassigns all journal_lines then deletes via `db.batch()`.
