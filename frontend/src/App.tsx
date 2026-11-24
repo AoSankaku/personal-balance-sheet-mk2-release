@@ -6,6 +6,7 @@ import { TopNav } from "./components/TopNav";
 import { BottomNav } from "./components/BottomNav";
 import { FeedbackHost } from "./components/FeedbackHost";
 import { HardReloadPrompt } from "./components/HardReloadPrompt";
+import { D1LimitAlert } from "./components/D1LimitAlert";
 import { PageTitle } from "./components/PageTitle";
 import { useAppData } from "./context/AppDataContext";
 import { useVersionUpdateMonitor } from "./hooks/useVersionUpdateMonitor";
@@ -95,6 +96,7 @@ export default function App() {
         <PageTitle overrideTitleKey={overrideTitleKey} />
         <FeedbackHost />
         <HardReloadPrompt />
+        <D1LimitAlert />
         <DatesProvider
           settings={{ firstDayOfWeek: calendarWeekStart, locale }}
         >

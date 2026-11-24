@@ -2,7 +2,7 @@ import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type { BudgetPlacementReconciliation, IncomeTransferRequirement } from "@balance-sheet/shared";
 import { generateBudgetPlacementPlan } from "../../../shared/budgetPlacement";
 import { isAfterBudgetResetPoint } from "./budgetSummary";
-import { accountsRouter } from "../routes/accounts";
+import { listAccountsWithBalances } from "../routes/accounts";
 import { computeBudgetSummaryForDate } from "../routes/budget";
 import { createDb, type Env } from "../db";
 import { budgetAdjustmentLogs, budgetCategoryAccountTargets, incomeTransferRequirements, journalEntries, journalEntryBudgetAllocations, journalLines } from "../db/schema";
@@ -41,8 +41,8 @@ function requirementSnapshot(rows: RequirementRow[]) {
 async function getSnapshot(db: ReturnType<typeof createDb>, env: Env, currency: string) {
   const asOf = toLocalDateString();
   const initialRevision = await readBudgetMutationRevision(env.DB);
-  const [accountsResponse, summary, rows, targetRows, decimalPlacesByCurrency] = await Promise.all([
-    accountsRouter.request(`/?as_of=${asOf}`, {}, env),
+  const [accountRows, summary, rows, targetRows, decimalPlacesByCurrency] = await Promise.all([
+    listAccountsWithBalances(env, asOf),
     computeBudgetSummaryForDate(db, asOf, currency),
     db.select({ id: incomeTransferRequirements.id, source_income_journal_entry_id: incomeTransferRequirements.source_income_journal_entry_id, budget_category_id: incomeTransferRequirements.budget_category_id, budget_category_name: incomeTransferRequirements.budget_category_name, from_account_id: incomeTransferRequirements.from_account_id, to_account_id: incomeTransferRequirements.to_account_id, amount: incomeTransferRequirements.amount, currency: incomeTransferRequirements.currency, transfer_journal_entry_id: incomeTransferRequirements.transfer_journal_entry_id, completion_source: incomeTransferRequirements.completion_source, is_deferred: incomeTransferRequirements.is_deferred, created_at: incomeTransferRequirements.created_at, completed_at: incomeTransferRequirements.completed_at, source_income_date: journalEntries.date, source_income_description: journalEntries.description })
       .from(incomeTransferRequirements).innerJoin(journalEntries, eq(incomeTransferRequirements.source_income_journal_entry_id, journalEntries.id))
@@ -55,8 +55,6 @@ async function getSnapshot(db: ReturnType<typeof createDb>, env: Env, currency: 
     }).from(budgetCategoryAccountTargets).orderBy(budgetCategoryAccountTargets.budget_category_id, budgetCategoryAccountTargets.account_id),
     loadCurrencyDecimalPlaces(db),
   ]);
-  if (accountsResponse.status !== 200) throw new Error("budget_placement_accounts_unavailable");
-  const accountRows = await accountsResponse.json() as Array<{ id: number; name: string; type: string; category: string; balances?: Record<string, number>; balance?: number | null; include_in_allocatable: boolean; is_depreciable: boolean; deduct_from_budget: boolean }>;
   const currencyScale = decimalPlacesByCurrency[currency] ?? 0;
   const summaries = summary.categories.map(item => ({ ...item, category: { ...item.category, target_accounts: targetRows.filter(target => target.budget_category_id === item.category.id).map(target => ({ account_id: target.account_id, ratio: target.ratio })) } }));
   const plan = generateBudgetPlacementPlan({ accounts: accountRows, categorySummaries: summaries, currency, decimalPlaces: currencyScale });

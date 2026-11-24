@@ -23,6 +23,7 @@ import {
   enabledCurrencies,
 } from "../db/schema";
 import { loadCurrencyDecimalPlaces } from "../lib/currencyPrecision";
+import { getD1LimitType } from "../lib/d1Errors";
 import type {
   BudgetCategory,
   BudgetHistoryResponse,
@@ -70,7 +71,7 @@ import {
   rescaleStorageMoneyAmount,
   toStorageMoneyAmount,
 } from "../lib/moneyValidation";
-import { accountsRouter } from "./accounts";
+import { listAccountsWithBalances } from "./accounts";
 import { sumBudgetResourceBalances } from "../../../shared/budgetScope";
 
 type D1QueryResult<T> = { results?: T[] };
@@ -385,14 +386,8 @@ async function buildBudgetAdjustmentPreview(
       reset_group_key: null,
     }));
 
-  const accountsResponse = await accountsRouter.request(
-    `/?as_of=${encodeURIComponent(input.date)}`,
-    {},
-    env,
-  );
-  if (!accountsResponse.ok) throw new Error("budget_adjustment_accounts_unavailable");
   const resourceBalance = sumBudgetResourceBalances(
-    await accountsResponse.json() as Parameters<typeof sumBudgetResourceBalances>[0],
+    await listAccountsWithBalances(env, input.date) as Parameters<typeof sumBudgetResourceBalances>[0],
     input.currency,
   );
   const [before, after] = await Promise.all([
@@ -1191,6 +1186,7 @@ router.patch("/allocations", async (c) => {
   let results;
   try { results = await c.env.DB.batch(statements); }
   catch (error) {
+    if (getD1LimitType(error)) throw error;
     if (String(error).includes("depreciation_budget") || String(error).includes("stale")) return c.json({error:"depreciation_preview_stale"},409);
     throw error;
   }
@@ -1995,6 +1991,39 @@ export interface BudgetSummaryOverrides {
   through?: {date: string; created_at: string};
 }
 
+export function loadBudgetFundingHistory(
+  db: ReturnType<typeof createDb>,
+  currency: string,
+  endDate: string,
+) {
+  // Scan funding rows once. Looking up the oldest month separately would
+  // repeat the funding/entry join, even for an empty reporting period.
+  return db
+    .select({
+      journal_entry_id: budgetFundingAllocations.journal_entry_id,
+      budget_category_id: budgetFundingAllocations.budget_category_id,
+      kind: budgetFundingAllocations.kind,
+      effect: budgetFundingAllocations.effect,
+      amount: budgetFundingAllocations.amount,
+      date: journalEntries.date,
+      created_at: budgetFundingAllocations.created_at,
+      source_date: sourceFundingEntries.date,
+      source_created_at: sourceFundingEntries.created_at,
+    })
+    .from(budgetFundingAllocations)
+    .crossJoin(journalEntries)
+    .leftJoin(
+      sourceFundingEntries,
+      eq(budgetFundingAllocations.source_journal_entry_id, sourceFundingEntries.id),
+    )
+    .where(and(
+      eq(budgetFundingAllocations.journal_entry_id, journalEntries.id),
+      eq(budgetFundingAllocations.currency, currency),
+      sql`${journalEntries.date} <= ${endDate}`,
+    ))
+    .orderBy(journalEntries.date, journalEntries.id, budgetFundingAllocations.id);
+}
+
 export async function computeBudgetSummaries(
   db: ReturnType<typeof createDb>,
   currency: string,
@@ -2014,7 +2043,7 @@ export async function computeBudgetSummaries(
     targetRows,
     oldestBudgetLog,
     oldestEntryAlloc,
-    oldestFunding,
+    fundingRows,
     depreciationCategoryRows,
   ] =
     await Promise.all([
@@ -2040,16 +2069,7 @@ export async function computeBudgetSummaries(
           eq(journalEntryBudgetAllocations.journal_entry_id, journalEntries.id),
         )
         .where(eq(journalEntryBudgetAllocations.currency, currency)),
-      db
-        .select({
-          min_ym: sql<string>`MIN(substr(${journalEntries.date}, 1, 7))`,
-        })
-        .from(budgetFundingAllocations)
-        .innerJoin(
-          journalEntries,
-          eq(budgetFundingAllocations.journal_entry_id, journalEntries.id),
-        )
-        .where(eq(budgetFundingAllocations.currency, currency)),
+      loadBudgetFundingHistory(db, currency, monthEndDate(lastTargetYm)),
       db.selectDistinct({id:budgetAdjustmentLogs.budget_category_id}).from(budgetAdjustmentLogs)
         .where(sql`${budgetAdjustmentLogs.depreciation_schedule_id} IS NOT NULL`),
     ]);
@@ -2061,7 +2081,8 @@ export async function computeBudgetSummaries(
   const oldestYm = [
     oldestBudgetLog[0]?.min_ym,
     oldestEntryAlloc[0]?.min_ym,
-    oldestFunding[0]?.min_ym,
+    // Rows beyond the end month cannot move the calculation start earlier.
+    fundingRows[0]?.date.slice(0, 7),
     ...overrides.adjustmentLogs?.map(row => row.year_month) ?? [],
   ]
     .filter((value): value is string => Boolean(value))
@@ -2113,45 +2134,13 @@ export async function computeBudgetSummaries(
     amount: fromStorageMoneyAmount(row.amount, currency, scaleOptions),
   }));
 
-  const fundingRows =
-    allMonths.length > 0
-      ? await db
-          .select({
-            journal_entry_id: budgetFundingAllocations.journal_entry_id,
-            budget_category_id:
-              budgetFundingAllocations.budget_category_id,
-            kind: budgetFundingAllocations.kind,
-            effect: budgetFundingAllocations.effect,
-            amount: budgetFundingAllocations.amount,
-            date: journalEntries.date,
-            created_at: budgetFundingAllocations.created_at,
-            source_date: sourceFundingEntries.date,
-            source_created_at: sourceFundingEntries.created_at,
-          })
-          .from(budgetFundingAllocations)
-          .innerJoin(
-            journalEntries,
-            eq(budgetFundingAllocations.journal_entry_id, journalEntries.id),
-          )
-          .leftJoin(
-            sourceFundingEntries,
-            eq(
-              budgetFundingAllocations.source_journal_entry_id,
-              sourceFundingEntries.id,
-            ),
-          )
-          .where(
-            and(
-              eq(budgetFundingAllocations.currency, currency),
-              sql`${journalEntries.date} >= ${calculationStartYm + "-01"}`,
-              sql`${journalEntries.date} <= ${monthEndDate(lastTargetYm)}`,
-            ),
-          )
-      : [];
-  const decodedFundingRows = fundingRows.filter(isVisible).map((row) => ({
-    ...row,
-    amount: fromStorageMoneyAmount(row.amount, currency, scaleOptions),
-  }));
+  const fundingStartDate = `${calculationStartYm}-01`;
+  const decodedFundingRows = fundingRows
+    .filter((row) => row.date >= fundingStartDate && isVisible(row))
+    .map((row) => ({
+      ...row,
+      amount: fromStorageMoneyAmount(row.amount, currency, scaleOptions),
+    }));
 
   const depreciationReservationRows =
     allMonths.length > 0

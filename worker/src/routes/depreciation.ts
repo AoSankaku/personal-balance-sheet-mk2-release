@@ -16,6 +16,7 @@ import { toLocalDateString } from "../lib/appDate";
 import { chunkForD1InClause } from "../lib/d1Query";
 import { buildJournalHistoryStatements } from "../lib/journalHistory";
 import { createRequestScopedD1ReadMemo } from "../lib/d1ReadMemo";
+import { getD1LimitType } from "../lib/d1Errors";
 import { prepareMutation, readBudgetMutationRevision, runBudgetGuardedBatch } from "../lib/d1Mutation";
 import { journalBalanceError } from "../lib/journalValidation";
 import {
@@ -967,6 +968,7 @@ async function createConfiguredDepreciation(c: RouteContext, body: DepreciationC
   try {
     await c.env.DB.batch(statements);
   } catch (error) {
+    if (getD1LimitType(error)) throw error;
     const sameRequest = await db.select().from(depreciationSchedules)
       .where(eq(depreciationSchedules.budget_idempotency_key, body.idempotency_key));
     if (sameRequest[0]) {

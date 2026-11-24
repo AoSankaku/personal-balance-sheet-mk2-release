@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { createDb, type Env } from "../db";
+import { getD1LimitType } from "../lib/d1Errors";
 import { accounts, cryptoWallets, exchangeCredentials } from "../db/schema";
 
 const router = new Hono<{ Bindings: Env }>();
@@ -310,7 +311,8 @@ router.get("/balance", async (c) => {
     }
 
     return c.json({ error: "Unsupported chain" }, 400);
-  } catch {
+  } catch (error) {
+    if (getD1LimitType(error)) throw error;
     return c.json({ error: "Failed to fetch balance" }, 502);
   }
 });

@@ -1,6 +1,7 @@
 import { journalBalanceError } from "../lib/journalValidation";
 import { normalizeJournalBudgetScope } from "../lib/journalBudgetScope";
 import { buildActualBalanceAdjustmentRefreshStatements } from "../lib/actualBalanceAdjustments";
+import { getD1LimitType } from "../lib/d1Errors";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { Hono } from "hono";
@@ -1744,6 +1745,7 @@ router.post("/:id/complete-with-journal", async (c) => {
   try {
     await c.env.DB.batch([...(statements), ...buildActualBalanceAdjustmentRefreshStatements(c.env.DB)]);
   } catch (error) {
+    if (getD1LimitType(error)) throw error;
     const [existing] = await db
       .select()
       .from(plannedExpenseCompletionRequests)

@@ -28,6 +28,9 @@ environment may need permission to start workerd and bind a loopback socket.
 | Journal adjustment logs | Every 50-entry chunk returns 50 matching logs | At most 1,900 reads across 12 chunks, below 35% of unindexed scan cost |
 | Depreciation links | Correct 3 matches out of 300 links | At most 12 reads |
 | Account balances | Actual route agrees with the previous aggregate | Entire route reads less than 80% of the old aggregate alone |
+| Journal tag amounts | Automatic totals include refunds and currency precision, manual values take precedence, and line JSON retains its public shape | Journal list issues no separate tag-line query and stays below the fixture's row budget |
+| P&L | Full-period and dated API totals retain their values, and the P&L screen retains its tag-filtered totals | The headless screen test asserts zero requests to the all-period report endpoint |
+| Funding history | One read matches the legacy earliest-month lookup and history rows across 15 cases. Summary retains earlier funding and applies settlement on its date | No row-read increase on the matrix, with lower ceilings for wide sparse and dense ranges |
 
 The baseline fixture has 600 balanced two-line expense entries (1,200 lines),
 600 budget allocations, 600 linked adjustment logs, and 300 depreciation links.
@@ -71,3 +74,36 @@ discovery were resolved before acceptance.
 The new `0024_read_query_indexes.sql` is append-only. Production application of
 the migration still requires the project's full snapshot and restoration gate.
 These tests do not apply any production migration or deploy an application.
+
+## Verified on 2026-11-25
+
+The isolated D1 suite passed ten tests. Journal listing read 12,639 rows for
+600 entries, including automatic amounts with a JPY refund and a USD expense,
+and a manual override. The removed tag-line query read 3,607 rows when executed
+separately with the same IDs. The P&L API read 7,200 rows for an unrestricted
+report on the fixture. The confirmed headless P&L test kept the chart values and
+tag filtering and observed zero report requests during page load and interaction.
+
+The funding query scans allocation rows and looks up their journal dates once.
+The earliest matching date in the result also supplies the start month. The
+matrix compares both legacy reads combined against the query used by the budget
+summary. It covers dates before the first allocation, one month and two years
+of history, JPY and USD, a currency with no funding, and sparse and dense funding.
+
+| Funding fixture and range | Before rows read | After rows read |
+| --- | ---: | ---: |
+| 300 entries with sparse funding, JPY one month | 144 | 16 |
+| 3,600 entries with sparse funding, JPY one month | 252 | 124 |
+| 3,600 entries with sparse funding, JPY two years | 3,182 | 189 |
+| 3,600 entries with dense funding, JPY one month | 6,735 | 6,455 |
+| 3,600 entries with dense funding, JPY two years | 16,535 | 9,955 |
+| 3,600 entries with dense funding, USD two years | 13,273 | 5,231 |
+| 3,600 entries with dense funding, JPY before the first allocation | 6,301 | 6,301 |
+
+All 15 cases returned equivalent history and start months. The summary route
+also verified USD carryover from an older borrowing, a same-month settlement
+cutoff, and exclusion of future borrowing. Existing targeted tests cover resets,
+depreciation funding, adjustment previews and saves.
+
+The headless check is `node frontend/tests/plExpenseTags.browser.mjs <playwright-package-path> <vite-base-url>`.
+It intercepts the app's API requests and returns synthetic responses.

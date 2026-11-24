@@ -67,6 +67,13 @@ hardReloadAccessMessage: "Cloudflare Access te pide que inicies sesión de nuevo
 hardReloadVersionTitle: "Nueva versión disponible"
 hardReloadVersionMessage: "Se ha implementado una nueva versión. Selecciona Recargar ahora para actualizar la aplicación."
 networkOfflineError: "Parece que no tienes conexión. Comprueba tu conexión de red e inténtalo de nuevo."
+d1LimitTitle: Se alcanzó el límite de solicitudes de la base de datos
+d1DailyReadLimitMessage: Se alcanzó el límite diario de lecturas de D1. Las consultas a la base de datos no estarán disponibles hasta que se restablezca el límite.
+d1DailyWriteLimitMessage: Se alcanzó el límite diario de escrituras de D1. Las consultas a la base de datos no estarán disponibles hasta que se restablezca el límite.
+d1RequestLimitMessage: Esta operación superó el límite de solicitudes de la base de datos. Procesa menos elementos a la vez o contacta con tu administrador.
+d1LimitRetryAt: El límite diario se restablecerá aproximadamente a las {date}.
+d1LimitSaveWarning: Recargar o iniciar sesión de nuevo no restablece el límite. Si se interrumpió un guardado, comprueba el resultado antes de volver a intentarlo.
+d1LimitError: Se alcanzó el límite de uso de la base de datos. Consulta el aviso para ver más detalles.
 offlineModeLabel: Modo sin conexión
 internalServerError: "Error Interno del Servidor"
 accountAdded: "Cuenta agregada"

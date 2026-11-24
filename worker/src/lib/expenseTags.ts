@@ -141,13 +141,18 @@ export function buildExpenseTagUpdateStatements(
 
 type RawTag = { journal_entry_id: number; id: number; name: string };
 type RawAmount = { journal_entry_id: number; currency: string; amount: number };
-type RawLine = {
+type ExpenseTagAccountType = "asset" | "liability" | "equity" | "income" | "expense";
+
+export type RawExpenseTagLine = {
   journal_entry_id: number;
   account_id: number;
-  account_type: "asset" | "liability" | "equity" | "income" | "expense";
+  account_type: ExpenseTagAccountType;
   debit: number;
   credit: number;
   currency: string;
+};
+type PreloadedExpenseTagLine = Omit<RawExpenseTagLine, "account_type"> & {
+  account_type: ExpenseTagAccountType | null;
 };
 function chunkIds(ids: number[], size = 5000): number[][] {
   const chunks: number[][] = [];
@@ -160,6 +165,7 @@ export async function loadExpenseTagMetadata(
   DB: D1Database,
   entryIds: number[],
   decimalPlacesByCurrency: Record<string, number>,
+  preloadedLines?: readonly PreloadedExpenseTagLine[],
 ): Promise<Map<number, ExpenseTagMetadata>> {
   const uniqueIds = [...new Set(entryIds)];
   const metadata = new Map<number, ExpenseTagMetadata>(uniqueIds.map((id) => [id, {
@@ -169,9 +175,22 @@ export async function loadExpenseTagMetadata(
 
   const tags: RawTag[] = [];
   const amounts: RawAmount[] = [];
-  const lines: RawLine[] = [];
+  // Callers that already loaded the entry lines can reuse them here. The list
+  // route uses a LEFT JOIN for display, while the previous tag query used an
+  // INNER JOIN, so keep orphaned lines out of automatic tag calculations.
+  const lines: RawExpenseTagLine[] = preloadedLines
+    ? preloadedLines.filter((line): line is RawExpenseTagLine => line.account_type !== null)
+    : [];
   for (const chunk of chunkIds(uniqueIds)) {
     const serializedIds = JSON.stringify(chunk);
+    const lineRowsPromise = preloadedLines
+      ? Promise.resolve({ results: [] as RawExpenseTagLine[] })
+      : DB.prepare(`SELECT jl.journal_entry_id, jl.account_id, a.type AS account_type,
+          jl.debit, jl.credit, jl.currency
+          FROM json_each(?) requested
+          JOIN journal_lines jl ON jl.journal_entry_id=requested.value
+          JOIN accounts a ON a.id=jl.account_id`)
+        .bind(serializedIds).all<RawExpenseTagLine>();
     const [tagRows, amountRows, lineRows] = await Promise.all([
       DB.prepare(`SELECT jet.journal_entry_id, t.id, t.name
         FROM json_each(?) requested
@@ -184,16 +203,11 @@ export async function loadExpenseTagMetadata(
         JOIN journal_entry_tag_amounts amounts ON amounts.journal_entry_id=requested.value
         ORDER BY amounts.currency`)
         .bind(serializedIds).all<RawAmount>(),
-      DB.prepare(`SELECT jl.journal_entry_id, jl.account_id, a.type AS account_type,
-          jl.debit, jl.credit, jl.currency
-          FROM json_each(?) requested
-          JOIN journal_lines jl ON jl.journal_entry_id=requested.value
-          JOIN accounts a ON a.id=jl.account_id`)
-        .bind(serializedIds).all<RawLine>(),
+      lineRowsPromise,
     ]);
     tags.push(...(tagRows.results ?? []));
     amounts.push(...(amountRows.results ?? []));
-    lines.push(...(lineRows.results ?? []));
+    if (!preloadedLines) lines.push(...(lineRows.results ?? []));
   }
 
   for (const row of tags) metadata.get(row.journal_entry_id)?.expense_tags.push({ id: row.id, name: row.name });
@@ -207,7 +221,7 @@ export async function loadExpenseTagMetadata(
     });
     manualByEntry.set(row.journal_entry_id, entryAmounts);
   }
-  const linesByEntry = new Map<number, RawLine[]>();
+  const linesByEntry = new Map<number, RawExpenseTagLine[]>();
   for (const line of lines) {
     const grouped = linesByEntry.get(line.journal_entry_id) ?? [];
     grouped.push(line);
