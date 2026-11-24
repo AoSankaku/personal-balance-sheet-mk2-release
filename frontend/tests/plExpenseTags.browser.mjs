@@ -6,7 +6,7 @@ const { chromium } = require(runtime), { expect } = require(`${runtime}/test`);
 const base = process.argv[3] || "http://127.0.0.1:5173";
 const browser = await chromium.launch({ headless: true, channel: "chrome" });
 const page = await browser.newPage({ viewport: { width: 1280, height: 1000 }, serviceWorkers: "block" });
-const errors = [], writes = [];
+const errors = [], writes = [], reportRequests = [];
 page.on("pageerror", error => errors.push(error.message));
 const entry = (id, date, amount, tags) => ({ id, date, description: "Synthetic expense", expense_tags: tags.map(id => ({ id, name: id === 1 ? "旅行" : "その他" })), lines: [{ account_id: 1, debit: amount, credit: 0, currency: "JPY" }] });
 const journal = [entry(1, "2026-10-01", 2000, [1]), entry(2, "2026-11-01", 1000, [1, 2]), entry(3, "2026-11-02", 9000, [2])];
@@ -21,8 +21,15 @@ await page.route("**/*", async route => {
   if (url.pathname === "/api/currencies") json = [{ id: 1, code: "JPY", decimal_places: 0, sort_order: 0 }];
   if (url.pathname === "/api/budget/settings") json = {};
   if (url.pathname === "/api/task-settings") json = { configured: true, loan_overdue_days: 30 };
-  if (url.pathname === "/api/reports/pl") json = { income: [], expenses: [], total_income: 0, total_expenses: 12000, net_income: -12000 };
+  if (url.pathname === "/api/reports/pl") {
+    reportRequests.push(request.url());
+    json = { income: 0, expense: 12000, net_income: -12000 };
+  }
   if (url.pathname === "/api/budget/summary") json = { categories: [], currency: "JPY", monthly_income: 0, total_budget: 0, total_spent: 0, total_available: 0 };
+  if (url.pathname === "/api/budget/summary-pair") {
+    const summary = { categories: [], currency: "JPY", monthly_income: 0, total_budget: 0, total_spent: 0, total_available: 0 };
+    json = { today: summary, total: summary };
+  }
   if (url.pathname === "/api/trial-balance/latest-snapshot") json = { snapshot_date: null };
   if (url.pathname === "/api/income-transfer-requirements") json = { groups: [], requirements: [] };
   if (url.pathname.endsWith("/placement-preview")) return route.fulfill({ status: 503, json: { error: "synthetic_unavailable" } });
@@ -48,6 +55,7 @@ try {
   assert.equal(snapshot.buckets.month["2026-11"].total_by_currency.JPY, 10000);
   await filter.click(); await page.getByRole("option", { name: "旅行", exact: true }).click(); await page.keyboard.press("Escape");
   await bars.last().hover(); await expect(tooltip).toContainText("10,000");
+  assert.deepEqual(reportRequests, [], "P&L and app initialization must use the already-loaded journal");
   assert.deepEqual(errors, []); assert.deepEqual(writes, []);
-  console.log("PASS: P&L tag selection changes November chart 10000 → 1000 → 10000; October remains in chart; complete cached history is preserved; no writes/errors");
+  console.log("PASS: P&L totals and tag filtering are preserved; the all-period report endpoint receives zero requests");
 } finally { await browser.close(); }

@@ -1177,6 +1177,7 @@ router.get("/", async (c) => {
           journal_entry_id: journalLines.journal_entry_id,
           account_id: journalLines.account_id,
           account_name: accounts.name,
+          account_type: accounts.type,
           debit: journalLines.debit,
           credit: journalLines.credit,
           currency: journalLines.currency,
@@ -1194,7 +1195,12 @@ router.get("/", async (c) => {
     ),
   );
   const lines = lineChunks.flat();
-  const tagMetadata = await loadExpenseTagMetadata(c.env.DB, entryIds, decimalPlacesByCurrency);
+  const tagMetadata = await loadExpenseTagMetadata(
+    c.env.DB,
+    entryIds,
+    decimalPlacesByCurrency,
+    lines,
+  );
 
   const linesMap = new Map<number, typeof lines>();
   for (const line of lines) {
@@ -1531,12 +1537,15 @@ router.get("/", async (c) => {
   const result = entries.map((entry) => ({
     ...entry,
     ...tagMetadata.get(entry.id),
-    lines: (linesMap.get(entry.id) ?? []).map((l) => ({
-      ...decodeJournalLineAmount(l, scaleOptions),
-      account_name: l.account_name ?? "Unknown",
-      credit_card_billing_offset_months:
-        l.credit_card_billing_offset_months ?? null,
-    })),
+    lines: (linesMap.get(entry.id) ?? []).map((l) => {
+      const { account_type: _accountType, ...lineForResponse } = l;
+      return {
+        ...decodeJournalLineAmount(lineForResponse, scaleOptions),
+        account_name: l.account_name ?? "Unknown",
+        credit_card_billing_offset_months:
+          l.credit_card_billing_offset_months ?? null,
+      };
+    }),
     budget_allocations: (allocsMap.get(entry.id) ?? []).map((a) => ({
       budget_category_id: a.budget_category_id,
       amount: fromStorageMoneyAmount(a.amount, a.currency, scaleOptions),
@@ -2786,6 +2795,7 @@ async function fetchEntriesWithLines(
           journal_entry_id: journalLines.journal_entry_id,
           account_id: journalLines.account_id,
           account_name: accounts.name,
+          account_type: accounts.type,
           debit: journalLines.debit,
           credit: journalLines.credit,
           currency: journalLines.currency,
@@ -2803,7 +2813,12 @@ async function fetchEntriesWithLines(
     ),
   );
   const allLines = lineChunks.flat();
-  const tagMetadata = await loadExpenseTagMetadata(DB, entryIds, decimalPlacesByCurrency);
+  const tagMetadata = await loadExpenseTagMetadata(
+    DB,
+    entryIds,
+    decimalPlacesByCurrency,
+    allLines,
+  );
 
   const linesMap = new Map<number, typeof allLines>();
   for (const line of allLines) {
@@ -2815,12 +2830,15 @@ async function fetchEntriesWithLines(
   return allEntries.map((e) => ({
     ...e,
     ...tagMetadata.get(e.id),
-    lines: (linesMap.get(e.id) ?? []).map((line) => ({
-      ...decodeJournalLineAmount(line, scaleOptions),
-      account_name: line.account_name ?? "Unknown",
-      credit_card_billing_offset_months:
-        line.credit_card_billing_offset_months ?? null,
-    })),
+    lines: (linesMap.get(e.id) ?? []).map((line) => {
+      const { account_type: _accountType, ...lineForResponse } = line;
+      return {
+        ...decodeJournalLineAmount(lineForResponse, scaleOptions),
+        account_name: line.account_name ?? "Unknown",
+        credit_card_billing_offset_months:
+          line.credit_card_billing_offset_months ?? null,
+      };
+    }),
   }));
 }
 

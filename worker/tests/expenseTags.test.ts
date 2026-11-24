@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import app from "../src/index";
-import { loadExpenseTagMetadata } from "../src/lib/expenseTags";
+import { loadExpenseTagMetadata, type RawExpenseTagLine } from "../src/lib/expenseTags";
 import { createTestD1 } from "./helpers/d1";
 import { createIncomeBudgetScopeFixture } from "./helpers/incomeBudgetScopeFixture";
 
@@ -208,7 +208,7 @@ test("metadata-only tag edits preserve manual amounts until tags are explicitly 
   });
 });
 
-test("loads metadata for 200 entries in three bounded-parameter queries", async () => {
+test("loads metadata for 200 entries in bounded queries and reuses preloaded lines", async () => {
   const largeFixture = createTestD1({ maxParameters: 100 });
   try {
     const { sqlite, DB } = largeFixture;
@@ -247,6 +247,20 @@ test("loads metadata for 200 entries in three bounded-parameter queries", async 
       expect(record.tag_expense_mode).toBe("auto");
       expect(record.tag_expense_amounts).toEqual([{ currency: "JPY", amount: 75 }]);
     }
+
+    const preloadedLines = sqlite.query(`SELECT jl.journal_entry_id, jl.account_id, a.type AS account_type,
+        jl.debit, jl.credit, jl.currency
+      FROM journal_lines jl JOIN accounts a ON a.id=jl.account_id`).all() as RawExpenseTagLine[];
+    preparedReads = 0;
+    const reusedMetadata = await loadExpenseTagMetadata(
+      countingDb,
+      entryIds,
+      { JPY: 0 },
+      preloadedLines,
+    );
+
+    expect(preparedReads).toBe(2);
+    expect(reusedMetadata).toEqual(metadata);
   } finally {
     largeFixture.close();
   }

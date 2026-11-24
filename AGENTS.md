@@ -207,7 +207,7 @@ These helpers translate system account names and show the account-category icon.
 Central context wrapping `BrowserRouter` in `main.tsx`. Provides:
 
 ```ts
-accounts, journal, pl,
+accounts, journal,
 cryptoWallets, exchangeCredentials, cryptoBalances, prices,
 budgetCategories, budgetFilters, budgetSummary,
 currentYearMonth, setCurrentYearMonth,

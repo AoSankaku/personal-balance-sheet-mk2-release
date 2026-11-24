@@ -22,7 +22,6 @@ import type {
   ExchangeCredential,
   ExchangeRates,
   JournalEntry,
-  PLReport,
   TaskSettings,
   UpdateTaskSettingsInput,
 } from "@balance-sheet/shared";
@@ -71,7 +70,6 @@ interface AppDataContextValue {
   accounts: Account[];
   accountsToday: Account[];
   journal: JournalEntry[];
-  pl: PLReport;
   cryptoWallets: CryptoWallet[];
   exchangeCredentials: ExchangeCredential[];
   prices: CryptoPrices | null;
@@ -185,11 +183,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     initialOfflineCache?.accounts ?? [],
   );
   const [journal, setJournal] = useState<JournalEntry[]>([]);
-  const [pl, setPl] = useState<PLReport>({
-    income: 0,
-    expense: 0,
-    net_income: 0,
-  });
   const [cryptoWallets, setCryptoWallets] = useState<CryptoWallet[]>([]);
   const [exchangeCredentials, setExchangeCredentials] = useState<
     ExchangeCredential[]
@@ -607,7 +600,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       const [
         accts,
         entries,
-        plData,
         wallets,
         creds,
         cats,
@@ -621,7 +613,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       ] = await Promise.all([
         api.accounts.list(toDateStr(new Date())),
         api.journal.list(),
-        api.reports.pl(),
         api.crypto.list(),
         api.exchangeCredentials.list(),
         api.budget.listCategories(),
@@ -637,7 +628,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       ]);
       setAccounts(accts);
       setJournal(entries);
-      setPl(plData);
       setCryptoWallets(wallets);
       setExchangeCredentials(creds);
       setBudgetCategories(cats);
@@ -819,7 +809,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         accounts: displayedAccounts,
         accountsToday: displayedAccountsToday,
         journal: displayedJournal,
-        pl,
         cryptoWallets: displayedCryptoWallets,
         exchangeCredentials,
         prices,
